@@ -35,6 +35,10 @@ export type NavItemConfig = {
   subItems?: NavSubItem[];
   /** Chỉ hiển thị khi user có một trong các quyền này */
   roles?: NavRole[];
+  /** Chỉ manager có employee_limit > 0 */
+  managerOnly?: boolean;
+  /** Ẩn với nhân viên (NV) */
+  hideForEmployee?: boolean;
 };
 
 /**
@@ -60,18 +64,28 @@ export const mainNavItems: NavItemConfig[] = [
     path: "/shop",
     icon: "box",
     iconTone: "warning",
+    hideForEmployee: true,
   },
   {
     name: "Tài nguyên",
     path: "/resource",
     icon: "box",
     iconTone: "info",
+    hideForEmployee: true,
   },
   {
     name: "Hướng dẫn",
     path: "/guides",
     icon: "page",
     iconTone: "neutral",
+    hideForEmployee: true,
+  },
+  {
+    name: "Quản lý nhân viên",
+    path: "/team/employees",
+    icon: "group",
+    iconTone: "info",
+    managerOnly: true,
   },
   {
     name: "Chiến dịch",

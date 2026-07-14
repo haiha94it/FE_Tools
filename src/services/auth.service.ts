@@ -50,6 +50,19 @@ export const authService = {
     }
   },
 
+  /** Xác nhận email / kích hoạt tài khoản — GET /api/register/activate?token= */
+  async activateRegister(token: string): Promise<LoginResponse> {
+    const response = await api.get<LoginResponse>(API_AUTH.ACTIVATE, {
+      params: { token },
+    });
+    const tokens = response.data;
+    if (!tokens?.access || !tokens?.refresh) {
+      throw new Error("Phản hồi kích hoạt không hợp lệ");
+    }
+    updateTokens(tokens.access, tokens.refresh);
+    return tokens;
+  },
+
   /** Đăng ký tài khoản — ZaloCN */
   async register(payload: RegisterPayload): Promise<RegisterResponse> {
     const response = await api.post<RegisterResponse | null>(

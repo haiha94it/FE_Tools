@@ -7,6 +7,23 @@ export const API_BASE_URL = env.NEXT_PUBLIC_API_URL;
 export const CARE_API_BASE_URL = env.NEXT_PUBLIC_CARE_API_URL;
 
 /** Auth — đồng bộ ZaloCN (login/logout/refresh). /accounts dùng token login, không login-care */
+/** Team collaboration — manager gán nick + quyền chiến dịch cho nhân viên */
+export const API_TEAM = {
+  EMPLOYEE_ACCOUNT_ASSIGNMENTS: "/api/users/employee-account-assignments",
+  EMPLOYEE_ACCOUNT_ASSIGNMENTS_SET: "/api/users/employee-account-assignments/set",
+  MY_ACCOUNT_ASSIGNMENTS: "/api/users/my-account-assignments",
+  EMPLOYEE_CAMPAIGN_PERMISSIONS: "/api/users/employee-campaign-permissions",
+  EMPLOYEE_CAMPAIGN_PERMISSIONS_SET: "/api/users/employee-campaign-permissions/set",
+  MY_CAMPAIGN_PERMISSIONS: "/api/users/my-campaign-permissions",
+  /** Danh sách NV của manager đăng nhập */
+  GET_EMPLOYEES: "/api/users/get-employees",
+  CREATE_EMPLOYEE: "/api/users/create-employee",
+  EDIT_EMPLOYEE: "/api/users/edit-employee",
+  DELETE_EMPLOYEE: "/api/users/delete-employee",
+} as const;
+
+export const TEAM_EMPLOYEES_BASE = "/team/employees";
+
 export const API_AUTH = {
   LOGIN: "/api/users/login",
   /** Dự phòng — ZaloCN /accounts không dùng; chỉ khi module cần token Care riêng */
@@ -15,6 +32,8 @@ export const API_AUTH = {
   LOGOUT: "/api/users/logout",
   ME: "/api/users/me",
   REGISTER: "/api/register/create",
+  /** Kích hoạt tài khoản qua link email — GET ?token= */
+  ACTIVATE: "/api/register/activate",
   REGISTER_RESULT: "/api/register/result",
   RESET_PASSWORD: "/api/users/reset-password/create",
 } as const;

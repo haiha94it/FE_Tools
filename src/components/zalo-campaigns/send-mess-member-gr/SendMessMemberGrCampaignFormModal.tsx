@@ -46,6 +46,7 @@ interface SendMessMemberGrCampaignFormModalProps {
   accounts: ZaloAccount[];
   accountsLoading: boolean;
   onClose: () => void;
+  readOnly?: boolean;
 }
 
 const defaultStart = () => {
@@ -126,6 +127,7 @@ export default function SendMessMemberGrCampaignFormModal({
   accounts,
   accountsLoading,
   onClose,
+  readOnly = false,
 }: SendMessMemberGrCampaignFormModalProps) {
   const createOrEditCampaign = useZaloSendMessMemberGrCampaignStore(
     (s) => s.createOrEditCampaign,
@@ -424,7 +426,9 @@ export default function SendMessMemberGrCampaignFormModal({
         <div className="mb-4 shrink-0 pr-8">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
             {editingCampaign
-              ? "Sửa kịch bản tương tác nhóm"
+              ? readOnly
+                ? "Xem kịch bản tương tác nhóm"
+                : "Sửa kịch bản tương tác nhóm"
               : "Thêm kịch bản tương tác nhóm"}
           </h3>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
@@ -432,7 +436,10 @@ export default function SendMessMemberGrCampaignFormModal({
           </p>
         </div>
 
-        <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+        <fieldset
+          disabled={readOnly}
+          className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]"
+        >
           <div className="custom-scrollbar min-h-0 space-y-4 overflow-y-auto pr-1">
             <div>
               <label className="mb-1.5 block text-xs font-medium text-gray-600 dark:text-gray-400">
@@ -758,15 +765,23 @@ export default function SendMessMemberGrCampaignFormModal({
               </div>
             </div>
           </div>
-        </div>
+        </fieldset>
 
         <div className="mt-4 flex shrink-0 justify-end gap-2 border-t border-gray-100 pt-4 dark:border-gray-800">
-          <Button variant="outline" onClick={onClose} disabled={saving}>
-            Hủy
-          </Button>
-          <Button onClick={() => void handleSave()} disabled={saving}>
-            {saving ? "Đang lưu..." : "Lưu kịch bản"}
-          </Button>
+          {readOnly ? (
+            <Button variant="outline" onClick={onClose}>
+              Đóng
+            </Button>
+          ) : (
+            <>
+              <Button variant="outline" onClick={onClose} disabled={saving}>
+                Hủy
+              </Button>
+              <Button onClick={() => void handleSave()} disabled={saving}>
+                {saving ? "Đang lưu..." : "Lưu kịch bản"}
+              </Button>
+            </>
+          )}
         </div>
       </div>
     </Modal>

@@ -6,6 +6,7 @@ import {
   isZaloCheckTaskPending,
 } from "@/lib/zalo-account-utils";
 import { toast } from "@/lib/toast";
+import { fetchAccessibleAccounts } from "@/lib/fetch-accessible-accounts";
 import { zaloAccountService } from "@/services/zalo-account.service";
 import { zaloProxyService } from "@/services/zalo-proxy.service";
 import type { ZaloProxyItem } from "@/types/zalo-proxy";
@@ -130,7 +131,7 @@ export const useZaloAccountStore = create<ZaloAccountState>((set, get) => ({
   fetchAccounts: async () => {
     await runAsyncAction(
       async () => {
-        const accounts = await zaloAccountService.list();
+        const accounts = await fetchAccessibleAccounts();
         set({ accounts });
       },
       set,

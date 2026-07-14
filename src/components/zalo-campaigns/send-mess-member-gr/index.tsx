@@ -15,6 +15,7 @@ import type {
   SendMessMemberGrCampaignDetail,
 } from "@/types/zalo-send-mess-member-gr-campaign";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCampaignTeamHandlers } from "@/components/zalo-campaigns/shared/useCampaignTeamHandlers";
 import SendMessMemberGrCampaignFormModal from "./SendMessMemberGrCampaignFormModal";
 import SendMessMemberGrResultsModal from "./SendMessMemberGrResultsModal";
 import SendMessMemberGrCampaignTable from "./SendMessMemberGrCampaignTable";
@@ -46,6 +47,9 @@ export default function SendMessMemberGrCampaignView() {
     useState<SendMessMemberGrCampaignDetail | null>(null);
   const [noteOpen, setNoteOpen] = useState(false);
 
+  const { guardAccess, getFormReadOnly } =
+    useCampaignTeamHandlers<SendMessMemberGrCampaign>();
+
   useEffect(() => {
     void fetchCampaigns();
     void fetchAccounts();
@@ -75,6 +79,7 @@ export default function SendMessMemberGrCampaignView() {
   };
 
   const openEdit = useCallback(async (campaign: SendMessMemberGrCampaign) => {
+    if (!guardAccess(campaign, "edit")) return;
     try {
       const loaded = await zaloSendMessMemberGrCampaignService.getCampaignById(campaign.id);
       setEditingCampaign(loaded);
@@ -83,7 +88,7 @@ export default function SendMessMemberGrCampaignView() {
       setEditingCampaign(null);
       setFormOpen(true);
     }
-  }, []);
+  }, [guardAccess]);
 
   const handleCopy = async (campaign: SendMessMemberGrCampaign) => {
     const name = await prompt({
@@ -177,7 +182,10 @@ export default function SendMessMemberGrCampaignView() {
               onToggleOne={toggleSelected}
               onEdit={(campaign) => void openEdit(campaign)}
               onCopy={(campaign) => void handleCopy(campaign)}
-              onResults={(campaign) => void openResults(campaign.id)}
+              onResults={(campaign) => {
+                if (!guardAccess(campaign, "results")) return;
+                void openResults(campaign.id);
+              }}
               onDelete={(campaign) => void handleDelete(campaign)}
             />
           </div>
@@ -187,6 +195,7 @@ export default function SendMessMemberGrCampaignView() {
       <SendMessMemberGrCampaignFormModal
         open={formOpen}
         editingCampaign={editingCampaign}
+        readOnly={getFormReadOnly(editingCampaign)}
         accounts={accounts}
         accountsLoading={accountsLoading}
         onClose={() => {

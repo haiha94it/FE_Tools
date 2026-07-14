@@ -12,6 +12,7 @@ import { useWebSocketStore } from "@/stores/use-websocket-store";
 import { useZaloJoinGroupCampaignStore } from "@/stores/use-zalo-join-group-campaign-store";
 import type { JoinGroupCampaign } from "@/types/zalo-join-group-campaign";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCampaignTeamHandlers } from "@/components/zalo-campaigns/shared/useCampaignTeamHandlers";
 import JoinGroupCampaignFormModal from "./JoinGroupCampaignFormModal";
 import JoinGroupCampaignResultsModal from "./JoinGroupCampaignResultsModal";
 import JoinGroupCampaignTable from "./JoinGroupCampaignTable";
@@ -44,6 +45,8 @@ export default function JoinGroupCampaignView() {
   );
   const [noteOpen, setNoteOpen] = useState(false);
 
+  const { guardAccess, getFormReadOnly } = useCampaignTeamHandlers<JoinGroupCampaign>();
+
   useEffect(() => {
     void fetchCampaigns();
     void fetchAccounts();
@@ -73,6 +76,7 @@ export default function JoinGroupCampaignView() {
   };
 
   const openEdit = useCallback(async (campaign: JoinGroupCampaign) => {
+    if (!guardAccess(campaign, "edit")) return;
     try {
       const loaded = await zaloJoinGroupCampaignService.getCampaignById(campaign.id);
       setEditingCampaign(loaded ?? campaign);
@@ -81,7 +85,7 @@ export default function JoinGroupCampaignView() {
       setEditingCampaign(campaign);
       setFormOpen(true);
     }
-  }, []);
+  }, [guardAccess]);
 
   const handleCopy = async (campaign: JoinGroupCampaign) => {
     const name = await prompt({
@@ -173,7 +177,10 @@ export default function JoinGroupCampaignView() {
               onToggleOne={toggleSelected}
               onEdit={(campaign) => void openEdit(campaign)}
               onCopy={(campaign) => void handleCopy(campaign)}
-              onResults={(campaign) => void openResults(campaign.id)}
+              onResults={(campaign) => {
+                if (!guardAccess(campaign, "results")) return;
+                void openResults(campaign.id);
+              }}
               onDelete={(campaign) => void handleDelete(campaign)}
             />
           </div>
@@ -183,6 +190,7 @@ export default function JoinGroupCampaignView() {
       <JoinGroupCampaignFormModal
         open={formOpen}
         editingCampaign={editingCampaign}
+        readOnly={getFormReadOnly(editingCampaign)}
         accounts={accounts}
         accountsLoading={accountsLoading}
         onClose={() => {

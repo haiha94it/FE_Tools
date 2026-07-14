@@ -1,10 +1,12 @@
+import type { TeamCategoryFields } from "@/types/team-collaboration";
+
 export type SendMesGroupCampaignRunStatus = 0 | 1 | 2 | 3 | 4 | null;
 
 export type SendMesGroupResultStatus = 0 | 1 | 2 | 3 | 4 | 5;
 
 export type SendMesGroupContentType = "" | "image" | "video" | "album";
 
-export interface SendMesGroupCampaign {
+export interface SendMesGroupCampaign extends TeamCategoryFields {
   id: number;
   name: string;
   group_count?: number;

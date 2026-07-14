@@ -1,5 +1,5 @@
 import { zaloSendMesGroupCampaignService } from "@/services/zalo-send-mes-group-campaign.service";
-import { zaloAccountService } from "@/services/zalo-account.service";
+import { fetchAccessibleAccounts } from "@/lib/fetch-accessible-accounts";
 import type {
   SendMesGroupCampaign,
   SendMesGroupCampaignFormPayload,
@@ -92,7 +92,7 @@ export const useZaloSendMesGroupCampaignStore = create<SendMesGroupCampaignState
     fetchAccounts: async () => {
       set({ accountsLoading: true });
       try {
-        const accounts = await zaloAccountService.list();
+        const accounts = await fetchAccessibleAccounts();
         set({ accounts, accountsLoading: false });
       } catch {
         set({ accounts: [], accountsLoading: false });

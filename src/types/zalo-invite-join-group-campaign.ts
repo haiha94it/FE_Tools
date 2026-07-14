@@ -1,3 +1,5 @@
+import type { TeamCategoryFields } from "@/types/team-collaboration";
+
 /** Trạng thái chạy kịch bản */
 export type InviteJoinGroupCampaignRunStatus = 0 | 1 | 2 | 3 | null;
 
@@ -6,7 +8,7 @@ export type InviteJoinGroupType = "friend" | "phone_number" | "uids";
 /** Trạng thái từng dòng kết quả */
 export type InviteJoinGroupResultStatus = 0 | 1 | 2 | 3 | 4 | 5;
 
-export interface InviteJoinGroupCampaign {
+export interface InviteJoinGroupCampaign extends TeamCategoryFields {
   id: number;
   name: string;
   status: InviteJoinGroupCampaignRunStatus;

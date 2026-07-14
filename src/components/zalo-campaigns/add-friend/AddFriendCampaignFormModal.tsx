@@ -25,6 +25,7 @@ interface AddFriendCampaignFormModalProps {
   accounts: ZaloAccount[];
   accountsLoading: boolean;
   onClose: () => void;
+  readOnly?: boolean;
 }
 
 const textareaClassName =
@@ -53,6 +54,7 @@ export default function AddFriendCampaignFormModal({
   accounts,
   accountsLoading,
   onClose,
+  readOnly = false,
 }: AddFriendCampaignFormModalProps) {
   const createOrEditCampaign = useZaloAddFriendCampaignStore(
     (s) => s.createOrEditCampaign,
@@ -235,7 +237,11 @@ export default function AddFriendCampaignFormModal({
       <div className="flex max-h-[min(90vh,760px)] flex-col overflow-hidden p-5 sm:p-6">
         <div className="mb-4 shrink-0 pr-8">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-            {editingCampaign ? "Sửa kịch bản kết bạn" : "Thêm kịch bản kết bạn"}
+            {editingCampaign
+              ? readOnly
+                ? "Xem kịch bản kết bạn"
+                : "Sửa kịch bản kết bạn"
+              : "Thêm kịch bản kết bạn"}
           </h3>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
             Đặt tên → thời gian chờ → số lượt → danh sách SĐT → tin nhắn → chọn
@@ -243,7 +249,10 @@ export default function AddFriendCampaignFormModal({
           </p>
         </div>
 
-        <div className="grid min-h-0 flex-1 gap-4 max-lg:grid-rows-[1fr_1fr] lg:grid-cols-[1.4fr_1fr]">
+        <fieldset
+          disabled={readOnly}
+          className="grid min-h-0 flex-1 gap-4 max-lg:grid-rows-[1fr_1fr] lg:grid-cols-[1.4fr_1fr]"
+        >
             <div className="custom-scrollbar min-h-0 space-y-4 overflow-y-auto pr-1">
               <div>
                 <label className="mb-1.5 block text-xs font-medium text-gray-600 dark:text-gray-400">
@@ -487,15 +496,23 @@ export default function AddFriendCampaignFormModal({
                 )}
               </div>
             </div>
-        </div>
+        </fieldset>
 
         <div className="mt-4 flex shrink-0 justify-end gap-2 border-t border-gray-100 pt-4 dark:border-gray-800">
-          <Button size="sm" variant="outline" onClick={onClose} disabled={saving}>
-            Hủy
-          </Button>
-          <Button size="sm" onClick={() => void handleSave()} disabled={saving}>
-            {saving ? "Đang lưu..." : "Lưu kịch bản"}
-          </Button>
+          {readOnly ? (
+            <Button size="sm" variant="outline" onClick={onClose}>
+              Đóng
+            </Button>
+          ) : (
+            <>
+              <Button size="sm" variant="outline" onClick={onClose} disabled={saving}>
+                Hủy
+              </Button>
+              <Button size="sm" onClick={() => void handleSave()} disabled={saving}>
+                {saving ? "Đang lưu..." : "Lưu kịch bản"}
+              </Button>
+            </>
+          )}
         </div>
       </div>
     </Modal>

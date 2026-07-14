@@ -13,6 +13,7 @@ import { useZaloSendMessPhoneCampaignStore } from "@/stores/use-zalo-send-mess-p
 import type { SendMessPhoneCampaign } from "@/types/zalo-send-mess-phone-campaign";
 import type { SendMessPhoneCampaignDetail } from "@/types/zalo-send-mess-phone-campaign";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCampaignTeamHandlers } from "@/components/zalo-campaigns/shared/useCampaignTeamHandlers";
 import SendMessPhoneCampaignFormModal from "./SendMessPhoneCampaignFormModal";
 import SendMessPhoneResultsModal from "./SendMessPhoneResultsModal";
 import SendMessPhoneCampaignTable from "./SendMessPhoneCampaignTable";
@@ -45,6 +46,9 @@ export default function SendMessPhoneCampaignView() {
   );
   const [noteOpen, setNoteOpen] = useState(false);
 
+  const { guardAccess, getFormReadOnly } =
+    useCampaignTeamHandlers<SendMessPhoneCampaign>();
+
   useEffect(() => {
     void fetchCampaigns();
     void fetchAccounts();
@@ -74,6 +78,7 @@ export default function SendMessPhoneCampaignView() {
   };
 
   const openEdit = useCallback(async (campaign: SendMessPhoneCampaign) => {
+    if (!guardAccess(campaign, "edit")) return;
     try {
       const loaded = await zaloSendMessPhoneCampaignService.getCampaignById(campaign.id);
       setEditingCampaign(loaded);
@@ -82,7 +87,7 @@ export default function SendMessPhoneCampaignView() {
       setEditingCampaign(null);
       setFormOpen(true);
     }
-  }, []);
+  }, [guardAccess]);
 
   const handleCopy = async (campaign: SendMessPhoneCampaign) => {
     const name = await prompt({
@@ -176,7 +181,10 @@ export default function SendMessPhoneCampaignView() {
               onToggleOne={toggleSelected}
               onEdit={(campaign) => void openEdit(campaign)}
               onCopy={(campaign) => void handleCopy(campaign)}
-              onResults={(campaign) => void openResults(campaign.id)}
+              onResults={(campaign) => {
+                if (!guardAccess(campaign, "results")) return;
+                void openResults(campaign.id);
+              }}
               onDelete={(campaign) => void handleDelete(campaign)}
             />
           </div>
@@ -186,6 +194,7 @@ export default function SendMessPhoneCampaignView() {
       <SendMessPhoneCampaignFormModal
         open={formOpen}
         editingCampaign={editingCampaign}
+        readOnly={getFormReadOnly(editingCampaign)}
         accounts={accounts}
         accountsLoading={accountsLoading}
         onClose={() => {

@@ -38,6 +38,7 @@ interface SendMesFrCampaignFormModalProps {
   accounts: ZaloAccount[];
   accountsLoading: boolean;
   onClose: () => void;
+  readOnly?: boolean;
 }
 
 const defaultStart = () => {
@@ -120,6 +121,7 @@ export default function SendMesFrCampaignFormModal({
   accounts,
   accountsLoading,
   onClose,
+  readOnly = false,
 }: SendMesFrCampaignFormModalProps) {
   const createOrEditCampaign = useZaloSendMesFrCampaignStore((s) => s.createOrEditCampaign);
   const saving = useZaloSendMesFrCampaignStore((s) => s.saving);
@@ -359,14 +361,21 @@ export default function SendMesFrCampaignFormModal({
       <div className="flex max-h-[min(92vh,820px)] flex-col overflow-hidden p-5 sm:p-6">
         <div className="mb-4 shrink-0 pr-8">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-            {editingCampaign ? "Sửa kịch bản nhắn tin bạn bè" : "Thêm kịch bản nhắn tin bạn bè"}
+            {editingCampaign
+              ? readOnly
+                ? "Xem kịch bản nhắn tin bạn bè"
+                : "Sửa kịch bản nhắn tin bạn bè"
+              : "Thêm kịch bản nhắn tin bạn bè"}
           </h3>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
             Soạn nội dung, chọn tài khoản và bạn bè nhận tin
           </p>
         </div>
 
-        <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+        <fieldset
+          disabled={readOnly}
+          className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]"
+        >
           <div className="custom-scrollbar min-h-0 space-y-4 overflow-y-auto pr-1">
             <div>
               <label className="mb-1.5 block text-xs font-medium text-gray-600 dark:text-gray-400">
@@ -580,15 +589,23 @@ export default function SendMesFrCampaignFormModal({
               </div>
             </div>
           </div>
-        </div>
+        </fieldset>
 
         <div className="mt-4 flex shrink-0 justify-end gap-2 border-t border-gray-100 pt-4 dark:border-gray-800">
-          <Button size="sm" variant="outline" onClick={onClose} disabled={saving}>
-            Hủy
-          </Button>
-          <Button size="sm" disabled={saving} onClick={() => void handleSave()}>
-            {saving ? "Đang lưu..." : editingCampaign ? "Lưu thay đổi" : "Lưu kịch bản"}
-          </Button>
+          {readOnly ? (
+            <Button size="sm" variant="outline" onClick={onClose}>
+              Đóng
+            </Button>
+          ) : (
+            <>
+              <Button size="sm" variant="outline" onClick={onClose} disabled={saving}>
+                Hủy
+              </Button>
+              <Button size="sm" disabled={saving} onClick={() => void handleSave()}>
+                {saving ? "Đang lưu..." : editingCampaign ? "Lưu thay đổi" : "Lưu kịch bản"}
+              </Button>
+            </>
+          )}
         </div>
       </div>
     </Modal>

@@ -13,6 +13,9 @@ import {
   formatCampaignRunStatus,
   formatCampaignStartTime,
 } from "@/lib/zalo-add-friend-campaign-utils";
+import CampaignTeamActionBar from "@/components/zalo-campaigns/shared/CampaignTeamActionBar";
+import CampaignTeamCreatedByCell from "@/components/zalo-campaigns/shared/CampaignTeamCreatedByCell";
+import CampaignTeamSelectableCheckbox from "@/components/zalo-campaigns/shared/CampaignTeamSelectableCheckbox";
 import type { AddFriendCampaign } from "@/types/zalo-add-friend-campaign";
 
 interface AddFriendCampaignTableProps {
@@ -81,7 +84,7 @@ export default function AddFriendCampaignTable({
                 STT
               </TableCell>
               <TableCell isHeader className={headerClass}>
-                Tên kịch bản
+                Tên kịch bản / Người tạo
               </TableCell>
               <TableCell isHeader className={headerClass}>
                 Số điện thoại
@@ -106,7 +109,8 @@ export default function AddFriendCampaignTable({
                   className="hover:bg-gray-50 dark:hover:bg-white/[0.02]"
                 >
                   <TableCell className="px-4 py-3">
-                    <Checkbox
+                    <CampaignTeamSelectableCheckbox
+                      campaign={campaign}
                       checked={selectedSet.has(campaign.id)}
                       onChange={() => onToggleOne(campaign.id)}
                     />
@@ -116,6 +120,7 @@ export default function AddFriendCampaignTable({
                   </TableCell>
                   <TableCell className="px-4 py-3 text-sm font-medium text-gray-800 dark:text-white/90">
                     {campaign.name}
+                    <CampaignTeamCreatedByCell campaign={campaign} />
                   </TableCell>
                   <TableCell className="px-4 py-3 text-theme-sm text-gray-600 dark:text-gray-300">
                     {campaign.phone_number_count
@@ -125,44 +130,21 @@ export default function AddFriendCampaignTable({
                   <TableCell className="px-4 py-3 text-theme-sm text-gray-600 dark:text-gray-300">
                     {formatCampaignStartTime(campaign.start_time)}
                   </TableCell>
-                  <TableCell className={`px-4 py-3 text-theme-sm font-medium ${status.className}`}>
+                  <TableCell
+                    className={`px-4 py-3 text-theme-sm font-medium ${status.className}`}
+                  >
                     {status.label}
                   </TableCell>
                   <TableCell className="px-4 py-3">
-                    <div
-                      className="flex flex-wrap gap-1.5"
-                      onClick={(event) => event.stopPropagation()}
-                    >
-                      <button
-                        type="button"
-                        disabled={actionLoading}
-                        onClick={() => onCopy(campaign)}
-                        className="rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300"
-                      >
-                        Sao chép
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => onEdit(campaign)}
-                        className="rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300"
-                      >
-                        Chi tiết
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => onResults(campaign)}
-                        className="rounded-lg border border-brand-200 px-2.5 py-1.5 text-xs font-medium text-brand-600 hover:bg-brand-50 dark:border-brand-500/30 dark:text-brand-400"
-                      >
-                        Kết quả
-                      </button>
-                      <button
-                        type="button"
-                        disabled={actionLoading}
-                        onClick={() => onDelete(campaign)}
-                        className="rounded-lg border border-error-200 px-2.5 py-1.5 text-xs font-medium text-error-600 hover:bg-error-50 dark:border-error-500/30"
-                      >
-                        Xóa
-                      </button>
+                    <div onClick={(event) => event.stopPropagation()}>
+                      <CampaignTeamActionBar
+                        campaign={campaign}
+                        actionLoading={actionLoading}
+                        onEdit={() => onEdit(campaign)}
+                        onCopy={() => onCopy(campaign)}
+                        onResults={() => onResults(campaign)}
+                        onDelete={() => onDelete(campaign)}
+                      />
                     </div>
                   </TableCell>
                 </TableRow>

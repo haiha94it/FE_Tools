@@ -12,6 +12,7 @@ import { useWebSocketStore } from "@/stores/use-websocket-store";
 import { useZaloPhoneInviteGroupCampaignStore } from "@/stores/use-zalo-phone-invite-group-campaign-store";
 import type { PhoneInviteGroupCampaign } from "@/types/zalo-phone-invite-group-campaign";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCampaignTeamHandlers } from "@/components/zalo-campaigns/shared/useCampaignTeamHandlers";
 import PhoneInviteGroupCampaignFormModal from "./PhoneInviteGroupCampaignFormModal";
 import PhoneInviteGroupCampaignResultsModal from "./PhoneInviteGroupCampaignResultsModal";
 import PhoneInviteGroupCampaignTable from "./PhoneInviteGroupCampaignTable";
@@ -44,6 +45,9 @@ export default function PhoneInviteGroupCampaignView() {
   );
   const [noteOpen, setNoteOpen] = useState(false);
 
+  const { guardAccess, getFormReadOnly } =
+    useCampaignTeamHandlers<PhoneInviteGroupCampaign>();
+
   useEffect(() => {
     void fetchCampaigns();
     void fetchAccounts();
@@ -73,6 +77,7 @@ export default function PhoneInviteGroupCampaignView() {
   };
 
   const openEdit = useCallback(async (campaign: PhoneInviteGroupCampaign) => {
+    if (!guardAccess(campaign, "edit")) return;
     try {
       const loaded = await zaloPhoneInviteGroupCampaignService.getCampaignById(campaign.id);
       setEditingCampaign(loaded ?? campaign);
@@ -81,7 +86,7 @@ export default function PhoneInviteGroupCampaignView() {
       setEditingCampaign(campaign);
       setFormOpen(true);
     }
-  }, []);
+  }, [guardAccess]);
 
   const handleCopy = async (campaign: PhoneInviteGroupCampaign) => {
     const name = await prompt({
@@ -175,7 +180,10 @@ export default function PhoneInviteGroupCampaignView() {
               onToggleOne={toggleSelected}
               onEdit={(campaign) => void openEdit(campaign)}
               onCopy={(campaign) => void handleCopy(campaign)}
-              onResults={(campaign) => void openResults(campaign.id)}
+              onResults={(campaign) => {
+                if (!guardAccess(campaign, "results")) return;
+                void openResults(campaign.id);
+              }}
               onDelete={(campaign) => void handleDelete(campaign)}
             />
           </div>
@@ -185,6 +193,7 @@ export default function PhoneInviteGroupCampaignView() {
       <PhoneInviteGroupCampaignFormModal
         open={formOpen}
         editingCampaign={editingCampaign}
+        readOnly={getFormReadOnly(editingCampaign)}
         accounts={accounts}
         accountsLoading={accountsLoading}
         onClose={() => {

@@ -12,6 +12,7 @@ import { useWebSocketStore } from "@/stores/use-websocket-store";
 import { useZaloInviteJoinGroupCampaignStore } from "@/stores/use-zalo-invite-join-group-campaign-store";
 import type { InviteJoinGroupCampaign } from "@/types/zalo-invite-join-group-campaign";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCampaignTeamHandlers } from "@/components/zalo-campaigns/shared/useCampaignTeamHandlers";
 import InviteJoinGroupCampaignFormModal from "./InviteJoinGroupCampaignFormModal";
 import InviteJoinGroupCampaignResultsModal from "./InviteJoinGroupCampaignResultsModal";
 import InviteJoinGroupCampaignTable from "./InviteJoinGroupCampaignTable";
@@ -44,6 +45,9 @@ export default function InviteJoinGroupCampaignView() {
   );
   const [noteOpen, setNoteOpen] = useState(false);
 
+  const { guardAccess, getFormReadOnly } =
+    useCampaignTeamHandlers<InviteJoinGroupCampaign>();
+
   useEffect(() => {
     void fetchCampaigns();
     void fetchAccounts();
@@ -73,6 +77,7 @@ export default function InviteJoinGroupCampaignView() {
   };
 
   const openEdit = useCallback(async (campaign: InviteJoinGroupCampaign) => {
+    if (!guardAccess(campaign, "edit")) return;
     try {
       const loaded = await zaloInviteJoinGroupCampaignService.getCampaignById(campaign.id);
       setEditingCampaign(loaded ?? campaign);
@@ -81,7 +86,7 @@ export default function InviteJoinGroupCampaignView() {
       setEditingCampaign(campaign);
       setFormOpen(true);
     }
-  }, []);
+  }, [guardAccess]);
 
   const handleCopy = async (campaign: InviteJoinGroupCampaign) => {
     const name = await prompt({
@@ -175,7 +180,10 @@ export default function InviteJoinGroupCampaignView() {
               onToggleOne={toggleSelected}
               onEdit={(campaign) => void openEdit(campaign)}
               onCopy={(campaign) => void handleCopy(campaign)}
-              onResults={(campaign) => void openResults(campaign.id)}
+              onResults={(campaign) => {
+                if (!guardAccess(campaign, "results")) return;
+                void openResults(campaign.id);
+              }}
               onDelete={(campaign) => void handleDelete(campaign)}
             />
           </div>
@@ -185,6 +193,7 @@ export default function InviteJoinGroupCampaignView() {
       <InviteJoinGroupCampaignFormModal
         open={formOpen}
         editingCampaign={editingCampaign}
+        readOnly={getFormReadOnly(editingCampaign)}
         accounts={accounts}
         accountsLoading={accountsLoading}
         onClose={() => {

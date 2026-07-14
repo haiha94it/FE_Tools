@@ -13,6 +13,7 @@ import { useZaloSendMesFrCampaignStore } from "@/stores/use-zalo-send-mes-fr-cam
 import type { SendMesFrCampaign } from "@/types/zalo-send-mes-fr-campaign";
 import type { SendMesFrCampaignDetail } from "@/types/zalo-send-mes-fr-campaign";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCampaignTeamHandlers } from "@/components/zalo-campaigns/shared/useCampaignTeamHandlers";
 import SendMesFrCampaignFormModal from "./SendMesFrCampaignFormModal";
 import SendMesFrResultsModal from "./SendMesFrResultsModal";
 import SendMesFrCampaignTable from "./SendMesFrCampaignTable";
@@ -45,6 +46,8 @@ export default function SendMesFrCampaignView() {
   );
   const [noteOpen, setNoteOpen] = useState(false);
 
+  const { guardAccess, getFormReadOnly } = useCampaignTeamHandlers<SendMesFrCampaign>();
+
   useEffect(() => {
     void fetchCampaigns();
     void fetchAccounts();
@@ -74,6 +77,7 @@ export default function SendMesFrCampaignView() {
   };
 
   const openEdit = useCallback(async (campaign: SendMesFrCampaign) => {
+    if (!guardAccess(campaign, "edit")) return;
     try {
       const loaded = await zaloSendMesFrCampaignService.getCampaignById(campaign.id);
       setEditingCampaign(loaded);
@@ -82,7 +86,7 @@ export default function SendMesFrCampaignView() {
       setEditingCampaign(null);
       setFormOpen(true);
     }
-  }, []);
+  }, [guardAccess]);
 
   const handleCopy = async (campaign: SendMesFrCampaign) => {
     const name = await prompt({
@@ -174,7 +178,10 @@ export default function SendMesFrCampaignView() {
               onToggleOne={toggleSelected}
               onEdit={(campaign) => void openEdit(campaign)}
               onCopy={(campaign) => void handleCopy(campaign)}
-              onResults={(campaign) => void openResults(campaign.id)}
+              onResults={(campaign) => {
+                if (!guardAccess(campaign, "results")) return;
+                void openResults(campaign.id);
+              }}
               onDelete={(campaign) => void handleDelete(campaign)}
             />
           </div>
@@ -184,6 +191,7 @@ export default function SendMesFrCampaignView() {
       <SendMesFrCampaignFormModal
         open={formOpen}
         editingCampaign={editingCampaign}
+        readOnly={getFormReadOnly(editingCampaign)}
         accounts={accounts}
         accountsLoading={accountsLoading}
         onClose={() => {

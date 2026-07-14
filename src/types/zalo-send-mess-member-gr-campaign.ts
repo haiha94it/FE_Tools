@@ -1,10 +1,12 @@
+import type { TeamCategoryFields } from "@/types/team-collaboration";
+
 export type SendMessMemberGrCampaignRunStatus = 0 | 1 | 2 | 3 | 4 | null;
 
 export type SendMessMemberGrResultStatus = 0 | 1 | 2 | 3 | 4 | 5;
 
 export type SendMessMemberGrContentType = "" | "image" | "video" | "album";
 
-export interface SendMessMemberGrCampaign {
+export interface SendMessMemberGrCampaign extends TeamCategoryFields {
   id: number;
   name: string;
   list_uid_count?: number;

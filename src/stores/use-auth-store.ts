@@ -4,6 +4,7 @@ import { clearTokens, getAccessToken } from "@/lib/axios";
 import { getApiErrorMessage } from "@/lib/errors";
 import { authService } from "@/services/auth.service";
 import { runAsyncAction } from "@/stores/helpers/async-actions";
+import { useTeamCollaborationStore } from "@/stores/use-team-collaboration-store";
 import { useWebSocketStore } from "@/stores/use-websocket-store";
 import type {
   AuthUser,
@@ -25,6 +26,7 @@ interface AuthState {
   fetchProfile: () => Promise<void>;
   ensureCareSession: () => Promise<boolean>;
   bootstrap: () => Promise<void>;
+  activateEmail: (token: string) => Promise<void>;
   logout: () => Promise<void>;
   clearError: () => void;
 }
@@ -49,6 +51,7 @@ export const useAuthStore = create<AuthState>()(
               isAuthenticated: true,
               isCareReady: true,
             });
+            await useTeamCollaborationStore.getState().bootstrapTeamContext();
           },
           set,
           { silent: true },
@@ -87,6 +90,7 @@ export const useAuthStore = create<AuthState>()(
           async () => {
             const user = await authService.fetchMe();
             set({ user, isAuthenticated: true });
+            await useTeamCollaborationStore.getState().bootstrapTeamContext();
           },
           set,
           { silent: true },
@@ -106,6 +110,24 @@ export const useAuthStore = create<AuthState>()(
         return ready;
       },
 
+      activateEmail: async (token) => {
+        await runAsyncAction(
+          async () => {
+            await authService.activateRegister(token);
+            const user = await authService.fetchMe();
+            set({
+              user,
+              isAuthenticated: true,
+              isCareReady: true,
+              isBootstrapped: true,
+            });
+            await useTeamCollaborationStore.getState().bootstrapTeamContext();
+          },
+          set,
+          { silent: true },
+        );
+      },
+
       bootstrap: async () => {
         const token = getAccessToken();
         if (!token) {
@@ -120,6 +142,7 @@ export const useAuthStore = create<AuthState>()(
 
         try {
           await get().fetchProfile();
+          await useTeamCollaborationStore.getState().bootstrapTeamContext();
           set({ isCareReady: true });
         } catch (error) {
           set({ error: getApiErrorMessage(error) });
@@ -134,6 +157,12 @@ export const useAuthStore = create<AuthState>()(
           useWebSocketStore.getState().disconnect();
           await authService.logout();
         } finally {
+          useTeamCollaborationStore.setState({
+            campaignPermissions: null,
+            assignedAccounts: [],
+            permissionsLoaded: false,
+            accountsLoaded: false,
+          });
           set({
             user: null,
             isAuthenticated: false,

@@ -1,4 +1,4 @@
-import { zaloAccountService } from "@/services/zalo-account.service";
+import { fetchAccessibleAccounts } from "@/lib/fetch-accessible-accounts";
 import type { ZaloAccount } from "@/types/zalo-account";
 import type {
   ContactsTab,
@@ -36,7 +36,7 @@ export const useZaloContactsStore = create<ZaloContactsState>((set, get) => ({
   fetchAccounts: async () => {
     set({ isLoadingAccounts: true });
     try {
-      const accounts = await zaloAccountService.list();
+      const accounts = await fetchAccessibleAccounts();
       set({ accounts, isLoadingAccounts: false });
       const { selectedAccountId } = get();
       if (!selectedAccountId && accounts[0]) {

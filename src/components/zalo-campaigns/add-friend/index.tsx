@@ -12,6 +12,7 @@ import { useWebSocketStore } from "@/stores/use-websocket-store";
 import { useZaloAddFriendCampaignStore } from "@/stores/use-zalo-add-friend-campaign-store";
 import type { AddFriendCampaign } from "@/types/zalo-add-friend-campaign";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCampaignTeamHandlers } from "@/components/zalo-campaigns/shared/useCampaignTeamHandlers";
 import AddFriendCampaignFormModal from "./AddFriendCampaignFormModal";
 import AddFriendCampaignResultsModal from "./AddFriendCampaignResultsModal";
 import AddFriendCampaignTable from "./AddFriendCampaignTable";
@@ -44,6 +45,8 @@ export default function AddFriendCampaignView() {
   );
   const [noteOpen, setNoteOpen] = useState(false);
 
+  const { guardAccess, getFormReadOnly } = useCampaignTeamHandlers<AddFriendCampaign>();
+
   useEffect(() => {
     void fetchCampaigns();
     void fetchAccounts();
@@ -73,6 +76,7 @@ export default function AddFriendCampaignView() {
   };
 
   const openEdit = useCallback(async (campaign: AddFriendCampaign) => {
+    if (!guardAccess(campaign, "edit")) return;
     try {
       const loaded = await zaloAddFriendCampaignService.getCampaignById(campaign.id);
       setEditingCampaign(loaded ?? campaign);
@@ -81,7 +85,7 @@ export default function AddFriendCampaignView() {
       setEditingCampaign(campaign);
       setFormOpen(true);
     }
-  }, []);
+  }, [guardAccess]);
 
   const handleCopy = async (campaign: AddFriendCampaign) => {
     const name = await prompt({
@@ -173,7 +177,10 @@ export default function AddFriendCampaignView() {
             onToggleOne={toggleSelected}
             onEdit={(campaign) => void openEdit(campaign)}
             onCopy={(campaign) => void handleCopy(campaign)}
-            onResults={(campaign) => void openResults(campaign.id)}
+            onResults={(campaign) => {
+              if (!guardAccess(campaign, "results")) return;
+              void openResults(campaign.id);
+            }}
             onDelete={(campaign) => void handleDelete(campaign)}
           />
           </div>
@@ -183,6 +190,7 @@ export default function AddFriendCampaignView() {
       <AddFriendCampaignFormModal
         open={formOpen}
         editingCampaign={editingCampaign}
+        readOnly={getFormReadOnly(editingCampaign)}
         accounts={accounts}
         accountsLoading={accountsLoading}
         onClose={() => {

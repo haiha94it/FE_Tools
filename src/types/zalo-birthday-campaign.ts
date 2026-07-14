@@ -1,8 +1,10 @@
+import type { TeamCategoryFields } from "@/types/team-collaboration";
+
 export type BirthdayContentType = "" | "image" | "video" | "album";
 
 export type BirthdayResultStatus = 0 | 1 | 2 | 3 | 4 | 5;
 
-export interface BirthdayCampaign {
+export interface BirthdayCampaign extends TeamCategoryFields {
   id?: number;
   name?: string;
   type?: BirthdayContentType;

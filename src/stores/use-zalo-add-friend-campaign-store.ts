@@ -1,5 +1,5 @@
 import { zaloAddFriendCampaignService } from "@/services/zalo-add-friend-campaign.service";
-import { zaloAccountService } from "@/services/zalo-account.service";
+import { fetchAccessibleAccounts } from "@/lib/fetch-accessible-accounts";
 import type {
   AddFriendCampaign,
   AddFriendCampaignFormPayload,
@@ -98,7 +98,7 @@ export const useZaloAddFriendCampaignStore = create<AddFriendCampaignState>(
     fetchAccounts: async () => {
       set({ accountsLoading: true });
       try {
-        const accounts = await zaloAccountService.list();
+        const accounts = await fetchAccessibleAccounts();
         set({ accounts, accountsLoading: false });
       } catch {
         set({ accounts: [], accountsLoading: false });

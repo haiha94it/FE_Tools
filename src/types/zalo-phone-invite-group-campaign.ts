@@ -1,10 +1,12 @@
+import type { TeamCategoryFields } from "@/types/team-collaboration";
+
 /** Trạng thái chạy kịch bản */
 export type PhoneInviteGroupCampaignRunStatus = 0 | 1 | 2 | 3 | 4 | null;
 
 /** Trạng thái từng dòng kết quả */
 export type PhoneInviteGroupResultStatus = 0 | 1 | 2 | 3 | 4;
 
-export interface PhoneInviteGroupCampaign {
+export interface PhoneInviteGroupCampaign extends TeamCategoryFields {
   id: number;
   name: string;
   status: PhoneInviteGroupCampaignRunStatus;

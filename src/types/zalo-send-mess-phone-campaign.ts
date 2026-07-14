@@ -1,10 +1,12 @@
+import type { TeamCategoryFields } from "@/types/team-collaboration";
+
 export type SendMessPhoneCampaignRunStatus = 0 | 1 | 2 | 3 | 4 | null;
 
 export type SendMessPhoneResultStatus = 0 | 1 | 2 | 3 | 4 | 5;
 
 export type SendMessPhoneContentType = "" | "image" | "video" | "album";
 
-export interface SendMessPhoneCampaign {
+export interface SendMessPhoneCampaign extends TeamCategoryFields {
   id: number;
   name: string;
   phone_numbers_count?: number;

@@ -1,10 +1,12 @@
+import type { TeamCategoryFields } from "@/types/team-collaboration";
+
 /** Trạng thái chạy kịch bản — đồng bộ ZaloCN statusRunTools */
 export type AddFriendCampaignRunStatus = 0 | 1 | 2 | 3 | null;
 
 /** Trạng thái từng dòng kết quả */
 export type AddFriendResultStatus = 0 | 1 | 2 | 3 | 4;
 
-export interface AddFriendCampaign {
+export interface AddFriendCampaign extends TeamCategoryFields {
   id: number;
   name: string;
   status: AddFriendCampaignRunStatus;

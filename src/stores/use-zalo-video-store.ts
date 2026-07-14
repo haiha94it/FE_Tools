@@ -11,7 +11,7 @@ import { refreshCsrfToken } from "@/lib/zalo-video/session";
 import { syncDataFbAccounts } from "@/lib/zalo-video/sync-data-fb";
 import { toast } from "@/lib/toast";
 import { zaloVideoService } from "@/services/zalo-video.service";
-import { zaloAccountService } from "@/services/zalo-account.service";
+import { fetchAccessibleAccounts } from "@/lib/fetch-accessible-accounts";
 import type { RenewGeneralType, ZaloChannelInfo } from "@/types/zalo-video";
 import type { ZaloAccount } from "@/types/zalo-account";
 import { create } from "zustand";
@@ -70,7 +70,7 @@ export const useZaloVideoStore = create<ZaloVideoState>((set, get) => ({
   fetchAccounts: async () => {
     set({ accountsLoading: true });
     try {
-      const accounts = await zaloAccountService.list();
+      const accounts = await fetchAccessibleAccounts();
       syncDataFbAccounts(accounts);
       set({ accounts, accountsLoading: false });
     } catch (error) {

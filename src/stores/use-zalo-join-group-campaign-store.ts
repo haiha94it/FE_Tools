@@ -1,5 +1,5 @@
 import { zaloJoinGroupCampaignService } from "@/services/zalo-join-group-campaign.service";
-import { zaloAccountService } from "@/services/zalo-account.service";
+import { fetchAccessibleAccounts } from "@/lib/fetch-accessible-accounts";
 import type {
   JoinGroupCampaign,
   JoinGroupCampaignFormPayload,
@@ -98,7 +98,7 @@ export const useZaloJoinGroupCampaignStore = create<JoinGroupCampaignState>(
     fetchAccounts: async () => {
       set({ accountsLoading: true });
       try {
-        const accounts = await zaloAccountService.list();
+        const accounts = await fetchAccessibleAccounts();
         set({ accounts, accountsLoading: false });
       } catch {
         set({ accounts: [], accountsLoading: false });

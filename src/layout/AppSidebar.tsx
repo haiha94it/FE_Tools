@@ -8,7 +8,12 @@ import {
   type NavItemConfig,
   type NavRole,
 } from "@/config/navigation";
+import {
+  canManageTeam,
+  filterNavItemsForTeam,
+} from "@/lib/team-collaboration-utils";
 import { useAuthStore } from "@/stores/use-auth-store";
+import { useTeamCollaborationStore } from "@/stores/use-team-collaboration-store";
 import { ChevronDownIcon, HorizontaLDots } from "../icons/index";
 import Image from "next/image";
 import Link from "next/link";
@@ -40,11 +45,17 @@ const AppSidebar: React.FC = () => {
   const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
   const pathname = usePathname();
   const user = useAuthStore((s) => s.user);
+  const campaignPermissions = useTeamCollaborationStore((s) => s.campaignPermissions);
 
-  const navItems = React.useMemo(
-    () => mainNavItems.filter((item) => userHasNavRole(item.roles, user)),
-    [user],
-  );
+  const navItems = React.useMemo(() => {
+    const roleFiltered = mainNavItems.filter((item) => {
+      if (!userHasNavRole(item.roles, user)) return false;
+      if (item.managerOnly && !canManageTeam(user)) return false;
+      if (item.hideForEmployee && user?.isEmployee) return false;
+      return true;
+    });
+    return filterNavItemsForTeam(roleFiltered, user, campaignPermissions);
+  }, [user, campaignPermissions]);
   const othersItems = React.useMemo(
     () => otherNavItems.filter((item) => userHasNavRole(item.roles, user)),
     [user],
