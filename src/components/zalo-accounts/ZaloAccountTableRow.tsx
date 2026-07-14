@@ -21,6 +21,7 @@ const cellClass =
   "px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400";
 
 export interface ZaloAccountTableRowProps {
+  canManageNick?: boolean;
   account: ZaloAccount;
   index: number;
   isSelected: boolean;
@@ -35,6 +36,7 @@ export interface ZaloAccountTableRowProps {
 }
 
 function ZaloAccountTableRow({
+  canManageNick = true,
   account,
   index,
   isSelected,
@@ -106,13 +108,20 @@ function ZaloAccountTableRow({
         </Badge>
       </TableCell>
       <TableCell className={cellClass}>
-        <Switch
-          checked={messageEnabled}
-          disabled={isCheckpoint || isMessageLoading}
-          onChange={(checked) => onToggleMessage(account.id, checked)}
-        />
+        {canManageNick ? (
+          <Switch
+            checked={messageEnabled}
+            disabled={isCheckpoint || isMessageLoading}
+            onChange={(checked) => onToggleMessage(account.id, checked)}
+          />
+        ) : (
+          <Badge size="sm" color={messageEnabled ? "success" : "light"}>
+            {messageEnabled ? "Bật" : "Tắt"}
+          </Badge>
+        )}
       </TableCell>
       <TableCell className="px-4 py-3 text-end">
+        {canManageNick ? (
         <div className="flex flex-wrap justify-end gap-2">
           <Button size="sm" variant="outline" onClick={() => onEdit(account)}>
             Sửa
@@ -135,6 +144,9 @@ function ZaloAccountTableRow({
             Xóa
           </Button>
         </div>
+        ) : (
+          <span className="text-xs text-gray-400">Chỉ xem</span>
+        )}
       </TableCell>
     </TableRow>
   );

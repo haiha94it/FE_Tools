@@ -1,6 +1,7 @@
 import axios from "axios";
 import { API_CARE_AUTH, CARE_API_BASE_URL } from "@/config/api";
 import { STORAGE_KEYS } from "@/constants/storage-keys";
+import { isAuthTokenExpiredError } from "@/lib/api-response";
 
 export const CARE_TOKEN_REFRESH_FAILURE = "careTokenRefreshFailure";
 
@@ -91,7 +92,7 @@ careApi.interceptors.response.use(
     const originalRequest = error.config;
 
     if (
-      ![401, 403].includes(error.response?.status) ||
+      !isAuthTokenExpiredError(error) ||
       !originalRequest ||
       originalRequest._retry
     ) {

@@ -1,4 +1,6 @@
+import { fetchAccessibleAccounts } from "@/lib/fetch-accessible-accounts";
 import { normalizeIncomingMessages } from "@/lib/zalo-messenger-message-utils";
+import { isEmployeeUser } from "@/lib/team-collaboration-utils";
 import {
   belongsToOpenChat,
   dedupeConversations,
@@ -18,6 +20,7 @@ import { getAssignedLabelIds } from "@/lib/zalo-label-utils";
 import { zaloFriendService } from "@/services/zalo-friend.service";
 import { zaloLabelService } from "@/services/zalo-label.service";
 import { zaloMessengerService } from "@/services/zalo-messenger.service";
+import { useAuthStore } from "@/stores/use-auth-store";
 import type { PaginatedResponse, ZaloFriendItem } from "@/types/zalo-contacts";
 import { getApiErrorMessage } from "@/lib/errors";
 import { toast } from "@/lib/toast";
@@ -610,9 +613,16 @@ export const useZaloMessengerStore = create<ZaloMessengerState>((set, get) => ({
   fetchAccounts: async () => {
     set({ accountsLoading: true, error: null });
     try {
-      const accounts = sortMessengerAccounts(
+      let accounts = sortMessengerAccounts(
         await zaloMessengerService.listAccounts(),
       );
+      const user = useAuthStore.getState().user;
+      if (isEmployeeUser(user)) {
+        const assignedIds = new Set(
+          (await fetchAccessibleAccounts()).map((account) => account.id),
+        );
+        accounts = accounts.filter((account) => assignedIds.has(account.id));
+      }
       set({ accounts, accountsLoading: false });
     } catch {
       set({ accountsLoading: false, accounts: [] });

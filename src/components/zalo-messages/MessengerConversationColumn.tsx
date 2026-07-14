@@ -13,6 +13,8 @@ import type {
   MessengerConversation,
   MessengerConversationFilter,
 } from "@/types/zalo-messenger";
+import { canManageLabelDefinitions } from "@/lib/team-collaboration-utils";
+import { useAuthStore } from "@/stores/use-auth-store";
 import { useRouter } from "next/navigation";
 import { memo, useCallback, useEffect, useState } from "react";
 import ConversationNoteDialog from "./ConversationNoteDialog";
@@ -29,6 +31,8 @@ function MessengerConversationColumn({
   showMobileBack = false,
 }: MessengerConversationColumnProps) {
   const router = useRouter();
+  const user = useAuthStore((s) => s.user);
+  const canManageLabels = canManageLabelDefinitions(user);
   const [manageLabelsOpen, setManageLabelsOpen] = useState(false);
   const [strangerPhoneOpen, setStrangerPhoneOpen] = useState(false);
   const [createGroupOpen, setCreateGroupOpen] = useState(false);
@@ -251,7 +255,9 @@ function MessengerConversationColumn({
         onMarkAllRead={() => void handleMarkAllRead()}
         onOpenSendPhone={() => setStrangerPhoneOpen(true)}
         onOpenCreateGroup={() => setCreateGroupOpen(true)}
-        onOpenManageLabels={() => setManageLabelsOpen(true)}
+        onOpenManageLabels={
+          canManageLabels ? () => setManageLabelsOpen(true) : undefined
+        }
         onSelect={handleSelect}
         onLoadMore={handleLoadMore}
         onPin={(conversation) => void handlePin(conversation)}
@@ -266,6 +272,7 @@ function MessengerConversationColumn({
             open={manageLabelsOpen}
             onClose={() => setManageLabelsOpen(false)}
             onLabelsChanged={handleLabelsChanged}
+            canManageDefinitions={canManageLabels}
           />
           <StrangerPhoneDialog
             open={strangerPhoneOpen}

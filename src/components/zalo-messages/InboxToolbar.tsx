@@ -19,7 +19,7 @@ interface InboxToolbarProps {
   onMarkAllRead: () => void;
   onOpenSendPhone: () => void;
   onOpenCreateGroup: () => void;
-  onOpenManageLabels: () => void;
+  onOpenManageLabels?: () => void;
 }
 
 const SLOT_WIDTH = 38;

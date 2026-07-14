@@ -5,6 +5,7 @@ import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import Alert from "@/components/ui/alert/Alert";
 import { toast } from "@/lib/toast";
 import { canSkipZaloProxyRequirement } from "@/lib/map-auth-user";
+import { canManageNickCrud } from "@/lib/team-collaboration-utils";
 import {
   getLoginQrResultToast,
   isTotalMessagesOn,
@@ -143,6 +144,7 @@ export default function ZaloAccountsView() {
   const wsStatus = useWebSocketStore((s) => s.status);
   const user = useAuthStore((s) => s.user);
   const canSkipProxy = canSkipZaloProxyRequirement(user);
+  const canManageNick = canManageNickCrud(user);
 
   const activeCount = accounts.filter(isZaloAccountActive).length;
 
@@ -291,13 +293,19 @@ export default function ZaloAccountsView() {
 
   return (
     <div>
-      <PageBreadcrumb pageTitle="Quản lý tài khoản Zalo" />
+      <PageBreadcrumb
+        pageTitle={canManageNick ? "Quản lý tài khoản Zalo" : "Nick Zalo được gán"}
+      />
 
       <div className="grid grid-cols-12 gap-4 md:gap-6">
         <div className="col-span-12">
           <ComponentCard
             title="Danh sách tài khoản"
-            desc="Quản lý tài khoản Zalo đã kết nối — thêm, kiểm tra, sửa, xóa."
+            desc={
+              canManageNick
+                ? "Quản lý tài khoản Zalo đã kết nối — thêm, kiểm tra, sửa, xóa."
+                : "Xem nick Zalo manager đã gán cho bạn. Không thể thêm, sửa hoặc bật listener."
+            }
             hideDescOnMobile
           >
             <div className="mb-3 border-b border-gray-100 pb-3 sm:mb-4 sm:pb-4 dark:border-gray-800">
@@ -310,6 +318,7 @@ export default function ZaloAccountsView() {
             </div>
 
             <ZaloAccountsToolbar
+              canManageNick={canManageNick}
               search={search}
               showSensitiveInfo={showSensitiveInfo}
               isTotalMessagesOn={isTotalMessagesOn(accounts)}
@@ -348,6 +357,7 @@ export default function ZaloAccountsView() {
 
             <div className="mt-6">
               <ZaloAccountsTable
+                canManageNick={canManageNick}
                 accounts={filteredAccounts}
                 selectedIds={selectedIds}
                 checkingIds={checkingIds}
@@ -366,6 +376,8 @@ export default function ZaloAccountsView() {
         </div>
       </div>
 
+      {canManageNick ? (
+        <>
       <EditAccountModal
         isOpen={isEditOpen}
         account={editAccount}
@@ -405,6 +417,8 @@ export default function ZaloAccountsView() {
         onClose={closeDeleteConfirm}
         onConfirm={() => void handleConfirmDelete()}
       />
+        </>
+      ) : null}
     </div>
   );
 }

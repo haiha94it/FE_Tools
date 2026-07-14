@@ -9,6 +9,7 @@ import MobileToolbarStrip, {
 import { useMediaQuery } from "@/hooks/use-media-query";
 
 interface ZaloAccountsToolbarProps {
+  canManageNick?: boolean;
   search: string;
   showSensitiveInfo: boolean;
   isTotalMessagesOn: boolean;
@@ -26,6 +27,7 @@ interface ZaloAccountsToolbarProps {
 }
 
 export default function ZaloAccountsToolbar({
+  canManageNick = true,
   search,
   showSensitiveInfo,
   isTotalMessagesOn,
@@ -71,67 +73,73 @@ export default function ZaloAccountsToolbar({
           />
         </div>
 
-        <div className="shrink-0 max-sm:[&_label]:gap-2 max-sm:[&_label]:text-xs">
-          <Switch
-            label={isMobile ? "Tin nhắn" : "Tin nhắn tổng"}
-            checked={isTotalMessagesOn}
-            disabled={isLoadingToggleAllMessage}
-            onChange={onToggleAllMessages}
-          />
-        </div>
+        {canManageNick ? (
+          <div className="shrink-0 max-sm:[&_label]:gap-2 max-sm:[&_label]:text-xs">
+            <Switch
+              label={isMobile ? "Tin nhắn" : "Tin nhắn tổng"}
+              checked={isTotalMessagesOn}
+              disabled={isLoadingToggleAllMessage}
+              onChange={onToggleAllMessages}
+            />
+          </div>
+        ) : null}
 
-        <Button
-          size="sm"
-          className={mobileToolbarButtonClass}
-          onClick={onAdd}
-        >
-          <span className="sm:hidden">Thêm</span>
-          <span className="hidden sm:inline">Thêm tài khoản</span>
-        </Button>
+        {canManageNick ? (
+          <>
+            <Button
+              size="sm"
+              className={mobileToolbarButtonClass}
+              onClick={onAdd}
+            >
+              <span className="sm:hidden">Thêm</span>
+              <span className="hidden sm:inline">Thêm tài khoản</span>
+            </Button>
 
-        <Button
-          size="sm"
-          variant="outline"
-          className={mobileToolbarButtonClass}
-          onClick={onCheck}
-          disabled={isChecking || selectedCount === 0}
-        >
-          {isChecking ? "Đang KT..." : (
-            <>
-              <span className="sm:hidden">Kiểm tra</span>
-              <span className="hidden sm:inline">Kiểm tra tài khoản</span>
-            </>
-          )}
-        </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className={mobileToolbarButtonClass}
+              onClick={onCheck}
+              disabled={isChecking || selectedCount === 0}
+            >
+              {isChecking ? "Đang KT..." : (
+                <>
+                  <span className="sm:hidden">Kiểm tra</span>
+                  <span className="hidden sm:inline">Kiểm tra tài khoản</span>
+                </>
+              )}
+            </Button>
 
-        <Button
-          size="sm"
-          variant="outline"
-          className={mobileToolbarButtonClass}
-          onClick={onManageContacts}
-        >
-          <span className="sm:hidden">Bạn bè</span>
-          <span className="hidden sm:inline">Quản lý Bạn bè / Nhóm</span>
-        </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className={mobileToolbarButtonClass}
+              onClick={onManageContacts}
+            >
+              <span className="sm:hidden">Bạn bè</span>
+              <span className="hidden sm:inline">Quản lý Bạn bè / Nhóm</span>
+            </Button>
 
-        <Button
-          size="sm"
-          variant="outline"
-          className={mobileToolbarButtonClass}
-          onClick={onManageProxy}
-        >
-          Proxy
-        </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className={mobileToolbarButtonClass}
+              onClick={onManageProxy}
+            >
+              Proxy
+            </Button>
 
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={onDelete}
-          disabled={selectedCount === 0}
-          className={`${mobileToolbarButtonClass} !text-error-600 !ring-error-200 hover:!bg-error-50 dark:hover:!bg-error-500/10`}
-        >
-          Xóa
-        </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={onDelete}
+              disabled={selectedCount === 0}
+              className={`${mobileToolbarButtonClass} !text-error-600 !ring-error-200 hover:!bg-error-50 dark:hover:!bg-error-500/10`}
+            >
+              Xóa
+            </Button>
+          </>
+        ) : null}
       </MobileToolbarStrip>
     </div>
   );

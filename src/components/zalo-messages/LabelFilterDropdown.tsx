@@ -12,7 +12,7 @@ interface LabelFilterDropdownProps {
   categoriesLoading: boolean;
   selectedCategoryId: number | null;
   onSelectCategory: (categoryId: number | null) => void;
-  onOpenManageLabels: () => void;
+  onOpenManageLabels?: () => void;
 }
 
 function LabelFilterDropdown({
@@ -85,6 +85,7 @@ function LabelFilterDropdown({
   };
 
   const handleManageLabels = () => {
+    if (!onOpenManageLabels) return;
     setOpen(false);
     onOpenManageLabels();
   };
@@ -226,14 +227,16 @@ function LabelFilterDropdown({
                 )}
               </div>
 
-              <button
-                type="button"
-                onClick={handleManageLabels}
-                disabled={disabled}
-                className="border-t border-gray-100 bg-brand-500 px-3 py-2.5 text-center text-[13px] font-semibold text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-800"
-              >
-                Quản lý nhãn phân loại
-              </button>
+              {onOpenManageLabels ? (
+                <button
+                  type="button"
+                  onClick={handleManageLabels}
+                  disabled={disabled}
+                  className="border-t border-gray-100 bg-brand-500 px-3 py-2.5 text-center text-[13px] font-semibold text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-800"
+                >
+                  Quản lý nhãn phân loại
+                </button>
+              ) : null}
             </div>,
             document.body,
           )

@@ -18,6 +18,8 @@ interface LabelManageDialogProps {
   open: boolean;
   onClose: () => void;
   onLabelsChanged: () => void;
+  /** Manager — tạo/sửa/xóa định nghĩa nhãn; NV chỉ xem danh sách */
+  canManageDefinitions?: boolean;
 }
 
 const DEFAULT_LABEL_COLOR = "#465fff";
@@ -27,6 +29,7 @@ function LabelManageDialog({
   open,
   onClose,
   onLabelsChanged,
+  canManageDefinitions = true,
 }: LabelManageDialogProps) {
   const [labels, setLabels] = useState<MessengerCategoryLabel[]>([]);
   const [loading, setLoading] = useState(false);
@@ -148,7 +151,9 @@ function LabelManageDialog({
             Quản lý nhãn
           </h3>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Tối đa {ZALO_LABEL_MAX_COUNT} nhãn / tài khoản
+            {canManageDefinitions
+              ? `Tối đa ${ZALO_LABEL_MAX_COUNT} nhãn / tài khoản`
+              : "Danh sách nhãn — gán/gỡ nhãn qua menu hội thoại."}
           </p>
         </div>
 
@@ -180,29 +185,31 @@ function LabelManageDialog({
                       {label.name || `Nhãn #${label.id}`}
                     </span>
                   </div>
-                  <div className="flex shrink-0 items-center gap-1">
-                    <button
-                      type="button"
-                      onClick={() => startEdit(label)}
-                      className="rounded-lg px-2 py-1 text-xs text-gray-500 transition hover:bg-white hover:text-brand-600 dark:hover:bg-gray-900"
-                    >
-                      Sửa
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void handleDelete(label)}
-                      disabled={deletingId === label.id}
-                      className="rounded-lg px-2 py-1 text-xs text-gray-500 transition hover:bg-white hover:text-red-600 disabled:opacity-50 dark:hover:bg-gray-900"
-                    >
-                      {deletingId === label.id ? "..." : "Xóa"}
-                    </button>
-                  </div>
+                  {canManageDefinitions ? (
+                    <div className="flex shrink-0 items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => startEdit(label)}
+                        className="rounded-lg px-2 py-1 text-xs text-gray-500 transition hover:bg-white hover:text-brand-600 dark:hover:bg-gray-900"
+                      >
+                        Sửa
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void handleDelete(label)}
+                        disabled={deletingId === label.id}
+                        className="rounded-lg px-2 py-1 text-xs text-gray-500 transition hover:bg-white hover:text-red-600 disabled:opacity-50 dark:hover:bg-gray-900"
+                      >
+                        {deletingId === label.id ? "..." : "Xóa"}
+                      </button>
+                    </div>
+                  ) : null}
                 </li>
               ))}
             </ul>
           )}
 
-          {showForm ? (
+          {canManageDefinitions && showForm ? (
             <div className="mt-4 rounded-xl border border-brand-100 bg-brand-50/40 p-4 dark:border-brand-500/20 dark:bg-brand-500/5">
               <p className="text-xs font-semibold uppercase tracking-wide text-brand-700 dark:text-brand-400">
                 {editingLabel ? "Sửa nhãn" : "Thêm nhãn mới"}
@@ -248,7 +255,7 @@ function LabelManageDialog({
           ) : null}
         </div>
 
-        {!showForm ? (
+        {canManageDefinitions && !showForm ? (
           <div className="mt-4 shrink-0 border-t border-gray-100 pt-4 dark:border-gray-800">
             <Button
               size="sm"

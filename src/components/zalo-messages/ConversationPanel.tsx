@@ -49,7 +49,7 @@ interface ConversationPanelProps {
   onMarkAllRead: () => void;
   onOpenSendPhone: () => void;
   onOpenCreateGroup: () => void;
-  onOpenManageLabels: () => void;
+  onOpenManageLabels?: () => void;
   onSelect: (conversation: MessengerConversation) => void;
   onLoadMore: () => void;
   onPin?: (conversation: MessengerConversation) => void;

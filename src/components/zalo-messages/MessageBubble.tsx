@@ -23,6 +23,11 @@ import {
   formatDateDivider,
   trimToString,
 } from "@/lib/zalo-messenger-utils";
+import {
+  formatSentByLabel,
+  shouldShowSentByLabel,
+} from "@/lib/team-collaboration-utils";
+import { useAuthStore } from "@/stores/use-auth-store";
 import type { ZaloGroupMember } from "@/types/zalo-contacts";
 import type { DisplayMessage } from "@/types/zalo-messenger";
 import Image from "next/image";
@@ -246,6 +251,7 @@ export function MessageList({
   onReaction?: (message: DisplayMessage, reactionId: number) => void;
   onShare?: (message: DisplayMessage) => void;
 }) {
+  const currentUserId = useAuthStore((s) => s.user?.id);
   const display = filterDisplayMessages(messages);
   const reactionMap = useMemo(
     () => groupReactionsByCliMsgId(messages),
@@ -278,6 +284,10 @@ export function MessageList({
         const reactionMessages = getMessageReactions(message, reactionMap);
         const reactionEmojis = getUniqueReactionEmojis(reactionMessages);
         const scrollAnchorId = getMessageScrollAnchorId(message);
+        const sentByLabel =
+          own && shouldShowSentByLabel(message.sent_by, currentUserId)
+            ? formatSentByLabel(message.sent_by)
+            : "";
         return (
           <div
             key={message.msgId ?? message.cliMsgId ?? message.id ?? index}
@@ -319,6 +329,12 @@ export function MessageList({
                 {showSenderHeader ? (
                   <p className="mb-1 px-1 text-[11px] font-medium text-gray-500 dark:text-gray-400">
                     {senderName}
+                  </p>
+                ) : null}
+
+                {sentByLabel ? (
+                  <p className="mb-1 px-1 text-[10px] font-medium text-brand-600 dark:text-brand-400">
+                    {sentByLabel}
                   </p>
                 ) : null}
 

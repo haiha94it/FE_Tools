@@ -1,6 +1,7 @@
 "use client";
 
 import { AuthGuard } from "@/components/auth/AuthGuard";
+import { TeamRouteGuard } from "@/components/auth/TeamRouteGuard";
 import { useSidebar } from "@/context/SidebarContext";
 import AppHeader from "@/layout/AppHeader";
 import AppSidebar from "@/layout/AppSidebar";
@@ -18,6 +19,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
 
   return (
     <AuthGuard>
+      <TeamRouteGuard>
       <div className="h-dvh overflow-hidden xl:flex">
         <AppSidebar />
         <Backdrop />
@@ -30,6 +32,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
           </main>
         </div>
       </div>
+      </TeamRouteGuard>
     </AuthGuard>
   );
 }

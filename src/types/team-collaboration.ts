@@ -73,4 +73,13 @@ export interface TeamEmployee {
   account_count?: number;
 }
 
+/** POST /api/users/create-employee — đồng bộ ZaloCN ManageEmployee */
+export interface CreateEmployeePayload {
+  username: string;
+  password: string;
+  fullname: string;
+  account_limit: number;
+  listener_limit: number;
+}
+
 export type AccessibleAccount = ZaloAccount;

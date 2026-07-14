@@ -78,6 +78,7 @@ export function normalizeIncomingMessage(raw: RawZaloMessage): DisplayMessage {
     ts: raw.ts,
     conversation_id: raw.conversation_id,
     text_message: [],
+    sent_by: raw.sent_by ?? undefined,
   };
 
   const msgType = raw.msgType ?? "webchat";

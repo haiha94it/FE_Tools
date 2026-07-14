@@ -7,6 +7,8 @@ import {
 } from "@/lib/zalo-account-utils";
 import { toast } from "@/lib/toast";
 import { fetchAccessibleAccounts } from "@/lib/fetch-accessible-accounts";
+import { canManageNickCrud } from "@/lib/team-collaboration-utils";
+import { useAuthStore } from "@/stores/use-auth-store";
 import { zaloAccountService } from "@/services/zalo-account.service";
 import { zaloProxyService } from "@/services/zalo-proxy.service";
 import type { ZaloProxyItem } from "@/types/zalo-proxy";
@@ -18,6 +20,10 @@ import {
 } from "@/lib/zalo-account-cookie-utils";
 import { useMemo } from "react";
 import { create } from "zustand";
+
+function canCurrentUserManageNick(): boolean {
+  return canManageNickCrud(useAuthStore.getState().user);
+}
 
 interface ZaloAccountState {
   accounts: ZaloAccount[];
@@ -139,6 +145,10 @@ export const useZaloAccountStore = create<ZaloAccountState>((set, get) => ({
   },
 
   editAccountAction: async (payload) => {
+    if (!canCurrentUserManageNick()) {
+      toast.error("Nhân viên không được sửa nick Zalo.");
+      return false;
+    }
     set({ editingAccountId: payload.id, error: null });
     try {
       await zaloAccountService.edit(payload);
@@ -153,6 +163,10 @@ export const useZaloAccountStore = create<ZaloAccountState>((set, get) => ({
   },
 
   deleteAccounts: async (ids) => {
+    if (!canCurrentUserManageNick()) {
+      toast.error("Nhân viên không được xóa nick Zalo.");
+      return false;
+    }
     set({ deletingAccountId: ids[0] ?? null, error: null });
     try {
       await zaloAccountService.delete(ids);
@@ -171,6 +185,10 @@ export const useZaloAccountStore = create<ZaloAccountState>((set, get) => ({
   },
 
   checkAccounts: async (ids) => {
+    if (!canCurrentUserManageNick()) {
+      toast.error("Nhân viên không được kiểm tra nick Zalo.");
+      return false;
+    }
     if (!ids.length) {
       toast.error("Chọn ít nhất 1 tài khoản để kiểm tra.");
       return false;
@@ -227,6 +245,10 @@ export const useZaloAccountStore = create<ZaloAccountState>((set, get) => ({
   },
 
   createByCookie: async (payload) => {
+    if (!canCurrentUserManageNick()) {
+      toast.error("Nhân viên không được thêm nick Zalo.");
+      return false;
+    }
     set({ cookieLoading: true, cookieTaskId: null, error: null });
     try {
       const taskId = await zaloAccountService.createByCookie(
@@ -241,6 +263,10 @@ export const useZaloAccountStore = create<ZaloAccountState>((set, get) => ({
   },
 
   toggleAllMessageListener: async (checked) => {
+    if (!canCurrentUserManageNick()) {
+      toast.error("Chỉ manager mới bật listener tin nhắn.");
+      return;
+    }
     set({ loadingToggleAllMessage: true, error: null });
     try {
       await zaloAccountService.toggleMessageListener({
@@ -267,6 +293,10 @@ export const useZaloAccountStore = create<ZaloAccountState>((set, get) => ({
   },
 
   toggleAccountMessageListener: async (accountId, checked) => {
+    if (!canCurrentUserManageNick()) {
+      toast.error("Chỉ manager mới bật listener tin nhắn.");
+      return;
+    }
     set({ loadingToggleMessageId: accountId, error: null });
     try {
       await zaloAccountService.toggleMessageListener({
@@ -341,6 +371,7 @@ export const useZaloAccountStore = create<ZaloAccountState>((set, get) => ({
   },
 
   openEdit: (account) => {
+    if (!canCurrentUserManageNick()) return;
     set({
       isEditOpen: true,
       editAccount: account,
@@ -364,7 +395,8 @@ export const useZaloAccountStore = create<ZaloAccountState>((set, get) => ({
   setEditPassword: (editPassword) => set({ editPassword }),
   setEditProxyId: (editProxyId) => set({ editProxyId }),
 
-  openCreateQr: () =>
+  openCreateQr: () => {
+    if (!canCurrentUserManageNick()) return;
     set({
       isQrOpen: true,
       qrImage: null,
@@ -373,9 +405,11 @@ export const useZaloAccountStore = create<ZaloAccountState>((set, get) => ({
       qrAccountId: null,
       cookieTaskId: null,
       cookieLoading: false,
-    }),
+    });
+  },
 
-  openReloginQr: (account) =>
+  openReloginQr: (account) => {
+    if (!canCurrentUserManageNick()) return;
     set({
       isQrOpen: true,
       qrImage: null,
@@ -384,7 +418,8 @@ export const useZaloAccountStore = create<ZaloAccountState>((set, get) => ({
       qrAccountId: account.id,
       cookieTaskId: null,
       cookieLoading: false,
-    }),
+    });
+  },
 
   closeQr: () =>
     set({
@@ -400,7 +435,10 @@ export const useZaloAccountStore = create<ZaloAccountState>((set, get) => ({
   setQrCountdown: (qrCountdown) => set({ qrCountdown }),
   setQrProxy: (qrProxy) => set({ qrProxy }),
 
-  openDeleteConfirm: (ids) => set({ deleteConfirm: { ids } }),
+  openDeleteConfirm: (ids) => {
+    if (!canCurrentUserManageNick()) return;
+    set({ deleteConfirm: { ids } });
+  },
   closeDeleteConfirm: () => set({ deleteConfirm: null }),
 }));
 

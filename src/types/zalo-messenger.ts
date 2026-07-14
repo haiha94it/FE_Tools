@@ -1,3 +1,5 @@
+import type { SentByPayload } from "@/types/team-collaboration";
+
 /** Tài khoản Zalo dùng cho messenger — GET /api/account/?scope=messenger */
 export interface MessengerAccount {
   id: number;
@@ -91,6 +93,7 @@ export interface RawZaloMessage {
   mention?: unknown[];
   actionId?: string;
   conversation_id?: number;
+  sent_by?: SentByPayload | null;
   [key: string]: unknown;
 }
 
@@ -131,6 +134,8 @@ export interface DisplayMessage {
   _optimistic?: boolean;
   _status?: "sending" | "sent" | "failed";
   _retryData?: SendMessagePayload;
+  /** Người gửi thực tế — outbound team audit (CARE 2 §4) */
+  sent_by?: SentByPayload | null;
 }
 
 export interface MessengerMessagePage {

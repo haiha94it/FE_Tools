@@ -25,7 +25,56 @@ export const CAMPAIGN_PATH_PERMISSION: Record<string, CampaignTypeKey> = {
 export const MANAGER_ONLY_PATHS = new Set([
   "/zalo-accounts/proxy",
   "/zalo-accounts/contacts",
+  "/zalo-campaigns/post-video",
 ]);
+
+export const TEAM_MANAGER_PATH_PREFIX = "/team/employees";
+
+/** Manager — CRUD nick, proxy, listener (CARE 2 §2) */
+export function canManageNickCrud(
+  user: Pick<AuthUser, "isEmployee" | "isManager"> | null | undefined,
+): boolean {
+  return !isEmployeeUser(user);
+}
+
+export function canToggleListener(
+  user: Pick<AuthUser, "isEmployee"> | null | undefined,
+): boolean {
+  return !isEmployeeUser(user);
+}
+
+/** Chỉ manager tạo/sửa/xóa định nghĩa nhãn chat */
+export function canManageLabelDefinitions(
+  user: Pick<AuthUser, "isEmployee"> | null | undefined,
+): boolean {
+  return !isEmployeeUser(user);
+}
+
+export function isManagerOnlyPath(pathname: string): boolean {
+  return [...MANAGER_ONLY_PATHS].some(
+    (path) => pathname === path || pathname.startsWith(`${path}/`),
+  );
+}
+
+export function canAccessAdminRoute(
+  pathname: string,
+  user: AuthUser | null | undefined,
+): boolean {
+  if (!user) return false;
+
+  if (isManagerOnlyPath(pathname)) {
+    return canManageNickCrud(user);
+  }
+
+  if (
+    pathname === TEAM_MANAGER_PATH_PREFIX ||
+    pathname.startsWith(`${TEAM_MANAGER_PATH_PREFIX}/`)
+  ) {
+    return canManageTeam(user);
+  }
+
+  return true;
+}
 
 export function isManagerUser(
   user: Pick<AuthUser, "isManager"> | null | undefined,
@@ -79,13 +128,16 @@ export function filterNavItemsForTeam(
   return items
     .map((item) => {
       if (item.name === "Chiến dịch" && item.subItems) {
-        const subItems = filterCampaignSubItems(item.subItems, permissions, user);
+        let subItems = filterCampaignSubItems(item.subItems, permissions, user);
+        if (employee) {
+          subItems = subItems.filter((sub) => !MANAGER_ONLY_PATHS.has(sub.path));
+        }
         if (subItems.length === 0) return null;
         return { ...item, subItems };
       }
 
       if (employee && item.path === "/zalo-accounts") {
-        return item;
+        return { ...item, name: "Nick được gán" };
       }
 
       if (item.name === "Quản lý nhân viên") {

@@ -13,6 +13,7 @@ import { memo, useCallback, useMemo } from "react";
 import ZaloAccountTableRow from "./ZaloAccountTableRow";
 
 interface ZaloAccountsTableProps {
+  canManageNick?: boolean;
   accounts: ZaloAccount[];
   selectedIds: number[];
   checkingIds: number[];
@@ -31,6 +32,7 @@ const headerClass =
   "px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400";
 
 function ZaloAccountsTable({
+  canManageNick = true,
   accounts,
   selectedIds,
   checkingIds,
@@ -68,7 +70,9 @@ function ZaloAccountsTable({
   if (accounts.length === 0) {
     return (
       <p className="py-10 text-center text-sm text-gray-500 dark:text-gray-400">
-        Chưa có tài khoản Zalo. Bấm &quot;Thêm tài khoản&quot; để bắt đầu.
+        {canManageNick
+          ? "Chưa có tài khoản Zalo. Bấm \"Thêm tài khoản\" để bắt đầu."
+          : "Chưa có nick Zalo được gán. Liên hệ manager để được gán nick."}
       </p>
     );
   }
@@ -117,6 +121,7 @@ function ZaloAccountsTable({
               {accounts.map((account, index) => (
                 <ZaloAccountTableRow
                   key={account.id}
+                  canManageNick={canManageNick}
                   account={account}
                   index={index}
                   isSelected={selectedIdSet.has(account.id)}

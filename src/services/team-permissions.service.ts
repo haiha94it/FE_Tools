@@ -8,6 +8,7 @@ import type {
   EmployeeAccountAssignmentsResponse,
   EmployeeCampaignPermissionsResponse,
   MyCampaignPermissionsResponse,
+  CreateEmployeePayload,
   SetAccountAssignmentsBody,
   SetCampaignPermissionsBody,
   TeamEmployee,
@@ -46,6 +47,11 @@ export const teamPermissionsService = {
     );
     if (Array.isArray(body)) return body;
     return body.results ?? [];
+  },
+
+  async createEmployee(payload: CreateEmployeePayload): Promise<TeamEmployee> {
+    const response = await api.post(API_TEAM.CREATE_EMPLOYEE, payload);
+    return unwrapApiBody<TeamEmployee>(response.data);
   },
 
   async getEmployeeAccountAssignments(
