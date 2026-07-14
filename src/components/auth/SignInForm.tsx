@@ -1,12 +1,11 @@
 "use client";
 
 import Input from "@/components/form/input/InputField";
+import PasswordInput from "@/components/form/input/PasswordInput";
 import Label from "@/components/form/Label";
 import Button from "@/components/ui/button/Button";
-import { EyeCloseIcon, EyeIcon } from "@/icons";
 import { APP_NAME } from "@/constants/brand";
 import { useAuthStore } from "@/stores/use-auth-store";
-import { Tooltip } from "@/components/ui/tooltip/Tooltip";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import React, { useState } from "react";
@@ -20,8 +19,6 @@ export default function SignInForm() {
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     clearError();
@@ -75,34 +72,14 @@ export default function SignInForm() {
               <Label>
                 Mật khẩu <span className="text-error-500">*</span>
               </Label>
-              <div className="relative">
-                <Input
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Nhập mật khẩu"
-                  name="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  disabled={isLoading}
-                  error={Boolean(error)}
-                />
-                <Tooltip
-                  content={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
-                  side="left"
-                >
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute top-1/2 right-4 z-30 -translate-y-1/2 cursor-pointer"
-                    aria-label={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
-                  >
-                    {showPassword ? (
-                      <EyeIcon className="fill-gray-500 dark:fill-gray-400" />
-                    ) : (
-                      <EyeCloseIcon className="fill-gray-500 dark:fill-gray-400" />
-                    )}
-                  </button>
-                </Tooltip>
-              </div>
+              <PasswordInput
+                placeholder="Nhập mật khẩu"
+                name="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={isLoading}
+                error={Boolean(error)}
+              />
             </div>
 
             {error && (

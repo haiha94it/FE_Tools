@@ -1,5 +1,12 @@
 import type { ApiUserProfile, AuthUser } from "@/types/auth";
 
+/** Chỉ super admin — trang Cài đặt hệ thống (/admin/settings) */
+export function canAccessAdminSettings(
+  user: Pick<AuthUser, "isAdmin"> | null | undefined,
+): boolean {
+  return Boolean(user?.isAdmin);
+}
+
 /** Admin / saler / sale manager — truy cập Quản lý người dùng (/admin/users) */
 export function canAccessUserAdmin(
   user: Pick<AuthUser, "isAdmin" | "isSaler" | "isSaleManager"> | null | undefined,

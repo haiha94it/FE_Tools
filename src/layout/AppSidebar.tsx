@@ -187,7 +187,9 @@ const AppSidebar: React.FC = () => {
                 }}
               >
                 <ul className="mt-2 ml-12 space-y-1 border-l border-gray-100 pl-3 dark:border-gray-800">
-                  {nav.subItems.map((subItem) => (
+                  {nav.subItems
+                    .filter((subItem) => userHasNavRole(subItem.roles, user))
+                    .map((subItem) => (
                     <li key={subItem.name}>
                       <Link
                         href={subItem.path}

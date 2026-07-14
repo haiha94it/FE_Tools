@@ -1,6 +1,8 @@
 export type NavSubItem = {
   name: string;
   path: string;
+  /** Nếu set — chỉ hiển thị với quyền tương ứng (vd. chỉ admin) */
+  roles?: NavRole[];
 };
 
 export type NavIconKey =
@@ -121,7 +123,10 @@ export const mainNavItems: NavItemConfig[] = [
     icon: "list",
     iconTone: "error",
     roles: ["admin", "saler", "sale_manager"],
-    subItems: [{ name: "Quản lý người dùng", path: "/admin/users" }],
+    subItems: [
+      { name: "Quản lý người dùng", path: "/admin/users" },
+      { name: "Cài đặt hệ thống", path: "/admin/settings", roles: ["admin"] },
+    ],
   },
 ];
 

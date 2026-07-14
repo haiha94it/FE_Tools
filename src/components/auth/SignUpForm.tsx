@@ -3,6 +3,7 @@
 import AuthFeedbackModal from "@/components/auth/AuthFeedbackModal";
 import Checkbox from "@/components/form/input/Checkbox";
 import Input from "@/components/form/input/InputField";
+import PasswordInput from "@/components/form/input/PasswordInput";
 import Label from "@/components/form/Label";
 import Button from "@/components/ui/button/Button";
 import { APP_NAME, LEGAL_BRAND_NAME } from "@/constants/brand";
@@ -15,8 +16,6 @@ import {
 import { popupService } from "@/services/popup.service";
 import { useAuthStore } from "@/stores/use-auth-store";
 import type { RegisterPopupItem } from "@/types/auth";
-import { EyeCloseIcon, EyeIcon } from "@/icons";
-import { Tooltip } from "@/components/ui/tooltip/Tooltip";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import React, { useEffect, useState } from "react";
@@ -34,8 +33,6 @@ export default function SignUpForm() {
   const [referralCode, setReferralCode] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [fieldError, setFieldError] = useState<string | null>(null);
 
@@ -198,70 +195,26 @@ export default function SignUpForm() {
                 <Label>
                   Mật khẩu <span className="text-error-500">*</span>
                 </Label>
-                <div className="relative">
-                  <Input
-                    type={showPassword ? "text" : "password"}
-                    placeholder="Không dùng ký tự có dấu"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    disabled={isLoading}
-                  />
-                  <Tooltip
-                    content={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
-                    side="left"
-                  >
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute top-1/2 right-4 z-30 -translate-y-1/2 cursor-pointer"
-                      aria-label={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
-                    >
-                      {showPassword ? (
-                        <EyeIcon className="fill-gray-500 dark:fill-gray-400" />
-                      ) : (
-                        <EyeCloseIcon className="fill-gray-500 dark:fill-gray-400" />
-                      )}
-                    </button>
-                  </Tooltip>
-                </div>
+                <PasswordInput
+                  placeholder="Không dùng ký tự có dấu"
+                  name="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  disabled={isLoading}
+                />
               </div>
 
               <div>
                 <Label>
                   Xác nhận mật khẩu <span className="text-error-500">*</span>
                 </Label>
-                <div className="relative">
-                  <Input
-                    type={showConfirmPassword ? "text" : "password"}
-                    placeholder="Nhập lại mật khẩu"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    disabled={isLoading}
-                  />
-                  <Tooltip
-                    content={
-                      showConfirmPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"
-                    }
-                    side="left"
-                  >
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setShowConfirmPassword(!showConfirmPassword)
-                      }
-                      className="absolute top-1/2 right-4 z-30 -translate-y-1/2 cursor-pointer"
-                      aria-label={
-                        showConfirmPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"
-                      }
-                    >
-                      {showConfirmPassword ? (
-                        <EyeIcon className="fill-gray-500 dark:fill-gray-400" />
-                      ) : (
-                        <EyeCloseIcon className="fill-gray-500 dark:fill-gray-400" />
-                      )}
-                    </button>
-                  </Tooltip>
-                </div>
+                <PasswordInput
+                  placeholder="Nhập lại mật khẩu"
+                  name="confirmPassword"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  disabled={isLoading}
+                />
               </div>
             </div>
 

@@ -41,8 +41,23 @@ export const API_AUTH = {
 /** Popup / thông báo hệ thống */
 export const API_POPUP = {
   REGISTER: "/api/popup/register/get",
+  REGISTER_EDIT: "/api/popup/register/create-or-edit",
   DECREE: "/api/popup/decree/get",
+  DECREE_EDIT: "/api/popup/decree/create-or-edit",
+  TERM: "/api/popup/term/get",
+  TERM_EDIT: "/api/popup/term/create-or-edit",
+  ALERT: "/api/popup/alert/get",
+  ALERT_EDIT: "/api/popup/alert/create-or-edit",
+  ALERT_DELETE: "/api/popup/alert/delete",
+  EXPIRATION: "/api/popup/expiration/get",
+  EXPIRATION_EDIT: "/api/popup/expiration/create-or-edit",
+  LOGO: "/api/popup/logo/get",
+  LOGO_EDIT: "/api/popup/logo/create-or-edit",
+  COMMUNITY: "/api/popup/community/get",
+  COMMUNITY_EDIT: "/api/popup/community/create-or-edit",
 } as const;
+
+export const ADMIN_SETTINGS_BASE = "/admin/settings";
 
 /** Care token refresh */
 export const API_CARE_AUTH = {
