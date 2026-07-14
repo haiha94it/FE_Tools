@@ -159,6 +159,7 @@ const AppSidebar: React.FC = () => {
               nav.path && (
                 <Link
                   href={nav.path}
+                  prefetch={false}
                   className={`menu-item group ${
                     linkActive ? "menu-item-active" : "menu-item-inactive"
                   } ${!isExpanded && !isHovered ? "lg:justify-center" : ""}`}
@@ -193,6 +194,7 @@ const AppSidebar: React.FC = () => {
                     <li key={subItem.name}>
                       <Link
                         href={subItem.path}
+                        prefetch={false}
                         className={`menu-dropdown-item ${
                           isActive(subItem.path)
                             ? "menu-dropdown-item-active"
@@ -239,7 +241,7 @@ const AppSidebar: React.FC = () => {
           !isExpanded && !isHovered ? "lg:justify-center" : "justify-start"
         }`}
       >
-        <Link href="/">
+        <Link href="/" prefetch={false}>
           {isExpanded || isHovered || isMobileOpen ? (
             <>
               <Image
