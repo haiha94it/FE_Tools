@@ -20,6 +20,8 @@ WORKDIR /app
 
 # Install dependencies based on the preferred package manager
 COPY package.json yarn.lock* package-lock.json* pnpm-lock.yaml* .npmrc* ./
+# Fail sớm nếu build context sai (vd. nhầm package.json ZaloCN cũ)
+RUN node -e "const p=require('./package.json'); if(p.name!=='free-nextjs-admin-dashboard'){console.error('Sai package.json — build từ thư mục FE_ZALO_V2, không dùng ZaloCN.'); process.exit(1)}"
 RUN \
   if [ -f yarn.lock ]; then yarn --frozen-lockfile; \
   elif [ -f package-lock.json ]; then npm ci --legacy-peer-deps; \

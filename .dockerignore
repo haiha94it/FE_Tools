@@ -1,0 +1,8 @@
+node_modules
+.next
+.git
+.grok
+.agents
+*.md
+.env*.local
+npm-debug.log*
