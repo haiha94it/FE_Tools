@@ -10,7 +10,6 @@ import { STORAGE_KEYS } from "@/constants/storage-keys";
 import {
   validateGmail,
   validatePassword,
-  validatePhone,
   validateUsername,
 } from "@/lib/auth-validation";
 import { popupService } from "@/services/popup.service";
@@ -29,9 +28,7 @@ export default function SignUpForm() {
   const error = useAuthStore((s) => s.error);
   const clearError = useAuthStore((s) => s.clearError);
 
-  const [facebookLink, setFacebookLink] = useState("");
   const [fullname, setFullname] = useState("");
-  const [phone, setPhone] = useState("");
   const [username, setUsername] = useState("");
   const [mail, setMail] = useState("");
   const [referralCode, setReferralCode] = useState("");
@@ -64,13 +61,12 @@ export default function SignUpForm() {
     clearError();
     setFieldError(null);
 
-    const phoneError = validatePhone(phone);
     const mailError = validateGmail(mail);
     const usernameError = validateUsername(username);
     const passwordError = validatePassword(password);
 
-    if (phoneError || mailError || usernameError || passwordError) {
-      setFieldError(phoneError || mailError || usernameError || passwordError);
+    if (mailError || usernameError || passwordError) {
+      setFieldError(mailError || usernameError || passwordError);
       return;
     }
 
@@ -91,9 +87,7 @@ export default function SignUpForm() {
 
     try {
       await register({
-        facebook_link: facebookLink.trim(),
         fullname: fullname.trim(),
-        phone_number: phone.trim(),
         username: username.trim(),
         password,
         mail: mail.trim(),
@@ -107,9 +101,7 @@ export default function SignUpForm() {
       );
       setPopupOpen(true);
 
-      setFacebookLink("");
       setFullname("");
-      setPhone("");
       setUsername("");
       setMail("");
       setPassword("");
@@ -155,16 +147,6 @@ export default function SignUpForm() {
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <Label>Link Facebook</Label>
-              <Input
-                placeholder="https://facebook.com/..."
-                value={facebookLink}
-                onChange={(e) => setFacebookLink(e.target.value)}
-                disabled={isLoading}
-              />
-            </div>
-
-            <div>
               <Label>
                 Họ tên <span className="text-error-500">*</span>
               </Label>
@@ -173,19 +155,6 @@ export default function SignUpForm() {
                 value={fullname}
                 onChange={(e) => setFullname(e.target.value)}
                 disabled={isLoading}
-              />
-            </div>
-
-            <div>
-              <Label>
-                Số điện thoại <span className="text-error-500">*</span>
-              </Label>
-              <Input
-                placeholder="09xxxxxxxx"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                disabled={isLoading}
-                error={Boolean(fieldError && fieldError.includes("điện thoại"))}
               />
             </div>
 

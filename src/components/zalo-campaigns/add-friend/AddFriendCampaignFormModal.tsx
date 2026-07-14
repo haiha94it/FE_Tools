@@ -231,10 +231,10 @@ export default function AddFriendCampaignFormModal({
     <Modal
       isOpen={open}
       onClose={onClose}
-      className="max-w-5xl"
+      className="h-[min(760px,calc(100dvh-2rem))] max-w-5xl"
       showCloseButton
     >
-      <div className="flex max-h-[min(90vh,760px)] flex-col overflow-hidden p-5 sm:p-6">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-5 sm:p-6">
         <div className="mb-4 shrink-0 pr-8">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
             {editingCampaign
@@ -249,11 +249,11 @@ export default function AddFriendCampaignFormModal({
           </p>
         </div>
 
-        <fieldset
-          disabled={readOnly}
-          className="grid min-h-0 flex-1 gap-4 max-lg:grid-rows-[1fr_1fr] lg:grid-cols-[1.4fr_1fr]"
-        >
-            <div className="custom-scrollbar min-h-0 space-y-4 overflow-y-auto pr-1">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <fieldset disabled={readOnly} className="contents">
+            <div className="grid h-full min-h-0 flex-1 gap-4 overflow-hidden max-lg:grid-cols-1 max-lg:grid-rows-[minmax(0,1fr)_minmax(0,1fr)] lg:grid-cols-[1.4fr_1fr] lg:grid-rows-1">
+              <div className="custom-scrollbar min-h-0 overflow-y-auto overscroll-contain pr-1 max-lg:min-h-[200px]">
+                <div className="space-y-4">
               <div>
                 <label className="mb-1.5 block text-xs font-medium text-gray-600 dark:text-gray-400">
                   Tên kịch bản
@@ -428,9 +428,10 @@ export default function AddFriendCampaignFormModal({
                   ))}
                 </ul>
               </div>
-            </div>
+                </div>
+              </div>
 
-            <div className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-gray-200 p-3 dark:border-gray-700">
+              <div className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-gray-200 p-3 dark:border-gray-700 max-lg:min-h-[200px]">
               <div className="shrink-0 space-y-3">
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-sm font-semibold text-gray-800 dark:text-white/90">
@@ -447,7 +448,7 @@ export default function AddFriendCampaignFormModal({
                   disabled={accountsLoading || saving}
                 />
               </div>
-              <div className="custom-scrollbar mt-3 min-h-0 flex-1 space-y-1 overflow-y-auto">
+              <div className="custom-scrollbar mt-3 min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain">
                 {accountsLoading ? (
                   <p className="py-8 text-center text-sm text-gray-500">
                     Đang tải tài khoản...
@@ -495,8 +496,10 @@ export default function AddFriendCampaignFormModal({
                   })
                 )}
               </div>
+              </div>
             </div>
-        </fieldset>
+          </fieldset>
+        </div>
 
         <div className="mt-4 flex shrink-0 justify-end gap-2 border-t border-gray-100 pt-4 dark:border-gray-800">
           {readOnly ? (
