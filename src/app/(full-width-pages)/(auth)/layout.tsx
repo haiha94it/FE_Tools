@@ -1,4 +1,5 @@
 import AuthHomeLink from "@/components/auth/AuthHomeLink";
+import AuthStoreReset from "@/components/auth/AuthStoreReset";
 import GridShape from "@/components/common/GridShape";
 import ThemeTogglerTwo from "@/components/common/ThemeTogglerTwo";
 
@@ -15,6 +16,7 @@ export default function AuthLayout({
   return (
     <div className="relative p-6 bg-white z-1 dark:bg-gray-900 sm:p-0">
       <ThemeProvider>
+        <AuthStoreReset />
         <div className="relative flex h-screen w-full flex-col justify-center dark:bg-gray-900 sm:p-0 lg:flex-row">
           <div className="flex w-full flex-1 flex-col overflow-y-auto lg:w-1/2">
             <div className="mx-auto w-full max-w-lg px-5 pt-6 sm:px-0 sm:pt-10">
