@@ -1,0 +1,215 @@
+/* Zalo Store — Editorial Liquid Glass (ui-ux-pro-max) */
+.store-theme {
+  --store-primary: #18181b;
+  --store-accent: #ec4899;
+  --store-accent-soft: #fce7f3;
+  --store-bg: #fafafa;
+  --store-surface: #ffffff;
+  --store-muted: #71717a;
+  --store-border: rgba(24, 24, 27, 0.08);
+  --store-glass: rgba(255, 255, 255, 0.72);
+  --store-glass-dark: rgba(24, 24, 27, 0.82);
+  --font-store-display: var(--font-calistoga, "Calistoga", Georgia, serif);
+  --font-store-body: var(--font-inter, "Inter", system-ui, sans-serif);
+  font-family: var(--font-store-body);
+  color: var(--store-primary);
+  background-color: var(--store-bg);
+}
+
+.store-theme .store-display {
+  font-family: var(--font-store-display);
+  letter-spacing: -0.02em;
+}
+
+.store-mesh-bg {
+  background-color: var(--store-bg);
+  background-image:
+    radial-gradient(ellipse 80% 50% at 20% -10%, rgba(236, 72, 153, 0.14), transparent 55%),
+    radial-gradient(ellipse 60% 40% at 90% 10%, rgba(24, 24, 27, 0.06), transparent 50%),
+    radial-gradient(ellipse 50% 30% at 50% 100%, rgba(236, 72, 153, 0.08), transparent 45%);
+}
+
+.store-glass {
+  background: var(--store-glass);
+  backdrop-filter: blur(20px) saturate(1.4);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  box-shadow:
+    0 1px 2px rgba(24, 24, 27, 0.04),
+    0 8px 32px rgba(24, 24, 27, 0.06);
+}
+
+.store-glass-dark {
+  background: var(--store-glass-dark);
+  backdrop-filter: blur(24px) saturate(1.2);
+  -webkit-backdrop-filter: blur(24px) saturate(1.2);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.store-accent-glow {
+  box-shadow: 0 0 0 1px rgba(236, 72, 153, 0.25), 0 8px 24px rgba(236, 72, 153, 0.18);
+}
+
+.store-card-shine {
+  position: relative;
+  overflow: hidden;
+}
+
+.store-card-shine::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 40%,
+    rgba(255, 255, 255, 0.35) 45%,
+    rgba(255, 255, 255, 0.15) 50%,
+    transparent 55%
+  );
+  transform: translateX(-120%);
+  transition: transform 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.store-card-shine:hover::before {
+  transform: translateX(120%);
+}
+
+.store-pill-active {
+  background: var(--store-primary);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(24, 24, 27, 0.2);
+}
+
+.store-btn-primary {
+  background: var(--store-primary);
+  color: #fff;
+  transition: all 0.25s ease;
+}
+
+.store-btn-primary:hover {
+  background: #27272a;
+  box-shadow: 0 8px 24px rgba(24, 24, 27, 0.25);
+  transform: translateY(-1px);
+}
+
+.store-btn-accent {
+  background: var(--store-accent);
+  color: #fff;
+  transition: all 0.25s ease;
+}
+
+.store-btn-accent:hover {
+  background: #db2777;
+  box-shadow: 0 8px 28px rgba(236, 72, 153, 0.35);
+  transform: translateY(-1px);
+}
+
+/* Checkout portal — render ngoài .store-theme, ép light mode */
+.store-checkout-root {
+  font-family: var(--font-inter, "Inter", system-ui, sans-serif);
+  color: #18181b;
+  -webkit-font-smoothing: antialiased;
+}
+
+.store-checkout-root input,
+.store-checkout-root select,
+.store-checkout-root option {
+  color: #18181b;
+  background-color: #ffffff;
+}
+
+/* Product detail page */
+.store-pdp-gallery-main {
+  background: var(--store-surface);
+  box-shadow:
+    0 1px 2px rgba(24, 24, 27, 0.04),
+    0 16px 48px rgba(24, 24, 27, 0.08);
+}
+
+.store-pdp-thumb {
+  border: 2px solid transparent;
+  box-shadow: 0 2px 8px rgba(24, 24, 27, 0.06);
+}
+
+.store-pdp-thumb-active {
+  border-color: var(--store-accent);
+  opacity: 1;
+  box-shadow: 0 0 0 1px rgba(236, 72, 153, 0.2), 0 4px 16px rgba(236, 72, 153, 0.15);
+}
+
+.store-pdp-buy-panel {
+  background: var(--store-glass);
+  backdrop-filter: blur(20px) saturate(1.4);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  box-shadow:
+    0 1px 2px rgba(24, 24, 27, 0.04),
+    0 12px 40px rgba(24, 24, 27, 0.07);
+}
+
+.store-pdp-variant-card {
+  background: rgba(255, 255, 255, 0.85);
+  border: 1.5px solid var(--store-border);
+}
+
+.store-pdp-variant-card:hover:not(:disabled) {
+  border-color: rgba(236, 72, 153, 0.35);
+}
+
+.store-pdp-variant-selected {
+  background: var(--store-primary);
+  border-color: var(--store-primary);
+  box-shadow: 0 6px 20px rgba(24, 24, 27, 0.18);
+}
+
+.store-pdp-variant-selected span {
+  color: #fff !important;
+}
+
+.store-pdp-qty {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid var(--store-border);
+}
+
+.store-pdp-btn-outline {
+  background: transparent;
+  color: var(--store-primary);
+  border: 1.5px solid var(--store-primary);
+}
+
+.store-pdp-btn-outline:hover:not(:disabled) {
+  background: var(--store-primary);
+  color: #fff;
+}
+
+.store-pdp-trust {
+  background: rgba(255, 255, 255, 0.65);
+  border: 1px solid var(--store-border);
+}
+
+.store-pdp-details {
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid var(--store-border);
+  box-shadow: 0 4px 24px rgba(24, 24, 27, 0.04);
+}
+
+.store-pdp-related-head {
+  background: linear-gradient(135deg, var(--store-primary) 0%, #3f3f46 55%, var(--store-primary) 100%);
+}
+
+.store-pdp-sticky-bar {
+  box-shadow: 0 -8px 32px rgba(24, 24, 27, 0.1);
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .store-card-shine::before {
+    display: none;
+  }
+  .store-btn-primary:hover,
+  .store-btn-accent:hover {
+    transform: none;
+  }
+}

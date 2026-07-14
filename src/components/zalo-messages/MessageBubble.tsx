@@ -1,0 +1,394 @@
+"use client";
+
+import ContactAvatar from "@/components/zalo-contacts/shared/ContactAvatar";
+import {
+  filterDisplayMessages,
+  resolveStickerImageUrl,
+} from "@/lib/zalo-messenger-message-utils";
+import { getMessageScrollAnchorId } from "@/lib/zalo-messenger-scroll";
+import { canShareMessage } from "@/lib/zalo-messenger-share-utils";
+import {
+  getMessageReactions,
+  getUniqueReactionEmojis,
+  groupReactionsByCliMsgId,
+} from "@/lib/zalo-messenger-reactions";
+import {
+  formatMessageTime,
+  getMessageText,
+  isCompactMessageGroup,
+  isOwnMessage,
+  resolveSenderAvatar,
+  resolveSenderName,
+  shouldShowDateDivider,
+  formatDateDivider,
+  trimToString,
+} from "@/lib/zalo-messenger-utils";
+import type { ZaloGroupMember } from "@/types/zalo-contacts";
+import type { DisplayMessage } from "@/types/zalo-messenger";
+import Image from "next/image";
+import dynamic from "next/dynamic";
+import { useMemo, useState } from "react";
+import { MessageActionRail } from "./MessageActionRail";
+import type { MessageMediaPreviewItem } from "./MessageMediaLightbox";
+
+const MessageMediaLightbox = dynamic(() => import("./MessageMediaLightbox"), {
+  ssr: false,
+});
+
+function QuotePreview({
+  message,
+  own,
+}: {
+  message: DisplayMessage;
+  own: boolean;
+}) {
+  const quote = message.quote?.[0];
+  if (!quote) return null;
+
+  const quoteText =
+    trimToString(quote.msg) || trimToString(quote.attach) || "Tin nhắn";
+
+  return (
+    <div
+      className={`mb-2 rounded-xl border-l-2 px-2.5 py-1.5 text-xs ${
+        own
+          ? "border-white/50 bg-white/10 text-white/90"
+          : "border-brand-400 bg-brand-50/70 text-gray-600 dark:border-brand-500/40 dark:bg-brand-500/10 dark:text-gray-300"
+      }`}
+    >
+      <p className="font-semibold opacity-80">
+        {trimToString(quote.fromD) || "Trả lời"}
+      </p>
+      <p className="line-clamp-2">{quoteText}</p>
+    </div>
+  );
+}
+
+function MessageContent({
+  message,
+  onOpenPreview,
+}: {
+  message: DisplayMessage;
+  onOpenPreview: (item: MessageMediaPreviewItem) => void;
+}) {
+  const text = getMessageText(message);
+  const attachment = message.attachments?.[0];
+  const sticker = message.sticker?.[0];
+
+  if (attachment?.action === "voice") {
+    return (
+      <audio controls preload="none" className="max-w-full">
+        <source src={attachment.href} />
+      </audio>
+    );
+  }
+
+  if (attachment?.action === "video" || message.msgType === "chat.video.msg") {
+    const thumb = attachment?.thumb || attachment?.href;
+    const videoSrc = attachment?.href || attachment?.thumb;
+
+    return (
+      <div className="space-y-1">
+        {videoSrc ? (
+          <button
+            type="button"
+            onClick={() =>
+              onOpenPreview({
+                type: "video",
+                src: videoSrc,
+                title: text || attachment?.title,
+              })
+            }
+            className="group relative block max-w-[240px] overflow-hidden rounded-xl"
+          >
+            {thumb ? (
+              <Image
+                src={thumb}
+                alt="Video"
+                width={240}
+                height={160}
+                className="h-auto w-full object-cover transition group-hover:brightness-90"
+                unoptimized
+              />
+            ) : (
+              <span className="flex h-40 w-60 items-center justify-center rounded-xl bg-black/20 text-sm">
+                Video
+              </span>
+            )}
+            <span className="absolute inset-0 flex items-center justify-center bg-black/30 text-white text-xs font-medium transition group-hover:bg-black/40">
+              ▶ Phát video
+            </span>
+          </button>
+        ) : (
+          <span className="text-sm">Video</span>
+        )}
+        {text ? <p className="text-sm whitespace-pre-wrap break-words">{text}</p> : null}
+      </div>
+    );
+  }
+
+  if (
+    attachment?.href &&
+    (message.msgType === "chat.photo" || attachment.thumb)
+  ) {
+    const thumb = attachment.thumb || attachment.href;
+    const fullSrc = attachment.href || thumb;
+
+    return (
+      <div className="space-y-1">
+        <button
+          type="button"
+          onClick={() =>
+            onOpenPreview({
+              type: "image",
+              src: fullSrc,
+              title: text || attachment.title,
+            })
+          }
+          className="block overflow-hidden rounded-xl transition hover:opacity-90"
+        >
+          <Image
+            src={thumb}
+            alt="Ảnh"
+            width={220}
+            height={220}
+            className="max-h-56 min-h-[120px] w-auto cursor-zoom-in rounded-xl object-cover"
+            unoptimized
+          />
+        </button>
+        {text ? <p className="text-sm whitespace-pre-wrap break-words">{text}</p> : null}
+      </div>
+    );
+  }
+
+  if (attachment?.action === "file" || message.msgType === "share.file") {
+    const isImageFile =
+      attachment?.thumb ||
+      /\.(jpg|jpeg|png|gif|webp)(\?|$)/i.test(attachment?.href ?? "");
+    if (isImageFile && attachment?.href) {
+      return (
+        <button
+          type="button"
+          onClick={() =>
+            onOpenPreview({
+              type: "image",
+              src: attachment.href!,
+              title: attachment.title,
+            })
+          }
+          className="block overflow-hidden rounded-xl"
+        >
+          <Image
+            src={attachment.thumb || attachment.href}
+            alt={attachment.title || "Ảnh"}
+            width={220}
+            height={220}
+            className="max-h-56 min-h-[120px] w-auto cursor-zoom-in rounded-xl object-cover"
+            unoptimized
+          />
+        </button>
+      );
+    }
+
+    return (
+      <a
+        href={attachment?.href}
+        target="_blank"
+        rel="noreferrer"
+        className="flex items-center gap-2 text-sm underline"
+      >
+        📎 {attachment?.title || "Tệp đính kèm"}
+      </a>
+    );
+  }
+
+  if (sticker?.id || message.msgType === "chat.sticker") {
+    const stickerSrc = resolveStickerImageUrl(message);
+    if (stickerSrc) {
+      return (
+        <Image
+          src={stickerSrc}
+          alt="Sticker"
+          width={120}
+          height={120}
+          unoptimized
+          className="h-28 w-28 object-contain"
+        />
+      );
+    }
+
+    return (
+      <div className="flex h-24 w-24 items-center justify-center rounded-xl bg-white/50 text-xs text-gray-500 dark:bg-black/20">
+        Sticker #{sticker?.id ?? "?"}
+      </div>
+    );
+  }
+
+  if (text) {
+    return <p className="text-sm whitespace-pre-wrap break-words">{text}</p>;
+  }
+
+  return <span className="text-xs italic opacity-70">Nội dung không hỗ trợ</span>;
+}
+
+export function MessageList({
+  messages,
+  isGroup = false,
+  groupMembers = [],
+  onReply,
+  onReaction,
+  onShare,
+}: {
+  messages: DisplayMessage[];
+  isGroup?: boolean;
+  groupMembers?: ZaloGroupMember[];
+  onReply?: (message: DisplayMessage) => void;
+  onReaction?: (message: DisplayMessage, reactionId: number) => void;
+  onShare?: (message: DisplayMessage) => void;
+}) {
+  const display = filterDisplayMessages(messages);
+  const reactionMap = useMemo(
+    () => groupReactionsByCliMsgId(messages),
+    [messages],
+  );
+  const [previewItem, setPreviewItem] = useState<MessageMediaPreviewItem | null>(
+    null,
+  );
+  return (
+    <>
+      <MessageMediaLightbox
+        item={previewItem}
+        onClose={() => setPreviewItem(null)}
+      />
+
+      {display.map((message, index) => {
+        const previous = display[index - 1];
+        const own = isOwnMessage(message);
+        const compact = isCompactMessageGroup(message, previous);
+        const showDivider = shouldShowDateDivider(message, previous);
+        const senderName = isGroup
+          ? resolveSenderName(message, groupMembers)
+          : null;
+        const senderAvatar = isGroup
+          ? resolveSenderAvatar(message, groupMembers)
+          : null;
+        const showSenderHeader =
+          isGroup && !own && !compact && Boolean(senderName);
+        const showAvatar = isGroup && !own;
+        const reactionMessages = getMessageReactions(message, reactionMap);
+        const reactionEmojis = getUniqueReactionEmojis(reactionMessages);
+        const scrollAnchorId = getMessageScrollAnchorId(message);
+        return (
+          <div
+            key={message.msgId ?? message.cliMsgId ?? message.id ?? index}
+            className="messenger-list-item"
+            {...(scrollAnchorId
+              ? { "data-scroll-anchor": scrollAnchorId }
+              : {})}
+          >
+            {showDivider ? (
+              <div className="my-4 flex justify-center">
+                <span className="rounded-full bg-gray-100 px-3 py-1 text-[11px] font-medium text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+                  {formatDateDivider(message.ts)}
+                </span>
+              </div>
+            ) : null}
+
+            <div
+              className={`group/row relative flex w-full min-w-0 items-end gap-2 overflow-visible ${
+                own ? "justify-end" : "justify-start"
+              } ${compact ? "mt-1" : "mt-3"}`}
+            >
+              {showAvatar ? (
+                <div className="w-8 shrink-0">
+                  {!compact ? (
+                    <ContactAvatar
+                      name={senderName ?? "Thành viên"}
+                      avatar={senderAvatar}
+                      size="sm"
+                    />
+                  ) : null}
+                </div>
+              ) : null}
+
+              <div
+                className={`flex min-w-0 max-w-[min(88%,360px)] flex-col overflow-visible ${
+                  own ? "items-end" : "items-start"
+                }`}
+              >
+                {showSenderHeader ? (
+                  <p className="mb-1 px-1 text-[11px] font-medium text-gray-500 dark:text-gray-400">
+                    {senderName}
+                  </p>
+                ) : null}
+
+                <div className="relative inline-flex w-fit max-w-full overflow-visible">
+                  <div
+                    className={`relative rounded-2xl px-3.5 py-2 shadow-sm ${
+                      own
+                        ? "rounded-br-md bg-gradient-to-br from-brand-500 to-brand-600 text-white"
+                        : "rounded-bl-md border border-gray-100 bg-white text-gray-800 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90"
+                    } ${message._status === "failed" ? "ring-2 ring-error-400/50" : ""} ${
+                      reactionEmojis.length > 0 ? "pb-3" : ""
+                    }`}
+                  >
+                    <QuotePreview message={message} own={own} />
+                    <MessageContent
+                      message={message}
+                      onOpenPreview={setPreviewItem}
+                    />
+                    <div
+                      className={`mt-1 flex items-center justify-end gap-1 text-[10px] ${
+                        own ? "text-white/70" : "text-gray-400"
+                      }`}
+                    >
+                      <span>{formatMessageTime(message.ts)}</span>
+                    </div>
+
+                    {reactionEmojis.length > 0 ? (
+                      <div
+                        className={`absolute bottom-0 z-[4] inline-flex -translate-y-1/2 items-center gap-0.5 rounded-full border border-gray-200 bg-white px-2 py-0.5 text-[11px] shadow-sm dark:border-gray-700 dark:bg-gray-800 ${
+                          own ? "left-3" : "right-3"
+                        }`}
+                      >
+                        {reactionEmojis.map((emoji) => (
+                          <span key={emoji}>{emoji}</span>
+                        ))}
+                        <span className="text-gray-500">
+                          {reactionMessages.length}
+                        </span>
+                      </div>
+                    ) : null}
+                  </div>
+
+                  <MessageActionRail
+                    own={own}
+                    canReply={Boolean(onReply)}
+                    canShare={Boolean(onShare && canShareMessage(message))}
+                    onReply={onReply ? () => onReply(message) : undefined}
+                    onShare={
+                      onShare && canShareMessage(message)
+                        ? () => onShare(message)
+                        : undefined
+                    }
+                    onReaction={
+                      onReaction
+                        ? (reactionId) => onReaction(message, reactionId)
+                        : undefined
+                    }
+                  />
+                </div>
+              </div>
+
+              {isGroup && own ? (
+                <span className="w-8 shrink-0" aria-hidden="true" />
+              ) : null}
+            </div>
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
+export default MessageList;

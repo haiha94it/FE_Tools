@@ -1,0 +1,24 @@
+[data-sonner-toast].messenger-global-toast {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin-bottom: 8px;
+  overflow: visible;
+  width: auto !important;
+  max-width: none !important;
+}
+
+[data-sonner-toast].messenger-global-toast [data-close-button] {
+  display: none;
+}
+
+[data-sonner-toast].messenger-global-toast [data-icon] {
+  display: none;
+}
+
+[data-sonner-toast].messenger-global-toast [data-content] {
+  padding: 0;
+  margin: 0;
+  width: 100%;
+}

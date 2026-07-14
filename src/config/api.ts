@@ -1,0 +1,386 @@
+import { env } from "@/config/env";
+
+/** Base URL API chính */
+export const API_BASE_URL = env.NEXT_PUBLIC_API_URL;
+
+/** Base URL Care — Zalo messenger, tài khoản, nhóm */
+export const CARE_API_BASE_URL = env.NEXT_PUBLIC_CARE_API_URL;
+
+/** Auth — đồng bộ ZaloCN (login/logout/refresh). /accounts dùng token login, không login-care */
+export const API_AUTH = {
+  LOGIN: "/api/users/login",
+  /** Dự phòng — ZaloCN /accounts không dùng; chỉ khi module cần token Care riêng */
+  LOGIN_CARE: "/api/auth/login-care",
+  REFRESH: "/api/token/refresh/",
+  LOGOUT: "/api/users/logout",
+  ME: "/api/users/me",
+  REGISTER: "/api/register/create",
+  REGISTER_RESULT: "/api/register/result",
+  RESET_PASSWORD: "/api/users/reset-password/create",
+} as const;
+
+/** Popup / thông báo hệ thống */
+export const API_POPUP = {
+  REGISTER: "/api/popup/register/get",
+  DECREE: "/api/popup/decree/get",
+} as const;
+
+/** Care token refresh */
+export const API_CARE_AUTH = {
+  REFRESH: "/api/token/refresh/",
+} as const;
+
+/** Proxy Zalo — backend chính */
+export const API_ZALO_PROXY = {
+  LIST: "/api/proxy/",
+  ADD: "/api/proxy/add",
+  EDIT: "/api/proxy/edit",
+  DELETE: "/api/proxy/delete",
+  CHECK: "/api/proxy/check",
+  CHECK_RESULT: "/api/proxy/check/result",
+} as const;
+
+/** Bạn bè Zalo */
+export const API_ZALO_FRIEND = {
+  LIST: "/api/friend/",
+  /** Lấy avatar/chi tiết từ danh sách bạn bè (type=simple) — ZaloCN fetchs */
+  FETCH_DETAILS: "/api/friend/fetchs",
+  SCAN: "/api/friend/get",
+  SCAN_RESULT: "/api/friend/get/result",
+  UNFRIEND: "/api/friend/unfriend",
+  UNFRIEND_RESULT: "/api/friend/unfriend/result",
+  RECOMMEND_SCAN: "/api/friend/friend-recommend/get",
+  RECOMMEND_RESULT: "/api/friend/friend-recommend/result",
+  SENT_REQUEST_SCAN: "/api/friend/sent-request/get",
+  SENT_REQUEST_SHOW: "/api/friend/sent-request/show",
+  SENT_REQUEST_RESULT: "/api/friend/sent-request/get/result",
+} as const;
+
+/** Chiến dịch kết bạn — đồng bộ ZaloCN /add-friend */
+export const API_ZALO_ADD_FRIEND_CAMPAIGN = {
+  LIST: "/api/friend/category/get",
+  CREATE_OR_EDIT: "/api/friend/category/create-or-edit",
+  ADD_TO_ACCOUNT: "/api/friend/category/add",
+  DELETE: "/api/friend/category/delete",
+  START: "/api/friend/category/start",
+  STOP: "/api/friend/category/stop",
+  COPY: "/api/friend/category/copy",
+  RESULTS: "/api/friend/category/result",
+  DELETE_RESULTS: "/api/friend/category/result/delete",
+  STATISTICS: "/api/friend/category/result/statistics",
+  FAILED_PHONES: "/api/friend/category/failed-campaigns-phone-numbers",
+  ACCOUNT_LIMIT: "/api/friend/category/account-limit",
+} as const;
+
+export const ADD_FRIEND_CAMPAIGN_BASE = "/zalo-campaigns/add-friend";
+
+/** Chiến dịch tham gia nhóm — đồng bộ ZaloCN /join-group */
+export const API_ZALO_JOIN_GROUP_CAMPAIGN = {
+  LIST: "/api/group/category",
+  CREATE_OR_EDIT: "/api/group/category/create-or-edit",
+  ADD_TO_ACCOUNT: "/api/group/category/add",
+  DELETE: "/api/group/category/delete",
+  START: "/api/group/category/start",
+  STOP: "/api/group/category/stop",
+  COPY: "/api/group/category/copy",
+  RESULTS: "/api/group/category/result",
+  DELETE_RESULTS: "/api/group/category/result/delete",
+  STATISTICS: "/api/group/category/result/statistics",
+  FAILED_LINKS: "/api/group/category/failed-campaigns-link-group",
+} as const;
+
+export const JOIN_GROUP_CAMPAIGN_BASE = "/zalo-campaigns/join-group";
+
+/** Chiến dịch mời bạn bè tham gia nhóm — đồng bộ ZaloCN /invine-join-gr */
+export const API_ZALO_INVITE_JOIN_GROUP_CAMPAIGN = {
+  LIST: "/api/group/category/invite",
+  CREATE_OR_EDIT: "/api/group/category/invite/create-or-edit",
+  DELETE: "/api/group/category/invite/delete",
+  START: "/api/group/category/invite/start",
+  STOP: "/api/group/category/invite/stop",
+  COPY: "/api/group/category/invite/copy",
+  RESULTS: "/api/group/category/invite/result",
+  DELETE_RESULTS: "/api/group/category/invite/result/delete",
+  STATISTICS: "/api/group/category/invite/statistics",
+  FAILED_PHONES: "/api/group/category/invite/failed-campaigns-phone-numbers",
+} as const;
+
+export const INVITE_JOIN_GROUP_CAMPAIGN_BASE = "/zalo-campaigns/invite-join-group";
+
+/** Chiến dịch mời SĐT tham gia nhóm — đồng bộ ZaloCN /phone-number-invine-group */
+export const API_ZALO_PHONE_INVITE_GROUP_CAMPAIGN = {
+  LIST: "/api/group/category/invite-phone",
+  CREATE_OR_EDIT: "/api/group/category/invite-phone/create-or-edit",
+  DELETE: "/api/group/category/invite-phone/delete",
+  START: "/api/group/category/invite-phone/start",
+  STOP: "/api/group/category/invite-phone/stop",
+  COPY: "/api/group/category/invite-phone/copy",
+  RESULTS: "/api/group/category/invite-phone/result",
+  DELETE_RESULTS: "/api/group/category/invite-phone/result/delete",
+  STATISTICS: "/api/group/category/invite-phone/statistics",
+  ALL_GROUPS: "/api/campaign/spam-link-group/category/all-group",
+} as const;
+
+export const PHONE_INVITE_GROUP_CAMPAIGN_BASE =
+  "/zalo-campaigns/phone-number-invite-group";
+
+/** Chiến dịch nhắn tin bạn bè — đồng bộ ZaloCN /send-mes-fr */
+export const API_ZALO_SEND_MES_FR_CAMPAIGN = {
+  LIST: "/api/message/friend/category",
+  CREATE_OR_EDIT: "/api/message/friend/category/create-or-edit",
+  DELETE: "/api/message/friend/category/delete",
+  START: "/api/message/friend/category/start",
+  STOP: "/api/message/friend/category/stop",
+  COPY: "/api/message/friend/category/copy",
+  RESULTS: "/api/message/friend/result",
+  DELETE_RESULTS: "/api/message/friend/result/delete",
+  STATISTICS: "/api/message/friend/statistics",
+} as const;
+
+export const SEND_MES_FR_CAMPAIGN_BASE = "/zalo-campaigns/send-mes-fr";
+
+/** Chiến dịch nhắn tin đến số điện thoại — đồng bộ ZaloCN /send-mess-number-phone */
+export const API_ZALO_SEND_MESS_PHONE_CAMPAIGN = {
+  LIST: "/api/message/phone-number/category",
+  CREATE_OR_EDIT: "/api/message/phone-number/category/create-or-edit",
+  DELETE: "/api/message/phone-number/category/delete",
+  START: "/api/message/phone-number/category/start",
+  STOP: "/api/message/phone-number/category/stop",
+  COPY: "/api/message/phone-number/category/copy",
+  RESULTS: "/api/message/phone-number/result",
+  DELETE_RESULTS: "/api/message/phone-number/result/delete",
+  STATISTICS: "/api/message/phone-number/statistics",
+} as const;
+
+export const SEND_MESS_PHONE_CAMPAIGN_BASE =
+  "/zalo-campaigns/send-mess-number-phone";
+
+/** Chiến dịch nhắn tin vào nhóm — đồng bộ ZaloCN /send-mes-group */
+export const API_ZALO_SEND_MES_GROUP_CAMPAIGN = {
+  LIST: "/api/message/group/category",
+  CREATE_OR_EDIT: "/api/message/group/category/create-or-edit",
+  DELETE: "/api/message/group/category/delete",
+  START: "/api/message/group/category/start",
+  STOP: "/api/message/group/category/stop",
+  COPY: "/api/message/group/category/copy",
+  RESULTS: "/api/message/group/result",
+  DELETE_RESULTS: "/api/message/group/result/delete",
+  STATISTICS: "/api/message/group/statistics",
+} as const;
+
+export const SEND_MES_GROUP_CAMPAIGN_BASE = "/zalo-campaigns/send-mes-group";
+
+/** Chiến dịch tương tác nhóm đã tham gia — đồng bộ ZaloCN /send-mess-member-gr */
+export const API_ZALO_SEND_MESS_MEMBER_GR_CAMPAIGN = {
+  LIST: "/api/message/mem-group/category",
+  CREATE_OR_EDIT: "/api/message/mem-group/category/create-or-edit",
+  DELETE: "/api/message/mem-group/category/delete",
+  START: "/api/message/mem-group/category/start",
+  STOP: "/api/message/mem-group/category/stop",
+  COPY: "/api/message/mem-group/category/copy",
+  RESULTS: "/api/message/mem-group/result",
+  DELETE_RESULTS: "/api/message/mem-group/result/delete",
+  STATISTICS: "/api/message/mem-group/statistics",
+} as const;
+
+export const SEND_MESS_MEMBER_GR_CAMPAIGN_BASE =
+  "/zalo-campaigns/send-mess-member-gr";
+
+/** Chúc mừng sinh nhật — đồng bộ ZaloCN /messenger-birthday */
+export const API_ZALO_BIRTHDAY_CAMPAIGN = {
+  GET: "/api/message/birthday/category",
+  CREATE_OR_EDIT: "/api/message/birthday/category/create-or-edit",
+  START: "/api/message/birthday/category/start",
+  STOP: "/api/message/birthday/category/stop",
+  RESULTS: "/api/message/birthday/result",
+  DELETE_RESULTS: "/api/message/birthday/result/delete",
+  SHOW_VIDEOS: "/api/message/video/show",
+  SHOW_ALBUMS: "/api/message/album/show",
+} as const;
+
+export const MESSENGER_BIRTHDAY_BASE = "/zalo-campaigns/messenger-birthday";
+
+/** Tài nguyên — đồng bộ ZaloCN /resource */
+export const API_ZALO_RESOURCE = {
+  LIST: "/api/popup/resource/get",
+  CREATE_OR_EDIT: "/api/popup/resource/create-or-edit",
+  DELETE: "/api/popup/resource/delete",
+  PRODUCT_LIST: "/api/popup/product-app/get",
+  PRODUCT_CREATE_OR_EDIT: "/api/popup/product-app/create-or-edit",
+  PRODUCT_DELETE: "/api/popup/product-app/delete",
+} as const;
+
+export const RESOURCE_BASE = "/resource";
+
+/** Hướng dẫn sử dụng — đồng bộ API ZaloCN /huongdan, route chuẩn /guides */
+export const API_ZALO_GUIDE = {
+  LIST: "/api/popup/tutorial/get",
+  CREATE_OR_EDIT: "/api/popup/tutorial/create-or-edit",
+  DELETE: "/api/popup/tutorial/delete",
+} as const;
+
+export const GUIDES_BASE = "/guides";
+
+/** Quản lý người dùng — đồng bộ ZaloCN /sep */
+export const API_ZALO_USER_ADMIN = {
+  LIST: "/api/users/get-all-account",
+  LIST_ACTIVATIONS: "/api/register/activations",
+  EXPORT: "/api/users/get-all-account/export",
+  CREATE: "/api/users/create-manager",
+  EDIT: "/api/users/edit-manager",
+  DELETE: "/api/users/delete-manager",
+  LOCK: "/api/users/lock-account",
+  UNBLOCK: "/api/users/unblock-account",
+  ADD_ACCOUNT_LIMIT: "/api/users/add-account-limit",
+  ADD_EMPLOYEE_LIMIT: "/api/users/add-employee-limit",
+  ACTIVITY_LOGS: "/api/users/activity-logs",
+  RESET_PASS_LIST: "/api/users/reset-password/get",
+  RESET_PASS: "/api/users/reset-password/reset",
+  RESET_PASS_DELETE: "/api/users/reset-password/delete",
+  CHANGE_PASSWORD: "/api/users/change-password",
+  ACTIVATE: "/api/register/activate",
+} as const;
+
+export const ADMIN_USERS_BASE = "/admin/users";
+
+/** Nhóm Zalo */
+export const API_ZALO_GROUP = {
+  LIST: "/api/group/",
+  /** Lấy avatar/chi tiết từ danh sách nhóm (type=simple) — ZaloCN fetchs */
+  FETCH_DETAILS: "/api/group/fetchs",
+  SHOW_MEMBER_LINK: "/api/group/show-member-link",
+  SCAN: "/api/group/get",
+  SCAN_RESULT: "/api/group/get/result",
+  QUIT: "/api/group/quit",
+  QUIT_RESULT: "/api/group/quit/result",
+  GET_LINK: "/api/group/get/link",
+  GET_LINK_RESULT: "/api/group/get/link/result",
+  GET_MEMBER: "/api/group/get-member",
+  GET_MEMBER_RESULT: "/api/group/get-member/result",
+  GET_MEMBER_SHOW: "/api/group/get-member/show",
+  CREATE: "/api/group/create",
+  CREATE_RESULT: "/api/group/create/result",
+} as const;
+
+/** Nhãn hội thoại / danh bạ */
+export const API_ZALO_LABEL = {
+  CATEGORIES: "/api/message/category/get",
+  CREATE_OR_EDIT: "/api/message/category/create-or-edit",
+  DELETE: "/api/message/category/delete",
+  ADD: "/api/message/category/add",
+  REMOVE: "/api/message/category/remove",
+} as const;
+
+/** Tài khoản Zalo — Care backend */
+export const API_ZALO_ACCOUNT = {
+  ACCOUNTS: "/api/account/",
+  EDIT: "/api/account/edit",
+  DELETE: "/api/account/delete",
+  CHECK: "/api/account/check-account",
+  CHECK_RESULT: "/api/account/check-account/result",
+  TOGGLE_CHATBOT: "/api/account/toggle-chatbot",
+  TOGGLE_MESSAGE_LISTENER: "/api/account/toggle-message-listener",
+  CREATE_ACCOUNT_MANUAL: "/api/account/add",
+  CREATE_ACCOUNT_MANUAL_RESULT: "/api/account/add/result",
+  CHATBOT_DISABLED_FRIENDS: (accountId: number | string) =>
+    `/api/account/${accountId}/chatbot-disabled-friends`,
+} as const;
+
+/** Zalo messenger — envelope API (contract 2026) */
+export const API_ZALO_MESSENGER = {
+  ACCOUNTS: "/api/account/",
+  CONVERSATIONS: "/api/message/conversations",
+  OPEN_CONVERSATION: "/api/message/conversations/open",
+  GET_MESSAGES: "/api/message/get-message",
+  NOTE: "/api/message/note",
+  PIN_CONVERSATION: "/api/message/pin",
+  PIN_ACCOUNT: "/api/message/pin/account",
+  /** Tin nhắn nhanh — REST: GET list, POST create, PATCH/DELETE /{pk}, bulk DELETE */
+  FAST_REPLY: "/api/message/fast-reply",
+  UPLOAD_FILE: "/api/upload/file",
+  STICKERS_SEARCH: "/api/message/stickers/search",
+  STICKERS_SUGGEST: "/api/message/stickers/suggest",
+  STICKERS_CATEGORY: "/api/message/stickers/category",
+  STICKERS_DETAIL: "/api/message/stickers/detail",
+  SEND_REACTION_TO_UID: "/api/message/send-reaction-to-uid",
+  SEND_REACTION_TO_GROUP: "/api/message/send-reaction-to-group",
+  MARK_READ_ALL: "/api/message/mark-read",
+} as const;
+
+/** Upload chung */
+export const API_UPLOAD = {
+  FILE: "/api/upload/file",
+  SERVER: "/api/upload/server",
+} as const;
+
+/** Kênh Zalo Video — đồng bộ ZaloCN API_CHANNEL_VIDEO */
+export const API_CHANNEL_VIDEO = {
+  LOGIN: "/api/channel/login",
+  LOGIN_RESULT: "/api/channel/login/result",
+  INFO: "/api/channel/info",
+  RENEW: "/api/channel/renew",
+  RENEW_RESULT: "/api/channel/renew/result",
+  RENEW_GENERAL: "/api/channel/renew-general",
+  RENEW_GENERAL_RESULT: "/api/channel/renew-general/result",
+  POST_VIDEO: "/api/channel/video/post",
+  POST_VIDEO_RESULT: "/api/channel/video/post/result",
+  UPLOAD_VIDEO: "/api/upload/zalo-video",
+  DOWNLOAD_VIDEO: "/api/channel/download-video",
+  DOWNLOAD_VIDEO_RESULT: "/api/channel/download-video/result",
+  RENEW_VIDEOS: "/api/channel/video/renew",
+  RENEW_VIDEOS_RESULT: "/api/channel/video/renew/result",
+  RENEW_COMMENT: "/api/channel/comment/renew",
+  RENEW_COMMENT_RESULT: "/api/channel/comment/renew/result",
+  PHONE: "/api/channel/phone",
+  PHONE_RESULT: "/api/channel/phone/result",
+  PHONE_ADD: "/api/channel/phone/add",
+  PHONE_ADD_RESULT: "/api/channel/phone/add/result",
+  PHONE_DELETE: "/api/channel/phone/delete",
+  PHONE_DELETE_RESULT: "/api/channel/phone/delete/result",
+  UPDATE_SETTINGS: "/api/channel/update-settings",
+  UPDATE_SETTINGS_RESULT: "/api/channel/update-settings/result",
+  INSTRUCTIONS_GET: "/api/popup/instructions/get",
+  INSTRUCTIONS_EDIT: "/api/popup/instructions/create-or-edit",
+} as const;
+
+export const VIDEO_CREATOR_BASE = "/zalo-campaigns/post-video";
+
+/** Mini Shop / cửa hàng — đồng bộ ZaloCN minishop, shoplinkhome, showproduct */
+export const API_ZALO_SHOP = {
+  CATEGORY: "/api/shop/category",
+  CATEGORY_CREATE: "/api/shop/category/create-or-update",
+  CATEGORY_DELETE: "/api/shop/category/delete",
+  CATEGORY_ACTIVATE: "/api/shop/category/activate",
+  CATEGORY_DEACTIVATE: "/api/shop/category/deactivate",
+  COVER: "/api/shop/cover",
+  COVER_CREATE: "/api/shop/cover/create-or-update",
+  SAMPLE_LINK: "/api/shop/cover/sample_link",
+  PRODUCT: "/api/shop/product",
+  PRODUCT_CREATE: "/api/shop/product/create-or-update",
+  PRODUCT_DELETE: "/api/shop/product/delete",
+  PRODUCT_ACTIVATE: "/api/shop/product/activate",
+  PRODUCT_DEACTIVATE: "/api/shop/product/deactivate",
+  PRODUCT_COPY: "/api/shop/product/copy",
+  CART: "/api/shop/cart",
+  CART_ADD: "/api/shop/cart/add-to-cart",
+  CART_UPDATE: "/api/shop/cart/update-quantity",
+  ORDER: "/api/shop/order",
+  ORDER_CREATE: "/api/shop/order/create",
+  ORDER_CONFIRM: "/api/shop/order/confirm",
+  ORDER_CANCEL: "/api/shop/order/cancel",
+  ORDER_DELETE: "/api/shop/order/delete",
+  ORDER_UPDATE: "/api/shop/order/update",
+  COUPON: "/api/shop/coupon",
+  COUPON_CREATE: "/api/shop/coupon/create",
+  COUPON_DELETE: "/api/shop/coupon/delete",
+  CITY: "/api/shop/city",
+  WARD: "/api/shop/ward",
+  DISTRICT: "/api/shop/district",
+  DOMAIN: "/api/users/domain",
+  DOMAIN_EDIT: "/api/users/domain/edit",
+  LINK_QR_ZALO: "/api/shop/get-link-zalo",
+  PRODUCT_REVIEW: "/api/shop/product-review/all",
+} as const;
+
+export const SHOP_ADMIN_BASE = "/shop";
+export const STORE_PUBLIC_BASE = "/store";

@@ -1,0 +1,114 @@
+export type NavSubItem = {
+  name: string;
+  path: string;
+};
+
+export type NavIconKey =
+  | "grid"
+  | "chat"
+  | "user"
+  | "group"
+  | "calendar"
+  | "table"
+  | "list"
+  | "page"
+  | "chart"
+  | "box"
+  | "plugin";
+
+export type NavIconTone =
+  | "brand"
+  | "success"
+  | "warning"
+  | "info"
+  | "neutral"
+  | "purple"
+  | "error";
+
+export type NavRole = "admin" | "saler" | "sale_manager";
+
+export type NavItemConfig = {
+  name: string;
+  icon: NavIconKey;
+  iconTone?: NavIconTone;
+  path?: string;
+  subItems?: NavSubItem[];
+  /** Chỉ hiển thị khi user có một trong các quyền này */
+  roles?: NavRole[];
+};
+
+/**
+ * Menu sidebar — chỉ hiển thị module đang dùng.
+ * Thêm mục mới khi tích hợp tính năng Zalo.
+ */
+export const mainNavItems: NavItemConfig[] = [
+  { name: "Trang thông tin", path: "/zalo-messenger", icon: "user", iconTone: "brand" },
+  {
+    name: "Quản lý tài khoản",
+    path: "/zalo-accounts",
+    icon: "group",
+    iconTone: "success",
+  },
+  {
+    name: "Tin nhắn",
+    path: "/zalo-messages",
+    icon: "chat",
+    iconTone: "success",
+  },
+  {
+    name: "Cửa hàng",
+    path: "/shop",
+    icon: "box",
+    iconTone: "warning",
+  },
+  {
+    name: "Tài nguyên",
+    path: "/resource",
+    icon: "box",
+    iconTone: "info",
+  },
+  {
+    name: "Hướng dẫn",
+    path: "/guides",
+    icon: "page",
+    iconTone: "neutral",
+  },
+  {
+    name: "Chiến dịch",
+    icon: "plugin",
+    iconTone: "purple",
+    subItems: [
+      { name: "Đăng video", path: "/zalo-campaigns/post-video" },
+      { name: "Kết bạn", path: "/zalo-campaigns/add-friend" },
+      { name: "Tham gia nhóm", path: "/zalo-campaigns/join-group" },
+      { name: "Mời bạn bè tham gia nhóm", path: "/zalo-campaigns/invite-join-group" },
+      {
+        name: "Mời SĐT tham gia nhóm",
+        path: "/zalo-campaigns/phone-number-invite-group",
+      },
+      { name: "Nhắn tin bạn bè", path: "/zalo-campaigns/send-mes-fr" },
+      {
+        name: "Nhắn tin đến SĐT",
+        path: "/zalo-campaigns/send-mess-number-phone",
+      },
+      { name: "Nhắn tin vào nhóm", path: "/zalo-campaigns/send-mes-group" },
+      {
+        name: "Tương tác nhóm đã tham gia",
+        path: "/zalo-campaigns/send-mess-member-gr",
+      },
+      {
+        name: "Chúc mừng sinh nhật",
+        path: "/zalo-campaigns/messenger-birthday",
+      },
+    ],
+  },
+  {
+    name: "Admin",
+    icon: "list",
+    iconTone: "error",
+    roles: ["admin", "saler", "sale_manager"],
+    subItems: [{ name: "Quản lý người dùng", path: "/admin/users" }],
+  },
+];
+
+export const otherNavItems: NavItemConfig[] = [];
