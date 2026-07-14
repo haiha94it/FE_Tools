@@ -122,12 +122,12 @@ export default function SignUpForm() {
         imageUrl={popupService.resolvePopupImage(popupData?.image)}
       />
 
-      <div className="flex w-full flex-1 flex-col overflow-y-auto lg:w-1/2 no-scrollbar">
-        <div className="mx-auto mb-5 w-full max-w-lg sm:pt-10">
+      <div className="flex w-full flex-1 flex-col">
+        <div className="mx-auto mb-5 w-full max-w-lg px-5 sm:px-0">
           <p className="text-sm text-gray-500 dark:text-gray-400">{APP_NAME}</p>
         </div>
 
-        <div className="mx-auto flex w-full max-w-lg flex-1 flex-col justify-center pb-10">
+        <div className="mx-auto flex w-full max-w-lg flex-1 flex-col justify-center px-5 pb-10 sm:px-0">
           <div className="mb-5 flex flex-wrap items-end justify-between gap-2 sm:mb-8">
             <div>
               <h1 className="mb-2 text-title-sm font-semibold text-gray-800 sm:text-title-md dark:text-white/90">

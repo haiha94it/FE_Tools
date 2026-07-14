@@ -6,6 +6,14 @@ import Input from "@/components/form/input/InputField";
 import TimePicker from "@/components/form/time-picker";
 import { Modal } from "@/components/ui/modal";
 import {
+  campaignFormAccountPaneClass,
+  campaignFormBodyClass,
+  campaignFormGridWideClass,
+  campaignFormMainClass,
+  campaignFormModalPanelClass,
+  campaignFormScrollPaneClass,
+} from "@/components/zalo-campaigns/CampaignFormModalLayout";
+import {
   formatTimeForApi,
   parseTimeToDate,
   splitLines,
@@ -231,10 +239,10 @@ export default function AddFriendCampaignFormModal({
     <Modal
       isOpen={open}
       onClose={onClose}
-      className="h-[min(760px,calc(100dvh-2rem))] max-w-5xl"
+      className={campaignFormModalPanelClass.md}
       showCloseButton
     >
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-5 sm:p-6">
+      <div className={campaignFormBodyClass}>
         <div className="mb-4 shrink-0 pr-8">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
             {editingCampaign
@@ -249,10 +257,10 @@ export default function AddFriendCampaignFormModal({
           </p>
         </div>
 
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <div className={campaignFormMainClass}>
           <fieldset disabled={readOnly} className="contents">
-            <div className="grid h-full min-h-0 flex-1 gap-4 overflow-hidden max-lg:grid-cols-1 max-lg:grid-rows-[minmax(0,1fr)_minmax(0,1fr)] lg:grid-cols-[1.4fr_1fr] lg:grid-rows-1">
-              <div className="custom-scrollbar min-h-0 overflow-y-auto overscroll-contain pr-1 max-lg:min-h-[200px]">
+            <div className={campaignFormGridWideClass}>
+              <div className={campaignFormScrollPaneClass}>
                 <div className="space-y-4">
               <div>
                 <label className="mb-1.5 block text-xs font-medium text-gray-600 dark:text-gray-400">
@@ -431,7 +439,7 @@ export default function AddFriendCampaignFormModal({
                 </div>
               </div>
 
-              <div className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-gray-200 p-3 dark:border-gray-700 max-lg:min-h-[200px]">
+              <div className={campaignFormAccountPaneClass}>
               <div className="shrink-0 space-y-3">
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-sm font-semibold text-gray-800 dark:text-white/90">

@@ -15,12 +15,14 @@ interface TeamEmployeeAccountsModalProps {
   employee: TeamEmployee | null;
   open: boolean;
   onClose: () => void;
+  onSaved?: () => void;
 }
 
 export default function TeamEmployeeAccountsModal({
   employee,
   open,
   onClose,
+  onSaved,
 }: TeamEmployeeAccountsModalProps) {
   const [managerAccounts, setManagerAccounts] = useState<ZaloAccount[]>([]);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
@@ -66,6 +68,7 @@ export default function TeamEmployeeAccountsModal({
         account_ids: selectedIds,
       });
       toast.success("Đã cập nhật nick gán cho nhân viên.");
+      onSaved?.();
       onClose();
     } catch (error) {
       toast.error(getApiErrorMessage(error));

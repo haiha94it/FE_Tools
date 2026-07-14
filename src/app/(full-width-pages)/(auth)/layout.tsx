@@ -15,9 +15,13 @@ export default function AuthLayout({
   return (
     <div className="relative p-6 bg-white z-1 dark:bg-gray-900 sm:p-0">
       <ThemeProvider>
-        <div className="relative flex lg:flex-row w-full h-screen justify-center flex-col  dark:bg-gray-900 sm:p-0">
-          <AuthHomeLink />
-          {children}
+        <div className="relative flex h-screen w-full flex-col justify-center dark:bg-gray-900 sm:p-0 lg:flex-row">
+          <div className="flex w-full flex-1 flex-col overflow-y-auto lg:w-1/2">
+            <div className="mx-auto w-full max-w-lg px-5 pt-6 sm:px-0 sm:pt-10">
+              <AuthHomeLink />
+            </div>
+            {children}
+          </div>
           <div className="lg:w-1/2 w-full h-full bg-brand-950 dark:bg-white/5 lg:grid items-center hidden">
             <div className="relative items-center justify-center  flex z-1">
               {/* <!-- ===== Common Grid Shape Start ===== --> */}

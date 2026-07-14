@@ -4,6 +4,14 @@ import Button from "@/components/ui/button/Button";
 import Input from "@/components/form/input/InputField";
 import TimePicker from "@/components/form/time-picker";
 import { Modal } from "@/components/ui/modal";
+import {
+  campaignFormBodyClass,
+  campaignFormGridEqualClass,
+  campaignFormMainClass,
+  campaignFormModalPanelClass,
+  campaignFormScrollPaneClass,
+  campaignFormSidePaneClass,
+} from "@/components/zalo-campaigns/CampaignFormModalLayout";
 import ContactAvatar from "@/components/zalo-contacts/shared/ContactAvatar";
 import { UserIcon } from "@/icons";
 import { resolveZaloLabelColor } from "@/lib/zalo-label-utils";
@@ -357,8 +365,8 @@ export default function SendMesFrCampaignFormModal({
   };
 
   return (
-    <Modal isOpen={open} onClose={onClose} className="max-w-6xl" showCloseButton>
-      <div className="flex max-h-[min(92vh,820px)] flex-col overflow-hidden p-5 sm:p-6">
+    <Modal isOpen={open} onClose={onClose} className={campaignFormModalPanelClass.lg} showCloseButton>
+      <div className={campaignFormBodyClass}>
         <div className="mb-4 shrink-0 pr-8">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
             {editingCampaign
@@ -372,11 +380,11 @@ export default function SendMesFrCampaignFormModal({
           </p>
         </div>
 
-        <fieldset
-          disabled={readOnly}
-          className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]"
-        >
-          <div className="custom-scrollbar min-h-0 space-y-4 overflow-y-auto pr-1">
+        <div className={campaignFormMainClass}>
+          <fieldset disabled={readOnly} className="contents">
+            <div className={campaignFormGridEqualClass}>
+              <div className={campaignFormScrollPaneClass}>
+                <div className="space-y-4">
             <div>
               <label className="mb-1.5 block text-xs font-medium text-gray-600 dark:text-gray-400">
                 Tên kịch bản
@@ -445,9 +453,12 @@ export default function SendMesFrCampaignFormModal({
                 onUploadImage={handleUploadImage}
               />
             </div>
-          </div>
+                </div>
+              </div>
 
-          <div className="flex min-h-0 flex-col gap-3 overflow-hidden rounded-2xl border border-gray-200 bg-gray-50/40 p-3 dark:border-gray-800 dark:bg-white/[0.02]">
+              <div
+                className={`${campaignFormSidePaneClass} gap-3 rounded-2xl border border-gray-200 bg-gray-50/40 p-3 dark:border-gray-800 dark:bg-white/[0.02]`}
+              >
             <div className="shrink-0">
               <p className="mb-2 text-sm font-semibold text-gray-800 dark:text-white/90">
                 Tài khoản gửi tin
@@ -541,7 +552,7 @@ export default function SendMesFrCampaignFormModal({
                 </div>
               </div>
 
-              <div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto p-1.5">
+              <div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain p-1.5">
                 {!selectedAccountId ? (
                   <p className="px-3 py-6 text-center text-xs text-gray-500">
                     Chọn tài khoản để xem bạn bè
@@ -588,8 +599,10 @@ export default function SendMesFrCampaignFormModal({
                 )}
               </div>
             </div>
-          </div>
-        </fieldset>
+              </div>
+            </div>
+          </fieldset>
+        </div>
 
         <div className="mt-4 flex shrink-0 justify-end gap-2 border-t border-gray-100 pt-4 dark:border-gray-800">
           {readOnly ? (

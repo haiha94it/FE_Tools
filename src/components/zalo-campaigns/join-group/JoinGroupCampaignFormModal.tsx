@@ -5,6 +5,14 @@ import Checkbox from "@/components/form/input/Checkbox";
 import Input from "@/components/form/input/InputField";
 import TimePicker from "@/components/form/time-picker";
 import { Modal } from "@/components/ui/modal";
+import {
+  campaignFormAccountPaneClass,
+  campaignFormBodyClass,
+  campaignFormGridWideClass,
+  campaignFormMainClass,
+  campaignFormModalPanelClass,
+  campaignFormScrollPaneClass,
+} from "@/components/zalo-campaigns/CampaignFormModalLayout";
 import { TimeIcon } from "@/icons";
 import {
   formatTimeForApi,
@@ -161,10 +169,10 @@ export default function JoinGroupCampaignFormModal({
     <Modal
       isOpen={open}
       onClose={onClose}
-      className="max-w-5xl"
+      className={campaignFormModalPanelClass.md}
       showCloseButton
     >
-      <div className="flex max-h-[min(90vh,760px)] flex-col overflow-hidden p-5 sm:p-6">
+      <div className={campaignFormBodyClass}>
         <div className="mb-4 shrink-0 pr-8">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
             {editingCampaign
@@ -179,11 +187,11 @@ export default function JoinGroupCampaignFormModal({
           </p>
         </div>
 
-        <fieldset
-          disabled={readOnly}
-          className="grid min-h-0 flex-1 gap-4 max-lg:grid-rows-[1fr_1fr] lg:grid-cols-[1.4fr_1fr]"
-        >
-          <div className="custom-scrollbar min-h-0 space-y-4 overflow-y-auto pr-1">
+        <div className={campaignFormMainClass}>
+          <fieldset disabled={readOnly} className="contents">
+            <div className={campaignFormGridWideClass}>
+              <div className={campaignFormScrollPaneClass}>
+                <div className="space-y-4">
             <div>
               <label className="mb-1.5 block text-xs font-medium text-gray-600 dark:text-gray-400">
                 Tên kịch bản
@@ -295,9 +303,10 @@ export default function JoinGroupCampaignFormModal({
                 className={textareaClassName}
               />
             </div>
-          </div>
+                </div>
+              </div>
 
-          <div className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-gray-200 p-3 dark:border-gray-700">
+              <div className={campaignFormAccountPaneClass}>
             <div className="shrink-0 space-y-3">
               <div className="flex items-center justify-between gap-2">
                 <p className="text-sm font-semibold text-gray-800 dark:text-white/90">
@@ -314,7 +323,7 @@ export default function JoinGroupCampaignFormModal({
                 disabled={accountsLoading || saving}
               />
             </div>
-            <div className="custom-scrollbar mt-3 min-h-0 flex-1 space-y-1 overflow-y-auto">
+            <div className="custom-scrollbar mt-3 min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain">
               {accountsLoading ? (
                 <p className="py-8 text-center text-sm text-gray-500">
                   Đang tải tài khoản...
@@ -365,8 +374,10 @@ export default function JoinGroupCampaignFormModal({
                 })
               )}
             </div>
-          </div>
-        </fieldset>
+              </div>
+            </div>
+          </fieldset>
+        </div>
 
         <div className="mt-4 flex shrink-0 justify-end gap-2 border-t border-gray-100 pt-4 dark:border-gray-800">
           {readOnly ? (
