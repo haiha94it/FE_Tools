@@ -75,6 +75,9 @@ function MessengerChatColumn({ showMobileBack = false }: MessengerChatColumnProp
     (s) => s.removeConversationLabel,
   );
   const resetChatState = useZaloMessengerStore((s) => s.resetChatState);
+  const refreshActiveConversation = useZaloMessengerStore(
+    (s) => s.refreshActiveConversation,
+  );
 
   const selectedAccount = accounts.find((item) => item.id === selectedAccountId);
   const accountUid = selectedAccount?.uid ?? null;
@@ -218,6 +221,7 @@ function MessengerChatColumn({ showMobileBack = false }: MessengerChatColumnProp
       onSaveNote={handleSaveNote}
       labelCategories={labelCategories}
       onToggleLabel={handleToggleLabel}
+      onRefreshConversation={() => refreshActiveConversation()}
     />
 
     <MessageShareDialog

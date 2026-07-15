@@ -52,6 +52,9 @@ const MessageMediaLightbox = dynamic(() => import("./MessageMediaLightbox"), {
   ssr: false,
 });
 
+const messageTextClass =
+  "max-w-full min-w-0 text-sm whitespace-pre-wrap break-words [overflow-wrap:anywhere]";
+
 function QuotePreview({
   message,
   own,
@@ -235,7 +238,7 @@ function MessageContent({
         ) : (
           <span className="text-sm">Video</span>
         )}
-        {text ? <p className="text-sm whitespace-pre-wrap break-words">{text}</p> : null}
+        {text ? <p className={messageTextClass}>{text}</p> : null}
       </div>
     );
   }
@@ -269,7 +272,7 @@ function MessageContent({
             unoptimized
           />
         </button>
-        {text ? <p className="text-sm whitespace-pre-wrap break-words">{text}</p> : null}
+        {text ? <p className={messageTextClass}>{text}</p> : null}
       </div>
     );
   }
@@ -310,9 +313,7 @@ function MessageContent({
   if (text) {
     return (
       <p
-        className={`text-sm whitespace-pre-wrap break-words ${
-          own ? "text-right" : "text-left"
-        }`}
+        className={`${messageTextClass} ${own ? "text-right" : "text-left"}`}
       >
         {text}
       </p>
@@ -467,12 +468,12 @@ export function MessageList({
                 ) : null}
 
                 <div
-                  className={`relative overflow-visible ${
-                    isGroupMedia ? "w-full max-w-full" : "inline-flex w-fit max-w-full"
+                  className={`relative min-w-0 max-w-full overflow-visible ${
+                    isGroupMedia ? "w-full" : "inline-flex"
                   } ${own ? "max-md:ml-9" : "max-md:mr-9"}`}
                 >
                   <div
-                    className={`relative shadow-sm ${
+                    className={`relative min-w-0 max-w-full shadow-sm ${
                       isGroupMedia
                         ? "w-full overflow-hidden max-md:rounded-xl max-md:border-0 max-md:bg-transparent max-md:p-0 max-md:shadow-none md:rounded-2xl md:border md:border-gray-100 md:bg-white md:p-1.5 dark:md:border-gray-700 dark:md:bg-gray-800"
                         : "rounded-2xl px-3.5 py-2"

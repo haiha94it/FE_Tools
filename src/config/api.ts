@@ -83,8 +83,12 @@ export const API_ZALO_FRIEND = {
   SCAN: "/api/friend/get",
   UNFRIEND: "/api/friend/unfriend",
   RECOMMEND_SCAN: "/api/friend/friend-recommend/get",
+  RECOMMEND_ACCEPT: "/api/friend/friend-recommend/accept",
+  RECOMMEND_REMOVE: "/api/friend/friend-recommend/remove",
   SENT_REQUEST_SCAN: "/api/friend/sent-request/get",
   SENT_REQUEST_SHOW: "/api/friend/sent-request/show",
+  SENT_REQUEST_REMOVE: "/api/friend/sent-request/remove",
+  ADD_FRIEND: "/api/friend/add-friend",
 } as const;
 
 /** Chiến dịch kết bạn — đồng bộ ZaloCN /add-friend */

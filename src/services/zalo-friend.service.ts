@@ -142,6 +142,119 @@ export const zaloFriendService = {
     return [];
   },
 
+  async startAcceptFriendRequest(
+    accountId: number,
+    fid: string,
+  ): Promise<string | number | null> {
+    const response = await api.post(API_ZALO_FRIEND.RECOMMEND_ACCEPT, {
+      id_account: accountId,
+      fid,
+    });
+    const body = unwrapApiBody<ScanTaskResponse>(response.data);
+    return body.id_task ?? null;
+  },
+
+  async pollAcceptFriendRequest(
+    taskId: string | number,
+  ): Promise<ScanTaskResponse> {
+    const response = await api.post(API_ZALO_FRIEND.RECOMMEND_ACCEPT, {
+      id_task: taskId,
+    });
+    return normalizeCeleryPollResponse(
+      unwrapApiBody<ScanTaskResponse>(response.data),
+    );
+  },
+
+  async startRejectFriendRequest(
+    accountId: number,
+    fid: string,
+  ): Promise<string | number | null> {
+    const response = await api.post(API_ZALO_FRIEND.RECOMMEND_REMOVE, {
+      id_account: accountId,
+      fid,
+    });
+    const body = unwrapApiBody<ScanTaskResponse>(response.data);
+    return body.id_task ?? null;
+  },
+
+  async pollRejectFriendRequest(
+    taskId: string | number,
+  ): Promise<ScanTaskResponse> {
+    const response = await api.post(API_ZALO_FRIEND.RECOMMEND_REMOVE, {
+      id_task: taskId,
+    });
+    return normalizeCeleryPollResponse(
+      unwrapApiBody<ScanTaskResponse>(response.data),
+    );
+  },
+
+  async startAddFriend(
+    accountId: number,
+    uids: string[],
+    msg: string,
+  ): Promise<string | number | null> {
+    const response = await api.post(API_ZALO_FRIEND.ADD_FRIEND, {
+      id_account: accountId,
+      uids,
+      msg,
+    });
+    const body = unwrapApiBody<ScanTaskResponse>(response.data);
+    return body.id_task ?? null;
+  },
+
+  async pollAddFriend(taskId: string | number): Promise<ScanTaskResponse> {
+    const response = await api.post(API_ZALO_FRIEND.ADD_FRIEND, {
+      id_task: taskId,
+    });
+    return normalizeCeleryPollResponse(
+      unwrapApiBody<ScanTaskResponse>(response.data),
+    );
+  },
+
+  async startUnfriend(
+    accountId: number,
+    fids: string[],
+  ): Promise<string | number | null> {
+    const response = await api.post(API_ZALO_FRIEND.UNFRIEND, {
+      id_account: accountId,
+      fids,
+    });
+    const body = unwrapApiBody<ScanTaskResponse>(response.data);
+    return body.id_task ?? null;
+  },
+
+  async pollUnfriend(taskId: string | number): Promise<ScanTaskResponse> {
+    const response = await api.post(API_ZALO_FRIEND.UNFRIEND, {
+      id_task: taskId,
+    });
+    return normalizeCeleryPollResponse(
+      unwrapApiBody<ScanTaskResponse>(response.data),
+    );
+  },
+
+  async startRecallSentRequest(
+    accountId: number,
+    fids: string[],
+  ): Promise<string | number | null> {
+    const response = await api.post(API_ZALO_FRIEND.SENT_REQUEST_REMOVE, {
+      id_account: accountId,
+      fids,
+    });
+    const body = unwrapApiBody<ScanTaskResponse>(response.data);
+    return body.id_task ?? null;
+  },
+
+  async pollRecallSentRequest(
+    taskId: string | number,
+  ): Promise<ScanTaskResponse> {
+    const response = await api.post(API_ZALO_FRIEND.SENT_REQUEST_REMOVE, {
+      id_task: taskId,
+    });
+    return normalizeCeleryPollResponse(
+      unwrapApiBody<ScanTaskResponse>(response.data),
+    );
+  },
+
   async listLabelCategories(accountId: number): Promise<ZaloLabelCategory[]> {
     return zaloLabelService.listCategories(accountId);
   },

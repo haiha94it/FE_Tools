@@ -197,6 +197,7 @@ interface ZaloMessengerState {
     conversationId: number,
     pinning: boolean,
   ) => Promise<void>;
+  refreshActiveConversation: () => Promise<void>;
   pinAccount: (accountId: number, pinning: boolean) => Promise<void>;
 
   mergeConversations: (
@@ -856,6 +857,28 @@ export const useZaloMessengerStore = create<ZaloMessengerState>((set, get) => ({
           ? { ...state.activeConversation, pinning }
           : state.activeConversation,
     }));
+  },
+
+  refreshActiveConversation: async () => {
+    const { selectedAccountId, activeConversationId } = get();
+    if (!selectedAccountId || !activeConversationId) return;
+
+    try {
+      const detail = await zaloMessengerService.fetchConversationDetail(
+        selectedAccountId,
+        activeConversationId,
+      );
+      set((state) => ({
+        activeConversation: detail,
+        conversations: dedupeConversations(
+          state.conversations.map((item) =>
+            item.id === activeConversationId ? { ...item, ...detail } : item,
+          ),
+        ),
+      }));
+    } catch {
+      // optional refresh — giữ state cũ
+    }
   },
 
   pinAccount: async (accountId, pinning) => {

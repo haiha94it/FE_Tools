@@ -29,6 +29,7 @@ import type {
 } from "@/types/zalo-messenger";
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import ChatComposer from "./ChatComposer";
+import ChatFriendActions from "./ChatFriendActions";
 import ChatHeaderMenu from "./ChatHeaderMenu";
 import ChatScrollToBottom from "./ChatScrollToBottom";
 import GroupMembersPanel from "./GroupMembersPanel";
@@ -75,6 +76,7 @@ interface ChatPanelProps {
     category: MessengerCategoryLabel,
     assigned: boolean,
   ) => Promise<void>;
+  onRefreshConversation?: () => void | Promise<void>;
 }
 
 function ChatPanel({
@@ -109,6 +111,7 @@ function ChatPanel({
   onSaveNote,
   labelCategories = [],
   onToggleLabel,
+  onRefreshConversation,
 }: ChatPanelProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -345,6 +348,14 @@ function ChatPanel({
             isLoading={groupMembersLoading}
             isRefreshing={groupMembersRefreshing}
             onRefresh={refreshMembers}
+          />
+        ) : null}
+
+        {!isGroup && accountId && conversation.friend ? (
+          <ChatFriendActions
+            accountId={accountId}
+            conversation={conversation}
+            onStatusChanged={onRefreshConversation}
           />
         ) : null}
 

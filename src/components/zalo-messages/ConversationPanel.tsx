@@ -250,7 +250,7 @@ function ConversationPanel({
                     onContextMenu={(event) =>
                       handleContextMenu(event, conversation)
                     }
-                    className={`group relative flex w-full items-center gap-3 border-b border-gray-50 px-3 py-3 transition dark:border-gray-800/60 ${
+                    className={`relative flex w-full items-center gap-3 border-b border-gray-50 px-3 py-3 transition dark:border-gray-800/60 ${
                       active
                         ? "bg-brand-50/70 dark:bg-brand-500/[0.07]"
                         : "hover:bg-gray-50 dark:hover:bg-white/[0.02]"
@@ -308,22 +308,6 @@ function ConversationPanel({
                         ) : null}
                       </div>
                     </button>
-
-                    {onPin ? (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onPin(conversation);
-                        }}
-                        className="shrink-0 rounded-lg p-1 text-gray-400 opacity-0 transition group-hover:opacity-100 hover:text-brand-500"
-                        aria-label={
-                          conversation.pinning ? "Bỏ ghim" : "Ghim hội thoại"
-                        }
-                      >
-                        📌
-                      </button>
-                    ) : null}
                   </div>
                 </li>
               );
