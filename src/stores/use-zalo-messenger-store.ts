@@ -6,6 +6,7 @@ import {
   dedupeConversations,
   extractNextPage,
   generateClientMsgId,
+  mergeConversationRecords,
   normalizeMessageList,
   sortMessengerAccounts,
 } from "@/lib/zalo-messenger-utils";
@@ -198,7 +199,10 @@ interface ZaloMessengerState {
   ) => Promise<void>;
   pinAccount: (accountId: number, pinning: boolean) => Promise<void>;
 
-  mergeConversations: (items: MessengerConversation[]) => void;
+  mergeConversations: (
+    items: MessengerConversation[],
+    accountId?: number | null,
+  ) => void;
   mergeAccountBadge: (accountId: number, hasUnread: boolean) => void;
   appendLiveMessages: (
     accountId: number,
@@ -851,16 +855,62 @@ export const useZaloMessengerStore = create<ZaloMessengerState>((set, get) => ({
     }));
   },
 
-  mergeConversations: (items) => {
+  mergeConversations: (items, accountId) => {
     if (!items.length) return;
-    set((state) => ({
-      conversations: dedupeConversations([...items, ...state.conversations]),
-      activeConversation:
-        state.activeConversationId != null
-          ? (items.find((item) => item.id === state.activeConversationId) ??
-              state.activeConversation)
+    const wsAccountId =
+      accountId ?? items.find((item) => item.account != null)?.account ?? null;
+
+    set((state) => {
+      const mergeList = (current: MessengerConversation[]) =>
+        dedupeConversations([...current, ...items]);
+
+      if (wsAccountId != null && state.selectedAccountId !== wsAccountId) {
+        const cached = state.conversationCache[wsAccountId];
+        if (!cached) return state;
+        const conversations = mergeList(cached.conversations);
+        return {
+          conversationCache: saveConversationCache(
+            wsAccountId,
+            { ...cached, conversations },
+            state.conversationCache,
+          ),
+        };
+      }
+
+      const conversations = mergeList(state.conversations);
+      const activePatch = items.find(
+        (item) => item.id === state.activeConversationId,
+      );
+      const patch = {
+        conversations,
+        activeConversation: activePatch
+          ? mergeConversationRecords(
+              state.activeConversation ?? activePatch,
+              activePatch,
+            )
           : state.activeConversation,
-    }));
+      };
+
+      return {
+        ...patch,
+        ...(wsAccountId != null && state.selectedAccountId === wsAccountId
+          ? {
+              conversationCache: saveConversationCache(
+                wsAccountId,
+                {
+                  conversations,
+                  conversationLinks: state.conversationLinks,
+                  conversationPage: state.conversationPage,
+                  conversationSearch: state.conversationSearch,
+                  conversationFilter: state.conversationFilter,
+                  selectedCategoryId: state.selectedCategoryId,
+                },
+                state.conversationCache,
+              ),
+            }
+          : {}),
+      };
+    });
   },
 
   mergeAccountBadge: (accountId, hasUnread) => {

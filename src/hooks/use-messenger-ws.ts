@@ -1,5 +1,6 @@
 "use client";
 
+import { prepareConversationsFromGlobalUpdate } from "@/lib/zalo-messenger-utils";
 import { useZaloMessengerStore } from "@/stores/use-zalo-messenger-store";
 import { useWebSocketStore } from "@/stores/use-websocket-store";
 import type {
@@ -49,9 +50,15 @@ export function useMessengerWs() {
           []) as MessengerConversation[];
         const messageDetails = (payload.message_details ??
           []) as RawZaloMessage[];
+        const wsAccountId = payload.account?.id ?? null;
 
         if (conversations.length) {
-          mergeConversations(conversations);
+          const prepared = prepareConversationsFromGlobalUpdate(
+            conversations,
+            messageDetails,
+            { activeConversationId: activeConversation?.id ?? null },
+          );
+          mergeConversations(prepared, wsAccountId);
         }
 
         if (messageDetails.length && selectedAccountId) {

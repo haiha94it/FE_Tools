@@ -105,6 +105,26 @@ export function sortConversations(
   });
 }
 
+/** Gộp hai bản ghi hội thoại — giữ updated_time mới nhất, không mất nhãn local */
+export function mergeConversationRecords(
+  base: MessengerConversation,
+  patch: MessengerConversation,
+): MessengerConversation {
+  const merged: MessengerConversation = { ...base, ...patch };
+  const baseTime = parseZaloUpdatedTimeMs(base.updated_time);
+  const patchTime = parseZaloUpdatedTimeMs(patch.updated_time);
+  if (baseTime > patchTime) {
+    merged.updated_time = base.updated_time;
+  }
+  if (
+    base.category_message?.length &&
+    (patch.category_message == null || patch.category_message.length === 0)
+  ) {
+    merged.category_message = base.category_message;
+  }
+  return merged;
+}
+
 export function dedupeConversations(
   conversations: MessengerConversation[],
 ): MessengerConversation[] {
@@ -114,10 +134,55 @@ export function dedupeConversations(
     const existing = byId.get(conversation.id);
     byId.set(
       conversation.id,
-      existing ? { ...existing, ...conversation } : conversation,
+      existing
+        ? mergeConversationRecords(existing, conversation)
+        : conversation,
     );
   }
   return sortConversations(Array.from(byId.values()));
+}
+
+/** Chuẩn hóa conversations + message_details từ WS new_global_update */
+export function prepareConversationsFromGlobalUpdate(
+  conversations: MessengerConversation[],
+  messageDetails: RawZaloMessage[],
+  options?: { activeConversationId?: number | null },
+): MessengerConversation[] {
+  const latestByConv = new Map<number, RawZaloMessage>();
+  for (const msg of messageDetails) {
+    const convId =
+      msg.conversation_id != null ? Number(msg.conversation_id) : NaN;
+    if (!Number.isFinite(convId)) continue;
+    const existing = latestByConv.get(convId);
+    const msgTs = normalizeTimestampMs(msg.ts);
+    const existingTs = existing ? normalizeTimestampMs(existing.ts) : 0;
+    if (!existing || msgTs >= existingTs) {
+      latestByConv.set(convId, msg);
+    }
+  }
+
+  if (!latestByConv.size) return conversations;
+
+  return conversations.map((conversation) => {
+    const latest = latestByConv.get(conversation.id);
+    if (!latest) return conversation;
+
+    const msgTs = normalizeTimestampMs(latest.ts);
+    const convTs = parseZaloUpdatedTimeMs(conversation.updated_time);
+    const updatedTime =
+      msgTs > convTs ? latest.ts : conversation.updated_time;
+
+    const isIncoming = String(latest.uidFrom || "") !== "0";
+    const isActive = options?.activeConversationId === conversation.id;
+    const newMessage =
+      isIncoming && !isActive ? true : conversation.new_message;
+
+    return {
+      ...conversation,
+      updated_time: updatedTime ?? conversation.updated_time,
+      new_message: newMessage,
+    };
+  });
 }
 
 export function filterActiveMessengerAccounts(
