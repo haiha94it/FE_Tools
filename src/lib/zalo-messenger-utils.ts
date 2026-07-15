@@ -227,7 +227,11 @@ export function getConversationAvatar(
 }
 
 export function isGroupConversation(
-  conversation: MessengerConversation | null | undefined,
+  conversation:
+    | Pick<MessengerConversation, "conversation_type" | "group" | "friend">
+    | MessengerConversation
+    | null
+    | undefined,
 ): boolean {
   return (
     conversation?.conversation_type === "group" ||

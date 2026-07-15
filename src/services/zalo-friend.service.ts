@@ -1,4 +1,4 @@
-import { API_ZALO_FRIEND, API_ZALO_LABEL } from "@/config/api";
+import { API_ZALO_FRIEND } from "@/config/api";
 import { zaloLabelService } from "@/services/zalo-label.service";
 import { unwrapApiBody } from "@/lib/api-response";
 import { normalizeCeleryPollResponse } from "@/lib/celery-poll";
@@ -147,22 +147,26 @@ export const zaloFriendService = {
   },
 
   async assignLabel(payload: {
+    accountId: number;
     categoryId: number;
     friendIds: number[];
   }): Promise<void> {
-    await api.post(API_ZALO_LABEL.ADD, {
-      id_category: payload.categoryId,
-      id_friends: payload.friendIds,
+    await zaloLabelService.addMembers({
+      categoryId: payload.categoryId,
+      accountId: payload.accountId,
+      friendIds: payload.friendIds,
     });
   },
 
   async removeLabel(payload: {
+    accountId: number;
     categoryId: number;
     friendIds: number[];
   }): Promise<void> {
-    await api.post(API_ZALO_LABEL.REMOVE, {
-      id_category: payload.categoryId,
-      id_friends: payload.friendIds,
+    await zaloLabelService.removeMembers({
+      categoryId: payload.categoryId,
+      accountId: payload.accountId,
+      friendIds: payload.friendIds,
     });
   },
 };

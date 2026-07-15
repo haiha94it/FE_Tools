@@ -293,13 +293,11 @@ export const API_ZALO_GROUP = {
   CREATE_RESULT: "/api/group/create/result",
 } as const;
 
-/** Nhãn hội thoại / danh bạ */
+/** Nhãn hội thoại — /api/message/category/ (§ fe_message_label_category.md) */
 export const API_ZALO_LABEL = {
-  CATEGORIES: "/api/message/category/get",
-  CREATE_OR_EDIT: "/api/message/category/create-or-edit",
-  DELETE: "/api/message/category/delete",
-  ADD: "/api/message/category/add",
-  REMOVE: "/api/message/category/remove",
+  LIST: "/api/message/category/",
+  detail: (id: number | string) => `/api/message/category/${id}/`,
+  members: (id: number | string) => `/api/message/category/${id}/members/`,
 } as const;
 
 /** Tài khoản Zalo — Care backend */

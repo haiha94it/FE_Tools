@@ -15,7 +15,9 @@ import {
 } from "@/components/ui/table";
 import CustomSelect from "@/components/form/CustomSelect";
 import Input from "@/components/form/input/InputField";
+import { canManageLabelDefinitions } from "@/lib/team-collaboration-utils";
 import { toast } from "@/lib/toast";
+import { useAuthStore } from "@/stores/use-auth-store";
 import { zaloFriendService } from "@/services/zalo-friend.service";
 import { zaloGroupService } from "@/services/zalo-group.service";
 import { zaloLabelService } from "@/services/zalo-label.service";
@@ -100,6 +102,9 @@ export default function ContactLabelPanel({
   const [newLabelName, setNewLabelName] = useState("");
   const [newLabelColor, setNewLabelColor] = useState(DEFAULT_LABEL_COLOR);
 
+  const user = useAuthStore((s) => s.user);
+  const canCreateLabels = canManageLabelDefinitions(user);
+
   const contactLabel = scope === "friend" ? "bạn bè" : "nhóm";
   const contactLabelCap = scope === "friend" ? "Bạn bè" : "Nhóm";
 
@@ -155,6 +160,12 @@ export default function ContactLabelPanel({
   }, [accountId, scope, loadLabels]);
 
   useEffect(() => {
+    if (!canCreateLabels && labelMode === "create") {
+      setLabelMode("pick");
+    }
+  }, [canCreateLabels, labelMode]);
+
+  useEffect(() => {
     if (!active) {
       setLabelMode("pick");
       setSelectedLabelId(null);
@@ -199,14 +210,17 @@ export default function ContactLabelPanel({
     categoryId: number,
     contactIds: number[],
   ) => {
+    if (!accountId) return;
     if (scope === "friend") {
       await zaloFriendService.assignLabel({
+        accountId,
         categoryId,
         friendIds: contactIds,
       });
       return;
     }
     await zaloGroupService.assignLabel({
+      accountId,
       categoryId,
       groupIds: contactIds,
     });
@@ -301,13 +315,16 @@ export default function ContactLabelPanel({
 
     setIsSaving(true);
     try {
+      if (!accountId) return;
       if (scope === "friend") {
         await zaloFriendService.removeLabel({
+          accountId,
           categoryId: selectedLabelId,
           friendIds: selectedContactIds,
         });
       } else {
         await zaloGroupService.removeLabel({
+          accountId,
           categoryId: selectedLabelId,
           groupIds: selectedContactIds,
         });
@@ -346,13 +363,15 @@ export default function ContactLabelPanel({
             >
               Dùng nhãn có sẵn
             </button>
-            <button
-              type="button"
-              onClick={() => setLabelMode("create")}
-              className={modeTabClass(labelMode === "create")}
-            >
-              Tạo nhãn mới
-            </button>
+            {canCreateLabels ? (
+              <button
+                type="button"
+                onClick={() => setLabelMode("create")}
+                className={modeTabClass(labelMode === "create")}
+              >
+                Tạo nhãn mới
+              </button>
+            ) : null}
           </div>
         </div>
         <InstructionHint labelMode={labelMode} contactLabel={contactLabel} />

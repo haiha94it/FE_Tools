@@ -79,7 +79,7 @@ URL **giữ nguyên** — chỉ đổi logic phân quyền / response. Chi tiế
 | `PUT/PATCH` category | Kịch bản mình | Chỉ kịch bản mình; manager **không** sửa kịch bản NV |
 | `DELETE` / start / stop | Mình + kịch bản NV | Chỉ kịch bản mình |
 | `GET/DELETE .../results/` | Log cả category | Log chỉ row mình tạo · DELETE §6 |
-| Nhãn CRUD `/api/campaign/message-label/category/` | ✅ | ❌ `NOT_MANAGER` |
+| Nhãn CRUD `/api/message/category/` | ✅ | ❌ `NOT_MANAGER` |
 | Nhãn members `.../members/` | ✅ | ✅ (nick được gán) |
 | Proxy / chatbot / channel / CRUD nick | ✅ | ❌ `NOT_MANAGER` |
 | WS `new_global_update` | Nick mình | Chỉ nick được gán |
@@ -324,7 +324,7 @@ FriendModel.objects.filter(account_id=id_account, account__user=request.user)
 | `GET` | `show-all-account-mess` | Raw array `ZaloAccountMessSerializer` | ✅ `_messenger_accounts_queryset` |
 | `GET` | `category/get` | Raw array / `{friend_ids}` / `{group_ids}` / `{conversation_ids}` | ✅ `manager_labels_q` + `validate_label_account` |
 
-`type=detail` trên `category/get` → list nhãn chat của **manager** (NV đọc nhãn team, không tạo/sửa — CRUD ở `/api/campaign/message-label/` §8).
+`GET /api/message/category/?id_account=` → list nhãn team (NV đọc, không CRUD — §8).
 
 ### Tin nhắn nhanh, sticker, media
 
@@ -894,15 +894,17 @@ NV chỉ nhận `new_global_update` của nick **được gán** — không leak
 
 ---
 
-## 8. Nhãn chat (`/api/campaign/message-label/`)
+## 8. Nhãn chat (`/api/message/category/`)
+
+> Chi tiết FE: `docs/fe_message_label_category.md` · **Không** dùng path cũ `/api/campaign/message-label/`.
 
 | Method | Path | Manager | Employee |
 |--------|------|---------|----------|
-| `GET` | `/api/campaign/message-label/category/` | ✅ | ✅ (list nhãn team) |
-| `POST` | `/api/campaign/message-label/category/` | ✅ | ❌ `NOT_MANAGER` |
-| `GET` | `/api/campaign/message-label/category/{id}/` | ✅ | ✅ |
-| `PUT`/`PATCH`/`DELETE` | `/api/campaign/message-label/category/{id}/` | ✅ | ❌ |
-| `POST`/`DELETE` | `/api/campaign/message-label/category/{id}/members/` | ✅ | ✅ |
+| `GET` | `/api/message/category/` | ✅ | ✅ (list nhãn team) |
+| `POST` | `/api/message/category/` | ✅ | ❌ `NOT_MANAGER` |
+| `GET` | `/api/message/category/{id}/` | ✅ | ✅ |
+| `PUT`/`PATCH`/`DELETE` | `/api/message/category/{id}/` | ✅ | ❌ |
+| `POST`/`DELETE` | `/api/message/category/{id}/members/` | ✅ | ✅ |
 
 **Members body (gán/gỡ):**
 
@@ -1172,9 +1174,9 @@ GET    /api/campaign/{prefix}/statistics/            → thống kê
 
 | Method | Path |
 |--------|------|
-| `GET`/`POST` | `/api/campaign/message-label/category/` |
-| `GET`/`PUT`/`PATCH`/`DELETE` | `/api/campaign/message-label/category/{id}/` |
-| `POST`/`DELETE` | `/api/campaign/message-label/category/{id}/members/` |
+| `GET`/`POST` | `/api/message/category/` |
+| `GET`/`PUT`/`PATCH`/`DELETE` | `/api/message/category/{id}/` |
+| `POST`/`DELETE` | `/api/message/category/{id}/members/` |
 
 **Response đổi (team):** `is_mine`, `created_by` trên list; `sent_by` trên message (§7); quyền detail/results theo §5–§6. **URL không đổi.**
 

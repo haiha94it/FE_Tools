@@ -481,8 +481,14 @@ export const useZaloMessengerStore = create<ZaloMessengerState>((set, get) => ({
   },
 
   assignConversationLabel: async (conversationId, categoryId) => {
-    const { selectedAccountId, labelCategories } = get();
+    const { selectedAccountId, labelCategories, conversations, activeConversation } =
+      get();
     if (!selectedAccountId) return;
+
+    const conversation =
+      conversations.find((item) => item.id === conversationId) ??
+      (activeConversation?.id === conversationId ? activeConversation : null);
+    if (!conversation) return;
 
     const category =
       labelCategories.find((item) => item.id === categoryId) ?? {
@@ -492,7 +498,8 @@ export const useZaloMessengerStore = create<ZaloMessengerState>((set, get) => ({
 
     await zaloLabelService.assignToConversation({
       categoryId,
-      conversationId,
+      accountId: selectedAccountId,
+      conversation,
     });
 
     set((state) => ({
@@ -531,8 +538,14 @@ export const useZaloMessengerStore = create<ZaloMessengerState>((set, get) => ({
   },
 
   removeConversationLabel: async (conversationId, categoryId) => {
-    const { selectedAccountId, labelCategories } = get();
+    const { selectedAccountId, labelCategories, conversations, activeConversation } =
+      get();
     if (!selectedAccountId) return;
+
+    const conversation =
+      conversations.find((item) => item.id === conversationId) ??
+      (activeConversation?.id === conversationId ? activeConversation : null);
+    if (!conversation) return;
 
     const category =
       labelCategories.find((item) => item.id === categoryId) ?? {
@@ -542,7 +555,8 @@ export const useZaloMessengerStore = create<ZaloMessengerState>((set, get) => ({
 
     await zaloLabelService.removeFromConversation({
       categoryId,
-      conversationId,
+      accountId: selectedAccountId,
+      conversation,
     });
 
     set((state) => ({

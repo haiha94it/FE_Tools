@@ -1,4 +1,4 @@
-import { API_ZALO_GROUP, API_ZALO_LABEL } from "@/config/api";
+import { API_ZALO_GROUP } from "@/config/api";
 import { zaloLabelService } from "@/services/zalo-label.service";
 import { unwrapApiBody } from "@/lib/api-response";
 import {
@@ -130,22 +130,26 @@ export const zaloGroupService = {
   },
 
   async assignLabel(payload: {
+    accountId: number;
     categoryId: number;
     groupIds: number[];
   }): Promise<void> {
-    await api.post(API_ZALO_LABEL.ADD, {
-      id_category: payload.categoryId,
-      id_groups: payload.groupIds,
+    await zaloLabelService.addMembers({
+      categoryId: payload.categoryId,
+      accountId: payload.accountId,
+      groupIds: payload.groupIds,
     });
   },
 
   async removeLabel(payload: {
+    accountId: number;
     categoryId: number;
     groupIds: number[];
   }): Promise<void> {
-    await api.post(API_ZALO_LABEL.REMOVE, {
-      id_category: payload.categoryId,
-      id_groups: payload.groupIds,
+    await zaloLabelService.removeMembers({
+      categoryId: payload.categoryId,
+      accountId: payload.accountId,
+      groupIds: payload.groupIds,
     });
   },
 

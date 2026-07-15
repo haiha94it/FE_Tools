@@ -54,6 +54,8 @@ export interface ZaloLabelCategory {
   id: number;
   name?: string | null;
   color?: string | null;
+  friend_ids?: number[];
+  group_ids?: number[];
 }
 
 export interface ScanTaskResponse {
