@@ -1,3 +1,4 @@
+import { assertGuidesAndResourcesAdmin } from "@/lib/guide-resource-admin";
 import { resolveGuideSystemFilter } from "@/lib/zalo-guide-utils";
 import { zaloGuideService } from "@/services/zalo-guide.service";
 import type { ZaloGuideFormPayload, ZaloGuideItem } from "@/types/zalo-guide";
@@ -40,6 +41,7 @@ export const useZaloGuideStore = create<ZaloGuideState>((set, get) => ({
   },
 
   createOrEditGuide: async (payload) => {
+    assertGuidesAndResourcesAdmin();
     set({ saving: true });
     try {
       await zaloGuideService.createOrEditGuide(payload);
@@ -52,6 +54,7 @@ export const useZaloGuideStore = create<ZaloGuideState>((set, get) => ({
   },
 
   deleteGuide: async (id) => {
+    assertGuidesAndResourcesAdmin();
     set({ saving: true });
     try {
       await zaloGuideService.deleteGuide(id);
@@ -66,6 +69,7 @@ export const useZaloGuideStore = create<ZaloGuideState>((set, get) => ({
   },
 
   uploadImage: async (file) => {
+    assertGuidesAndResourcesAdmin();
     set({ uploadingImage: true });
     try {
       const image = await zaloGuideService.uploadImage(file);

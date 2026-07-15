@@ -1,25 +1,43 @@
 "use client";
 
-import { canAccessAdminRoute } from "@/lib/team-collaboration-utils";
+import {
+  canAccessAdminRoute,
+  isCampaignPermissionPath,
+} from "@/lib/team-collaboration-utils";
 import { useAuthStore } from "@/stores/use-auth-store";
+import { useTeamCollaborationStore } from "@/stores/use-team-collaboration-store";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 
-/** Chặn NV / user không đủ quyền vào route manager-only (proxy, team, post-video…) */
+/** Chặn NV / user không đủ quyền vào route manager-only hoặc campaign bị tắt */
 export function TeamRouteGuard({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const isBootstrapped = useAuthStore((s) => s.isBootstrapped);
+  const campaignPermissions = useTeamCollaborationStore(
+    (s) => s.campaignPermissions,
+  );
+  const permissionsLoaded = useTeamCollaborationStore(
+    (s) => s.permissionsLoaded,
+  );
 
-  const allowed = canAccessAdminRoute(pathname, user);
+  const needsPermissions = isCampaignPermissionPath(pathname);
+  const ready = isBootstrapped && user && (!needsPermissions || permissionsLoaded);
+  const allowed = ready
+    ? canAccessAdminRoute(pathname, user, campaignPermissions)
+    : true;
 
   useEffect(() => {
-    if (!isBootstrapped || !user || allowed) return;
+    if (!ready || allowed) return;
     router.replace("/zalo-messenger");
-  }, [allowed, isBootstrapped, pathname, router, user]);
+  }, [allowed, ready, router]);
 
   if (!isBootstrapped || !user) {
+    return null;
+  }
+
+  if (needsPermissions && !permissionsLoaded) {
     return null;
   }
 

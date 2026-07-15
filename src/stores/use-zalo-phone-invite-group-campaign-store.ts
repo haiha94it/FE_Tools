@@ -1,3 +1,4 @@
+import { resolveCampaignStartStopIds, resolveCampaignToggleSelectAll } from "@/lib/campaign-team-selection";
 import { zaloPhoneInviteGroupCampaignService } from "@/services/zalo-phone-invite-group-campaign.service";
 import { fetchAccessibleAccounts } from "@/lib/fetch-accessible-accounts";
 import type {
@@ -116,10 +117,9 @@ export const useZaloPhoneInviteGroupCampaignStore = create<PhoneInviteGroupCampa
 
     toggleSelectAll: () => {
       const { campaigns, selectedIds } = get();
-      const allIds = campaigns.map((item) => item.id);
-      const allSelected =
-        allIds.length > 0 && allIds.every((id) => selectedIds.includes(id));
-      set({ selectedIds: allSelected ? [] : allIds });
+      set({
+        selectedIds: resolveCampaignToggleSelectAll(campaigns, selectedIds),
+      });
     },
 
     clearSelection: () => set({ selectedIds: [] }),
@@ -164,13 +164,14 @@ export const useZaloPhoneInviteGroupCampaignStore = create<PhoneInviteGroupCampa
     },
 
     startCampaigns: async (type) => {
-      const { selectedIds } = get();
-      if (!selectedIds.length) {
+      const { campaigns, selectedIds } = get();
+      const ids = resolveCampaignStartStopIds(campaigns, selectedIds);
+      if (!ids.length) {
         throw new Error("Chọn ít nhất 1 kịch bản để chạy.");
       }
       set({ actionLoading: true });
       try {
-        await zaloPhoneInviteGroupCampaignService.startCampaigns(selectedIds, type);
+        await zaloPhoneInviteGroupCampaignService.startCampaigns(ids, type);
         set({ actionLoading: false });
         await get().fetchCampaigns({ silent: true });
       } catch (error) {
@@ -180,13 +181,14 @@ export const useZaloPhoneInviteGroupCampaignStore = create<PhoneInviteGroupCampa
     },
 
     stopCampaigns: async () => {
-      const { selectedIds } = get();
-      if (!selectedIds.length) {
+      const { campaigns, selectedIds } = get();
+      const ids = resolveCampaignStartStopIds(campaigns, selectedIds);
+      if (!ids.length) {
         throw new Error("Chọn ít nhất 1 kịch bản để dừng.");
       }
       set({ actionLoading: true });
       try {
-        await zaloPhoneInviteGroupCampaignService.stopCampaigns(selectedIds);
+        await zaloPhoneInviteGroupCampaignService.stopCampaigns(ids);
         set({ actionLoading: false });
         await get().fetchCampaigns({ silent: true });
       } catch (error) {

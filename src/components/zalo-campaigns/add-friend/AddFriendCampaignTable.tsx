@@ -13,6 +13,7 @@ import {
   formatCampaignRunStatus,
   formatCampaignStartTime,
 } from "@/lib/zalo-add-friend-campaign-utils";
+import { resolveCampaignStatusDisplay } from "@/lib/team-collaboration-utils";
 import CampaignTeamActionBar from "@/components/zalo-campaigns/shared/CampaignTeamActionBar";
 import CampaignTeamCreatedByCell from "@/components/zalo-campaigns/shared/CampaignTeamCreatedByCell";
 import CampaignTeamSelectableCheckbox from "@/components/zalo-campaigns/shared/CampaignTeamSelectableCheckbox";
@@ -102,7 +103,7 @@ export default function AddFriendCampaignTable({
           </TableHeader>
           <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
             {campaigns.map((campaign, index) => {
-              const status = formatCampaignRunStatus(campaign.status);
+              const status = resolveCampaignStatusDisplay(campaign, formatCampaignRunStatus);
               return (
                 <TableRow
                   key={campaign.id}

@@ -13,6 +13,7 @@ import {
   formatCampaignStartTime,
   formatSendMessMemberGrCampaignRunStatus,
 } from "@/lib/zalo-send-mess-member-gr-campaign-utils";
+import { resolveCampaignStatusDisplay } from "@/lib/team-collaboration-utils";
 import CampaignTeamActionBar from "@/components/zalo-campaigns/shared/CampaignTeamActionBar";
 import CampaignTeamCreatedByCell from "@/components/zalo-campaigns/shared/CampaignTeamCreatedByCell";
 import CampaignTeamSelectableCheckbox from "@/components/zalo-campaigns/shared/CampaignTeamSelectableCheckbox";
@@ -102,7 +103,7 @@ export default function SendMessMemberGrCampaignTable({
           </TableHeader>
           <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
             {campaigns.map((campaign, index) => {
-              const status = formatSendMessMemberGrCampaignRunStatus(campaign.status);
+              const status = resolveCampaignStatusDisplay(campaign, formatSendMessMemberGrCampaignRunStatus);
               const uidCount = campaign.list_uid_count ?? 0;
               return (
                 <TableRow

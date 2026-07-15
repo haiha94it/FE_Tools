@@ -20,7 +20,11 @@ import { zaloFriendService } from "@/services/zalo-friend.service";
 import { zaloGroupService } from "@/services/zalo-group.service";
 import { zaloLabelService } from "@/services/zalo-label.service";
 import { ContactNameCell } from "@/components/zalo-contacts/shared/ContactAvatar";
-import { getZaloGroupAvatar } from "@/lib/zalo-contacts-utils";
+import {
+  getZaloFriendDisplayName,
+  getZaloGroupAvatar,
+  getZaloGroupDisplayName,
+} from "@/lib/zalo-contacts-utils";
 import type { ZaloLabelCategory } from "@/types/zalo-contacts";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -56,47 +60,27 @@ function LabelColorDot({ color }: { color?: string | null }) {
   );
 }
 
-function StepTrail({
-  contactLabelCap,
-  step1Done,
-  step2Done,
+function InstructionHint({
+  labelMode,
+  contactLabel,
 }: {
-  contactLabelCap: string;
-  step1Done: boolean;
-  step2Done: boolean;
+  labelMode: LabelMode;
+  contactLabel: string;
 }) {
-  const steps = [
-    { label: "Nhãn", done: step1Done, active: !step1Done },
-    { label: contactLabelCap, done: step2Done, active: step1Done && !step2Done },
-    { label: "Gán", done: false, active: step1Done && step2Done },
-  ];
+  const pickHint = `Chọn nhãn → tick ${contactLabel} cần gắn → bấm «Gán nhãn». Muốn bỏ nhãn: chọn nhãn, tick ${contactLabel} → «Gỡ nhãn».`;
+  const createHint = `Nhập tên nhãn mới → (tuỳ chọn) tick ${contactLabel} → bấm «Lưu». Có tick ${contactLabel} thì nhãn được gán luôn sau khi tạo.`;
 
   return (
-    <div className="flex shrink-0 flex-wrap items-center gap-1.5 text-theme-xs text-gray-400">
-      {steps.map((step, index) => (
-        <span key={step.label} className="inline-flex items-center gap-1.5">
-          {index > 0 && <span className="text-gray-300 dark:text-gray-600">›</span>}
-          <span
-            className={
-              step.active
-                ? "font-medium text-brand-600 dark:text-brand-400"
-                : step.done
-                  ? "text-gray-600 dark:text-gray-300"
-                  : ""
-            }
-          >
-            {index + 1}.{step.label}
-          </span>
-        </span>
-      ))}
-    </div>
+    <p className="text-theme-xs leading-relaxed text-gray-500 dark:text-gray-400">
+      {labelMode === "pick" ? pickHint : createHint}
+    </p>
   );
 }
 
 const modeTabClass = (active: boolean) =>
-  `rounded px-2.5 py-1 text-theme-xs font-medium transition-colors ${
+  `rounded-lg px-3 py-1.5 text-theme-xs font-medium transition-colors ${
     active
-      ? "bg-brand-50 text-brand-600 dark:bg-brand-500/15 dark:text-brand-400"
+      ? "bg-white text-brand-600 shadow-theme-xs dark:bg-gray-900 dark:text-brand-400"
       : "text-gray-500 hover:text-gray-700 dark:text-gray-400"
   }`;
 
@@ -136,18 +120,26 @@ export default function ContactLabelPanel({
       const labelList = await loadLabels();
       setLabels(labelList);
 
-      const list =
+      const page =
         scope === "friend"
           ? await zaloFriendService.list({ accountId, page: 1, pageSize: 200 })
           : await zaloGroupService.list({ accountId, page: 1, pageSize: 200 });
 
+      let results = page.results ?? [];
+      if (results.length) {
+        results =
+          scope === "friend"
+            ? await zaloFriendService.fetchDetails(results)
+            : await zaloGroupService.fetchDetails(results);
+      }
+
       setContacts(
-        (list.results ?? []).map((item) => ({
+        results.map((item) => ({
           id: item.id,
           name:
-            "name" in item && item.name
-              ? String(item.name)
-              : `ID ${item.id}`,
+            scope === "friend"
+              ? getZaloFriendDisplayName(item)
+              : getZaloGroupDisplayName(item),
           avatar:
             scope === "friend"
               ? ("avatar" in item ? (item.avatar ?? null) : null)
@@ -275,11 +267,11 @@ export default function ContactLabelPanel({
 
   const handleAssign = async () => {
     if (!selectedLabelId) {
-      toast.error("Chọn nhãn ở bước 1.");
+      toast.error("Hãy chọn nhãn ở bước 1.");
       return;
     }
     if (selectedContactIds.length === 0) {
-      toast.error(`Chọn ít nhất một ${contactLabel} ở bước 2.`);
+      toast.error(`Hãy tick ít nhất một ${contactLabel} ở bước 2.`);
       return;
     }
 
@@ -299,11 +291,11 @@ export default function ContactLabelPanel({
 
   const handleRemove = async () => {
     if (!selectedLabelId) {
-      toast.error("Chọn nhãn ở bước 1.");
+      toast.error("Hãy chọn nhãn ở bước 1.");
       return;
     }
     if (selectedContactIds.length === 0) {
-      toast.error(`Chọn ít nhất một ${contactLabel} ở bước 2.`);
+      toast.error(`Hãy tick ít nhất một ${contactLabel} ở bước 2.`);
       return;
     }
 
@@ -331,57 +323,47 @@ export default function ContactLabelPanel({
     }
   };
 
-  const step1Done = labelMode === "pick" ? Boolean(selectedLabelId) : false;
-  const step2Done = selectedContactIds.length > 0;
   const canAssign =
-    labelMode === "pick" && Boolean(selectedLabelId) && step2Done;
-  const canCreateAndAssign =
-    labelMode === "create" &&
-    newLabelName.trim().length > 0 &&
-    step2Done;
-  const canCreateOnly =
+    labelMode === "pick" && Boolean(selectedLabelId) && selectedContactIds.length > 0;
+  const canCreate =
     labelMode === "create" && newLabelName.trim().length > 0;
+  const selectedCount = selectedContactIds.length;
 
   if (!active) return null;
 
   return (
     <div className={adminDataPanelClass}>
-      <div className="mb-1.5 flex shrink-0 items-center justify-between gap-2 border-b border-gray-100 pb-1.5 sm:mb-2 sm:pb-2 dark:border-gray-800">
-        <div className="hidden min-w-0 sm:block">
-          <StepTrail
-            contactLabelCap={contactLabelCap}
-            step1Done={step1Done}
-            step2Done={step2Done}
-          />
+      <div className="mb-3 shrink-0 space-y-2 border-b border-gray-100 pb-3 dark:border-gray-800">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <h3 className="text-sm font-semibold text-gray-800 dark:text-white/90">
+            Gán nhãn cho {contactLabel}
+          </h3>
+          <div className="inline-flex shrink-0 rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-800/50">
+            <button
+              type="button"
+              onClick={() => setLabelMode("pick")}
+              className={modeTabClass(labelMode === "pick")}
+            >
+              Dùng nhãn có sẵn
+            </button>
+            <button
+              type="button"
+              onClick={() => setLabelMode("create")}
+              className={modeTabClass(labelMode === "create")}
+            >
+              Tạo nhãn mới
+            </button>
+          </div>
         </div>
-        <span className="truncate text-theme-xs font-medium text-brand-600 sm:hidden dark:text-brand-400">
-          {step1Done
-            ? step2Done
-              ? `3. Gán · ${selectedContactIds.length} ${contactLabel}`
-              : `2. Chọn ${contactLabel}`
-            : "1. Chọn nhãn"}
-        </span>
-        <div className="inline-flex shrink-0 rounded-md border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-800/50">
-          <button
-            type="button"
-            onClick={() => setLabelMode("pick")}
-            className={modeTabClass(labelMode === "pick")}
-          >
-            Có sẵn
-          </button>
-          <button
-            type="button"
-            onClick={() => setLabelMode("create")}
-            className={modeTabClass(labelMode === "create")}
-          >
-            Tạo mới
-          </button>
-        </div>
+        <InstructionHint labelMode={labelMode} contactLabel={contactLabel} />
       </div>
 
-      <div className="mb-1.5 flex shrink-0 flex-col gap-1.5 sm:mb-2 sm:flex-row sm:items-center sm:gap-2">
+      <div className="mb-3 shrink-0 space-y-1.5">
+        <p className="text-theme-xs font-medium text-gray-700 dark:text-gray-300">
+          {labelMode === "pick" ? "Bước 1 — Chọn nhãn" : "Bước 1 — Đặt tên nhãn mới"}
+        </p>
         {labelMode === "pick" ? (
-          <div className="min-w-0 flex-1">
+          <div className="min-w-0">
             <CustomSelect
               value={selectedLabelId != null ? String(selectedLabelId) : ""}
               onChange={(value) =>
@@ -389,8 +371,8 @@ export default function ContactLabelPanel({
               }
               placeholder={
                 labels.length === 0
-                  ? "Chưa có nhãn — chuyển Tạo mới"
-                  : "Chọn nhãn"
+                  ? "Chưa có nhãn — hãy chọn «Tạo nhãn mới»"
+                  : "Chọn nhãn trong danh sách"
               }
               disabled={isLoading}
               options={labelOptions}
@@ -410,17 +392,20 @@ export default function ContactLabelPanel({
             />
           </div>
         ) : (
-          <>
+          <div className="flex gap-2">
             <div className="min-w-0 flex-1">
               <Input
                 type="text"
                 value={newLabelName}
                 disabled={isCreatingLabel}
-                placeholder="Tên nhãn mới..."
+                placeholder="Ví dụ: Khách VIP, Nhóm sale..."
                 onChange={(e) => setNewLabelName(e.target.value)}
               />
             </div>
-            <label className="flex h-11 shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-2 dark:border-gray-700 dark:bg-gray-900">
+            <label
+              title="Màu hiển thị nhãn"
+              className="flex h-11 shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-2 dark:border-gray-700 dark:bg-gray-900"
+            >
               <input
                 type="color"
                 value={newLabelColor}
@@ -430,17 +415,21 @@ export default function ContactLabelPanel({
                 aria-label="Chọn màu nhãn"
               />
             </label>
-          </>
+          </div>
         )}
       </div>
 
       <div className="flex h-0 min-h-0 flex-1 flex-col overflow-hidden">
         <div className="mb-1.5 flex shrink-0 items-center justify-between gap-2">
           <span className="text-theme-xs font-medium text-gray-600 dark:text-gray-400">
-            Chọn {contactLabel}
-            {selectedContactIds.length > 0 && (
+            Bước 2 — Chọn {contactLabel}
+            {selectedCount > 0 ? (
               <span className="ml-1 font-normal text-brand-600 dark:text-brand-400">
-                · {selectedContactIds.length} đã chọn
+                ({selectedCount} đã chọn)
+              </span>
+            ) : (
+              <span className="ml-1 font-normal text-gray-400">
+                (chưa chọn)
               </span>
             )}
           </span>
@@ -512,51 +501,55 @@ export default function ContactLabelPanel({
         </ScrollableTableContainer>
       </div>
 
-      <div className="flex shrink-0 flex-nowrap items-center justify-end gap-1.5 overflow-x-auto border-t border-gray-100 pt-1.5 sm:flex-wrap sm:gap-2 sm:pt-2 dark:border-gray-800">
-        {labelMode === "pick" && (
-          <Button
-            size="sm"
-            variant="outline"
-            className="max-sm:!px-3 max-sm:!py-2 max-sm:!text-xs"
-            onClick={() => void handleRemove()}
-            disabled={isSaving || !canAssign}
-          >
-            Gỡ nhãn
-          </Button>
-        )}
+      <div className="flex shrink-0 flex-col gap-2 border-t border-gray-100 pt-3 dark:border-gray-800">
         {labelMode === "pick" ? (
-          <Button
-            size="sm"
-            className="max-sm:!px-3 max-sm:!py-2 max-sm:!text-xs"
-            onClick={() => void handleAssign()}
-            disabled={isSaving || !canAssign}
-          >
-            {isSaving
-              ? "Đang gán..."
-              : `Gán nhãn${selectedContactIds.length > 0 ? ` (${selectedContactIds.length})` : ""}`}
-          </Button>
-        ) : (
-          <>
+          <div className="flex flex-wrap items-center justify-end gap-2">
             <Button
               size="sm"
               variant="outline"
-              className="max-sm:!px-3 max-sm:!py-2 max-sm:!text-xs"
-              onClick={() => void handleCreateLabel(false)}
-              disabled={isCreatingLabel || !canCreateOnly}
+              onClick={() => void handleRemove()}
+              disabled={isSaving || !canAssign}
             >
-              {isCreatingLabel ? "Đang tạo..." : "Chỉ tạo"}
+              {isSaving
+                ? "Đang xử lý..."
+                : selectedCount > 0
+                  ? `Gỡ nhãn khỏi ${selectedCount} ${contactLabel}`
+                  : "Gỡ nhãn"}
             </Button>
             <Button
               size="sm"
-              className="max-sm:!px-3 max-sm:!py-2 max-sm:!text-xs"
-              onClick={() => void handleCreateLabel(true)}
-              disabled={isCreatingLabel || !canCreateAndAssign}
+              onClick={() => void handleAssign()}
+              disabled={isSaving || !canAssign}
+            >
+              {isSaving
+                ? "Đang gán..."
+                : selectedCount > 0
+                  ? `Gán nhãn cho ${selectedCount} ${contactLabel}`
+                  : "Gán nhãn"}
+            </Button>
+          </div>
+        ) : (
+          <div className="flex flex-col items-stretch gap-2 sm:items-end">
+            <Button
+              size="sm"
+              className="sm:min-w-[220px]"
+              onClick={() =>
+                void handleCreateLabel(selectedCount > 0)
+              }
+              disabled={isCreatingLabel || !canCreate}
             >
               {isCreatingLabel
-                ? "Đang xử lý..."
-                : `Tạo & gán${selectedContactIds.length > 0 ? ` (${selectedContactIds.length})` : ""}`}
+                ? "Đang lưu..."
+                : selectedCount > 0
+                  ? `Lưu nhãn và gán cho ${selectedCount} ${contactLabel}`
+                  : "Lưu nhãn (gán sau)"}
             </Button>
-          </>
+            {selectedCount === 0 ? (
+              <p className="text-right text-theme-xs text-gray-400">
+                Tick {contactLabel} ở bảng trên nếu muốn gán ngay khi tạo nhãn.
+              </p>
+            ) : null}
+          </div>
         )}
       </div>
     </div>

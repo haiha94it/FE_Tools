@@ -1,3 +1,4 @@
+import { assertGuidesAndResourcesAdmin } from "@/lib/guide-resource-admin";
 import { zaloResourceService } from "@/services/zalo-resource.service";
 import type {
   ZaloProductAppFormPayload,
@@ -51,6 +52,7 @@ export const useZaloResourceStore = create<ZaloResourceState>((set, get) => ({
   },
 
   createOrEditResource: async (payload) => {
+    assertGuidesAndResourcesAdmin();
     set({ saving: true });
     try {
       await zaloResourceService.createOrEditResource(payload);
@@ -63,6 +65,7 @@ export const useZaloResourceStore = create<ZaloResourceState>((set, get) => ({
   },
 
   deleteResource: async (id) => {
+    assertGuidesAndResourcesAdmin();
     set({ saving: true });
     try {
       await zaloResourceService.deleteResource(id);
@@ -77,6 +80,7 @@ export const useZaloResourceStore = create<ZaloResourceState>((set, get) => ({
   },
 
   createOrEditProductApp: async (payload) => {
+    assertGuidesAndResourcesAdmin();
     set({ saving: true });
     try {
       await zaloResourceService.createOrEditProductApp(payload);
@@ -89,6 +93,7 @@ export const useZaloResourceStore = create<ZaloResourceState>((set, get) => ({
   },
 
   deleteProductApp: async (id) => {
+    assertGuidesAndResourcesAdmin();
     set({ saving: true });
     try {
       await zaloResourceService.deleteProductApp(id);
@@ -103,6 +108,7 @@ export const useZaloResourceStore = create<ZaloResourceState>((set, get) => ({
   },
 
   uploadImage: async (file) => {
+    assertGuidesAndResourcesAdmin();
     set({ uploadingImage: true });
     try {
       const image = await zaloResourceService.uploadImage(file);

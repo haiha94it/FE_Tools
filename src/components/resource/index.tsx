@@ -5,6 +5,7 @@ import Button from "@/components/ui/button/Button";
 import { confirm } from "@/lib/confirm";
 import { getApiErrorMessage } from "@/lib/errors";
 import { toast } from "@/lib/toast";
+import { canManageGuidesAndResources } from "@/lib/map-auth-user";
 import { useAuthStore } from "@/stores/use-auth-store";
 import { useZaloResourceStore } from "@/stores/use-zalo-resource-store";
 import type { ZaloProductAppItem, ZaloResourceItem } from "@/types/zalo-resource";
@@ -22,7 +23,7 @@ import ResourceFormModal from "./ResourceFormModal";
 
 export default function ResourceView() {
   const user = useAuthStore((s) => s.user);
-  const isAdmin = Boolean(user?.isAdmin);
+  const canManage = canManageGuidesAndResources(user);
 
   const resources = useZaloResourceStore((s) => s.resources);
   const productApps = useZaloResourceStore((s) => s.productApps);
@@ -42,16 +43,19 @@ export default function ResourceView() {
   }, [fetchAll]);
 
   const openCreateResource = () => {
+    if (!canManage) return;
     setEditingResource(null);
     setResourceModalOpen(true);
   };
 
   const openEditResource = (item: ZaloResourceItem) => {
+    if (!canManage) return;
     setEditingResource(item);
     setResourceModalOpen(true);
   };
 
   const handleDeleteResource = async (item: ZaloResourceItem) => {
+    if (!canManage) return;
     if (
       !(await confirm({
         title: "Xóa banner",
@@ -71,16 +75,19 @@ export default function ResourceView() {
   };
 
   const openCreateProduct = () => {
+    if (!canManage) return;
     setEditingProduct(null);
     setProductModalOpen(true);
   };
 
   const openEditProduct = (item: ZaloProductAppItem) => {
+    if (!canManage) return;
     setEditingProduct(item);
     setProductModalOpen(true);
   };
 
   const handleDeleteProduct = async (item: ZaloProductAppItem) => {
+    if (!canManage) return;
     if (
       !(await confirm({
         title: "Xóa sản phẩm",
@@ -157,7 +164,7 @@ export default function ResourceView() {
               </p>
             </div>
           </div>
-          {isAdmin ? (
+          {canManage ? (
             <Button size="sm" onClick={openCreateResource}>
               <HiOutlinePlus className="mr-1" size={14} />
               Thêm banner
@@ -171,7 +178,7 @@ export default function ResourceView() {
         ) : (
           <ResourceCarousel
             items={resources}
-            isAdmin={isAdmin}
+            isAdmin={canManage}
             onEdit={openEditResource}
             onDelete={(item) => void handleDeleteResource(item)}
           />
@@ -193,7 +200,7 @@ export default function ResourceView() {
               </p>
             </div>
           </div>
-          {isAdmin ? (
+          {canManage ? (
             <Button size="sm" onClick={openCreateProduct}>
               <HiOutlinePlus className="mr-1" size={14} />
               Thêm sản phẩm
@@ -207,30 +214,33 @@ export default function ResourceView() {
         ) : (
           <ProductAppGrid
             items={productApps}
-            isAdmin={isAdmin}
+            isAdmin={canManage}
             onEdit={openEditProduct}
             onDelete={(item) => void handleDeleteProduct(item)}
           />
         )}
       </section>
 
-      <ResourceFormModal
-        open={resourceModalOpen}
-        editingItem={editingResource}
-        onClose={() => {
-          setResourceModalOpen(false);
-          setEditingResource(null);
-        }}
-      />
-
-      <ProductAppFormModal
-        open={productModalOpen}
-        editingItem={editingProduct}
-        onClose={() => {
-          setProductModalOpen(false);
-          setEditingProduct(null);
-        }}
-      />
+      {canManage ? (
+        <>
+          <ResourceFormModal
+            open={resourceModalOpen}
+            editingItem={editingResource}
+            onClose={() => {
+              setResourceModalOpen(false);
+              setEditingResource(null);
+            }}
+          />
+          <ProductAppFormModal
+            open={productModalOpen}
+            editingItem={editingProduct}
+            onClose={() => {
+              setProductModalOpen(false);
+              setEditingProduct(null);
+            }}
+          />
+        </>
+      ) : null}
     </div>
   );
 }

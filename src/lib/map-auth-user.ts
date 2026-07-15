@@ -7,6 +7,22 @@ export function canAccessAdminSettings(
   return Boolean(user?.isAdmin);
 }
 
+/**
+ * CRUD hướng dẫn & tài nguyên — chỉ quản trị viên hệ thống (is_admin / is_superuser).
+ * Manager KH, nhân viên, CSKH chỉ xem nội dung, không thấy Thêm/Sửa/Xóa.
+ */
+export function canManageGuidesAndResources(
+  user: Pick<
+    AuthUser,
+    "isAdmin" | "isEmployee" | "isManager" | "isSaler" | "isSaleManager"
+  > | null | undefined,
+): boolean {
+  if (!user?.isAdmin) return false;
+  if (user.isEmployee || user.isManager) return false;
+  if (user.isSaler || user.isSaleManager) return false;
+  return true;
+}
+
 /** Admin / saler / sale manager — truy cập Quản lý người dùng (/admin/users) */
 export function canAccessUserAdmin(
   user: Pick<AuthUser, "isAdmin" | "isSaler" | "isSaleManager"> | null | undefined,

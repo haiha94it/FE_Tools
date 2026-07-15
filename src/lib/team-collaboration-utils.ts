@@ -56,9 +56,16 @@ export function isManagerOnlyPath(pathname: string): boolean {
   );
 }
 
+export function isCampaignPermissionPath(pathname: string): boolean {
+  return Object.keys(CAMPAIGN_PATH_PERMISSION).some(
+    (path) => pathname === path || pathname.startsWith(`${path}/`),
+  );
+}
+
 export function canAccessAdminRoute(
   pathname: string,
   user: AuthUser | null | undefined,
+  permissions: CampaignPermissionsMap | null = null,
 ): boolean {
   if (!user) return false;
 
@@ -71,6 +78,14 @@ export function canAccessAdminRoute(
     pathname.startsWith(`${TEAM_MANAGER_PATH_PREFIX}/`)
   ) {
     return canManageTeam(user);
+  }
+
+  const campaignKey = Object.entries(CAMPAIGN_PATH_PERMISSION).find(
+    ([path]) => pathname === path || pathname.startsWith(`${path}/`),
+  )?.[1];
+
+  if (campaignKey) {
+    return hasCampaignPermission(permissions, campaignKey, user);
   }
 
   return true;
@@ -220,4 +235,52 @@ export function formatSentByLabel(
 ): string {
   if (!sentBy) return "";
   return sentBy.fullname?.trim() || sentBy.username;
+}
+
+export function filterSelectableCampaignIds<T extends TeamCategoryFields & { id: number }>(
+  campaigns: T[],
+  user: AuthUser | null,
+): number[] {
+  return campaigns
+    .filter((campaign) => getCampaignTeamAccess(campaign, user).canSelect)
+    .map((campaign) => campaign.id);
+}
+
+export function filterStartStopCampaignIds<T extends TeamCategoryFields & { id: number }>(
+  campaigns: T[],
+  ids: number[],
+  user: AuthUser | null,
+): number[] {
+  const byId = new Map(campaigns.map((campaign) => [campaign.id, campaign]));
+  return ids.filter((id) => {
+    const campaign = byId.get(id);
+    if (!campaign) return false;
+    return getCampaignTeamAccess(campaign, user).canStartStop;
+  });
+}
+
+export function toggleAllSelectableIds(
+  selectableIds: number[],
+  selectedIds: number[],
+): number[] {
+  const allSelected =
+    selectableIds.length > 0 &&
+    selectableIds.every((id) => selectedIds.includes(id));
+  return allSelected ? [] : selectableIds;
+}
+
+export function resolveCampaignStatusDisplay<
+  T extends TeamCategoryFields,
+  S extends number | null | undefined = number,
+>(
+  campaign: T,
+  formatLocal: (status: S) => { label: string; className: string },
+): { label: string; className: string } {
+  const rawStatus = (campaign as { status?: S }).status;
+  const local = formatLocal((rawStatus ?? 0) as S);
+  const remoteLabel = campaign.status_label?.trim();
+  if (remoteLabel) {
+    return { ...local, label: remoteLabel };
+  }
+  return local;
 }

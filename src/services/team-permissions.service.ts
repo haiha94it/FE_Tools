@@ -9,6 +9,7 @@ import type {
   EmployeeCampaignPermissionsResponse,
   MyCampaignPermissionsResponse,
   CreateEmployeePayload,
+  EditEmployeePayload,
   SetAccountAssignmentsBody,
   SetCampaignPermissionsBody,
   TeamEmployee,
@@ -51,6 +52,22 @@ export const teamPermissionsService = {
 
   async createEmployee(payload: CreateEmployeePayload): Promise<TeamEmployee> {
     const response = await api.post(API_TEAM.CREATE_EMPLOYEE, payload);
+    return unwrapApiBody<TeamEmployee>(response.data);
+  },
+
+  async editEmployee(payload: EditEmployeePayload): Promise<TeamEmployee> {
+    const response = await api.post(API_TEAM.EDIT_EMPLOYEE, payload);
+    return unwrapApiBody<TeamEmployee>(response.data);
+  },
+
+  async deleteEmployee(employeeId: number): Promise<void> {
+    await api.post(API_TEAM.DELETE_EMPLOYEE, { id_employee: employeeId });
+  },
+
+  async activeEmployee(employeeId: number): Promise<TeamEmployee> {
+    const response = await api.post(API_TEAM.ACTIVE_EMPLOYEE, {
+      id_employee: employeeId,
+    });
     return unwrapApiBody<TeamEmployee>(response.data);
   },
 

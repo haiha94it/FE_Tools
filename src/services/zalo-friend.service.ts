@@ -24,13 +24,15 @@ export const zaloFriendService = {
     pageSize?: number;
     name?: string;
     categoryId?: number;
+    /** false/undefined → type=simple + hydrate; true → full FriendDetail (§2.1 contract) */
+    detail?: boolean;
   }): Promise<PaginatedResponse<ZaloFriendItem>> {
     const response = await api.get(API_ZALO_FRIEND.LIST, {
       params: {
         id_account: params.accountId,
         page: params.page ?? 1,
         number_per_page: params.pageSize ?? 100,
-        type: "simple",
+        ...(params.detail ? {} : { type: "simple" }),
         ...(params.name ? { name: params.name } : {}),
         ...(params.categoryId
           ? { id_category_message: params.categoryId }

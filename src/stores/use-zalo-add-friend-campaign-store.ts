@@ -1,3 +1,4 @@
+import { resolveCampaignStartStopIds, resolveCampaignToggleSelectAll } from "@/lib/campaign-team-selection";
 import { zaloAddFriendCampaignService } from "@/services/zalo-add-friend-campaign.service";
 import { fetchAccessibleAccounts } from "@/lib/fetch-accessible-accounts";
 import type {
@@ -118,10 +119,9 @@ export const useZaloAddFriendCampaignStore = create<AddFriendCampaignState>(
 
     toggleSelectAll: () => {
       const { campaigns, selectedIds } = get();
-      const allIds = campaigns.map((item) => item.id);
-      const allSelected =
-        allIds.length > 0 && allIds.every((id) => selectedIds.includes(id));
-      set({ selectedIds: allSelected ? [] : allIds });
+      set({
+        selectedIds: resolveCampaignToggleSelectAll(campaigns, selectedIds),
+      });
     },
 
     clearSelection: () => set({ selectedIds: [] }),
@@ -166,13 +166,14 @@ export const useZaloAddFriendCampaignStore = create<AddFriendCampaignState>(
     },
 
     startCampaigns: async (type) => {
-      const { selectedIds } = get();
-      if (!selectedIds.length) {
+      const { campaigns, selectedIds } = get();
+      const ids = resolveCampaignStartStopIds(campaigns, selectedIds);
+      if (!ids.length) {
         throw new Error("Chọn ít nhất 1 kịch bản để chạy.");
       }
       set({ actionLoading: true });
       try {
-        await zaloAddFriendCampaignService.startCampaigns(selectedIds, type);
+        await zaloAddFriendCampaignService.startCampaigns(ids, type);
         set({ actionLoading: false });
         await get().fetchCampaigns({ silent: true });
       } catch (error) {
@@ -182,13 +183,14 @@ export const useZaloAddFriendCampaignStore = create<AddFriendCampaignState>(
     },
 
     stopCampaigns: async () => {
-      const { selectedIds } = get();
-      if (!selectedIds.length) {
+      const { campaigns, selectedIds } = get();
+      const ids = resolveCampaignStartStopIds(campaigns, selectedIds);
+      if (!ids.length) {
         throw new Error("Chọn ít nhất 1 kịch bản để dừng.");
       }
       set({ actionLoading: true });
       try {
-        await zaloAddFriendCampaignService.stopCampaigns(selectedIds);
+        await zaloAddFriendCampaignService.stopCampaigns(ids);
         set({ actionLoading: false });
         await get().fetchCampaigns({ silent: true });
       } catch (error) {

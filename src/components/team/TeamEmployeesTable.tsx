@@ -8,12 +8,14 @@ interface TeamEmployeesTableProps {
   employees: TeamEmployee[];
   onAssignAccounts: (employee: TeamEmployee) => void;
   onEditPermissions: (employee: TeamEmployee) => void;
+  onEditEmployee: (employee: TeamEmployee) => void;
 }
 
 function TeamEmployeesTable({
   employees,
   onAssignAccounts,
   onEditPermissions,
+  onEditEmployee,
 }: TeamEmployeesTableProps) {
   return (
     <div className="overflow-x-auto">
@@ -32,6 +34,7 @@ function TeamEmployeesTable({
               employee={employee}
               onAssignAccounts={onAssignAccounts}
               onEditPermissions={onEditPermissions}
+              onEditEmployee={onEditEmployee}
             />
           ))}
         </tbody>

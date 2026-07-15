@@ -4,6 +4,7 @@ import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import { adminDataPanelClass } from "@/components/ui/table/ScrollableTableContainer";
 import Button from "@/components/ui/button/Button";
 import TeamCreateEmployeeModal from "@/components/team/TeamCreateEmployeeModal";
+import TeamEditEmployeeModal from "@/components/team/TeamEditEmployeeModal";
 import TeamEmployeeAccountsModal from "@/components/team/TeamEmployeeAccountsModal";
 import TeamEmployeePermissionsModal from "@/components/team/TeamEmployeePermissionsModal";
 import TeamEmployeesTable from "@/components/team/TeamEmployeesTable";
@@ -22,6 +23,7 @@ export default function TeamEmployeesView() {
   const [createOpen, setCreateOpen] = useState(false);
   const [accountsEmployee, setAccountsEmployee] = useState<TeamEmployee | null>(null);
   const [permissionsEmployee, setPermissionsEmployee] = useState<TeamEmployee | null>(null);
+  const [editEmployee, setEditEmployee] = useState<TeamEmployee | null>(null);
   const hasLoadedRef = useRef(false);
 
   const load = useCallback(async (options?: { background?: boolean }) => {
@@ -82,6 +84,18 @@ export default function TeamEmployeesView() {
     setPermissionsEmployee(null);
   }, []);
 
+  const handleEditEmployee = useCallback((employee: TeamEmployee) => {
+    setEditEmployee(employee);
+  }, []);
+
+  const handleCloseEditModal = useCallback(() => {
+    setEditEmployee(null);
+  }, []);
+
+  const handleEmployeeUpdated = useCallback(() => {
+    void load({ background: true });
+  }, [load]);
+
   return (
     <div className={`${adminDataPanelClass} flex min-h-0 flex-1 flex-col gap-4`}>
       <PageBreadcrumb pageTitle="Quản lý nhân viên" />
@@ -117,6 +131,7 @@ export default function TeamEmployeesView() {
             employees={employees}
             onAssignAccounts={handleAssignAccounts}
             onEditPermissions={handleEditPermissions}
+            onEditEmployee={handleEditEmployee}
           />
         )}
       </div>
@@ -137,6 +152,12 @@ export default function TeamEmployeesView() {
         employee={permissionsEmployee}
         open={Boolean(permissionsEmployee)}
         onClose={handleClosePermissionsModal}
+      />
+      <TeamEditEmployeeModal
+        employee={editEmployee}
+        open={Boolean(editEmployee)}
+        onClose={handleCloseEditModal}
+        onSaved={handleEmployeeUpdated}
       />
     </div>
   );

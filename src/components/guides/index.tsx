@@ -5,6 +5,7 @@ import Button from "@/components/ui/button/Button";
 import { confirm } from "@/lib/confirm";
 import { getApiErrorMessage } from "@/lib/errors";
 import { toast } from "@/lib/toast";
+import { canManageGuidesAndResources } from "@/lib/map-auth-user";
 import { useAuthStore } from "@/stores/use-auth-store";
 import { useZaloGuideStore } from "@/stores/use-zalo-guide-store";
 import type { ZaloGuideItem } from "@/types/zalo-guide";
@@ -16,7 +17,7 @@ import TutorialVideoEmbed from "./TutorialVideoEmbed";
 
 export default function GuidesView() {
   const user = useAuthStore((s) => s.user);
-  const isAdmin = Boolean(user?.isAdmin);
+  const canManage = canManageGuidesAndResources(user);
 
   const guides = useZaloGuideStore((s) => s.guides);
   const loading = useZaloGuideStore((s) => s.loading);
@@ -37,16 +38,19 @@ export default function GuidesView() {
   };
 
   const openCreate = () => {
+    if (!canManage) return;
     setEditingGuide(null);
     setFormOpen(true);
   };
 
   const openEdit = (item: ZaloGuideItem) => {
+    if (!canManage) return;
     setEditingGuide(item);
     setFormOpen(true);
   };
 
   const handleDelete = async (item: ZaloGuideItem) => {
+    if (!canManage) return;
     if (
       !(await confirm({
         title: "Xóa hướng dẫn",
@@ -89,7 +93,7 @@ export default function GuidesView() {
               thống bạn đang sử dụng.
             </p>
           </div>
-          {isAdmin ? (
+          {canManage ? (
             <Button
               size="sm"
               className="shrink-0 self-start border border-white/20 bg-white/10 text-white hover:bg-white/20 sm:self-center"
@@ -129,7 +133,7 @@ export default function GuidesView() {
         ) : (
           <GuideCarousel
             items={guides}
-            isAdmin={isAdmin}
+            isAdmin={canManage}
             onSelect={scrollToGuide}
             onEdit={openEdit}
             onDelete={(item) => void handleDelete(item)}
@@ -157,14 +161,16 @@ export default function GuidesView() {
         ))}
       </section>
 
-      <GuideFormModal
-        open={formOpen}
-        editingItem={editingGuide}
-        onClose={() => {
-          setFormOpen(false);
-          setEditingGuide(null);
-        }}
-      />
+      {canManage ? (
+        <GuideFormModal
+          open={formOpen}
+          editingItem={editingGuide}
+          onClose={() => {
+            setFormOpen(false);
+            setEditingGuide(null);
+          }}
+        />
+      ) : null}
     </div>
   );
 }

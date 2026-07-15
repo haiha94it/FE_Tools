@@ -13,6 +13,7 @@ import {
   formatCampaignStartTime,
   formatSendMesFrCampaignRunStatus,
 } from "@/lib/zalo-send-mes-fr-campaign-utils";
+import { resolveCampaignStatusDisplay } from "@/lib/team-collaboration-utils";
 import CampaignTeamActionBar from "@/components/zalo-campaigns/shared/CampaignTeamActionBar";
 import CampaignTeamCreatedByCell from "@/components/zalo-campaigns/shared/CampaignTeamCreatedByCell";
 import CampaignTeamSelectableCheckbox from "@/components/zalo-campaigns/shared/CampaignTeamSelectableCheckbox";
@@ -102,7 +103,7 @@ export default function SendMesFrCampaignTable({
           </TableHeader>
           <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
             {campaigns.map((campaign, index) => {
-              const status = formatSendMesFrCampaignRunStatus(campaign.status);
+              const status = resolveCampaignStatusDisplay(campaign, formatSendMesFrCampaignRunStatus);
               return (
                 <TableRow
                   key={campaign.id}

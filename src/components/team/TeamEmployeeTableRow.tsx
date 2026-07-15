@@ -7,12 +7,14 @@ interface TeamEmployeeTableRowProps {
   employee: TeamEmployee;
   onAssignAccounts: (employee: TeamEmployee) => void;
   onEditPermissions: (employee: TeamEmployee) => void;
+  onEditEmployee: (employee: TeamEmployee) => void;
 }
 
 function TeamEmployeeTableRow({
   employee,
   onAssignAccounts,
   onEditPermissions,
+  onEditEmployee,
 }: TeamEmployeeTableRowProps) {
   return (
     <tr className="border-b border-gray-100 dark:border-gray-800">
@@ -23,10 +25,18 @@ function TeamEmployeeTableRow({
         <p className="text-xs text-gray-500">@{employee.username}</p>
       </td>
       <td className="px-3 py-3 text-gray-600 dark:text-gray-400">
-        {employee.account_count ?? 0} / {employee.account_limit ?? 0} nick
+        {employee.account_count ?? employee.logged_account_count ?? 0} /{" "}
+        {employee.account_limit ?? 0} nick
       </td>
       <td className="px-3 py-3">
         <div className="flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={() => onEditEmployee(employee)}
+            className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300"
+          >
+            Sửa
+          </button>
           <button
             type="button"
             onClick={() => onAssignAccounts(employee)}

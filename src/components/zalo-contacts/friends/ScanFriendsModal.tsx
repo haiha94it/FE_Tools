@@ -17,7 +17,9 @@ import {
 import { useScanTaskPoll } from "@/hooks/use-scan-task-poll";
 import { isScanTaskDone } from "@/lib/zalo-contacts-utils";
 import { toast } from "@/lib/toast";
+import { isEmployeeUser } from "@/lib/team-collaboration-utils";
 import { zaloFriendService } from "@/services/zalo-friend.service";
+import { useAuthStore } from "@/stores/use-auth-store";
 import { FriendNameCell } from "@/components/zalo-contacts/shared/ContactAvatar";
 import type { ScanTaskResponse, ZaloFriendItem } from "@/types/zalo-contacts";
 import { useCallback, useEffect, useState } from "react";
@@ -36,6 +38,8 @@ export default function ScanFriendsPanel({
   active,
   accountId,
 }: ScanFriendsPanelProps) {
+  const user = useAuthStore((s) => s.user);
+  const isEmployee = isEmployeeUser(user);
   const [friends, setFriends] = useState<ZaloFriendItem[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -55,6 +59,7 @@ export default function ScanFriendsPanel({
         page,
         pageSize,
         name: search.trim() || undefined,
+        detail: true,
       });
       setFriends(data.results ?? []);
       setTotal(data.count ?? data.results?.length ?? 0);
@@ -171,7 +176,9 @@ export default function ScanFriendsPanel({
             ) : friends.length === 0 ? (
               <TableRow>
                 <TableCell className={cellClass}>
-                  Chưa có dữ liệu. Bấm &quot;Quét danh sách&quot; để đồng bộ.
+                  {isEmployee
+                    ? "Danh sách có thể trống với tài khoản nhân viên cho đến khi BE cập nhật phân quyền danh bạ (§2.1)."
+                    : 'Chưa có dữ liệu. Bấm "Quét danh sách" để đồng bộ.'}
                 </TableCell>
                 <TableCell className={cellClass}>{" "}</TableCell>
                 <TableCell className={cellClass}>{" "}</TableCell>

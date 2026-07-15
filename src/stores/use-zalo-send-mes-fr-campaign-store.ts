@@ -1,3 +1,4 @@
+import { resolveCampaignStartStopIds, resolveCampaignToggleSelectAll } from "@/lib/campaign-team-selection";
 import { zaloSendMesFrCampaignService } from "@/services/zalo-send-mes-fr-campaign.service";
 import { fetchAccessibleAccounts } from "@/lib/fetch-accessible-accounts";
 import type {
@@ -110,10 +111,9 @@ export const useZaloSendMesFrCampaignStore = create<SendMesFrCampaignState>(
 
     toggleSelectAll: () => {
       const { campaigns, selectedIds } = get();
-      const allIds = campaigns.map((item) => item.id);
-      const allSelected =
-        allIds.length > 0 && allIds.every((id) => selectedIds.includes(id));
-      set({ selectedIds: allSelected ? [] : allIds });
+      set({
+        selectedIds: resolveCampaignToggleSelectAll(campaigns, selectedIds),
+      });
     },
 
     createOrEditCampaign: async (payload) => {
@@ -156,13 +156,14 @@ export const useZaloSendMesFrCampaignStore = create<SendMesFrCampaignState>(
     },
 
     startCampaigns: async (type) => {
-      const { selectedIds } = get();
-      if (!selectedIds.length) {
+      const { campaigns, selectedIds } = get();
+      const ids = resolveCampaignStartStopIds(campaigns, selectedIds);
+      if (!ids.length) {
         throw new Error("Chọn ít nhất 1 kịch bản để chạy.");
       }
       set({ actionLoading: true });
       try {
-        await zaloSendMesFrCampaignService.startCampaigns(selectedIds, type);
+        await zaloSendMesFrCampaignService.startCampaigns(ids, type);
         set({ actionLoading: false });
         await get().fetchCampaigns({ silent: true });
       } catch (error) {
@@ -172,13 +173,14 @@ export const useZaloSendMesFrCampaignStore = create<SendMesFrCampaignState>(
     },
 
     stopCampaigns: async () => {
-      const { selectedIds } = get();
-      if (!selectedIds.length) {
+      const { campaigns, selectedIds } = get();
+      const ids = resolveCampaignStartStopIds(campaigns, selectedIds);
+      if (!ids.length) {
         throw new Error("Chọn ít nhất 1 kịch bản để dừng.");
       }
       set({ actionLoading: true });
       try {
-        await zaloSendMesFrCampaignService.stopCampaigns(selectedIds);
+        await zaloSendMesFrCampaignService.stopCampaigns(ids);
         set({ actionLoading: false });
         await get().fetchCampaigns({ silent: true });
       } catch (error) {

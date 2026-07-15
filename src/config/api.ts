@@ -20,6 +20,7 @@ export const API_TEAM = {
   CREATE_EMPLOYEE: "/api/users/create-employee",
   EDIT_EMPLOYEE: "/api/users/edit-employee",
   DELETE_EMPLOYEE: "/api/users/delete-employee",
+  ACTIVE_EMPLOYEE: "/api/users/active-employee",
 } as const;
 
 export const TEAM_EMPLOYEES_BASE = "/team/employees";

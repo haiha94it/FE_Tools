@@ -33,13 +33,15 @@ export const zaloGroupService = {
     pageSize?: number;
     name?: string;
     categoryId?: number;
+    /** false/undefined → type=simple; true → full GroupDetail (§2.2 contract) */
+    detail?: boolean;
   }): Promise<PaginatedResponse<ZaloGroupItem>> {
     const response = await api.get(API_ZALO_GROUP.LIST, {
       params: {
         id_account: params.accountId,
         page: params.page ?? 1,
         number_per_page: params.pageSize ?? 100,
-        type: "simple",
+        ...(params.detail ? {} : { type: "simple" }),
         ...(params.name ? { name: params.name } : {}),
         ...(params.categoryId
           ? { id_category_message: params.categoryId }

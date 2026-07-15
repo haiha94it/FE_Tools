@@ -19,7 +19,9 @@ import { isScanTaskDone } from "@/lib/zalo-contacts-utils";
 import { toast } from "@/lib/toast";
 import { ContactNameCell } from "@/components/zalo-contacts/shared/ContactAvatar";
 import { getZaloGroupAvatar } from "@/lib/zalo-contacts-utils";
+import { isEmployeeUser } from "@/lib/team-collaboration-utils";
 import { zaloGroupService } from "@/services/zalo-group.service";
+import { useAuthStore } from "@/stores/use-auth-store";
 import type { ScanTaskResponse, ZaloGroupItem } from "@/types/zalo-contacts";
 import { useCallback, useEffect, useState } from "react";
 
@@ -37,6 +39,8 @@ export default function ScanGroupsPanel({
   active,
   accountId,
 }: ScanGroupsPanelProps) {
+  const user = useAuthStore((s) => s.user);
+  const canSyncGroups = !isEmployeeUser(user);
   const [groups, setGroups] = useState<ZaloGroupItem[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -56,6 +60,7 @@ export default function ScanGroupsPanel({
         page,
         pageSize,
         name: search.trim() || undefined,
+        detail: true,
       });
       setGroups(data.results ?? []);
       setTotal(data.count ?? data.results?.length ?? 0);
@@ -138,9 +143,15 @@ export default function ScanGroupsPanel({
         <Button size="sm" variant="outline" onClick={() => void loadGroups()}>
           Tải lại
         </Button>
-        <Button size="sm" onClick={() => void handleScan()} disabled={isScanning}>
-          {isScanning ? "Đang quét..." : "Quét danh sách"}
-        </Button>
+        {canSyncGroups ? (
+          <Button size="sm" onClick={() => void handleScan()} disabled={isScanning}>
+            {isScanning ? "Đang quét..." : "Quét danh sách"}
+          </Button>
+        ) : (
+          <span className="text-xs text-gray-500">
+            Nhân viên chưa thể đồng bộ nhóm từ Zalo (§2.2).
+          </span>
+        )}
       </div>
 
       <ScrollableTableContainer fill>
