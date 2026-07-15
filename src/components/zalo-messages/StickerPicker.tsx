@@ -10,6 +10,8 @@ interface StickerPickerProps {
   open: boolean;
   onClose: () => void;
   onSelect: (sticker: MessengerStickerItem) => void;
+  /** inline — nhúng trong panel mobile; popover — nổi phía trên nút desktop */
+  placement?: "inline" | "popover";
 }
 
 function StickerPicker({
@@ -17,6 +19,7 @@ function StickerPicker({
   open,
   onClose,
   onSelect,
+  placement = "popover",
 }: StickerPickerProps) {
   const [stickers, setStickers] = useState<MessengerStickerItem[]>([]);
   const [keyword, setKeyword] = useState("");
@@ -56,8 +59,13 @@ function StickerPicker({
 
   if (!open) return null;
 
+  const panelClass =
+    placement === "inline"
+      ? "relative w-full overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900"
+      : "absolute bottom-full left-0 z-30 mb-2 w-[min(100vw-2rem,320px)] overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-900";
+
   return (
-    <div className="absolute bottom-full left-0 z-30 mb-2 w-[min(100vw-2rem,320px)] overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-900">
+    <div className={panelClass}>
       <div className="flex items-center gap-2 border-b border-gray-100 px-3 py-2 dark:border-gray-800">
         <input
           value={keyword}

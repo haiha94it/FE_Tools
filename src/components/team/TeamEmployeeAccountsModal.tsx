@@ -3,6 +3,7 @@
 import Button from "@/components/ui/button/Button";
 import Checkbox from "@/components/form/input/Checkbox";
 import { Modal } from "@/components/ui/modal";
+import ContactAvatar from "@/components/zalo-contacts/shared/ContactAvatar";
 import { getApiErrorMessage } from "@/lib/errors";
 import { toast } from "@/lib/toast";
 import { teamPermissionsService } from "@/services/team-permissions.service";
@@ -77,14 +78,25 @@ export default function TeamEmployeeAccountsModal({
     }
   };
 
+  const employeeName =
+    employee?.fullname?.trim() || employee?.username || "Nhân viên";
+
   return (
     <Modal isOpen={open} onClose={onClose} layer="top" className="max-w-lg p-5 sm:p-6">
       <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
         Gán nick Zalo
       </h3>
-      <p className="mt-1 text-sm text-gray-500">
-        {employee?.fullname || employee?.username}
-      </p>
+      {employee ? (
+        <div className="mt-3 flex items-center gap-3">
+          <ContactAvatar name={employeeName} size="md" />
+          <div className="min-w-0">
+            <p className="font-medium text-gray-800 dark:text-white/90">
+              {employeeName}
+            </p>
+            <p className="text-xs text-gray-500">@{employee.username}</p>
+          </div>
+        </div>
+      ) : null}
 
       {loading ? (
         <div className="flex justify-center py-12">
@@ -96,20 +108,31 @@ export default function TeamEmployeeAccountsModal({
         </p>
       ) : (
         <div className="custom-scrollbar mt-4 max-h-80 space-y-2 overflow-y-auto">
-          {managerAccounts.map((account) => (
-            <label
-              key={account.id}
-              className="flex cursor-pointer items-center gap-3 rounded-lg border border-gray-200 px-3 py-2.5 dark:border-gray-700"
-            >
-              <Checkbox
-                checked={selectedIds.includes(account.id)}
-                onChange={() => toggle(account.id)}
-              />
-              <span className="min-w-0 flex-1 text-sm font-medium text-gray-800 dark:text-white/90">
-                {account.name || account.phone_number || `Nick #${account.id}`}
-              </span>
-            </label>
-          ))}
+          {managerAccounts.map((account) => {
+            const accountName =
+              account.name?.trim() ||
+              account.phone_number?.trim() ||
+              `Nick #${account.id}`;
+            return (
+              <label
+                key={account.id}
+                className="flex cursor-pointer items-center gap-3 rounded-lg border border-gray-200 px-3 py-2.5 dark:border-gray-700"
+              >
+                <Checkbox
+                  checked={selectedIds.includes(account.id)}
+                  onChange={() => toggle(account.id)}
+                />
+                <ContactAvatar
+                  name={accountName}
+                  avatar={account.avatar}
+                  size="sm"
+                />
+                <span className="min-w-0 flex-1 text-sm font-medium text-gray-800 dark:text-white/90">
+                  {accountName}
+                </span>
+              </label>
+            );
+          })}
         </div>
       )}
 

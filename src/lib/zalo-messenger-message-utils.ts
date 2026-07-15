@@ -1,10 +1,23 @@
 import { isReactionOnlyMessage } from "@/lib/zalo-messenger-reactions";
-import type { DisplayMessage, RawZaloMessage } from "@/types/zalo-messenger";
+import type {
+  DisplayMessage,
+  MessengerGroupMediaItem,
+  MessengerGroupLayoutMeta,
+  RawZaloMessage,
+} from "@/types/zalo-messenger";
 import {
   getMessageText,
   normalizeMessageList,
+  normalizeTimestampMs,
   trimToString,
 } from "@/lib/zalo-messenger-utils";
+
+/** Tin nhắc hẹn / gợi ý hệ thống — căn giữa khung chat (giống Zalo) */
+export function isCenteredChatMessage(message: DisplayMessage): boolean {
+  if (message.msgType === "chat.ecard") return true;
+  const action = message.attachments?.[0]?.action;
+  return action === "ecard" || action === "system";
+}
 
 export function shouldHideMessageText(text: string): boolean {
   return (
@@ -60,11 +73,209 @@ export function resolveStickerImageUrl(message: DisplayMessage): string | null {
   );
 }
 
-function readWebchatText(content: unknown): string {
+function parseContentParams(params: unknown): Record<string, unknown> | null {
+  if (params == null || params === "") return null;
+  if (typeof params === "object" && !Array.isArray(params)) {
+    return params as Record<string, unknown>;
+  }
+  if (typeof params === "string") {
+    try {
+      const parsed = JSON.parse(params) as unknown;
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        return parsed as Record<string, unknown>;
+      }
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+function readRichTextFromContent(content: unknown): string {
   if (typeof content === "string") return trimToString(content);
   const record = readContentRecord(content);
   if (!record) return "";
-  return trimToString(record.text ?? record.message ?? record.body);
+  return (
+    trimToString(record.text) ||
+    trimToString(record.message) ||
+    trimToString(record.body) ||
+    trimToString(record.title) ||
+    trimToString(record.description)
+  );
+}
+
+function readWebchatText(content: unknown): string {
+  return readRichTextFromContent(content);
+}
+
+function parseExtraDataRecord(raw: RawZaloMessage): Record<string, unknown> | null {
+  const extra = raw.extraData;
+  if (!extra) return null;
+  if (typeof extra === "object" && !Array.isArray(extra)) {
+    return extra as Record<string, unknown>;
+  }
+  if (typeof extra !== "string") return null;
+  try {
+    const parsed = JSON.parse(extra) as unknown;
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      return parsed as Record<string, unknown>;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+function extractGroupLayoutMeta(
+  raw: RawZaloMessage,
+  content: unknown,
+): MessengerGroupLayoutMeta | undefined {
+  const record = readContentRecord(content);
+  const params = parseContentParams(record?.params);
+  const extra = parseExtraDataRecord(raw);
+  const extraGroup = extra?.groupMediaMsg as
+    | { groupLayoutId?: string | number }
+    | undefined;
+
+  const rawGroupLayoutId =
+    params?.group_layout_id ?? extraGroup?.groupLayoutId ?? null;
+  if (
+    rawGroupLayoutId == null ||
+    rawGroupLayoutId === "" ||
+    typeof rawGroupLayoutId === "object"
+  ) {
+    return undefined;
+  }
+  const groupLayoutId = rawGroupLayoutId as string | number;
+
+  const isGroupLayout =
+    params?.is_group_layout === 1 ||
+    params?.is_group_layout === true ||
+    params?.is_group_layout === "1" ||
+    extraGroup?.groupLayoutId != null;
+
+  if (!isGroupLayout) return undefined;
+
+  const duration = Number(params?.duration);
+  return {
+    groupLayoutId,
+    idInGroup: Number(params?.id_in_group ?? 0),
+    totalItems: Number(params?.total_item_in_group ?? 1),
+    durationMs: Number.isFinite(duration) && duration > 0 ? duration : undefined,
+  };
+}
+
+function getMessageIdentity(message: DisplayMessage): string {
+  return String(message.msgId ?? message.cliMsgId ?? message.id ?? "");
+}
+
+function buildGroupMediaItem(message: DisplayMessage): MessengerGroupMediaItem {
+  const attachment = message.attachments?.[0];
+  const layout = message._groupLayout;
+  return {
+    idInGroup: layout?.idInGroup ?? 0,
+    msgType: message.msgType ?? "",
+    href: attachment?.href,
+    thumb: attachment?.thumb,
+    durationMs: attachment?.durationMs ?? layout?.durationMs,
+    msgId: message.msgId,
+  };
+}
+
+/** Gộp ảnh/video cùng group_layout_id thành một album */
+export function mergeGroupMediaMessages(
+  messages: DisplayMessage[],
+): DisplayMessage[] {
+  const groups = new Map<string, DisplayMessage[]>();
+
+  for (const message of messages) {
+    const layout = message._groupLayout;
+    if (!layout?.groupLayoutId) continue;
+    const key = `${message.uidFrom ?? ""}:${layout.groupLayoutId}`;
+    const bucket = groups.get(key) ?? [];
+    bucket.push(message);
+    groups.set(key, bucket);
+  }
+
+  const mergedByKey = new Map<string, DisplayMessage>();
+  const hiddenIds = new Set<string>();
+
+  for (const [key, members] of groups) {
+    if (members.length < 2) continue;
+
+    const sorted = [...members].sort(
+      (a, b) =>
+        (a._groupLayout?.idInGroup ?? 0) - (b._groupLayout?.idInGroup ?? 0),
+    );
+    const totalItems =
+      sorted[0]._groupLayout?.totalItems ?? sorted.length;
+    const anchor = sorted.reduce((current, candidate) =>
+      normalizeTimestampMs(current.ts) <= normalizeTimestampMs(candidate.ts)
+        ? current
+        : candidate,
+    );
+
+    mergedByKey.set(key, {
+      ...anchor,
+      msgType: "group.media",
+      groupMedia: {
+        groupLayoutId: sorted[0]._groupLayout!.groupLayoutId,
+        totalItems,
+        items: sorted.map(buildGroupMediaItem),
+      },
+      attachments: [{ action: "group-media" }],
+      _groupLayout: undefined,
+    });
+
+    for (const member of sorted) {
+      const id = getMessageIdentity(member);
+      if (id) hiddenIds.add(id);
+    }
+  }
+
+  const emitted = new Set<string>();
+  const result: DisplayMessage[] = [];
+
+  for (const message of messages) {
+    const id = getMessageIdentity(message);
+    if (id && hiddenIds.has(id)) {
+      const layout = message._groupLayout;
+      if (!layout?.groupLayoutId) {
+        result.push(message);
+        continue;
+      }
+      const key = `${message.uidFrom ?? ""}:${layout.groupLayoutId}`;
+      if (emitted.has(key)) continue;
+      const merged = mergedByKey.get(key);
+      if (!merged) {
+        result.push(message);
+        continue;
+      }
+      emitted.add(key);
+      result.push(merged);
+      continue;
+    }
+    result.push(message);
+  }
+
+  return result;
+}
+
+function parseRecommendedMeta(description: unknown): {
+  phone: string;
+  qrCodeUrl: string;
+} {
+  const raw = trimToString(description);
+  if (!raw.startsWith("{")) return { phone: "", qrCodeUrl: "" };
+  try {
+    const record = JSON.parse(raw) as Record<string, unknown>;
+    return {
+      phone: trimToString(record.phone),
+      qrCodeUrl: trimToString(record.qrCodeUrl),
+    };
+  } catch {
+    return { phone: "", qrCodeUrl: "" };
+  }
 }
 
 /** Raw Zalo → shape hiển thị UI */
@@ -85,36 +296,60 @@ export function normalizeIncomingMessage(raw: RawZaloMessage): DisplayMessage {
   const content = raw.content;
 
   switch (msgType) {
-    case "webchat":
+    case "webchat": {
+      const text = readWebchatText(content);
+      const record = readContentRecord(content);
+      const isSystemTip =
+        trimToString(record?.action) === "msginfo.actionlist";
       return {
         ...base,
-        text_message: readWebchatText(content)
-          ? [{ text: readWebchatText(content) }]
-          : [],
+        text_message: text ? [{ text }] : [],
+        attachments:
+          isSystemTip && text
+            ? [
+                {
+                  action: "system",
+                  title: text,
+                  thumb: trimToString(record?.iconUrl),
+                },
+              ]
+            : undefined,
         quote: Array.isArray(raw.quote)
           ? (raw.quote as DisplayMessage["quote"])
           : undefined,
       };
+    }
 
     case "chat.photo": {
       const record = readContentRecord(content);
       const href = trimToString(record?.href);
       const thumb = trimToString(record?.thumb) || href;
       const title = trimToString(record?.title);
+      const groupLayout = extractGroupLayoutMeta(raw, content);
       return {
         ...base,
         attachments: href || thumb ? [{ href, thumb, title }] : [],
         text_message: title ? [{ text: title }] : [],
+        _groupLayout: groupLayout,
       };
     }
 
     case "chat.video.msg": {
       const record = readContentRecord(content);
+      const params = parseContentParams(record?.params);
       const href = trimToString(record?.href);
       const thumb = trimToString(record?.thumb) || href;
+      const duration = Number(params?.duration);
+      const durationMs =
+        Number.isFinite(duration) && duration > 0 ? duration : undefined;
+      const groupLayout = extractGroupLayoutMeta(raw, content);
       return {
         ...base,
-        attachments: href || thumb ? [{ href, thumb, action: "video" }] : [],
+        attachments:
+          href || thumb
+            ? [{ href, thumb, action: "video", durationMs }]
+            : [],
+        _groupLayout: groupLayout,
       };
     }
 
@@ -144,24 +379,102 @@ export function normalizeIncomingMessage(raw: RawZaloMessage): DisplayMessage {
       };
     }
 
+    case "chat.gif": {
+      const record = readContentRecord(content);
+      const href = trimToString(record?.href);
+      const thumb = trimToString(record?.thumb) || href;
+      return {
+        ...base,
+        attachments:
+          href || thumb ? [{ href: href || thumb, thumb, action: "gif" }] : [],
+      };
+    }
+
+    case "chat.location.new": {
+      const record = readContentRecord(content);
+      const params = parseContentParams(record?.params);
+      const title =
+        trimToString(record?.description) || "Vị trí đã chia sẻ";
+      const lat = trimToString(params?.latitude);
+      const lng = trimToString(params?.longitude);
+      return {
+        ...base,
+        attachments: [
+          {
+            action: "location",
+            title,
+            description: lat && lng ? `${lat},${lng}` : undefined,
+          },
+        ],
+        text_message: [{ text: title }],
+      };
+    }
+
+    case "chat.ecard": {
+      const record = readContentRecord(content);
+      const title = trimToString(record?.title);
+      const description = trimToString(record?.description);
+      const thumb =
+        trimToString(record?.thumb) || trimToString(record?.href);
+      return {
+        ...base,
+        attachments: [{ action: "ecard", title, description, thumb }],
+        text_message: title
+          ? [{ text: title }]
+          : description
+            ? [{ text: description }]
+            : [],
+      };
+    }
+
+    case "chat.recommended": {
+      const record = readContentRecord(content);
+      const title = trimToString(record?.title);
+      const thumb = trimToString(record?.thumb);
+      const href = trimToString(record?.href);
+      const meta = parseRecommendedMeta(record?.description);
+      return {
+        ...base,
+        attachments: [
+          {
+            action: "recommended",
+            title,
+            thumb,
+            href,
+            description: meta.phone,
+          },
+        ],
+        text_message: title ? [{ text: `Danh thiếp: ${title}` }] : [],
+      };
+    }
+
     case "share.file": {
       const record = readContentRecord(content);
       const href = trimToString(record?.href);
+      const thumb = trimToString(record?.thumb);
       const title = trimToString(record?.title) || "Tệp đính kèm";
       return {
         ...base,
-        attachments: href ? [{ href, title, action: "file" }] : [],
-        text_message: [{ text: title }],
+        attachments: href
+          ? [{ href, thumb: thumb || undefined, title, action: "file" }]
+          : [],
+        text_message: thumb ? [] : [{ text: title }],
       };
     }
 
     case "chat.voice": {
       const record = readContentRecord(content);
+      const params = parseContentParams(record?.params);
       const href =
-        trimToString(record?.url) || trimToString(record?.href);
+        trimToString(params?.m4a) ||
+        trimToString(record?.url) ||
+        trimToString(record?.href);
+      const durationMs = Number(params?.duration) || undefined;
       return {
         ...base,
-        attachments: href ? [{ href, action: "voice" }] : [],
+        attachments: href
+          ? [{ href, action: "voice", durationMs }]
+          : [],
         text_message: [{ text: "Tin thoại" }],
       };
     }
@@ -191,16 +504,17 @@ export function normalizeIncomingMessage(raw: RawZaloMessage): DisplayMessage {
       };
 
     default: {
-      const text = readWebchatText(content);
+      const text = readRichTextFromContent(content);
       if (text) {
         return { ...base, text_message: [{ text }] };
       }
       const record = readContentRecord(content);
       const href = trimToString(record?.href);
-      if (href) {
+      const thumb = trimToString(record?.thumb) || href;
+      if (href || thumb) {
         return {
           ...base,
-          attachments: [{ href, thumb: trimToString(record?.thumb) || href }],
+          attachments: [{ href: href || thumb, thumb }],
         };
       }
       return base;
@@ -232,9 +546,15 @@ export function hasVisibleContent(message: DisplayMessage): boolean {
     "chat.video.msg",
     "chat.sticker",
     "chat.voice",
+    "chat.gif",
+    "chat.location.new",
+    "chat.ecard",
+    "chat.recommended",
     "share.file",
+    "group.media",
   ]);
   if (message.msgType && visualTypes.has(message.msgType)) return true;
+  if (message.groupMedia?.items.length) return true;
   return false;
 }
 
@@ -258,7 +578,7 @@ export function filterDisplayMessages(
     }
   }
 
-  return messages.filter((message) => {
+  const filtered = messages.filter((message) => {
     if (message.msgType === "chat.undo") return false;
     if (isReactionOnlyMessage(message)) return false;
     const text = getMessageText(message);
@@ -271,4 +591,6 @@ export function filterDisplayMessages(
     if (keys.some((key) => undoIds.has(key))) return false;
     return hasVisibleContent(message);
   });
+
+  return mergeGroupMediaMessages(filtered);
 }

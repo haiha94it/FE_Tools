@@ -3,6 +3,7 @@
 import ContactAvatar from "@/components/zalo-contacts/shared/ContactAvatar";
 import {
   filterDisplayMessages,
+  isCenteredChatMessage,
   resolveStickerImageUrl,
 } from "@/lib/zalo-messenger-message-utils";
 import { getMessageScrollAnchorId } from "@/lib/zalo-messenger-scroll";
@@ -34,6 +35,16 @@ import Image from "next/image";
 import dynamic from "next/dynamic";
 import { useMemo, useState } from "react";
 import { MessageActionRail } from "./MessageActionRail";
+import {
+  EcardMessageContent,
+  FileAttachmentContent,
+  GifMessageContent,
+  GroupMediaGrid,
+  LocationMessageContent,
+  RecommendedContactContent,
+  SystemTipContent,
+  VoiceMessageContent,
+} from "./MessageRichContent";
 import type { MessageMediaPreviewItem } from "./MessageMediaLightbox";
 
 const MessageMediaLightbox = dynamic(() => import("./MessageMediaLightbox"), {
@@ -71,21 +82,117 @@ function QuotePreview({
 
 function MessageContent({
   message,
+  own,
+  centered = false,
   onOpenPreview,
 }: {
   message: DisplayMessage;
+  own: boolean;
+  centered?: boolean;
   onOpenPreview: (item: MessageMediaPreviewItem) => void;
 }) {
   const text = getMessageText(message);
   const attachment = message.attachments?.[0];
   const sticker = message.sticker?.[0];
 
-  if (attachment?.action === "voice") {
+  if (
+    message.msgType === "group.media" ||
+    attachment?.action === "group-media"
+  ) {
+    const group = message.groupMedia;
+    if (group?.items.length) {
+      return (
+        <GroupMediaGrid
+          items={group.items}
+          totalItems={group.totalItems}
+          onOpenPreview={onOpenPreview}
+        />
+      );
+    }
+  }
+
+  if (
+    attachment?.action === "system" ||
+    (message.msgType === "webchat" && attachment?.action === "system")
+  ) {
     return (
-      <audio controls preload="none" className="max-w-full">
-        <source src={attachment.href} />
-      </audio>
+      <SystemTipContent
+        text={attachment?.title || text}
+        iconUrl={attachment?.thumb}
+        centered={centered}
+      />
     );
+  }
+
+  if (
+    message.msgType === "chat.gif" ||
+    attachment?.action === "gif"
+  ) {
+    const src = attachment?.href || attachment?.thumb;
+    if (src) {
+      return (
+        <GifMessageContent
+          src={src}
+          thumb={attachment?.thumb}
+          onOpenPreview={onOpenPreview}
+        />
+      );
+    }
+  }
+
+  if (
+    message.msgType === "chat.location.new" ||
+    attachment?.action === "location"
+  ) {
+    const coords = attachment?.description?.split(",");
+    return (
+      <LocationMessageContent
+        title={attachment?.title || text || "Vị trí"}
+        lat={coords?.[0]?.trim()}
+        lng={coords?.[1]?.trim()}
+        own={own}
+      />
+    );
+  }
+
+  if (
+    message.msgType === "chat.ecard" ||
+    attachment?.action === "ecard"
+  ) {
+    return (
+      <EcardMessageContent
+        title={attachment?.title}
+        description={attachment?.description}
+        thumb={attachment?.thumb}
+        centered={centered}
+      />
+    );
+  }
+
+  if (
+    message.msgType === "chat.recommended" ||
+    attachment?.action === "recommended"
+  ) {
+    return (
+      <RecommendedContactContent
+        title={attachment?.title}
+        thumb={attachment?.thumb}
+        phone={attachment?.description}
+        href={attachment?.href}
+        own={own}
+      />
+    );
+  }
+
+  if (attachment?.action === "voice" || message.msgType === "chat.voice") {
+    if (attachment?.href) {
+      return (
+        <VoiceMessageContent
+          src={attachment.href}
+          durationMs={attachment.durationMs}
+        />
+      );
+    }
   }
 
   if (attachment?.action === "video" || message.msgType === "chat.video.msg") {
@@ -167,43 +274,13 @@ function MessageContent({
   }
 
   if (attachment?.action === "file" || message.msgType === "share.file") {
-    const isImageFile =
-      attachment?.thumb ||
-      /\.(jpg|jpeg|png|gif|webp)(\?|$)/i.test(attachment?.href ?? "");
-    if (isImageFile && attachment?.href) {
-      return (
-        <button
-          type="button"
-          onClick={() =>
-            onOpenPreview({
-              type: "image",
-              src: attachment.href!,
-              title: attachment.title,
-            })
-          }
-          className="block overflow-hidden rounded-xl"
-        >
-          <Image
-            src={attachment.thumb || attachment.href}
-            alt={attachment.title || "Ảnh"}
-            width={220}
-            height={220}
-            className="max-h-56 min-h-[120px] w-auto cursor-zoom-in rounded-xl object-cover"
-            unoptimized
-          />
-        </button>
-      );
-    }
-
     return (
-      <a
+      <FileAttachmentContent
         href={attachment?.href}
-        target="_blank"
-        rel="noreferrer"
-        className="flex items-center gap-2 text-sm underline"
-      >
-        📎 {attachment?.title || "Tệp đính kèm"}
-      </a>
+        title={attachment?.title}
+        thumb={attachment?.thumb}
+        onOpenPreview={onOpenPreview}
+      />
     );
   }
 
@@ -288,6 +365,9 @@ export function MessageList({
           own && shouldShowSentByLabel(message.sent_by, currentUserId)
             ? formatSentByLabel(message.sent_by)
             : "";
+        const centered = isCenteredChatMessage(message);
+        const isGroupMedia = message.msgType === "group.media";
+
         return (
           <div
             key={message.msgId ?? message.cliMsgId ?? message.id ?? index}
@@ -304,13 +384,34 @@ export function MessageList({
               </div>
             ) : null}
 
+            {centered ? (
+              <div
+                className={`flex w-full justify-center px-3 ${compact ? "mt-1" : "mt-3"}`}
+              >
+                <div className="flex max-w-full flex-col items-center gap-1">
+                  <MessageContent
+                    message={message}
+                    own={false}
+                    centered
+                    onOpenPreview={setPreviewItem}
+                  />
+                  <span className="text-[10px] text-gray-400 dark:text-gray-500">
+                    {formatMessageTime(message.ts)}
+                  </span>
+                </div>
+              </div>
+            ) : (
             <div
-              className={`group/row relative flex w-full min-w-0 items-end gap-2 overflow-visible ${
-                own ? "justify-end" : "justify-start"
-              } ${compact ? "mt-1" : "mt-3"}`}
+              className={`group/row relative flex w-full min-w-0 items-end overflow-visible ${
+                isGroupMedia ? "max-lg:gap-0 lg:gap-2" : "gap-2"
+              } ${own ? "justify-end" : "justify-start"} ${
+                compact ? "mt-1" : "mt-3"
+              }`}
             >
               {showAvatar ? (
-                <div className="w-8 shrink-0">
+                <div
+                  className={`w-8 shrink-0 ${isGroupMedia ? "max-lg:hidden" : ""}`}
+                >
                   {!compact ? (
                     <ContactAvatar
                       name={senderName ?? "Thành viên"}
@@ -322,12 +423,18 @@ export function MessageList({
               ) : null}
 
               <div
-                className={`flex min-w-0 max-w-[min(88%,360px)] flex-col overflow-visible ${
-                  own ? "items-end" : "items-start"
-                }`}
+                className={`flex min-w-0 flex-col overflow-visible ${
+                  isGroupMedia
+                    ? "max-lg:flex-1 max-lg:max-w-full lg:max-w-[min(96%,420px)]"
+                    : "max-w-[min(88%,360px)]"
+                } ${own ? "items-end" : "items-start"}`}
               >
                 {showSenderHeader ? (
-                  <p className="mb-1 px-1 text-[11px] font-medium text-gray-500 dark:text-gray-400">
+                  <p
+                    className={`mb-1 text-[11px] font-medium text-gray-500 dark:text-gray-400 ${
+                      isGroupMedia ? "px-0.5" : "px-1"
+                    }`}
+                  >
                     {senderName}
                   </p>
                 ) : null}
@@ -338,12 +445,21 @@ export function MessageList({
                   </p>
                 ) : null}
 
-                <div className="relative inline-flex w-fit max-w-full overflow-visible">
+                <div
+                  className={`relative overflow-visible ${
+                    isGroupMedia ? "w-full max-w-full" : "inline-flex w-fit max-w-full"
+                  }`}
+                >
                   <div
-                    className={`relative rounded-2xl px-3.5 py-2 shadow-sm ${
-                      own
+                    className={`relative shadow-sm ${
+                      isGroupMedia
+                        ? "w-full overflow-hidden max-lg:rounded-xl max-lg:border-0 max-lg:bg-transparent max-lg:p-0 max-lg:shadow-none lg:rounded-2xl lg:border lg:border-gray-100 lg:bg-white lg:p-1.5 dark:lg:border-gray-700 dark:lg:bg-gray-800"
+                        : "rounded-2xl px-3.5 py-2"
+                    } ${
+                      !isGroupMedia &&
+                      (own
                         ? "rounded-br-md bg-gradient-to-br from-brand-500 to-brand-600 text-white"
-                        : "rounded-bl-md border border-gray-100 bg-white text-gray-800 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90"
+                        : "rounded-bl-md border border-gray-100 bg-white text-gray-800 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90")
                     } ${message._status === "failed" ? "ring-2 ring-error-400/50" : ""} ${
                       reactionEmojis.length > 0 ? "pb-3" : ""
                     }`}
@@ -351,15 +467,18 @@ export function MessageList({
                     <QuotePreview message={message} own={own} />
                     <MessageContent
                       message={message}
+                      own={own}
                       onOpenPreview={setPreviewItem}
                     />
-                    <div
-                      className={`mt-1 flex items-center justify-end gap-1 text-[10px] ${
-                        own ? "text-white/70" : "text-gray-400"
-                      }`}
-                    >
-                      <span>{formatMessageTime(message.ts)}</span>
-                    </div>
+                    {!isGroupMedia ? (
+                      <div
+                        className={`mt-1 flex items-center justify-end gap-1 text-[10px] ${
+                          own ? "text-white/70" : "text-gray-400"
+                        }`}
+                      >
+                        <span>{formatMessageTime(message.ts)}</span>
+                      </div>
+                    ) : null}
 
                     {reactionEmojis.length > 0 ? (
                       <div
@@ -377,29 +496,40 @@ export function MessageList({
                     ) : null}
                   </div>
 
-                  <MessageActionRail
-                    own={own}
-                    canReply={Boolean(onReply)}
-                    canShare={Boolean(onShare && canShareMessage(message))}
-                    onReply={onReply ? () => onReply(message) : undefined}
-                    onShare={
-                      onShare && canShareMessage(message)
-                        ? () => onShare(message)
-                        : undefined
-                    }
-                    onReaction={
-                      onReaction
-                        ? (reactionId) => onReaction(message, reactionId)
-                        : undefined
-                    }
-                  />
+                  {!isGroupMedia ? (
+                    <MessageActionRail
+                      own={own}
+                      canReply={Boolean(onReply)}
+                      canShare={Boolean(onShare && canShareMessage(message))}
+                      onReply={onReply ? () => onReply(message) : undefined}
+                      onShare={
+                        onShare && canShareMessage(message)
+                          ? () => onShare(message)
+                          : undefined
+                      }
+                      onReaction={
+                        onReaction
+                          ? (reactionId) => onReaction(message, reactionId)
+                          : undefined
+                      }
+                    />
+                  ) : null}
                 </div>
+                {isGroupMedia ? (
+                  <span className="mt-1.5 px-0.5 text-[10px] text-gray-400 max-lg:self-start lg:self-auto dark:text-gray-500">
+                    {formatMessageTime(message.ts)}
+                  </span>
+                ) : null}
               </div>
 
               {isGroup && own ? (
-                <span className="w-8 shrink-0" aria-hidden="true" />
+                <span
+                  className={`w-8 shrink-0 ${isGroupMedia ? "max-lg:hidden" : ""}`}
+                  aria-hidden="true"
+                />
               ) : null}
             </div>
+            )}
           </div>
         );
       })}

@@ -103,6 +103,32 @@ export interface MessengerMessageAttachment {
   title?: string;
   action?: string;
   description?: string;
+  /** Thời lượng voice/video (ms) */
+  durationMs?: number;
+}
+
+/** Một ô trong album ảnh/video Zalo (group_layout_id) */
+export interface MessengerGroupMediaItem {
+  idInGroup: number;
+  msgType: string;
+  href?: string;
+  thumb?: string;
+  durationMs?: number;
+  msgId?: string;
+}
+
+export interface MessengerGroupMedia {
+  groupLayoutId: string | number;
+  totalItems: number;
+  items: MessengerGroupMediaItem[];
+}
+
+/** Metadata group layout từ content.params / extraData */
+export interface MessengerGroupLayoutMeta {
+  groupLayoutId: string | number;
+  idInGroup: number;
+  totalItems: number;
+  durationMs?: number;
 }
 
 export interface MessengerMessageQuote {
@@ -136,6 +162,10 @@ export interface DisplayMessage {
   _retryData?: SendMessagePayload;
   /** Người gửi thực tế — outbound team audit (CARE 2 §4) */
   sent_by?: SentByPayload | null;
+  /** Album ảnh/video gộp theo group_layout_id */
+  groupMedia?: MessengerGroupMedia;
+  /** Metadata thô — dùng khi gộp album lúc render */
+  _groupLayout?: MessengerGroupLayoutMeta;
 }
 
 export interface MessengerMessagePage {

@@ -122,10 +122,29 @@ export function detectAttachmentKind(
 export function getQuotePreviewText(message: DisplayMessage): string {
   const text = getMessageText(message);
   if (text) return text;
+  if (message.msgType === "group.media") {
+    const count =
+      message.groupMedia?.totalItems ??
+      message.groupMedia?.items.length ??
+      0;
+    return count > 1 ? `Album (${count} mục)` : "Album";
+  }
   if (message.msgType === "chat.photo") return "Ảnh";
   if (message.msgType === "chat.video.msg") return "Video";
   if (message.msgType === "chat.voice") return "Tin thoại";
   if (message.msgType === "chat.sticker") return "Sticker";
+  if (message.msgType === "chat.gif") return "GIF";
+  if (message.msgType === "chat.location.new") {
+    return message.attachments?.[0]?.title || "Vị trí";
+  }
+  if (message.msgType === "chat.ecard") {
+    return message.attachments?.[0]?.title || "Nhắc hẹn";
+  }
+  if (message.msgType === "chat.recommended") {
+    return message.attachments?.[0]?.title
+      ? `Danh thiếp: ${message.attachments[0].title}`
+      : "Danh thiếp";
+  }
   if (message.msgType === "share.file") {
     return message.attachments?.[0]?.title || "Tệp đính kèm";
   }

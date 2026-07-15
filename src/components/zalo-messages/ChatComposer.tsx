@@ -27,7 +27,15 @@ import type {
 import { PlugInIcon } from "@/icons";
 import Image from "next/image";
 import dynamic from "next/dynamic";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  HiOutlineBolt,
+  HiOutlineFaceSmile,
+  HiOutlinePaperClip,
+  HiOutlinePlus,
+  HiOutlinePuzzlePiece,
+  HiOutlineXMark,
+} from "react-icons/hi2";
 import MentionSuggestions from "./MentionSuggestions";
 
 const StickerPicker = dynamic(() => import("./StickerPicker"), { ssr: false });
@@ -36,6 +44,50 @@ const FastReplyManageDialog = dynamic(() => import("./FastReplyManageDialog"), {
 });
 
 const QUICK_EMOJIS = ["😀", "😂", "❤️", "👍", "🙏", "😍", "🔥", "🎉"];
+
+interface ComposerActionButtonProps {
+  label: string;
+  disabled?: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}
+
+function ComposerActionButton({
+  label,
+  disabled = false,
+  onClick,
+  children,
+}: ComposerActionButtonProps) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      aria-label={label}
+      className="flex h-11 min-w-[72px] flex-1 cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border border-gray-200 bg-gray-50 px-2 py-2 text-[10px] font-medium text-gray-600 transition active:scale-[0.98] hover:border-brand-300 hover:text-brand-600 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800/60 dark:text-gray-300"
+    >
+      {children}
+      <span>{label}</span>
+    </button>
+  );
+}
+
+function EmojiPickerPanel({ onPick }: { onPick: (emoji: string) => void }) {
+  return (
+    <div className="grid grid-cols-4 gap-1.5">
+      {QUICK_EMOJIS.map((emoji) => (
+        <button
+          key={emoji}
+          type="button"
+          onClick={() => onPick(emoji)}
+          className="flex h-11 w-full cursor-pointer items-center justify-center rounded-xl text-xl transition active:scale-95 hover:bg-gray-100 dark:hover:bg-white/[0.05]"
+        >
+          {emoji}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 interface ChatComposerProps {
   accountId?: number | null;
@@ -88,9 +140,13 @@ export default function ChatComposer({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const emojiRef = useRef<HTMLDivElement>(null);
   const stickerRef = useRef<HTMLDivElement>(null);
+  const mobileOptionsRef = useRef<HTMLDivElement>(null);
   const [taggedMembers, setTaggedMembers] = useState<ZaloGroupMember[]>([]);
   const [emojiOpen, setEmojiOpen] = useState(false);
   const [stickerOpen, setStickerOpen] = useState(false);
+  const [mobileOptionsOpen, setMobileOptionsOpen] = useState(false);
+  const [mobileEmojiOpen, setMobileEmojiOpen] = useState(false);
+  const [mobileStickerOpen, setMobileStickerOpen] = useState(false);
   const [fastReplyOpen, setFastReplyOpen] = useState(false);
   const [manageOpen, setManageOpen] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -106,16 +162,20 @@ export default function ChatComposer({
   }, [value, quoteMessage, attachments.length]);
 
   useEffect(() => {
-    if (!emojiOpen && !stickerOpen) return undefined;
+    if (!emojiOpen && !stickerOpen && !mobileOptionsOpen) return undefined;
     const handleClickOutside = (event: MouseEvent) => {
       if (emojiRef.current?.contains(event.target as Node)) return;
       if (stickerRef.current?.contains(event.target as Node)) return;
+      if (mobileOptionsRef.current?.contains(event.target as Node)) return;
       setEmojiOpen(false);
       setStickerOpen(false);
+      setMobileOptionsOpen(false);
+      setMobileEmojiOpen(false);
+      setMobileStickerOpen(false);
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [emojiOpen, stickerOpen]);
+  }, [emojiOpen, stickerOpen, mobileOptionsOpen]);
 
   const slashQuery = useMemo(() => {
     const match = value.match(/(?:^|\s)\/(\S*)$/);
@@ -168,6 +228,9 @@ export default function ChatComposer({
     if (fastReplyOpen || mentionOpen) {
       setEmojiOpen(false);
       setStickerOpen(false);
+      setMobileOptionsOpen(false);
+      setMobileEmojiOpen(false);
+      setMobileStickerOpen(false);
     }
   }, [fastReplyOpen, mentionOpen]);
 
@@ -312,8 +375,27 @@ export default function ChatComposer({
 
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      if (canSend) onSend(mentionInfo);
+      if (canSend) {
+        setMobileOptionsOpen(false);
+        onSend(mentionInfo);
+      }
     }
+  };
+
+  const closeMobilePanels = () => {
+    setMobileOptionsOpen(false);
+    setMobileEmojiOpen(false);
+    setMobileStickerOpen(false);
+  };
+
+  const handleMobileEmojiPick = (emoji: string) => {
+    insertAtCaret(emoji);
+    setMobileEmojiOpen(false);
+  };
+
+  const handleSendClick = () => {
+    closeMobilePanels();
+    onSend(mentionInfo);
   };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -338,7 +420,7 @@ export default function ChatComposer({
 
   return (
     <div
-      className={`shrink-0 border-t border-gray-100 bg-white/90 p-3 backdrop-blur dark:border-gray-800 dark:bg-gray-900/90 ${
+      className={`shrink-0 border-t border-gray-100 bg-white/90 p-2.5 backdrop-blur dark:border-gray-800 dark:bg-gray-900/90 lg:p-3 ${
         isDragging ? "ring-2 ring-inset ring-brand-400" : ""
       }`}
       onDragOver={(event) => {
@@ -348,7 +430,7 @@ export default function ChatComposer({
       onDragLeave={() => setIsDragging(false)}
       onDrop={handleDrop}
     >
-      <div className="mb-2 flex flex-wrap items-center gap-1.5">
+      <div className="mb-2 hidden flex-wrap items-center gap-1.5 lg:flex">
         <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-[10px] font-semibold text-gray-500 dark:bg-gray-800">
           Enter gửi
         </span>
@@ -469,17 +551,117 @@ export default function ChatComposer({
         />
       ) : null}
 
-      <div ref={composerShellRef} className="relative z-20 flex items-end gap-2">
-        <input
-          ref={fileInputRef}
-          type="file"
-          multiple
-          accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.zip,.rar"
-          className="hidden"
-          onChange={handleFileChange}
-        />
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.zip,.rar"
+        className="hidden"
+        onChange={handleFileChange}
+      />
 
-        <div className="flex shrink-0 items-center gap-1">
+      <div ref={mobileOptionsRef} className="relative z-20">
+        <div className="mb-2 flex items-center justify-between gap-2 lg:hidden">
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => {
+              setMobileOptionsOpen((prev) => !prev);
+              setMobileEmojiOpen(false);
+              setMobileStickerOpen(false);
+            }}
+            aria-expanded={mobileOptionsOpen}
+            aria-label="Tùy chọn đính kèm"
+            className={`inline-flex h-10 cursor-pointer items-center gap-1.5 rounded-full border px-3.5 text-xs font-semibold transition active:scale-[0.98] ${
+              mobileOptionsOpen
+                ? "border-brand-300 bg-brand-50 text-brand-600 dark:border-brand-500/40 dark:bg-brand-500/10 dark:text-brand-400"
+                : "border-gray-200 bg-gray-50 text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
+            }`}
+          >
+            {mobileOptionsOpen ? (
+              <HiOutlineXMark size={16} aria-hidden />
+            ) : (
+              <HiOutlinePlus size={16} aria-hidden />
+            )}
+            {mobileOptionsOpen ? "Đóng" : "Tùy chọn"}
+          </button>
+          {isGroup ? (
+            <span className="text-[10px] text-gray-400">@ tag · / mẫu</span>
+          ) : (
+            <span className="text-[10px] text-gray-400">/ mẫu trả lời</span>
+          )}
+        </div>
+
+        {mobileOptionsOpen ? (
+          <div className="mb-2 rounded-2xl border border-gray-200 bg-gray-50/90 p-2.5 shadow-sm lg:hidden dark:border-gray-700 dark:bg-gray-800/80">
+            {mobileEmojiOpen ? (
+              <div className="space-y-2">
+                <p className="px-1 text-[11px] font-semibold text-gray-500 dark:text-gray-400">
+                  Chọn emoji
+                </p>
+                <EmojiPickerPanel onPick={handleMobileEmojiPick} />
+              </div>
+            ) : mobileStickerOpen && accountId && onSendSticker ? (
+              <StickerPicker
+                accountId={accountId}
+                open
+                placement="inline"
+                onClose={() => setMobileStickerOpen(false)}
+                onSelect={(sticker) => {
+                  onSendSticker(sticker);
+                  closeMobilePanels();
+                }}
+              />
+            ) : (
+              <div className="flex gap-2">
+                <ComposerActionButton
+                  label="Đính kèm"
+                  disabled={disabled || uploading}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <HiOutlinePaperClip size={20} aria-hidden />
+                </ComposerActionButton>
+                {accountId && onSendSticker ? (
+                  <ComposerActionButton
+                    label="Sticker"
+                    disabled={disabled}
+                    onClick={() => {
+                      setMobileStickerOpen(true);
+                      setMobileEmojiOpen(false);
+                    }}
+                  >
+                    <HiOutlinePuzzlePiece size={20} aria-hidden />
+                  </ComposerActionButton>
+                ) : null}
+                <ComposerActionButton
+                  label="Emoji"
+                  disabled={disabled}
+                  onClick={() => {
+                    setMobileEmojiOpen(true);
+                    setMobileStickerOpen(false);
+                  }}
+                >
+                  <HiOutlineFaceSmile size={20} aria-hidden />
+                </ComposerActionButton>
+                {accountId ? (
+                  <ComposerActionButton
+                    label="Mẫu nhanh"
+                    disabled={disabled}
+                    onClick={() => {
+                      closeMobilePanels();
+                      setManageOpen(true);
+                    }}
+                  >
+                    <HiOutlineBolt size={20} aria-hidden />
+                  </ComposerActionButton>
+                ) : null}
+              </div>
+            )}
+          </div>
+        ) : null}
+
+        <div ref={composerShellRef} className="flex items-end gap-2">
+          <div className="hidden shrink-0 items-center gap-1 lg:flex">
           <Tooltip content="Đính kèm file" side="top">
             <button
               type="button"
@@ -569,40 +751,41 @@ export default function ChatComposer({
           </div>
         </div>
 
-        <textarea
-          ref={textareaRef}
-          value={value}
-          disabled={disabled}
-          onChange={(e) => onChange(e.target.value)}
-          onPaste={handlePaste}
-          onKeyDown={handleKeyDown}
-          rows={1}
-          placeholder={
-            disabled
-              ? "Chọn hội thoại để nhắn tin..."
-              : isGroup
-                ? "Nhập tin nhắn... (@ tag thành viên, / mẫu trả lời)"
-                : "Nhập tin nhắn... (/ mẫu trả lời, Shift+Enter xuống dòng)"
-          }
-          style={{
-            maxHeight: COMPOSER_TEXTAREA_MAX_HEIGHT,
-            minHeight: 42,
-          }}
-          className="custom-scrollbar min-h-[42px] flex-1 resize-none overflow-y-hidden rounded-2xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm leading-6 text-gray-800 outline-none transition [overflow-wrap:anywhere] focus:border-brand-300 focus:bg-white focus:ring-2 focus:ring-brand-500/15 disabled:opacity-60 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90"
-        />
+          <textarea
+            ref={textareaRef}
+            value={value}
+            disabled={disabled}
+            onChange={(e) => onChange(e.target.value)}
+            onPaste={handlePaste}
+            onKeyDown={handleKeyDown}
+            rows={1}
+            placeholder={
+              disabled
+                ? "Chọn hội thoại để nhắn tin..."
+                : isGroup
+                  ? "Nhập tin nhắn..."
+                  : "Nhập tin nhắn..."
+            }
+            style={{
+              maxHeight: COMPOSER_TEXTAREA_MAX_HEIGHT,
+              minHeight: 44,
+            }}
+            className="custom-scrollbar min-h-[44px] flex-1 resize-none overflow-y-hidden rounded-2xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm leading-6 text-gray-800 outline-none transition [overflow-wrap:anywhere] focus:border-brand-300 focus:bg-white focus:ring-2 focus:ring-brand-500/15 disabled:opacity-60 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90 lg:min-h-[42px]"
+          />
 
-        <button
-          type="button"
-          disabled={disabled || sending || uploading || !canSend}
-          onClick={() => onSend(mentionInfo)}
-          className="flex h-[42px] shrink-0 items-center justify-center rounded-2xl bg-brand-500 px-4 text-sm font-medium text-white shadow-sm transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50"
-        >
+          <button
+            type="button"
+            disabled={disabled || sending || uploading || !canSend}
+            onClick={handleSendClick}
+            className="flex h-11 min-w-[72px] shrink-0 cursor-pointer items-center justify-center rounded-2xl bg-brand-500 px-4 text-sm font-semibold text-white shadow-sm transition active:scale-[0.98] hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50 lg:h-[42px] lg:min-w-0 lg:font-medium"
+          >
           {sending || uploading ? (
             <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
           ) : (
             "Gửi"
           )}
-        </button>
+          </button>
+        </div>
       </div>
 
       {accountId ? (

@@ -97,8 +97,20 @@ function getZaloMessagePreview(message: DisplayMessage): string {
   if (text) {
     return text.length > 72 ? `${text.slice(0, 72)}…` : text;
   }
+  if (message.msgType === "group.media") {
+    const count =
+      message.groupMedia?.totalItems ??
+      message.groupMedia?.items.length ??
+      0;
+    return count > 1 ? `[Album ${count} mục]` : "[Album]";
+  }
   if (message.msgType === "chat.photo") return "[Hình ảnh]";
   if (message.msgType === "chat.video.msg") return "[Video]";
+  if (message.msgType === "chat.gif") return "[GIF]";
+  if (message.msgType === "chat.voice") return "[Tin thoại]";
+  if (message.msgType === "chat.location.new") return "[Vị trí]";
+  if (message.msgType === "chat.ecard") return "[Nhắc hẹn]";
+  if (message.msgType === "chat.recommended") return "[Danh thiếp]";
   if (message.attachments?.length) return "[Tệp đính kèm]";
   if (message.sticker?.length) return "[Sticker]";
   return "Bạn có tin nhắn mới";

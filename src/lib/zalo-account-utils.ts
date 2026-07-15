@@ -40,6 +40,26 @@ export function isZaloAccountActive(account: ZaloAccount): boolean {
   return account.checkpoint === false;
 }
 
+/** Proxy OK, nick không gắn proxy, hoặc user được bỏ qua proxy khi thêm/quét nick */
+export function meetsZaloProxyRequirement(
+  account: ZaloAccount,
+  canSkipProxy = false,
+): boolean {
+  if (canSkipProxy || account.proxy == null) return true;
+  return account.proxy.status === true;
+}
+
+/** Nick đủ điều kiện chạy tác vụ — checkpoint tắt + proxy (nếu bắt buộc) */
+export function isZaloAccountRunnable(
+  account: ZaloAccount,
+  canSkipProxy = false,
+): boolean {
+  return (
+    isZaloAccountActive(account) &&
+    meetsZaloProxyRequirement(account, canSkipProxy)
+  );
+}
+
 export function getZaloAccountStatus(
   account: ZaloAccount,
   checkingIds: number[],

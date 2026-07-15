@@ -231,6 +231,15 @@ export const API_ZALO_BIRTHDAY_CAMPAIGN = {
 
 export const MESSENGER_BIRTHDAY_BASE = "/zalo-campaigns/messenger-birthday";
 
+/** Thông báo chiến dịch qua Zalo — đồng bộ ZaloCN /phone-noti */
+export const API_ZALO_CAMPAIGN_NOTIFICATION = {
+  GET: "/api/campaign/campaign-notification",
+  SETUP: "/api/campaign/campaign-notification/setup",
+  RESULT: "/api/campaign/campaign-notification/result",
+} as const;
+
+export const CAMPAIGN_NOTIFICATION_BASE = "/zalo-campaigns/campaign-notification";
+
 /** Tài nguyên — đồng bộ ZaloCN /resource */
 export const API_ZALO_RESOURCE = {
   LIST: "/api/popup/resource/get",
