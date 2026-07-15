@@ -13,7 +13,7 @@ import type {
 } from "@/types/websocket";
 import { create } from "zustand";
 
-const MAX_RECONNECT_ATTEMPTS = 10;
+const MAX_RECONNECT_ATTEMPTS = 100;
 const BASE_RECONNECT_MS = 2000;
 const MAX_RECONNECT_MS = 30000;
 const PING_INTERVAL_MS = 60_000;
