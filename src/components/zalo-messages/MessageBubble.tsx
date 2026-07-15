@@ -53,7 +53,7 @@ const MessageMediaLightbox = dynamic(() => import("./MessageMediaLightbox"), {
 });
 
 const messageTextClass =
-  "max-w-full min-w-0 text-sm whitespace-pre-wrap break-words [overflow-wrap:anywhere]";
+  "w-full min-w-0 max-w-full text-sm whitespace-pre-wrap break-words [overflow-wrap:anywhere] [word-break:break-word]";
 
 function QuotePreview({
   message,
@@ -79,7 +79,7 @@ function QuotePreview({
       <p className="font-semibold opacity-80">
         {trimToString(quote.fromD) || "Trả lời"}
       </p>
-      <p className="line-clamp-2">{quoteText}</p>
+      <p className={`line-clamp-2 ${messageTextClass} text-xs`}>{quoteText}</p>
     </div>
   );
 }
@@ -430,7 +430,7 @@ export function MessageList({
               </div>
             ) : (
             <div
-              className={`group/row relative flex w-full min-w-0 items-end overflow-visible ${
+              className={`group/row relative flex w-full min-w-0 items-end overflow-x-hidden overflow-y-visible ${
                 isGroupMedia ? "max-md:gap-0 md:gap-2" : "gap-2"
               } ${own ? "justify-end" : "justify-start"} ${
                 compact ? "mt-1" : "mt-3"
@@ -451,7 +451,7 @@ export function MessageList({
               ) : null}
 
               <div
-                className={`flex min-w-0 flex-col overflow-visible ${
+                className={`flex w-full min-w-0 flex-col ${
                   isGroupMedia
                     ? "max-md:flex-1 max-md:max-w-full md:max-w-[min(96%,420px)]"
                     : "max-w-[min(92%,360px)] max-md:max-w-[min(96%,360px)]"
@@ -468,12 +468,12 @@ export function MessageList({
                 ) : null}
 
                 <div
-                  className={`relative min-w-0 max-w-full overflow-visible ${
-                    isGroupMedia ? "w-full" : "inline-flex"
+                  className={`relative w-max min-w-0 max-w-full ${
+                    isGroupMedia ? "w-full" : ""
                   } ${own ? "max-md:ml-9" : "max-md:mr-9"}`}
                 >
                   <div
-                    className={`relative min-w-0 max-w-full shadow-sm ${
+                    className={`relative w-full min-w-0 max-w-full overflow-hidden shadow-sm ${
                       isGroupMedia
                         ? "w-full overflow-hidden max-md:rounded-xl max-md:border-0 max-md:bg-transparent max-md:p-0 max-md:shadow-none md:rounded-2xl md:border md:border-gray-100 md:bg-white md:p-1.5 dark:md:border-gray-700 dark:md:bg-gray-800"
                         : "rounded-2xl px-3.5 py-2"
