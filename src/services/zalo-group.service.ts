@@ -2,6 +2,12 @@ import { API_ZALO_GROUP, API_ZALO_LABEL } from "@/config/api";
 import { zaloLabelService } from "@/services/zalo-label.service";
 import { unwrapApiBody } from "@/lib/api-response";
 import {
+  extractGroupsFromScanTaskPayload,
+  getCeleryTaskStatus,
+  normalizeCeleryPollResponse,
+  unwrapCeleryNestedPayload,
+} from "@/lib/celery-poll";
+import {
   buildGroupFetchPayload,
   extractFetchedContacts,
   extractPaginated,
@@ -19,9 +25,11 @@ import type {
 } from "@/types/zalo-contacts";
 
 function extractGroupMembers(body: GroupMemberTaskResponse): ZaloGroupMember[] {
-  if (body.status === "SUCCESS" && Array.isArray(body.data)) {
-    return body.data;
-  }
+  const status = getCeleryTaskStatus(body);
+  const payload =
+    status === "SUCCESS" ? (body.result ?? body.data) : body.data;
+  const unwrapped = unwrapCeleryNestedPayload(payload);
+  if (Array.isArray(unwrapped)) return unwrapped as ZaloGroupMember[];
   if (Array.isArray(body.data)) return body.data;
   return [];
 }
@@ -79,11 +87,12 @@ export const zaloGroupService = {
   },
 
   async pollScanResult(taskId: string | number): Promise<ScanTaskResponse> {
-    const response = await api.post<ScanTaskResponse>(
-      API_ZALO_GROUP.SCAN_RESULT,
-      { id_task: taskId },
+    const response = await api.post(API_ZALO_GROUP.SCAN_RESULT, {
+      id_task: taskId,
+    });
+    return normalizeCeleryPollResponse(
+      unwrapApiBody<ScanTaskResponse>(response.data),
     );
-    return unwrapApiBody<ScanTaskResponse>(response.data);
   },
 
   async startGetLink(accountId: number): Promise<string | number | null> {
@@ -95,17 +104,24 @@ export const zaloGroupService = {
   },
 
   async pollGetLinkResult(taskId: string | number): Promise<ScanTaskResponse> {
-    const response = await api.post<ScanTaskResponse>(
-      API_ZALO_GROUP.GET_LINK_RESULT,
-      { id_task: taskId },
+    const response = await api.post(API_ZALO_GROUP.GET_LINK_RESULT, {
+      id_task: taskId,
+    });
+    return normalizeCeleryPollResponse(
+      unwrapApiBody<ScanTaskResponse>(response.data),
     );
-    return unwrapApiBody<ScanTaskResponse>(response.data);
   },
 
   extractGroupLinks(result: ScanTaskResponse): ZaloGroupLinkItem[] {
-    if (!Array.isArray(result.data)) return [];
-    return (result.data as ZaloGroupLinkItem[]).filter(
-      (item) => Boolean(item.link_group?.trim()),
+    const payload = result.data ?? result.result;
+    const groups = extractGroupsFromScanTaskPayload(payload);
+    const source = groups.length
+      ? groups
+      : Array.isArray(payload)
+        ? payload
+        : [];
+    return (source as ZaloGroupLinkItem[]).filter((item) =>
+      Boolean(item.link_group?.trim()),
     );
   },
 
@@ -157,11 +173,15 @@ export const zaloGroupService = {
   async pollGetMembersResult(
     taskId: string | number,
   ): Promise<GroupMemberTaskResponse> {
-    const response = await api.post<GroupMemberTaskResponse>(
-      API_ZALO_GROUP.GET_MEMBER_RESULT,
-      { id_task: taskId },
-    );
-    return unwrapApiBody<GroupMemberTaskResponse>(response.data);
+    const response = await api.post(API_ZALO_GROUP.GET_MEMBER_RESULT, {
+      id_task: taskId,
+    });
+    const raw = unwrapApiBody<GroupMemberTaskResponse>(response.data);
+    const body = normalizeCeleryPollResponse(raw) as GroupMemberTaskResponse;
+    return {
+      ...body,
+      data: extractGroupMembers(body),
+    };
   },
 
   async showMembersByLink(

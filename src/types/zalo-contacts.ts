@@ -28,8 +28,11 @@ export interface ZaloGroupItem {
 export interface ZaloFriendRecommendItem {
   id?: number;
   name?: string | null;
+  zaloName?: string | null;
   uid?: string | null;
+  userId?: string | null;
   avatar?: string | null;
+  type?: "friend_request" | "suggest" | string;
 }
 
 export interface ZaloSentFriendRequestItem {
@@ -81,6 +84,7 @@ export interface ZaloGroupMember {
 
 export interface GroupMemberTaskResponse extends ScanTaskResponse {
   data?: ZaloGroupMember[];
+  result?: ZaloGroupMember[] | unknown;
   total_member?: string | number;
   group_name?: string;
 }

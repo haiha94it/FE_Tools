@@ -13,7 +13,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useScanTaskPoll } from "@/hooks/use-scan-task-poll";
-import { isScanTaskDone } from "@/lib/zalo-contacts-utils";
+import { getScanTaskStatus, isScanTaskDone } from "@/lib/zalo-contacts-utils";
 import { toast } from "@/lib/toast";
 import { zaloFriendService } from "@/services/zalo-friend.service";
 import { FriendNameCell } from "@/components/zalo-contacts/shared/ContactAvatar";
@@ -33,6 +33,12 @@ const headerClass =
 const cellClass =
   "px-4 py-2.5 text-gray-600 text-start text-theme-sm dark:text-gray-400";
 
+function formatRecommendType(type?: string | null): string {
+  if (type === "friend_request") return "Lời mời đến";
+  if (type === "suggest") return "Gợi ý kết bạn";
+  return type?.trim() || "—";
+}
+
 export default function FriendRecommendPanel({
   active,
   accountId,
@@ -50,12 +56,14 @@ export default function FriendRecommendPanel({
   }, [active]);
 
   const handleScanResult = useCallback((result: ScanTaskResponse) => {
-    if (!isScanTaskDone(result.status)) return;
+    const status = getScanTaskStatus(result);
+    if (!isScanTaskDone(status)) return;
     setIsScanning(false);
     setTaskId(null);
-    if (result.status === "SUCCESS") {
-      const list = Array.isArray(result.data)
-        ? (result.data as ZaloFriendRecommendItem[])
+    if (status === "SUCCESS") {
+      const raw = result.data ?? result.result;
+      const list = Array.isArray(raw)
+        ? (raw as ZaloFriendRecommendItem[])
         : [];
       setItems(list);
       toast.success(`Đã quét ${list.length} gợi ý kết bạn.`);
@@ -117,6 +125,9 @@ export default function FriendRecommendPanel({
               <TableCell isHeader className={headerClass}>
                 UID
               </TableCell>
+              <TableCell isHeader className={headerClass}>
+                Loại
+              </TableCell>
             </TableRow>
           </TableHeader>
           <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
@@ -127,16 +138,23 @@ export default function FriendRecommendPanel({
                 </TableCell>
                 <TableCell className={cellClass}>{" "}</TableCell>
                 <TableCell className={cellClass}>{" "}</TableCell>
+                <TableCell className={cellClass}>{" "}</TableCell>
               </TableRow>
             ) : (
               items.map((item, index) => (
-                <TableRow key={`${item.uid ?? item.id ?? index}`}>
+                <TableRow key={`${item.userId ?? item.uid ?? item.id ?? index}`}>
                   <TableCell className={cellClass}>{index + 1}</TableCell>
                   <TableCell className={cellClass}>
-                    <FriendNameCell name={item.name} avatar={item.avatar} />
+                    <FriendNameCell
+                      name={item.zaloName ?? item.name}
+                      avatar={item.avatar}
+                    />
                   </TableCell>
                   <TableCell className={cellClass}>
-                    {item.uid || "—"}
+                    {item.userId ?? item.uid ?? "—"}
+                  </TableCell>
+                  <TableCell className={cellClass}>
+                    {formatRecommendType(item.type)}
                   </TableCell>
                 </TableRow>
               ))

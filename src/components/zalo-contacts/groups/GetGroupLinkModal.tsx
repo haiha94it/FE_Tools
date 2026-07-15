@@ -13,7 +13,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useScanTaskPoll } from "@/hooks/use-scan-task-poll";
-import { isScanTaskDone } from "@/lib/zalo-contacts-utils";
+import { getScanTaskStatus, isScanTaskDone } from "@/lib/zalo-contacts-utils";
 import { toast } from "@/lib/toast";
 import { ContactNameCell } from "@/components/zalo-contacts/shared/ContactAvatar";
 import { getZaloGroupAvatar } from "@/lib/zalo-contacts-utils";
@@ -48,10 +48,11 @@ export default function GetGroupLinkPanel({
   }, [active]);
 
   const handleResult = useCallback((result: ScanTaskResponse) => {
-    if (!isScanTaskDone(result.status)) return;
+    const status = getScanTaskStatus(result);
+    if (!isScanTaskDone(status)) return;
     setIsLoading(false);
     setTaskId(null);
-    if (result.status === "SUCCESS") {
+    if (status === "SUCCESS") {
       const list = zaloGroupService.extractGroupLinks(result);
       setLinks(list);
       toast.success(`Đã lấy ${list.length} link nhóm.`);

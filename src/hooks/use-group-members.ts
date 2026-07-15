@@ -1,7 +1,7 @@
 "use client";
 
 import { useScanTaskPoll } from "@/hooks/use-scan-task-poll";
-import { isScanTaskDone } from "@/lib/zalo-contacts-utils";
+import { getScanTaskStatus, isScanTaskDone } from "@/lib/zalo-contacts-utils";
 import { toast } from "@/lib/toast";
 import { zaloGroupService } from "@/services/zalo-group.service";
 import type { ZaloGroupMember } from "@/types/zalo-contacts";
@@ -56,7 +56,7 @@ export function useGroupMembers(
     taskId: isRefreshing ? taskId : null,
     poll: zaloGroupService.pollGetMembersResult,
     onResult: (result) => {
-      const status = result.status;
+      const status = getScanTaskStatus(result);
       if (status === "SUCCESS") {
         const next = Array.isArray(result.data) ? result.data : [];
         setMembers(next);

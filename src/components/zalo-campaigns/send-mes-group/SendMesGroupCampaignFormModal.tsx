@@ -26,6 +26,7 @@ import {
 import {
   getZaloGroupAvatar,
   getZaloGroupDisplayName,
+  getScanTaskStatus,
   isScanTaskDone,
 } from "@/lib/zalo-contacts-utils";
 import { getApiErrorMessage } from "@/lib/errors";
@@ -258,10 +259,11 @@ export default function SendMesGroupCampaignFormModal({
 
   const handleScanResult = useCallback(
     (result: ScanTaskResponse) => {
-      if (!isScanTaskDone(result.status)) return;
+      const status = getScanTaskStatus(result);
+      if (!isScanTaskDone(status)) return;
       setScanningGroups(false);
       setScanTaskId(null);
-      if (result.status === "SUCCESS") {
+      if (status === "SUCCESS") {
         toast.success("Quét danh sách nhóm thành công.");
         if (selectedAccountId) {
           void loadGroups(selectedAccountId, groupSearch, groupLabelId);

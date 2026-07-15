@@ -53,6 +53,46 @@ export function normalizeCeleryPollResponse<T = unknown>(
   };
 }
 
+/** Bóc envelope lồng `{ success, data: [...] }` trong `result` Celery */
+export function unwrapCeleryNestedPayload(payload: unknown): unknown {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return payload;
+  }
+  const record = payload as Record<string, unknown>;
+  if ("data" in record) return record.data;
+  return payload;
+}
+
+/**
+ * Sync nhóm Zalo — `result.data[].groups` (§16.4).
+ * Ví dụ: task SUCCESS → result → data[0].groups[]
+ */
+export function extractGroupsFromScanTaskPayload(payload: unknown): unknown[] {
+  const unwrapped = unwrapCeleryNestedPayload(payload);
+  if (!unwrapped) return [];
+
+  if (Array.isArray(unwrapped)) {
+    const fromAccountRows = unwrapped.flatMap((row) => {
+      if (!row || typeof row !== "object") return [];
+      const groups = (row as { groups?: unknown[] }).groups;
+      return Array.isArray(groups) ? groups : [];
+    });
+    if (fromAccountRows.length) return fromAccountRows;
+    return unwrapped;
+  }
+
+  if (typeof unwrapped === "object") {
+    const record = unwrapped as Record<string, unknown>;
+    if (Array.isArray(record.groups)) return record.groups;
+  }
+
+  return [];
+}
+
+export function countGroupsInScanTaskPayload(payload: unknown): number {
+  return extractGroupsFromScanTaskPayload(payload).length;
+}
+
 export async function pollCeleryTask<T>(
   pollFn: (idTask: string | number) => Promise<CeleryPollData<T>>,
   idTask: string | number,

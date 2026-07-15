@@ -40,7 +40,11 @@ export function normalizeZaloGroupItem(raw: unknown): ZaloGroupItem | null {
       avatar: typeof record.avatar === "string" ? record.avatar : null,
       avt: typeof record.avt === "string" ? record.avt : null,
       total_member:
-        typeof record.total_member === "number" ? record.total_member : null,
+        typeof record.total_member === "number"
+          ? record.total_member
+          : typeof record.totalMember === "number"
+            ? record.totalMember
+            : null,
       link_group:
         typeof record.link_group === "string" ? record.link_group : null,
     };

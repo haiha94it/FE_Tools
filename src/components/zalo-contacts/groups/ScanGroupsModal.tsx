@@ -15,7 +15,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useScanTaskPoll } from "@/hooks/use-scan-task-poll";
-import { isScanTaskDone } from "@/lib/zalo-contacts-utils";
+import { countGroupsInScanTaskPayload } from "@/lib/celery-poll";
+import { getScanTaskStatus, isScanTaskDone } from "@/lib/zalo-contacts-utils";
 import { toast } from "@/lib/toast";
 import { ContactNameCell } from "@/components/zalo-contacts/shared/ContactAvatar";
 import { getZaloGroupAvatar } from "@/lib/zalo-contacts-utils";
@@ -85,11 +86,17 @@ export default function ScanGroupsPanel({
 
   const handleScanResult = useCallback(
     (result: ScanTaskResponse) => {
-      if (!isScanTaskDone(result.status)) return;
+      const status = getScanTaskStatus(result);
+      if (!isScanTaskDone(status)) return;
       setIsScanning(false);
       setTaskId(null);
-      if (result.status === "SUCCESS") {
-        toast.success("Quét danh sách nhóm thành công.");
+      if (status === "SUCCESS") {
+        const count = countGroupsInScanTaskPayload(result.data ?? result.result);
+        toast.success(
+          count > 0
+            ? `Quét thành công — ${count} nhóm đã đồng bộ.`
+            : "Quét danh sách nhóm thành công.",
+        );
         void loadGroups();
       } else {
         toast.error(result.message || result.error || "Quét nhóm thất bại.");
