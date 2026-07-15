@@ -4,8 +4,8 @@ import { IconArrowRight } from "@/components/landing/LandingIcons";
 import { useAuthStore } from "@/stores/use-auth-store";
 import Link from "next/link";
 
-const DASHBOARD_HREF = "/zalo-messages";
-const ACCOUNT_HREF = "/zalo-messenger";
+const DASHBOARD_HREF = "/me";
+const ACCOUNT_HREF = "/me";
 
 type LandingAuthActionsVariant = "nav" | "nav-mobile" | "hero" | "cta" | "footer";
 

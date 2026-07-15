@@ -29,7 +29,7 @@ export default function SignInForm() {
 
     try {
       await login({ username: username.trim(), password });
-      router.replace("/zalo-messages");
+      router.replace("/me");
     } catch {
       // error đã set trong store
     }

@@ -55,7 +55,7 @@ export default function AdminSettingsView() {
 
   useEffect(() => {
     if (!canAccess) {
-      router.replace("/zalo-messages");
+      router.replace("/me");
     }
   }, [canAccess, router]);
 

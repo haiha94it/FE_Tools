@@ -77,7 +77,7 @@ export default function AdminUsersView() {
 
   useEffect(() => {
     if (!canAccess) {
-      router.replace("/zalo-messages");
+      router.replace("/me");
       return;
     }
     void fetchUsers();

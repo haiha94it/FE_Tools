@@ -48,7 +48,7 @@ export type NavItemConfig = {
  * Thêm mục mới khi tích hợp tính năng Zalo.
  */
 export const mainNavItems: NavItemConfig[] = [
-  { name: "Trang thông tin", path: "/zalo-messenger", icon: "user", iconTone: "brand" },
+  { name: "Trang thông tin", path: "/me", icon: "user", iconTone: "brand" },
   {
     name: "Quản lý tài khoản",
     path: "/zalo-accounts",

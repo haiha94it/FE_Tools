@@ -187,7 +187,7 @@ export default function TeamCreateEmployeeModal({
               Đóng
             </Button>
             <Link
-              href="/zalo-messenger"
+              href="/me"
               className="inline-flex items-center justify-center rounded-lg bg-brand-500 px-5 py-3.5 text-sm font-medium text-white shadow-theme-xs hover:bg-brand-600"
             >
               Nâng cấp ngay

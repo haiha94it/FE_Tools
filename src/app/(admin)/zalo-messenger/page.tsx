@@ -1,12 +1,5 @@
-import AccountInfoView from "@/components/account/AccountInfoView";
-import { createAdminMetadata } from "@/lib/seo/metadata";
-import type { Metadata } from "next";
-
-export const metadata: Metadata = createAdminMetadata(
-  "Trang thông tin",
-  "Thông tin tài khoản, số dư và cài đặt bảo mật CAREVIPPRO",
-);
+import { redirect } from "next/navigation";
 
 export default function AccountPage() {
-  return <AccountInfoView />;
+  redirect("/me");
 }

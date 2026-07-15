@@ -30,7 +30,7 @@ export function TeamRouteGuard({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!ready || allowed) return;
-    router.replace("/zalo-messenger");
+    router.replace("/me");
   }, [allowed, ready, router]);
 
   if (!isBootstrapped || !user) {

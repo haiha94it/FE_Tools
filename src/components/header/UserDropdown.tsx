@@ -92,7 +92,7 @@ export default function UserDropdown() {
         </div>
 
         <Link
-          href="/zalo-messenger"
+          href="/me"
           onClick={closeDropdown}
           className="group mt-3 flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 font-medium text-gray-700 text-theme-sm hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-gray-300"
         >

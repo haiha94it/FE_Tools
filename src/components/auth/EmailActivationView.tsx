@@ -37,7 +37,7 @@ export default function EmailActivationView() {
       try {
         await activateEmail(token.trim());
         setStatus("success");
-        router.replace("/zalo-messages");
+        router.replace("/me");
       } catch (error) {
         setStatus("error");
         setErrorMessage(getApiErrorMessage(error));

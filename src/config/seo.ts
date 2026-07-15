@@ -52,6 +52,7 @@ export const PUBLIC_ROUTES = [
 export const ROBOTS_DISALLOW = [
   "/zalo-messages",
   "/zalo-messenger",
+  "/me",
   "/zalo-accounts",
   "/zalo-campaigns",
   "/shop",
