@@ -936,8 +936,15 @@ export const useZaloMessengerStore = create<ZaloMessengerState>((set, get) => ({
   },
 
   appendLiveMessages: (accountId, openConversation, accountUid, rawMessages) => {
+    if (
+      openConversation?.account != null &&
+      Number(openConversation.account) !== Number(accountId)
+    ) {
+      return;
+    }
+
     const forOpen = rawMessages.filter((msg) =>
-      belongsToOpenChat(msg, openConversation, accountUid),
+      belongsToOpenChat(msg, openConversation, accountUid, accountId),
     );
     if (!forOpen.length) return;
 

@@ -276,9 +276,21 @@ export function belongsToOpenChat(
   msg: RawZaloMessage | DisplayMessage,
   openConv: MessengerConversation | null,
   accountUid?: string | null,
+  accountId?: number | null,
 ): boolean {
+  if (!openConv) return false;
+
+  /** conversation_id chỉ unique trong một nick — bắt buộc khớp account */
+  if (
+    accountId != null &&
+    openConv.account != null &&
+    Number(openConv.account) !== Number(accountId)
+  ) {
+    return false;
+  }
+
   const convId = msg.conversation_id;
-  if (convId != null && openConv?.id != null) {
+  if (convId != null && openConv.id != null) {
     return Number(convId) === Number(openConv.id);
   }
 

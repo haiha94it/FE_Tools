@@ -30,12 +30,21 @@ function isNewGlobalUpdate(
 function resolveConversation(
   conversationId: number,
   lookup: Map<number, MessengerConversation>,
+  wsAccountId: number | null,
 ): MessengerConversation | undefined {
   const fromPayload = lookup.get(conversationId);
   if (fromPayload) return fromPayload;
-  return useZaloMessengerStore
-    .getState()
-    .conversations.find((item) => item.id === conversationId);
+
+  if (wsAccountId == null) return undefined;
+
+  const state = useZaloMessengerStore.getState();
+  const cached = state.conversationCache[wsAccountId]?.conversations;
+  const fromCache = cached?.find((item) => item.id === conversationId);
+  if (fromCache) return fromCache;
+
+  if (state.selectedAccountId !== wsAccountId) return undefined;
+
+  return state.conversations.find((item) => item.id === conversationId);
 }
 
 /** WS listener global — toast/tab alert khi có tin nhắn Zalo mới */
@@ -86,6 +95,8 @@ export default function GlobalMessengerNotificationListener() {
       const conversations = (payload.conversations ??
         []) as MessengerConversation[];
       const messageDetails = (payload.message_details ?? []) as RawZaloMessage[];
+      const wsAccountId =
+        payload.account?.id != null ? Number(payload.account.id) : null;
       const lookup = new Map<number, MessengerConversation>();
       for (const conversation of conversations) {
         lookup.set(conversation.id, conversation);
@@ -96,7 +107,7 @@ export default function GlobalMessengerNotificationListener() {
           const convId =
             raw.conversation_id != null ? Number(raw.conversation_id) : NaN;
           const conversation = Number.isFinite(convId)
-            ? resolveConversation(convId, lookup)
+            ? resolveConversation(convId, lookup, wsAccountId)
             : undefined;
           notifyZaloIncomingMessage(raw, conversation);
         }

@@ -61,10 +61,14 @@ export function useMessengerWs() {
           mergeConversations(prepared, wsAccountId);
         }
 
-        if (messageDetails.length && selectedAccountId) {
-          const account = accounts.find((a) => a.id === selectedAccountId);
+        if (
+          messageDetails.length &&
+          wsAccountId != null &&
+          wsAccountId === selectedAccountId
+        ) {
+          const account = accounts.find((a) => a.id === wsAccountId);
           appendLiveMessages(
-            selectedAccountId,
+            wsAccountId,
             activeConversation,
             account?.uid,
             messageDetails,
