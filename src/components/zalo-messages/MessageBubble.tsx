@@ -453,7 +453,7 @@ export function MessageList({
                 className={`flex min-w-0 flex-col overflow-visible ${
                   isGroupMedia
                     ? "max-md:flex-1 max-md:max-w-full md:max-w-[min(96%,420px)]"
-                    : "max-w-[min(88%,360px)]"
+                    : "max-w-[min(92%,360px)] max-md:max-w-[min(96%,360px)]"
                 } ${own ? "items-end" : "items-start"}`}
               >
                 {showSenderHeader ? (
@@ -469,7 +469,7 @@ export function MessageList({
                 <div
                   className={`relative overflow-visible ${
                     isGroupMedia ? "w-full max-w-full" : "inline-flex w-fit max-w-full"
-                  }`}
+                  } ${own ? "max-md:ml-9" : "max-md:mr-9"}`}
                 >
                   <div
                     className={`relative shadow-sm ${

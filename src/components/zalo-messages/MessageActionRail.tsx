@@ -3,7 +3,7 @@
 import { Tooltip } from "@/components/ui/tooltip/Tooltip";
 import { ZALO_REACTION_OPTIONS } from "@/lib/zalo-messenger-reactions";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { HiOutlineInformationCircle } from "react-icons/hi2";
+import { HiOutlineEllipsisVertical, HiOutlineInformationCircle } from "react-icons/hi2";
 import { createPortal } from "react-dom";
 
 const MOBILE_CHAT_MEDIA = "(max-width: 992px), (hover: none), (pointer: coarse)";
@@ -58,13 +58,13 @@ function ReactionPickerPanel({
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const handlePointerDown = (event: MouseEvent) => {
+    const handlePointerDown = (event: PointerEvent) => {
       if (!ref.current?.contains(event.target as Node)) {
         onClose();
       }
     };
-    document.addEventListener("mousedown", handlePointerDown);
-    return () => document.removeEventListener("mousedown", handlePointerDown);
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
   }, [onClose]);
 
   return (
@@ -141,6 +141,118 @@ function PortalReactionPicker({
   );
 }
 
+interface MobileActionSheetProps {
+  open: boolean;
+  own: boolean;
+  anchorRef: React.RefObject<HTMLButtonElement | null>;
+  onClose: () => void;
+  children: React.ReactNode;
+}
+
+function PortalMobileActionSheet({
+  open,
+  own,
+  anchorRef,
+  onClose,
+  children,
+}: MobileActionSheetProps) {
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const [coords, setCoords] = useState<{
+    top: number;
+    left: number;
+    maxWidth: number;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!open) {
+      setCoords(null);
+      return undefined;
+    }
+
+    const syncPosition = () => {
+      const anchor = anchorRef.current;
+      if (!anchor) return;
+      const rect = anchor.getBoundingClientRect();
+      const margin = 8;
+      const menuWidth = 196;
+      const maxWidth = Math.min(menuWidth, window.innerWidth - margin * 2);
+
+      let left = own ? rect.right - maxWidth : rect.left;
+      left = Math.max(margin, Math.min(left, window.innerWidth - maxWidth - margin));
+
+      setCoords({
+        top: rect.bottom + 6,
+        left,
+        maxWidth,
+      });
+    };
+
+    syncPosition();
+    window.addEventListener("resize", syncPosition);
+    window.addEventListener("scroll", syncPosition, true);
+    return () => {
+      window.removeEventListener("resize", syncPosition);
+      window.removeEventListener("scroll", syncPosition, true);
+    };
+  }, [open, own, anchorRef]);
+
+  useEffect(() => {
+    if (!open) return undefined;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target as Node;
+      if (sheetRef.current?.contains(target)) return;
+      if (anchorRef.current?.contains(target)) return;
+      onClose();
+    };
+
+    const timerId = window.setTimeout(() => {
+      document.addEventListener("pointerdown", handlePointerDown);
+    }, 0);
+
+    return () => {
+      clearTimeout(timerId);
+      document.removeEventListener("pointerdown", handlePointerDown);
+    };
+  }, [open, onClose, anchorRef]);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [open, onClose]);
+
+  if (!open || !coords || typeof document === "undefined") return null;
+
+  return createPortal(
+    <>
+      <button
+        type="button"
+        aria-label="Đóng tùy chọn tin nhắn"
+        className="fixed inset-0 z-[1190] cursor-default bg-black/25 backdrop-blur-[1px]"
+        onClick={onClose}
+      />
+      <div
+        ref={sheetRef}
+        role="menu"
+        aria-label="Tùy chọn tin nhắn"
+        className="fixed z-[1200] flex flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white py-1 shadow-2xl dark:border-gray-700 dark:bg-gray-900"
+        style={{
+          top: coords.top,
+          left: coords.left,
+          width: coords.maxWidth,
+        }}
+      >
+        {children}
+      </div>
+    </>,
+    document.body,
+  );
+}
+
 interface MessageActionRailProps {
   own: boolean;
   canReply?: boolean;
@@ -150,6 +262,9 @@ interface MessageActionRailProps {
   onReaction?: (reactionId: number) => void;
   onShowDetail?: () => void;
 }
+
+const mobileMenuItemClass =
+  "flex min-h-[44px] w-full cursor-pointer items-center gap-2.5 px-3.5 text-left text-sm text-gray-700 transition active:bg-gray-100 dark:text-gray-200 dark:active:bg-white/[0.06]";
 
 export function MessageActionRail({
   own,
@@ -164,18 +279,8 @@ export function MessageActionRail({
   const [pickerOpen, setPickerOpen] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   const reactionBtnRef = useRef<HTMLButtonElement>(null);
-  const sheetRef = useRef<HTMLDivElement>(null);
+  const menuBtnRef = useRef<HTMLButtonElement>(null);
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    if (!sheetOpen) return undefined;
-    const handlePointerDown = (event: MouseEvent) => {
-      if (sheetRef.current?.contains(event.target as Node)) return;
-      setSheetOpen(false);
-    };
-    document.addEventListener("mousedown", handlePointerDown);
-    return () => document.removeEventListener("mousedown", handlePointerDown);
-  }, [sheetOpen]);
 
   const hasActions = Boolean(onReply || onShare || onReaction || onShowDetail);
   if (!hasActions) return null;
@@ -197,85 +302,101 @@ export function MessageActionRail({
     hoverTimerRef.current = setTimeout(() => setPickerOpen(false), 200);
   };
 
+  const closeSheet = () => setSheetOpen(false);
+
+  const toggleSheet = (event: React.MouseEvent | React.PointerEvent) => {
+    event.stopPropagation();
+    setSheetOpen((prev) => !prev);
+  };
+
   if (isMobileUI) {
     return (
       <>
         <button
+          ref={menuBtnRef}
           type="button"
           aria-label="Tùy chọn tin nhắn"
           aria-expanded={sheetOpen}
-          onClick={() => setSheetOpen((prev) => !prev)}
-          className={`absolute top-1 z-10 inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-full border border-gray-200 bg-white/95 text-xs text-gray-500 shadow-sm dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400 ${
+          aria-haspopup="menu"
+          onClick={toggleSheet}
+          className={`absolute top-1/2 z-10 inline-flex h-8 w-8 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border border-gray-200 bg-white/95 text-gray-500 shadow-sm transition active:scale-95 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400 ${
             own ? "-left-9" : "-right-9"
           }`}
         >
-          ⋮
+          <HiOutlineEllipsisVertical className="h-5 w-5" aria-hidden />
         </button>
 
-        {sheetOpen ? (
-          <div
-            ref={sheetRef}
-            className={`absolute z-20 flex min-w-[148px] flex-col overflow-hidden rounded-xl border border-gray-200 bg-white py-1 shadow-xl dark:border-gray-700 dark:bg-gray-900 ${
-              own ? "top-8 right-0" : "top-8 left-0"
-            }`}
-          >
-            {canReply && onReply ? (
-              <button
-                type="button"
-                onClick={() => {
-                  onReply();
-                  setSheetOpen(false);
-                }}
-                className="px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-white/[0.04]"
-              >
-                Trả lời
-              </button>
-            ) : null}
-            {canShare && onShare ? (
-              <button
-                type="button"
-                onClick={() => {
-                  onShare();
-                  setSheetOpen(false);
-                }}
-                className="px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-white/[0.04]"
-              >
-                Chia sẻ
-              </button>
-            ) : null}
-            {onReaction ? (
-              <div className="flex flex-wrap gap-1 border-t border-gray-100 px-2 py-2 dark:border-gray-800">
+        <PortalMobileActionSheet
+          open={sheetOpen}
+          own={own}
+          anchorRef={menuBtnRef}
+          onClose={closeSheet}
+        >
+          {canReply && onReply ? (
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                onReply();
+                closeSheet();
+              }}
+              className={mobileMenuItemClass}
+            >
+              Trả lời
+            </button>
+          ) : null}
+          {canShare && onShare ? (
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                onShare();
+                closeSheet();
+              }}
+              className={mobileMenuItemClass}
+            >
+              Chia sẻ
+            </button>
+          ) : null}
+          {onShowDetail ? (
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                onShowDetail();
+                closeSheet();
+              }}
+              className={`${mobileMenuItemClass} border-t border-gray-100 dark:border-gray-800`}
+            >
+              <HiOutlineInformationCircle className="h-4 w-4 shrink-0" aria-hidden />
+              Chi tiết tin nhắn
+            </button>
+          ) : null}
+          {onReaction ? (
+            <div className="border-t border-gray-100 px-3 py-2.5 dark:border-gray-800">
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
+                Cảm xúc
+              </p>
+              <div className="flex flex-wrap gap-1.5">
                 {ZALO_REACTION_OPTIONS.map((option) => (
                   <button
                     key={option.id}
                     type="button"
+                    role="menuitem"
                     aria-label={option.label}
                     onClick={() => {
                       onReaction(option.id);
-                      setSheetOpen(false);
+                      closeSheet();
                     }}
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-lg hover:bg-gray-100 dark:hover:bg-white/[0.06]"
+                    className="inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl border border-gray-100 text-lg transition active:scale-95 active:bg-gray-100 dark:border-gray-800 dark:active:bg-white/[0.06]"
                   >
                     {option.emoji}
                   </button>
                 ))}
               </div>
-            ) : null}
-            {onShowDetail ? (
-              <button
-                type="button"
-                onClick={() => {
-                  onShowDetail();
-                  setSheetOpen(false);
-                }}
-                className="flex items-center gap-2 border-t border-gray-100 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 dark:border-gray-800 dark:text-gray-200 dark:hover:bg-white/[0.04]"
-              >
-                <HiOutlineInformationCircle className="h-4 w-4 shrink-0" aria-hidden />
-                Chi tiết tin nhắn
-              </button>
-            ) : null}
-          </div>
-        ) : null}
+            </div>
+          ) : null}
+        </PortalMobileActionSheet>
       </>
     );
   }
