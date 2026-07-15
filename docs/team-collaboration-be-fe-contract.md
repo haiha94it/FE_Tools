@@ -28,7 +28,7 @@ Tài liệu chuẩn để FE chỉnh UI/flow theo hệ thống **manager + nhân
 | `BE/message/views/legacy_views.py` | Alias legacy (không envelope) |
 | `BE/message/handlers.py` | WS gửi tin + `sent_by` attribution |
 
-**Kết quả audit URL (2026-07):** mount `BE/Zalo/urls.py` — **không có path mới / đổi URL** cho team collaboration. Chỉ đổi **logic phân quyền**, field response (`is_mine`, `created_by`, `sent_by`), và quyền DELETE results. Ma trận đầy đủ: **§15** (gồm **§15.7 message**).
+**Kết quả audit URL (2026-07):** mount `BE/Zalo/urls.py` — **không có path mới / đổi URL** cho team collaboration. Chỉ đổi **logic phân quyền**, field response (`is_mine`, `created_by`, `sent_by`), và quyền DELETE results. Ma trận URL: **§15** · **Lấy kết quả / poll:** **§16** (Celery + campaign log).
 
 **Tham chiếu envelope chung:** mọi response `{ success, message, data?, error_code? }` — skill `api-envelope`.
 
@@ -237,6 +237,8 @@ FriendModel.objects.filter(account_id=id_account, account__user=request.user)
 | `POST` | `add-friend` | ⚠️ Không check owner trước task — vẫn cần nick assignment ở task |
 | `POST` | `backup` | Theo logic view |
 | `POST` | `export-data` | Theo logic view |
+
+**Poll Celery (gợi ý KB, sync danh bạ, …):** §16 — **không** có `/friend-recommend/result`; poll **cùng URL** + `id_task`.
 
 ---
 
@@ -763,6 +765,53 @@ Lỗi validate → message dạng `"Nick không thuộc team: [...]"`.
 - NV chọn video/album: chỉ item `user = NV` (`GET /api/message/video`, `GET /api/message/album`).
 - Manager: item của manager — không share cross-user.
 
+### 5.6 Chạy chiến dịch → lấy kết quả cho user (không Celery `id_task`)
+
+Chiến dịch **không** dùng poll `id_task` như sync danh bạ. Flow:
+
+```
+1. POST /api/campaign/{prefix}/category/start/
+   Body: { "id_categories": [10, 11], "type": "new" }   // type tùy loại (vd. mess-friend)
+   → 200 { success, message: "Đã bắt đầu chiến dịch", data: true }
+
+2. Worker nền ghi log vào DB (Redis queue) — có thể vài giây đến vài phút
+
+3. Poll kết quả — GET phân trang (refetch định kỳ khi màn log đang mở hoặc status=1):
+   GET /api/campaign/{prefix}/category/{category_id}/results/?page=1&number_per_page=50
+
+4. (Tuỳ chọn) Thống kê tổng:
+   GET /api/campaign/{prefix}/statistics/?id_category=10&start_time=...&end_time=...
+
+5. Dừng: POST /api/campaign/{prefix}/category/stop/  { "id_categories": [10] }
+```
+
+**Biết “có kết quả mới”:**
+
+| Cách | Ghi chú |
+|------|---------|
+| Refetch `GET .../results/` mỗi 3–10s khi `status=1` (đang chạy) | `data.count` / item mới trong `data.results` |
+| Refetch `GET .../category/` | `status`, `status_label`, counter loại cụ thể |
+| `GET .../statistics/` | Tổng success/failure theo khoảng thời gian |
+
+**Response log** — envelope paginated (§ đầu doc):
+
+```json
+{
+  "success": true,
+  "message": "OK",
+  "data": {
+    "count": 240,
+    "next": "?page=2&...",
+    "previous": null,
+    "results": [ { "id": 12, "status": 1, "...": "..." } ]
+  }
+}
+```
+
+**Quyền team:** §5.2–5.3 — NV chỉ log row mình; manager xem full category. **Mess birthday:** `GET /api/campaign/mess-birthday/results/` (không `{category_id}`) — §6.
+
+**Không có** WebSocket push kết quả campaign — FE **chủ động poll** REST.
+
 ---
 
 ## 6. Campaign — xóa log kết quả (mới)
@@ -966,6 +1015,8 @@ export interface DeleteCampaignResultsBody {
 - [ ] Nhóm `/api/group/`: list OK với nick gán; **ẩn/disable sync** `POST get` cho NV (§2.2)
 - [ ] Nhóm: `type=simple` + `fetchs` giống friends nếu cần virtual-scroll
 - [ ] Campaign list: `is_mine=false` → không click vào detail
+- [ ] Sau **start**: poll `GET .../results/` (§5.6) — không dùng `id_task`
+- [ ] Celery sync (danh bạ, gợi ý KB): poll `id_task` theo §16
 - [ ] Campaign create: `id_accounts` ⊆ nick gán
 - [ ] Chat: hiển thị `sent_by` trên tin gửi (`get-message` + WS `new_global_update`)
 - [ ] Messenger: `GET /api/message/conversations` + `get-message` với `id_account` ∈ assignment
@@ -1170,7 +1221,160 @@ Chi tiết hành vi: **§2.3** · `sent_by`: **§7**.
 | Block member | ❌ | Ẩn toàn module NV |
 | Legacy message API | ❌ | Bundle cũ giữ alias; FE mới dùng envelope §2.3 |
 | Permission key vs path | — | `mess_phone` → route `mess-phone-number` |
+| Celery poll / campaign log | — | §16 (async task) vs §5.6 (results REST) |
 
 ---
 
-*Cập nhật khi đổi `users/urls.py`, `account/access.py`, `campaign/access.py`, `CategoryTeamListMixin`, `friends/views/basic_views.py`, `groups/views/basic_views.py`, hoặc `message/views/*`.*
+## 16. Lấy kết quả async — Celery poll & tra cứu
+
+FE cần **hai mô hình** — nhầm lẫn là lỗi 404 hoặc màn trống.
+
+### 16.1 Hai mô hình
+
+| Mô hình | Ví dụ | Start | Biết xong / lấy data |
+|---------|-------|-------|----------------------|
+| **A — Celery task** | Gợi ý KB, sync danh bạ/nhóm, thêm nick cookie | `POST` → `data.id_task` | Poll **cùng URL** (hoặc `*/result`) + `id_task` → `task_status === SUCCESS` → `data.result` |
+| **B — Campaign worker** | Nhắn bạn, kết bạn, join group, … | `POST .../category/start/` | **Không** `id_task` — poll `GET .../results/` §5.6 |
+
+### 16.2 Envelope poll Celery (mô hình A)
+
+**Bước 1 — Start** (không có `id_task` trong body):
+
+```http
+POST /api/friend/friend-recommend/get
+{ "id_account": 23 }
+```
+
+```json
+{
+  "success": true,
+  "message": "Đã nhận",
+  "data": { "id_task": "776e16d7-9a5a-4b01-b708-02525d3a92b2" }
+}
+```
+
+HTTP **202** khi queue (`api_accepted`).
+
+**Bước 2 — Poll** (body **chỉ** `id_task`):
+
+```http
+POST /api/friend/friend-recommend/get
+{ "id_task": "776e16d7-..." }
+```
+
+| `data.task_status` | HTTP | FE |
+|--------------------|------|-----|
+| `PENDING` | 202 | Chờ ~1–2s, poll lại |
+| `PROGRESS` | 202 | Poll lại |
+| `SUCCESS` | 200 | Đọc **`data.result`** |
+| *(lỗi)* | 500 | `success: false`, `error_code: CELERY_TASK_FAILED` |
+
+**Khi SUCCESS:**
+
+```json
+{
+  "success": true,
+  "message": "Thành công",
+  "data": {
+    "task_status": "SUCCESS",
+    "result": [ "... payload task ..." ]
+  }
+}
+```
+
+**Gợi ý FE:** interval 1–2s, timeout 60–90s, spinner + “Đang đồng bộ…”.
+
+```typescript
+async function pollCeleryTask<T>(
+  pollFn: (idTask: string) => Promise<{ data: { task_status?: string; result?: T } }>,
+  idTask: string,
+): Promise<T> {
+  for (let i = 0; i < 60; i++) {
+    const res = await pollFn(idTask);
+    const { task_status, result } = res.data.data ?? {};
+    if (task_status === 'SUCCESS') return result as T;
+    await new Promise((r) => setTimeout(r, 1500));
+  }
+  throw new Error('Task timeout');
+}
+```
+
+### 16.3 Friends — bảng poll (`BE/friends/urls.py`)
+
+| Mục đích | Start `POST` | Poll | Có `/result`? |
+|----------|--------------|------|----------------|
+| Gợi ý / lời mời KB | `/api/friend/friend-recommend/get` | **Cùng URL** + `id_task` | ❌ |
+| Chấp nhận gợi ý | `/api/friend/friend-recommend/accept` | Cùng URL + `id_task` | ❌ |
+| Xóa gợi ý | `/api/friend/friend-recommend/remove` | Cùng URL + `id_task` | ❌ |
+| Sync danh bạ Zalo | `/api/friend/get` | Cùng URL + `id_task` | ❌ |
+| Sync lời mời đã gửi | `/api/friend/sent-request/get` | Cùng URL + `id_task` | ❌ |
+| UID info | `/api/friend/get/uid` | Cùng URL + `id_task` | ❌ |
+| Unfriend | `/api/friend/unfriend` | Cùng URL + `id_task` | ❌ |
+| Add friend | `/api/friend/add-friend` | Cùng URL + `id_task` | ❌ |
+| **Danh bạ đã sync DB** | — | `GET /api/friend/?id_account=` (§2.1) | — |
+
+**`friend-recommend` — shape `data.result`:** mảng item Zalo:
+
+```json
+{
+  "userId": "2559106446855279908",
+  "zaloName": "Đời Vô Thường Lắm",
+  "avatar": "https://...",
+  "type": "friend_request"
+}
+```
+
+| `type` | Ý nghĩa |
+|--------|---------|
+| `friend_request` | Lời mời đến — BE ghi DB nền |
+| `suggest` | Gợi ý kết bạn |
+
+**Lỗi thường gặp:** gọi `/api/friend/friend-recommend/result` → **404** (route không tồn tại).
+
+### 16.4 Groups — poll tách `result`
+
+| Mục đích | Start | Poll |
+|----------|-------|------|
+| Sync list nhóm | `POST /api/group/get` `{ "id_accounts": [23] }` | `POST /api/group/get/result` `{ "id_task" }` |
+| Link nhóm | `POST /api/group/get/link` | `POST /api/group/get/link/result` |
+| Member nhóm | `POST /api/group/get-member` | `POST /api/group/get-member/result` |
+| **List đã có DB** | — | `GET /api/group/?id_account=23` (§2.2) |
+
+### 16.5 Account — poll tách `result`
+
+| Mục đích | Start | Poll |
+|----------|-------|------|
+| Thêm nick cookie | `POST /api/account/add` | `POST /api/account/add/result` |
+| Xóa nick | `POST /api/account/delete` | `POST /api/account/delete/result` |
+| Check nick | `POST /api/account/check-account` | `POST /api/account/check-account/result` |
+
+Sau login OK: BE tự `post_login_sync` (friends→groups→links→members) — FE có thể chỉ `GET /api/friend/` / `GET /api/group/` sau vài giây, không bắt buộc poll task login.
+
+### 16.6 Campaign — tóm tắt (chi tiết §5.6)
+
+```
+POST .../category/start/  → 200 ngay
+        ↓
+Poll GET .../category/{id}/results/?page=1&number_per_page=50
+        ↓
+Hiển thị data.results (+ statistics nếu cần chart)
+```
+
+| Loại | Path results |
+|------|----------------|
+| Hầu hết | `/api/campaign/{prefix}/category/{id}/results/` |
+| Mess birthday | `/api/campaign/mess-birthday/results/` |
+
+Stop: `POST .../category/stop/` · Xóa log: `DELETE .../results/` + `id_results` §6.
+
+### 16.7 Checklist nhanh FE
+
+- [ ] Sync Zalo (friend/group/account): giữ `id_task`, poll đúng URL (bảng §16.3–16.5)
+- [ ] Không invent path `*/result` nếu BE không khai báo (friend → 404)
+- [ ] Campaign: sau start → poll **GET results**, không `id_task`
+- [ ] Màn log campaign: auto-refresh 3–10s khi `status=1`; dừng khi stop hoặc user rời màn
+- [ ] NV: chỉ hiện log được phép §5.2; `is_mine=false` → không mở màn results
+
+---
+
+*Cập nhật khi đổi `users/urls.py`, `account/access.py`, `campaign/access.py`, `CategoryTeamListMixin`, `friends/views/basic_views.py`, `groups/views/basic_views.py`, `message/views/*`, hoặc pattern poll Celery.*

@@ -1,6 +1,7 @@
 "use client";
 
-import { isScanTaskDone } from "@/lib/zalo-contacts-utils";
+import { getScanTaskStatus, isScanTaskDone } from "@/lib/zalo-contacts-utils";
+import type { ScanTaskResponse } from "@/types/zalo-contacts";
 import { useEffect, useRef } from "react";
 
 export function useScanTaskPoll<T>(options: {
@@ -26,8 +27,8 @@ export function useScanTaskPoll<T>(options: {
         const result = await poll(taskId);
         if (!active) return;
         const status =
-          result && typeof result === "object" && "status" in result
-            ? String((result as { status?: string }).status)
+          result && typeof result === "object"
+            ? getScanTaskStatus(result as ScanTaskResponse)
             : undefined;
         onResultRef.current(result);
         if (isScanTaskDone(status)) {

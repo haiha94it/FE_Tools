@@ -248,7 +248,7 @@ export default function SendMesFrCampaignFormModal({
     if (!scanTaskId) return;
     const interval = window.setInterval(() => {
       void zaloFriendService.pollScanResult(scanTaskId).then((result) => {
-        const status = result.status;
+        const status = result.task_status ?? result.status;
         if (status === "PENDING" || status === "PROGRESS") return;
         setScanningFriends(false);
         setScanTaskId(null);

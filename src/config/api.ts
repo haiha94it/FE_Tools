@@ -81,14 +81,10 @@ export const API_ZALO_FRIEND = {
   /** Lấy avatar/chi tiết từ danh sách bạn bè (type=simple) — ZaloCN fetchs */
   FETCH_DETAILS: "/api/friend/fetchs",
   SCAN: "/api/friend/get",
-  SCAN_RESULT: "/api/friend/get/result",
   UNFRIEND: "/api/friend/unfriend",
-  UNFRIEND_RESULT: "/api/friend/unfriend/result",
   RECOMMEND_SCAN: "/api/friend/friend-recommend/get",
-  RECOMMEND_RESULT: "/api/friend/friend-recommend/result",
   SENT_REQUEST_SCAN: "/api/friend/sent-request/get",
   SENT_REQUEST_SHOW: "/api/friend/sent-request/show",
-  SENT_REQUEST_RESULT: "/api/friend/sent-request/get/result",
 } as const;
 
 /** Chiến dịch kết bạn — đồng bộ ZaloCN /add-friend */

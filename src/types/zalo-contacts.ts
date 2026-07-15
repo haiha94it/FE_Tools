@@ -55,7 +55,9 @@ export interface ZaloLabelCategory {
 
 export interface ScanTaskResponse {
   id_task?: string | number;
+  task_status?: string;
   status?: string;
+  result?: unknown;
   message?: string;
   error?: string;
   data?: unknown;

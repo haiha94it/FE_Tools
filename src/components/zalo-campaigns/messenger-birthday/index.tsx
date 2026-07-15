@@ -9,6 +9,7 @@ import { adminDataPanelClass } from "@/components/ui/table/ScrollableTableContai
 import { getApiErrorMessage } from "@/lib/errors";
 import { toast } from "@/lib/toast";
 import { useZaloBirthdayCampaignStore } from "@/stores/use-zalo-birthday-campaign-store";
+import { useCampaignResultsAutoRefresh } from "@/hooks/use-campaign-results-auto-refresh";
 import { useEffect, useState } from "react";
 import { HiOutlineBellAlert } from "react-icons/hi2";
 import BirthdayCampaignFormPanel from "./BirthdayCampaignFormPanel";
@@ -41,6 +42,14 @@ export default function MessengerBirthdayView() {
     void refreshResults();
   }, [fetchCampaign, fetchAccounts, fetchMediaLibraries, refreshResults]);
 
+  const isRunning = Boolean(campaign?.active);
+
+  useCampaignResultsAutoRefresh({
+    enabled: true,
+    isRunning,
+    refreshResults,
+  });
+
   const handleStart = async () => {
     try {
       await startCampaign();
@@ -58,8 +67,6 @@ export default function MessengerBirthdayView() {
       toast.error(getApiErrorMessage(error));
     }
   };
-
-  const isRunning = Boolean(campaign?.active);
 
   return (
     <div className={`${adminDataPanelClass} flex min-h-0 flex-1 flex-col gap-4`}>

@@ -14,6 +14,7 @@ import type {
   SendMessMemberGrCampaign,
   SendMessMemberGrCampaignDetail,
 } from "@/types/zalo-send-mess-member-gr-campaign";
+import { useCampaignResultsAutoRefresh } from "@/hooks/use-campaign-results-auto-refresh";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useCampaignTeamHandlers } from "@/components/zalo-campaigns/shared/useCampaignTeamHandlers";
 import SendMessMemberGrCampaignFormModal from "./SendMessMemberGrCampaignFormModal";
@@ -41,6 +42,7 @@ export default function SendMessMemberGrCampaignView() {
   const stopCampaigns = useZaloSendMessMemberGrCampaignStore((s) => s.stopCampaigns);
   const openResults = useZaloSendMessMemberGrCampaignStore((s) => s.openResults);
   const closeResults = useZaloSendMessMemberGrCampaignStore((s) => s.closeResults);
+  const refreshResults = useZaloSendMessMemberGrCampaignStore((s) => s.refreshResults);
 
   const [formOpen, setFormOpen] = useState(false);
   const [editingCampaign, setEditingCampaign] =
@@ -72,6 +74,17 @@ export default function SendMessMemberGrCampaignView() {
     if (!resultsCampaignId) return "";
     return campaigns.find((item) => item.id === resultsCampaignId)?.name ?? "";
   }, [campaigns, resultsCampaignId]);
+
+  const resultsCampaignStatus = useMemo(() => {
+    if (!resultsCampaignId) return null;
+    return campaigns.find((item) => item.id === resultsCampaignId)?.status ?? null;
+  }, [campaigns, resultsCampaignId]);
+
+  useCampaignResultsAutoRefresh({
+    enabled: resultsOpen,
+    isRunning: resultsCampaignStatus === 1,
+    refreshResults,
+  });
 
   const openCreate = () => {
     setEditingCampaign(null);

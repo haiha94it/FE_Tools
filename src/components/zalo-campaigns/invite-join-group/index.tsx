@@ -11,6 +11,7 @@ import { zaloInviteJoinGroupCampaignService } from "@/services/zalo-invite-join-
 import { useWebSocketStore } from "@/stores/use-websocket-store";
 import { useZaloInviteJoinGroupCampaignStore } from "@/stores/use-zalo-invite-join-group-campaign-store";
 import type { InviteJoinGroupCampaign } from "@/types/zalo-invite-join-group-campaign";
+import { useCampaignResultsAutoRefresh } from "@/hooks/use-campaign-results-auto-refresh";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useCampaignTeamHandlers } from "@/components/zalo-campaigns/shared/useCampaignTeamHandlers";
 import InviteJoinGroupCampaignFormModal from "./InviteJoinGroupCampaignFormModal";
@@ -38,6 +39,7 @@ export default function InviteJoinGroupCampaignView() {
   const stopCampaigns = useZaloInviteJoinGroupCampaignStore((s) => s.stopCampaigns);
   const openResults = useZaloInviteJoinGroupCampaignStore((s) => s.openResults);
   const closeResults = useZaloInviteJoinGroupCampaignStore((s) => s.closeResults);
+  const refreshResults = useZaloInviteJoinGroupCampaignStore((s) => s.refreshResults);
 
   const [formOpen, setFormOpen] = useState(false);
   const [editingCampaign, setEditingCampaign] = useState<InviteJoinGroupCampaign | null>(
@@ -70,6 +72,17 @@ export default function InviteJoinGroupCampaignView() {
     if (!resultsCampaignId) return "";
     return campaigns.find((item) => item.id === resultsCampaignId)?.name ?? "";
   }, [campaigns, resultsCampaignId]);
+
+  const resultsCampaignStatus = useMemo(() => {
+    if (!resultsCampaignId) return null;
+    return campaigns.find((item) => item.id === resultsCampaignId)?.status ?? null;
+  }, [campaigns, resultsCampaignId]);
+
+  useCampaignResultsAutoRefresh({
+    enabled: resultsOpen,
+    isRunning: resultsCampaignStatus === 1,
+    refreshResults,
+  });
 
   const openCreate = () => {
     setEditingCampaign(null);

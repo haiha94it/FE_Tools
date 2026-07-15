@@ -1,6 +1,7 @@
 import { API_ZALO_FRIEND, API_ZALO_LABEL } from "@/config/api";
 import { zaloLabelService } from "@/services/zalo-label.service";
 import { unwrapApiBody } from "@/lib/api-response";
+import { normalizeCeleryPollResponse } from "@/lib/celery-poll";
 import {
   buildFriendFetchPayload,
   extractFetchedContacts,
@@ -70,11 +71,10 @@ export const zaloFriendService = {
   },
 
   async pollScanResult(taskId: string | number): Promise<ScanTaskResponse> {
-    const response = await api.post<ScanTaskResponse>(
-      API_ZALO_FRIEND.SCAN_RESULT,
-      { id_task: taskId },
+    const response = await api.post(API_ZALO_FRIEND.SCAN, { id_task: taskId });
+    return normalizeCeleryPollResponse(
+      unwrapApiBody<ScanTaskResponse>(response.data),
     );
-    return unwrapApiBody<ScanTaskResponse>(response.data);
   },
 
   async startRecommendScan(accountId: number): Promise<string | number | null> {
@@ -89,11 +89,12 @@ export const zaloFriendService = {
   async pollRecommendResult(
     taskId: string | number,
   ): Promise<ScanTaskResponse> {
-    const response = await api.post<ScanTaskResponse>(
-      API_ZALO_FRIEND.RECOMMEND_RESULT,
-      { id_task: taskId },
+    const response = await api.post(API_ZALO_FRIEND.RECOMMEND_SCAN, {
+      id_task: taskId,
+    });
+    return normalizeCeleryPollResponse(
+      unwrapApiBody<ScanTaskResponse>(response.data),
     );
-    return unwrapApiBody<ScanTaskResponse>(response.data);
   },
 
   async listSentRequests(accountId: number): Promise<ZaloSentFriendRequestItem[]> {
@@ -123,11 +124,12 @@ export const zaloFriendService = {
   async pollSentRequestResult(
     taskId: string | number,
   ): Promise<ScanTaskResponse> {
-    const response = await api.post<ScanTaskResponse>(
-      API_ZALO_FRIEND.SENT_REQUEST_RESULT,
-      { id_task: taskId },
+    const response = await api.post(API_ZALO_FRIEND.SENT_REQUEST_SCAN, {
+      id_task: taskId,
+    });
+    return normalizeCeleryPollResponse(
+      unwrapApiBody<ScanTaskResponse>(response.data),
     );
-    return unwrapApiBody<ScanTaskResponse>(response.data);
   },
 
   async getRecommendList(

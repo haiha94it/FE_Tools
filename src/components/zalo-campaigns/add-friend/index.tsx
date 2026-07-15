@@ -11,6 +11,7 @@ import { zaloAddFriendCampaignService } from "@/services/zalo-add-friend-campaig
 import { useWebSocketStore } from "@/stores/use-websocket-store";
 import { useZaloAddFriendCampaignStore } from "@/stores/use-zalo-add-friend-campaign-store";
 import type { AddFriendCampaign } from "@/types/zalo-add-friend-campaign";
+import { useCampaignResultsAutoRefresh } from "@/hooks/use-campaign-results-auto-refresh";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useCampaignTeamHandlers } from "@/components/zalo-campaigns/shared/useCampaignTeamHandlers";
 import AddFriendCampaignFormModal from "./AddFriendCampaignFormModal";
@@ -38,6 +39,7 @@ export default function AddFriendCampaignView() {
   const stopCampaigns = useZaloAddFriendCampaignStore((s) => s.stopCampaigns);
   const openResults = useZaloAddFriendCampaignStore((s) => s.openResults);
   const closeResults = useZaloAddFriendCampaignStore((s) => s.closeResults);
+  const refreshResults = useZaloAddFriendCampaignStore((s) => s.refreshResults);
 
   const [formOpen, setFormOpen] = useState(false);
   const [editingCampaign, setEditingCampaign] = useState<AddFriendCampaign | null>(
@@ -69,6 +71,17 @@ export default function AddFriendCampaignView() {
     if (!resultsCampaignId) return "";
     return campaigns.find((item) => item.id === resultsCampaignId)?.name ?? "";
   }, [campaigns, resultsCampaignId]);
+
+  const resultsCampaignStatus = useMemo(() => {
+    if (!resultsCampaignId) return null;
+    return campaigns.find((item) => item.id === resultsCampaignId)?.status ?? null;
+  }, [campaigns, resultsCampaignId]);
+
+  useCampaignResultsAutoRefresh({
+    enabled: resultsOpen,
+    isRunning: resultsCampaignStatus === 1,
+    refreshResults,
+  });
 
   const openCreate = () => {
     setEditingCampaign(null);

@@ -12,6 +12,7 @@ import { useWebSocketStore } from "@/stores/use-websocket-store";
 import { useZaloSendMesGroupCampaignStore } from "@/stores/use-zalo-send-mes-group-campaign-store";
 import type { SendMesGroupCampaign } from "@/types/zalo-send-mes-group-campaign";
 import type { SendMesGroupCampaignDetail } from "@/types/zalo-send-mes-group-campaign";
+import { useCampaignResultsAutoRefresh } from "@/hooks/use-campaign-results-auto-refresh";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useCampaignTeamHandlers } from "@/components/zalo-campaigns/shared/useCampaignTeamHandlers";
 import SendMesGroupCampaignFormModal from "./SendMesGroupCampaignFormModal";
@@ -39,6 +40,7 @@ export default function SendMesGroupCampaignView() {
   const stopCampaigns = useZaloSendMesGroupCampaignStore((s) => s.stopCampaigns);
   const openResults = useZaloSendMesGroupCampaignStore((s) => s.openResults);
   const closeResults = useZaloSendMesGroupCampaignStore((s) => s.closeResults);
+  const refreshResults = useZaloSendMesGroupCampaignStore((s) => s.refreshResults);
 
   const [formOpen, setFormOpen] = useState(false);
   const [editingCampaign, setEditingCampaign] = useState<SendMesGroupCampaignDetail | null>(
@@ -70,6 +72,17 @@ export default function SendMesGroupCampaignView() {
     if (!resultsCampaignId) return "";
     return campaigns.find((item) => item.id === resultsCampaignId)?.name ?? "";
   }, [campaigns, resultsCampaignId]);
+
+  const resultsCampaignStatus = useMemo(() => {
+    if (!resultsCampaignId) return null;
+    return campaigns.find((item) => item.id === resultsCampaignId)?.status ?? null;
+  }, [campaigns, resultsCampaignId]);
+
+  useCampaignResultsAutoRefresh({
+    enabled: resultsOpen,
+    isRunning: resultsCampaignStatus === 1,
+    refreshResults,
+  });
 
   const openCreate = () => {
     setEditingCampaign(null);

@@ -125,8 +125,19 @@ export function extractPaginated<T>(data: unknown): PaginatedResponse<T> {
   return { results: [] };
 }
 
+export function getScanTaskStatus(
+  result: { task_status?: string; status?: string },
+): string | undefined {
+  return result.task_status ?? result.status;
+}
+
 export function isScanTaskDone(status?: string): boolean {
-  return status === "SUCCESS" || status === "FAILURE";
+  return (
+    status === "SUCCESS" ||
+    status === "FAILURE" ||
+    status === "FAILED" ||
+    status === "REVOKED"
+  );
 }
 
 /** API nhóm/bạn bè có thể trả `avatar` hoặc `avt` */

@@ -11,6 +11,7 @@ import { zaloPhoneInviteGroupCampaignService } from "@/services/zalo-phone-invit
 import { useWebSocketStore } from "@/stores/use-websocket-store";
 import { useZaloPhoneInviteGroupCampaignStore } from "@/stores/use-zalo-phone-invite-group-campaign-store";
 import type { PhoneInviteGroupCampaign } from "@/types/zalo-phone-invite-group-campaign";
+import { useCampaignResultsAutoRefresh } from "@/hooks/use-campaign-results-auto-refresh";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useCampaignTeamHandlers } from "@/components/zalo-campaigns/shared/useCampaignTeamHandlers";
 import PhoneInviteGroupCampaignFormModal from "./PhoneInviteGroupCampaignFormModal";
@@ -38,6 +39,7 @@ export default function PhoneInviteGroupCampaignView() {
   const stopCampaigns = useZaloPhoneInviteGroupCampaignStore((s) => s.stopCampaigns);
   const openResults = useZaloPhoneInviteGroupCampaignStore((s) => s.openResults);
   const closeResults = useZaloPhoneInviteGroupCampaignStore((s) => s.closeResults);
+  const refreshResults = useZaloPhoneInviteGroupCampaignStore((s) => s.refreshResults);
 
   const [formOpen, setFormOpen] = useState(false);
   const [editingCampaign, setEditingCampaign] = useState<PhoneInviteGroupCampaign | null>(
@@ -70,6 +72,17 @@ export default function PhoneInviteGroupCampaignView() {
     if (!resultsCampaignId) return "";
     return campaigns.find((item) => item.id === resultsCampaignId)?.name ?? "";
   }, [campaigns, resultsCampaignId]);
+
+  const resultsCampaignStatus = useMemo(() => {
+    if (!resultsCampaignId) return null;
+    return campaigns.find((item) => item.id === resultsCampaignId)?.status ?? null;
+  }, [campaigns, resultsCampaignId]);
+
+  useCampaignResultsAutoRefresh({
+    enabled: resultsOpen,
+    isRunning: resultsCampaignStatus === 1,
+    refreshResults,
+  });
 
   const openCreate = () => {
     setEditingCampaign(null);
