@@ -14,7 +14,6 @@ import {
   groupReactionsByCliMsgId,
 } from "@/lib/zalo-messenger-reactions";
 import {
-  formatMessageTime,
   getMessageText,
   isCompactMessageGroup,
   isOwnMessage,
@@ -34,6 +33,8 @@ import type { DisplayMessage } from "@/types/zalo-messenger";
 import Image from "next/image";
 import dynamic from "next/dynamic";
 import { useMemo, useState } from "react";
+import MessageDetailDialog from "./MessageDetailDialog";
+import MessageMetaFooter from "./MessageMetaFooter";
 import { MessageActionRail } from "./MessageActionRail";
 import {
   EcardMessageContent,
@@ -307,7 +308,15 @@ function MessageContent({
   }
 
   if (text) {
-    return <p className="text-sm whitespace-pre-wrap break-words">{text}</p>;
+    return (
+      <p
+        className={`text-sm whitespace-pre-wrap break-words ${
+          own ? "text-right" : "text-left"
+        }`}
+      >
+        {text}
+      </p>
+    );
   }
 
   return <span className="text-xs italic opacity-70">Nội dung không hỗ trợ</span>;
@@ -337,11 +346,27 @@ export function MessageList({
   const [previewItem, setPreviewItem] = useState<MessageMediaPreviewItem | null>(
     null,
   );
+  const [detailTarget, setDetailTarget] = useState<{
+    message: DisplayMessage;
+    own: boolean;
+  } | null>(null);
+
+  const openDetail = (message: DisplayMessage, own: boolean) => {
+    setDetailTarget({ message, own });
+  };
+
   return (
     <>
       <MessageMediaLightbox
         item={previewItem}
         onClose={() => setPreviewItem(null)}
+      />
+
+      <MessageDetailDialog
+        open={detailTarget != null}
+        message={detailTarget?.message ?? null}
+        own={detailTarget?.own}
+        onClose={() => setDetailTarget(null)}
       />
 
       {display.map((message, index) => {
@@ -395,9 +420,11 @@ export function MessageList({
                     centered
                     onOpenPreview={setPreviewItem}
                   />
-                  <span className="text-[10px] text-gray-400 dark:text-gray-500">
-                    {formatMessageTime(message.ts)}
-                  </span>
+                  <MessageMetaFooter
+                    message={message}
+                    own={false}
+                    className="justify-center"
+                  />
                 </div>
               </div>
             ) : (
@@ -439,12 +466,6 @@ export function MessageList({
                   </p>
                 ) : null}
 
-                {sentByLabel ? (
-                  <p className="mb-1 px-1 text-[10px] font-medium text-brand-600 dark:text-brand-400">
-                    {sentByLabel}
-                  </p>
-                ) : null}
-
                 <div
                   className={`relative overflow-visible ${
                     isGroupMedia ? "w-full max-w-full" : "inline-flex w-fit max-w-full"
@@ -471,13 +492,11 @@ export function MessageList({
                       onOpenPreview={setPreviewItem}
                     />
                     {!isGroupMedia ? (
-                      <div
-                        className={`mt-1 flex items-center justify-end gap-1 text-[10px] ${
-                          own ? "text-white/70" : "text-gray-400"
-                        }`}
-                      >
-                        <span>{formatMessageTime(message.ts)}</span>
-                      </div>
+                      <MessageMetaFooter
+                        message={message}
+                        own={own}
+                        sentByLabel={sentByLabel}
+                      />
                     ) : null}
 
                     {reactionEmojis.length > 0 ? (
@@ -496,29 +515,31 @@ export function MessageList({
                     ) : null}
                   </div>
 
-                  {!isGroupMedia ? (
-                    <MessageActionRail
-                      own={own}
-                      canReply={Boolean(onReply)}
-                      canShare={Boolean(onShare && canShareMessage(message))}
-                      onReply={onReply ? () => onReply(message) : undefined}
-                      onShare={
-                        onShare && canShareMessage(message)
-                          ? () => onShare(message)
-                          : undefined
-                      }
-                      onReaction={
-                        onReaction
-                          ? (reactionId) => onReaction(message, reactionId)
-                          : undefined
-                      }
-                    />
-                  ) : null}
+                  <MessageActionRail
+                    own={own}
+                    canReply={Boolean(onReply)}
+                    canShare={Boolean(onShare && canShareMessage(message))}
+                    onReply={onReply ? () => onReply(message) : undefined}
+                    onShare={
+                      onShare && canShareMessage(message)
+                        ? () => onShare(message)
+                        : undefined
+                    }
+                    onReaction={
+                      onReaction
+                        ? (reactionId) => onReaction(message, reactionId)
+                        : undefined
+                    }
+                    onShowDetail={() => openDetail(message, own)}
+                  />
                 </div>
                 {isGroupMedia ? (
-                  <span className="mt-1.5 px-0.5 text-[10px] text-gray-400 max-md:self-start md:self-auto dark:text-gray-500">
-                    {formatMessageTime(message.ts)}
-                  </span>
+                  <MessageMetaFooter
+                    message={message}
+                    own={own}
+                    sentByLabel={sentByLabel}
+                    className="mt-1.5 max-md:justify-start md:justify-end"
+                  />
                 ) : null}
               </div>
 

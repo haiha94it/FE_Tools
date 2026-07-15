@@ -528,6 +528,58 @@ export function normalizeIncomingMessages(
   return normalizeMessageList(rawList.map(normalizeIncomingMessage));
 }
 
+/** Nhãn loại tin thân thiện — không hiển thị mã kỹ thuật (webchat, msgId…) */
+export function getMessageKindLabel(message: DisplayMessage): string {
+  const attachment = message.attachments?.[0];
+  const action = attachment?.action;
+
+  if (message.msgType === "group.media" || action === "group-media") {
+    return "Album ảnh/video";
+  }
+  if (message.msgType === "chat.sticker" || message.sticker?.length) {
+    return "Sticker";
+  }
+  if (message.msgType === "chat.gif" || action === "gif") return "GIF";
+  if (message.msgType === "chat.photo") return "Ảnh";
+  if (message.msgType === "chat.video.msg" || action === "video") return "Video";
+  if (message.msgType === "chat.voice" || action === "voice") return "Tin thoại";
+  if (message.msgType === "share.file" || action === "file") return "Tệp đính kèm";
+  if (message.msgType === "chat.location.new" || action === "location") {
+    return "Vị trí";
+  }
+  if (message.msgType === "chat.ecard" || action === "ecard") return "Nhắc hẹn";
+  if (message.msgType === "chat.recommended" || action === "recommended") {
+    return "Danh thiếp";
+  }
+  if (action === "system") return "Thông báo hệ thống";
+  if (attachment?.thumb || attachment?.href) return "Ảnh / media";
+  if (getMessageText(message)) return "Văn bản";
+  return "Tin nhắn";
+}
+
+/** Tóm tắt nội dung hiển thị trong dialog chi tiết */
+export function getMessagePreviewSummary(message: DisplayMessage): string {
+  const text = getMessageText(message);
+  if (text) return text;
+
+  const attachment = message.attachments?.[0];
+  const kind = getMessageKindLabel(message);
+
+  if (message.groupMedia?.items.length) {
+    const count =
+      message.groupMedia.totalItems || message.groupMedia.items.length;
+    return `Album gồm ${count} ảnh/video`;
+  }
+  if (attachment?.title?.trim()) return attachment.title.trim();
+  if (attachment?.description?.trim() && kind === "Vị trí") {
+    return attachment.description.trim();
+  }
+  if (kind === "Tệp đính kèm" && attachment?.title) {
+    return attachment.title;
+  }
+  return kind;
+}
+
 export function hasVisibleContent(message: DisplayMessage): boolean {
   if (message._optimistic) return true;
   if (getMessageText(message)) return true;

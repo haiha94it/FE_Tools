@@ -3,6 +3,7 @@
 import { Tooltip } from "@/components/ui/tooltip/Tooltip";
 import { ZALO_REACTION_OPTIONS } from "@/lib/zalo-messenger-reactions";
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { HiOutlineInformationCircle } from "react-icons/hi2";
 import { createPortal } from "react-dom";
 
 const MOBILE_CHAT_MEDIA = "(max-width: 992px), (hover: none), (pointer: coarse)";
@@ -147,6 +148,7 @@ interface MessageActionRailProps {
   onReply?: () => void;
   onShare?: () => void;
   onReaction?: (reactionId: number) => void;
+  onShowDetail?: () => void;
 }
 
 export function MessageActionRail({
@@ -156,6 +158,7 @@ export function MessageActionRail({
   onReply,
   onShare,
   onReaction,
+  onShowDetail,
 }: MessageActionRailProps) {
   const isMobileUI = useMessengerMobileUI();
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -174,7 +177,7 @@ export function MessageActionRail({
     return () => document.removeEventListener("mousedown", handlePointerDown);
   }, [sheetOpen]);
 
-  const hasActions = Boolean(onReply || onShare || onReaction);
+  const hasActions = Boolean(onReply || onShare || onReaction || onShowDetail);
   if (!hasActions) return null;
 
   const clearHoverTimer = () => {
@@ -258,6 +261,19 @@ export function MessageActionRail({
                 ))}
               </div>
             ) : null}
+            {onShowDetail ? (
+              <button
+                type="button"
+                onClick={() => {
+                  onShowDetail();
+                  setSheetOpen(false);
+                }}
+                className="flex items-center gap-2 border-t border-gray-100 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 dark:border-gray-800 dark:text-gray-200 dark:hover:bg-white/[0.04]"
+              >
+                <HiOutlineInformationCircle className="h-4 w-4 shrink-0" aria-hidden />
+                Chi tiết tin nhắn
+              </button>
+            ) : null}
           </div>
         ) : null}
       </>
@@ -323,6 +339,12 @@ export function MessageActionRail({
             >
               <path d="M21 15a4 4 0 0 1-4 4H7l-4 4V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
             </svg>
+          </RailButton>
+        ) : null}
+
+        {onShowDetail ? (
+          <RailButton label="Chi tiết tin nhắn" onClick={onShowDetail}>
+            <HiOutlineInformationCircle className="h-4 w-4" aria-hidden />
           </RailButton>
         ) : null}
       </div>
