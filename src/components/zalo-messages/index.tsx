@@ -24,7 +24,7 @@ export default function ZaloMessagesView({
       <PageBreadcrumb
         pageTitle="Tin nhắn Zalo"
         showPageTitle={false}
-        className="!mb-0 max-lg:hidden shrink-0"
+        className="!mb-0 max-md:hidden shrink-0"
         parents={[{ label: "Quản lý tài khoản Zalo", href: "/zalo-accounts" }]}
       />
 

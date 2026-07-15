@@ -403,14 +403,14 @@ export function MessageList({
             ) : (
             <div
               className={`group/row relative flex w-full min-w-0 items-end overflow-visible ${
-                isGroupMedia ? "max-lg:gap-0 lg:gap-2" : "gap-2"
+                isGroupMedia ? "max-md:gap-0 md:gap-2" : "gap-2"
               } ${own ? "justify-end" : "justify-start"} ${
                 compact ? "mt-1" : "mt-3"
               }`}
             >
               {showAvatar ? (
                 <div
-                  className={`w-8 shrink-0 ${isGroupMedia ? "max-lg:hidden" : ""}`}
+                  className={`w-8 shrink-0 ${isGroupMedia ? "max-md:hidden" : ""}`}
                 >
                   {!compact ? (
                     <ContactAvatar
@@ -425,7 +425,7 @@ export function MessageList({
               <div
                 className={`flex min-w-0 flex-col overflow-visible ${
                   isGroupMedia
-                    ? "max-lg:flex-1 max-lg:max-w-full lg:max-w-[min(96%,420px)]"
+                    ? "max-md:flex-1 max-md:max-w-full md:max-w-[min(96%,420px)]"
                     : "max-w-[min(88%,360px)]"
                 } ${own ? "items-end" : "items-start"}`}
               >
@@ -453,7 +453,7 @@ export function MessageList({
                   <div
                     className={`relative shadow-sm ${
                       isGroupMedia
-                        ? "w-full overflow-hidden max-lg:rounded-xl max-lg:border-0 max-lg:bg-transparent max-lg:p-0 max-lg:shadow-none lg:rounded-2xl lg:border lg:border-gray-100 lg:bg-white lg:p-1.5 dark:lg:border-gray-700 dark:lg:bg-gray-800"
+                        ? "w-full overflow-hidden max-md:rounded-xl max-md:border-0 max-md:bg-transparent max-md:p-0 max-md:shadow-none md:rounded-2xl md:border md:border-gray-100 md:bg-white md:p-1.5 dark:md:border-gray-700 dark:md:bg-gray-800"
                         : "rounded-2xl px-3.5 py-2"
                     } ${
                       !isGroupMedia &&
@@ -516,7 +516,7 @@ export function MessageList({
                   ) : null}
                 </div>
                 {isGroupMedia ? (
-                  <span className="mt-1.5 px-0.5 text-[10px] text-gray-400 max-lg:self-start lg:self-auto dark:text-gray-500">
+                  <span className="mt-1.5 px-0.5 text-[10px] text-gray-400 max-md:self-start md:self-auto dark:text-gray-500">
                     {formatMessageTime(message.ts)}
                   </span>
                 ) : null}
@@ -524,7 +524,7 @@ export function MessageList({
 
               {isGroup && own ? (
                 <span
-                  className={`w-8 shrink-0 ${isGroupMedia ? "max-lg:hidden" : ""}`}
+                  className={`w-8 shrink-0 ${isGroupMedia ? "max-md:hidden" : ""}`}
                   aria-hidden="true"
                 />
               ) : null}

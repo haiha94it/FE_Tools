@@ -62,10 +62,10 @@ export default function MessengerBootstrap({
   ]);
 
   useEffect(() => {
-    const isDesktop =
+    const isWideLayout =
       typeof window !== "undefined" &&
-      window.matchMedia("(min-width: 1024px)").matches;
-    if (isDesktop) return;
+      window.matchMedia("(min-width: 768px)").matches;
+    if (isWideLayout) return;
     if (routeConversationId) setMobilePanel("chat");
     else if (routeAccountId) setMobilePanel("conversations");
     else setMobilePanel("accounts");

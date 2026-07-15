@@ -365,7 +365,7 @@ function formatVideoDuration(durationMs?: number): string {
 
 /** Mobile: full width album; Desktop: max 420px */
 const GROUP_MEDIA_ALBUM_CLASS =
-  "w-full touch-manipulation max-lg:max-w-full lg:min-w-[260px] lg:max-w-[min(100%,420px)]";
+  "w-full touch-manipulation max-md:max-w-full md:min-w-[260px] md:max-w-[min(100%,420px)]";
 
 function getGroupMediaGridClass(count: number): string {
   if (count <= 1) return "grid-cols-1";
@@ -382,21 +382,21 @@ function getGroupMediaItemClass(
   if (count === 1) {
     return [
       "aspect-[4/5]",
-      "max-lg:min-h-[min(52vh,320px)] max-lg:max-h-[60vh]",
-      "lg:min-h-[260px]",
+      "max-md:min-h-[min(52vh,320px)] max-md:max-h-[60vh]",
+      "md:min-h-[260px]",
     ].join(" ");
   }
   if (count === 3 && index === 0) {
     return [
       "row-span-2",
-      "max-lg:min-h-[220px]",
-      "lg:min-h-[240px]",
+      "max-md:min-h-[220px]",
+      "md:min-h-[240px]",
     ].join(" ");
   }
   return [
     "aspect-square",
-    "max-lg:min-h-[148px]",
-    "lg:min-h-[128px]",
+    "max-md:min-h-[148px]",
+    "md:min-h-[128px]",
   ].join(" ");
 }
 
@@ -490,7 +490,7 @@ export function GroupMediaGrid({
   return (
     <div className={GROUP_MEDIA_ALBUM_CLASS}>
       {showMobileMeta ? (
-        <p className="mb-1.5 flex items-center justify-between px-0.5 text-[11px] font-medium text-gray-500 lg:hidden dark:text-gray-400">
+        <p className="mb-1.5 flex items-center justify-between px-0.5 text-[11px] font-medium text-gray-500 md:hidden dark:text-gray-400">
           <span>Album</span>
           <span>
             {totalItems} mục
@@ -498,7 +498,7 @@ export function GroupMediaGrid({
         </p>
       ) : null}
       <div
-        className={`grid gap-2 overflow-hidden rounded-2xl max-lg:rounded-xl lg:gap-1 lg:rounded-xl ${getGroupMediaGridClass(count)}`}
+        className={`grid gap-2 overflow-hidden rounded-2xl max-md:rounded-xl md:gap-1 md:rounded-xl ${getGroupMediaGridClass(count)}`}
       >
         {visible.map((item, index) => (
           <GroupMediaTile

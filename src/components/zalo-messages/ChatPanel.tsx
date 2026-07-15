@@ -312,7 +312,7 @@ function ChatPanel({
           <button
             type="button"
             onClick={onBack}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-gray-200 text-gray-600 transition hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 lg:hidden"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-gray-200 text-gray-600 transition hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 md:hidden"
             aria-label="Quay lại"
           >
             ←
@@ -327,7 +327,7 @@ function ChatPanel({
             {conversation.pinning ? " 📌" : ""}
           </h2>
           {subtitle ? (
-            <p className="truncate text-xs text-gray-500 dark:text-gray-400">
+            <p className="hidden truncate text-xs text-gray-500 xl:block dark:text-gray-400">
               {subtitle}
             </p>
           ) : null}

@@ -420,7 +420,7 @@ export default function ChatComposer({
 
   return (
     <div
-      className={`shrink-0 border-t border-gray-100 bg-white/90 p-2.5 backdrop-blur dark:border-gray-800 dark:bg-gray-900/90 lg:p-3 ${
+      className={`shrink-0 border-t border-gray-100 bg-white/90 p-2.5 backdrop-blur dark:border-gray-800 dark:bg-gray-900/90 xl:p-3 ${
         isDragging ? "ring-2 ring-inset ring-brand-400" : ""
       }`}
       onDragOver={(event) => {
@@ -430,7 +430,7 @@ export default function ChatComposer({
       onDragLeave={() => setIsDragging(false)}
       onDrop={handleDrop}
     >
-      <div className="mb-2 hidden flex-wrap items-center gap-1.5 lg:flex">
+      <div className="mb-2 hidden flex-wrap items-center gap-1.5 xl:flex">
         <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-[10px] font-semibold text-gray-500 dark:bg-gray-800">
           Enter gửi
         </span>
@@ -561,7 +561,7 @@ export default function ChatComposer({
       />
 
       <div ref={mobileOptionsRef} className="relative z-20">
-        <div className="mb-2 flex items-center justify-between gap-2 lg:hidden">
+        <div className="mb-2 flex items-center justify-between gap-2 xl:hidden">
           <button
             type="button"
             disabled={disabled}
@@ -593,7 +593,7 @@ export default function ChatComposer({
         </div>
 
         {mobileOptionsOpen ? (
-          <div className="mb-2 rounded-2xl border border-gray-200 bg-gray-50/90 p-2.5 shadow-sm lg:hidden dark:border-gray-700 dark:bg-gray-800/80">
+          <div className="mb-2 rounded-2xl border border-gray-200 bg-gray-50/90 p-2.5 shadow-sm xl:hidden dark:border-gray-700 dark:bg-gray-800/80">
             {mobileEmojiOpen ? (
               <div className="space-y-2">
                 <p className="px-1 text-[11px] font-semibold text-gray-500 dark:text-gray-400">
@@ -661,7 +661,7 @@ export default function ChatComposer({
         ) : null}
 
         <div ref={composerShellRef} className="flex items-end gap-2">
-          <div className="hidden shrink-0 items-center gap-1 lg:flex">
+          <div className="hidden shrink-0 items-center gap-1 xl:flex">
           <Tooltip content="Đính kèm file" side="top">
             <button
               type="button"
@@ -770,14 +770,14 @@ export default function ChatComposer({
               maxHeight: COMPOSER_TEXTAREA_MAX_HEIGHT,
               minHeight: 44,
             }}
-            className="custom-scrollbar min-h-[44px] flex-1 resize-none overflow-y-hidden rounded-2xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm leading-6 text-gray-800 outline-none transition [overflow-wrap:anywhere] focus:border-brand-300 focus:bg-white focus:ring-2 focus:ring-brand-500/15 disabled:opacity-60 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90 lg:min-h-[42px]"
+            className="custom-scrollbar min-h-[44px] flex-1 resize-none overflow-y-hidden rounded-2xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm leading-6 text-gray-800 outline-none transition [overflow-wrap:anywhere] focus:border-brand-300 focus:bg-white focus:ring-2 focus:ring-brand-500/15 disabled:opacity-60 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90 xl:min-h-[42px]"
           />
 
           <button
             type="button"
             disabled={disabled || sending || uploading || !canSend}
             onClick={handleSendClick}
-            className="flex h-11 min-w-[72px] shrink-0 cursor-pointer items-center justify-center rounded-2xl bg-brand-500 px-4 text-sm font-semibold text-white shadow-sm transition active:scale-[0.98] hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50 lg:h-[42px] lg:min-w-0 lg:font-medium"
+            className="flex h-11 min-w-[72px] shrink-0 cursor-pointer items-center justify-center rounded-2xl bg-brand-500 px-4 text-sm font-semibold text-white shadow-sm transition active:scale-[0.98] hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50 xl:h-[42px] xl:min-w-0 xl:font-medium"
           >
           {sending || uploading ? (
             <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
