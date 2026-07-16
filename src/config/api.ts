@@ -263,8 +263,6 @@ export const API_ZALO_MESSENGER = {
   STICKERS_SUGGEST: "/api/message/stickers/suggest",
   STICKERS_CATEGORY: "/api/message/stickers/category",
   STICKERS_DETAIL: "/api/message/stickers/detail",
-  SEND_REACTION_TO_UID: "/api/message/send-reaction-to-uid",
-  SEND_REACTION_TO_GROUP: "/api/message/send-reaction-to-group",
   MARK_READ_ALL: "/api/message/mark-read",
 } as const;
 

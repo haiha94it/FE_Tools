@@ -17,11 +17,14 @@ export function buildQuoteDetails(
   quoteMessage: DisplayMessage,
   accountUid?: string | null,
 ): Record<string, unknown> {
+  const cliMsgId = quoteMessage.cliMsgId ?? quoteMessage.clientMsgId;
+  const msgId = quoteMessage.msgId;
   return {
     uidFrom:
       quoteMessage.uidFrom === "0" ? accountUid : quoteMessage.uidFrom,
-    qmsgId: quoteMessage.msgId,
-    cliMsgId: quoteMessage.cliMsgId ?? quoteMessage.clientMsgId,
+    qmsgId: msgId,
+    cliMsgId,
+    msgId,
     ts: quoteMessage.ts,
     text_message: getMessageText(quoteMessage),
   };

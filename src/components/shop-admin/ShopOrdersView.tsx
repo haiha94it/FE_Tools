@@ -31,7 +31,7 @@ export default function ShopOrdersView() {
         parents={[{ label: "Cửa hàng", href: "/shop" }]}
       />
 
-      <div className={`${adminDataPanelClass} overflow-y-auto overscroll-contain`}>
+      <div className={`custom-scrollbar ${adminDataPanelClass} overflow-y-auto overscroll-contain`}>
         <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-base font-semibold text-gray-800 dark:text-white/90">
             Danh sách đơn hàng
@@ -51,7 +51,7 @@ export default function ShopOrdersView() {
         ) : orders.length === 0 ? (
           <p className="py-16 text-center text-sm text-gray-500">Chưa có đơn hàng</p>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="custom-scrollbar overflow-x-auto overscroll-x-contain">
             <table className="w-full min-w-[640px] text-left text-sm">
               <thead>
                 <tr className="border-b border-gray-200 text-xs uppercase text-gray-500 dark:border-gray-800">

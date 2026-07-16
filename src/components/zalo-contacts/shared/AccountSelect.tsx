@@ -130,7 +130,7 @@ export default function AccountSelect({
         {isOpen && accounts.length > 0 && (
           <ul
             role="listbox"
-            className="absolute left-0 top-full z-40 mt-1.5 max-h-60 w-full overflow-y-auto rounded-xl border border-gray-200 bg-white py-1 shadow-theme-lg dark:border-gray-800 dark:bg-gray-900"
+            className="custom-scrollbar absolute left-0 top-full z-40 mt-1.5 max-h-60 w-full overflow-y-auto overscroll-contain rounded-xl border border-gray-200 bg-white py-1 shadow-theme-lg dark:border-gray-800 dark:bg-gray-900"
           >
             {accounts.map((account) => {
               const isSelected = account.id === value;

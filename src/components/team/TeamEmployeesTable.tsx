@@ -18,7 +18,7 @@ function TeamEmployeesTable({
   onEditEmployee,
 }: TeamEmployeesTableProps) {
   return (
-    <div className="overflow-x-auto">
+    <div className="custom-scrollbar overflow-x-auto overscroll-x-contain">
       <table className="w-full min-w-[640px] text-left text-sm">
         <thead>
           <tr className="border-b border-gray-200 text-xs uppercase text-gray-500 dark:border-gray-800">

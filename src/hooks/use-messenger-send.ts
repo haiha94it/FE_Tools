@@ -3,8 +3,13 @@
 import { buildShareWsPayload } from "@/lib/zalo-messenger-share-utils";
 import { isValidVietnamesePhone } from "@/lib/zalo-messenger-create-group-utils";
 import { generateClientMsgId } from "@/lib/zalo-messenger-utils";
+import {
+  buildReactionWsPayload,
+  buildStickerWsPayload,
+  serializeSendMessagePayload,
+  serializeWsChatCommand,
+} from "@/lib/zalo-messenger-ws";
 import { toast } from "@/lib/toast";
-import { zaloMessengerService } from "@/services/zalo-messenger.service";
 import { useZaloMessengerStore } from "@/stores/use-zalo-messenger-store";
 import { useWebSocketStore } from "@/stores/use-websocket-store";
 import type {
@@ -18,9 +23,13 @@ import { useCallback } from "react";
 
 function wsSendPayload(
   wsSend: (payload: Record<string, unknown> | string) => boolean,
-  payload: SendMessagePayload,
+  payload: SendMessagePayload | Record<string, unknown>,
 ) {
-  return wsSend(payload as unknown as Record<string, unknown>);
+  const serialized =
+    "chat_type" in payload && typeof payload === "object"
+      ? serializeSendMessagePayload(payload as SendMessagePayload)
+      : serializeWsChatCommand(payload as Record<string, unknown>);
+  return wsSend(serialized);
 }
 
 export function useMessengerSend(options?: {
@@ -98,21 +107,13 @@ export function useMessengerSend(options?: {
         return false;
       }
 
-      const payload: SendMessagePayload = {
-        id_account: selectedAccountId,
-        id_conversation: activeConversationId,
-        message: "",
-        chat_type: "send-sticker",
-        clientMsgId: generateClientMsgId(),
-        attachment: null,
-        message_details: {
-          id: sticker.id,
-          catId: sticker.catId,
-        },
-        phone_number: null,
-      };
-
-      const sent = wsSendPayload(wsSend, payload);
+      const sent = wsSend(
+        buildStickerWsPayload({
+          accountId: selectedAccountId,
+          conversationId: activeConversationId,
+          sticker,
+        }),
+      );
       if (!sent) toast.error("Không gửi được sticker.");
       return sent;
     },
@@ -120,19 +121,29 @@ export function useMessengerSend(options?: {
   );
 
   const sendReaction = useCallback(
-    async (message: DisplayMessage, reactionId: number) => {
-      if (!activeConversation) return;
-      try {
-        await zaloMessengerService.sendReaction({
-          conversation: activeConversation,
-          message,
-          reactionId,
-        });
-      } catch {
-        toast.error("Không gửi được cảm xúc.");
+    (message: DisplayMessage, reactionId: number) => {
+      if (!activeConversation || !selectedAccountId) return false;
+      if (wsStatus !== "connected") {
+        toast.error("Chưa kết nối WebSocket.");
+        return false;
       }
+
+      const built = buildReactionWsPayload({
+        accountId: selectedAccountId,
+        conversation: activeConversation,
+        message,
+        reactionId,
+      });
+      if (!built.ok) {
+        toast.error(built.reason);
+        return false;
+      }
+
+      const sent = wsSend(built.payload);
+      if (!sent) toast.error("Không gửi được cảm xúc.");
+      return sent;
     },
-    [activeConversation],
+    [activeConversation, selectedAccountId, wsSend, wsStatus],
   );
 
   const shareMessage = useCallback(
@@ -156,15 +167,17 @@ export function useMessengerSend(options?: {
         );
         if (!payload) continue;
 
-        const sent = wsSend({
-          ...payload,
-          id_account: selectedAccountId,
-          clientMsgId: generateClientMsgId(),
-        });
+        const sent = wsSend(
+          serializeWsChatCommand({
+            ...payload,
+            id_account: selectedAccountId,
+            clientMsgId: generateClientMsgId(),
+          }),
+        );
         if (sent) sentCount += 1;
 
         if (accompanyText.trim()) {
-          wsSend({
+          wsSendPayload(wsSend, {
             id_account: selectedAccountId,
             id_conversation: target.id,
             message: accompanyText.trim(),

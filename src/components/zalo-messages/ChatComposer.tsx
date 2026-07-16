@@ -502,7 +502,7 @@ export default function ChatComposer({
       ) : null}
 
       {fastReplyOpen ? (
-        <div className="mb-2 max-h-60 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+        <div className="custom-scrollbar mb-2 max-h-60 overflow-y-auto overscroll-contain rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
           <div className="flex items-center justify-between border-b border-gray-100 bg-gray-50 px-3 py-2 text-xs font-semibold text-gray-500 dark:border-gray-800 dark:bg-gray-800/50">
             <span>Gửi nhanh (/)</span>
             {accountId ? (

@@ -132,7 +132,7 @@ export default function ShopAdminView({ categoryId }: ShopAdminViewProps) {
           </div>
         </div>
 
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-contain lg:flex-row lg:overflow-hidden">
+        <div className="custom-scrollbar flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-contain lg:flex-row lg:overflow-hidden">
           <ShopCategorySidebar
             userId={userId}
             selectedCategoryId={categoryId ?? null}

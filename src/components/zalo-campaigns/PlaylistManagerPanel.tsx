@@ -363,7 +363,7 @@ export default function PlaylistManagerPanel({
         </div>
       ) : (
         <>
-          <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-800">
+          <div className="custom-scrollbar overflow-x-auto overscroll-x-contain rounded-xl border border-gray-200 dark:border-gray-800">
             <table className="min-w-full text-sm">
               <thead className="bg-gray-50 text-left text-xs text-gray-500 dark:bg-white/[0.03]">
                 <tr>

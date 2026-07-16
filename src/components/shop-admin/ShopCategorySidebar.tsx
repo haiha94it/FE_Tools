@@ -166,7 +166,7 @@ export default function ShopCategorySidebar({
           </button>
         </div>
 
-        <nav className="flex max-h-[calc(100vh-16rem)] flex-col gap-1 overflow-y-auto overscroll-contain p-2">
+        <nav className="custom-scrollbar flex max-h-[calc(100vh-16rem)] flex-col gap-1 overflow-y-auto overscroll-contain p-2">
           {categories.length === 0 ? (
             <p className="px-3 py-6 text-center text-sm text-gray-500">
               Chưa có danh mục. Tạo danh mục đầu tiên để bắt đầu bán hàng.

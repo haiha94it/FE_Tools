@@ -157,7 +157,7 @@ function LabelManageDialog({
           </p>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain">
           {loading ? (
             <div className="flex items-center justify-center gap-2 py-10 text-sm text-gray-500">
               <span className="h-4 w-4 animate-spin rounded-full border-2 border-brand-500 border-t-transparent" />

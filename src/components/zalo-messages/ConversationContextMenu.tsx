@@ -288,7 +288,7 @@ function ConversationContextMenu({
 
         {labelPanelOpen ? (
           <div
-            className={`absolute ${labelPanelPositionClass} ${labelPanelAlignClass} z-[121] max-h-[240px] min-w-[210px] overflow-y-auto rounded-xl border border-gray-200 bg-white py-1 pl-2 shadow-xl dark:border-gray-700 dark:bg-gray-900`}
+            className={`custom-scrollbar absolute ${labelPanelPositionClass} ${labelPanelAlignClass} z-[121] max-h-[240px] min-w-[210px] overflow-y-auto overscroll-contain rounded-xl border border-gray-200 bg-white py-1 pl-2 shadow-xl dark:border-gray-700 dark:bg-gray-900`}
             onMouseEnter={openLabelPanel}
             onMouseLeave={scheduleCloseLabelPanel}
           >

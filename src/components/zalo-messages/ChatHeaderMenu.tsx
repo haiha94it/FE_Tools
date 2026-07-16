@@ -144,7 +144,7 @@ function ChatHeaderMenu({
               </button>
               {labelPanelOpen ? (
                 <div
-                  className="absolute top-0 right-[calc(100%-10px)] z-40 max-h-[220px] min-w-[180px] overflow-y-auto rounded-xl border border-gray-200 bg-white py-1 pr-2 shadow-xl dark:border-gray-700 dark:bg-gray-900"
+                  className="custom-scrollbar absolute top-0 right-[calc(100%-10px)] z-40 max-h-[220px] min-w-[180px] overflow-y-auto overscroll-contain rounded-xl border border-gray-200 bg-white py-1 pr-2 shadow-xl dark:border-gray-700 dark:bg-gray-900"
                   onMouseEnter={openLabelPanel}
                   onMouseLeave={scheduleCloseLabelPanel}
                 >

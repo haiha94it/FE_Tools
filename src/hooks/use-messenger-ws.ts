@@ -1,5 +1,6 @@
 "use client";
 
+import { toast } from "@/lib/toast";
 import { prepareConversationsFromGlobalUpdate } from "@/lib/zalo-messenger-utils";
 import { useZaloMessengerStore } from "@/stores/use-zalo-messenger-store";
 import { useWebSocketStore } from "@/stores/use-websocket-store";
@@ -8,9 +9,17 @@ import type {
   MessengerConversation,
   NewGlobalUpdatePayload,
   RawZaloMessage,
+  WsActionMessagePayload,
 } from "@/types/zalo-messenger";
 import type { WsMessagePayload } from "@/types/websocket";
 import { useEffect } from "react";
+
+const WS_ACTION_FAILURE_HINT: Record<string, string> = {
+  "send-reaction-to-group": "Không gửi được cảm xúc.",
+  "send-reaction-to-uid": "Không gửi được cảm xúc.",
+  "send-sticker": "Không gửi được sticker.",
+  "block-friend": "Không thực hiện được thao tác chặn.",
+};
 
 function isNewGlobalUpdate(
   payload: WsMessagePayload,
@@ -22,6 +31,12 @@ function isMessageAck(
   payload: WsMessagePayload,
 ): payload is MessageAckPayload & WsMessagePayload {
   return payload.type === "message_ack";
+}
+
+function isWsActionMessage(
+  payload: WsMessagePayload,
+): payload is WsActionMessagePayload & WsMessagePayload {
+  return payload.type === "message" && typeof payload.command === "string";
 }
 
 export function useMessengerWs() {
@@ -83,6 +98,26 @@ export function useMessengerWs() {
 
       if (isMessageAck(payload) && payload.clientMsgId) {
         handleMessageAck(payload.clientMsgId, payload.success !== false);
+        return;
+      }
+
+      if (isWsActionMessage(payload) && payload.success === false) {
+        const zaloErrorCode = payload.result?.error_code;
+        const command = payload.command ?? "";
+
+        if (
+          zaloErrorCode === 114 &&
+          command.includes("send-reaction")
+        ) {
+          toast.error(
+            "Zalo từ chối cảm xúc (114). Kiểm tra group.uid, msgId và cliMsgId từ tin nhắn gốc.",
+          );
+          return;
+        }
+
+        const hint =
+          WS_ACTION_FAILURE_HINT[command] ?? "Thao tác chat thất bại.";
+        toast.error(hint);
       }
     });
   }, [subscribe]);

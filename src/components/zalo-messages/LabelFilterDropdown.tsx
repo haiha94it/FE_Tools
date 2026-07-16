@@ -149,7 +149,7 @@ function LabelFilterDropdown({
                 </p>
               </div>
 
-              <div className="max-h-[240px] overflow-y-auto py-1">
+              <div className="custom-scrollbar max-h-[240px] overflow-y-auto overscroll-contain py-1">
                 <button
                   type="button"
                   onClick={() => handleSelect(null)}

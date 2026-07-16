@@ -197,7 +197,7 @@ function ConversationPanel({
           </p>
         ) : null}
 
-        <div className="flex gap-1 overflow-x-auto pb-0.5 [scrollbar-width:none]">
+        <div className="no-scrollbar flex gap-1 overflow-x-auto overscroll-x-contain pb-0.5">
           {FILTERS.map((item) => (
             <button
               key={item.id}

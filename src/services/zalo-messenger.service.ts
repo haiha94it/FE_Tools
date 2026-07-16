@@ -247,43 +247,6 @@ export const zaloMessengerService = {
     return normalizeStickerList(body);
   },
 
-  async sendReaction(payload: {
-    conversation: MessengerConversation;
-    message: {
-      msgId?: string | number;
-      cliMsgId?: string | number;
-      idTo?: string;
-    };
-    reactionId: number;
-  }): Promise<void> {
-    const { conversation, message, reactionId } = payload;
-    const isGroup = Boolean(conversation.group?.id);
-    const endpoint = isGroup
-      ? API_ZALO_MESSENGER.SEND_REACTION_TO_GROUP
-      : API_ZALO_MESSENGER.SEND_REACTION_TO_UID;
-
-    const body = isGroup
-      ? {
-          id_account: conversation.account,
-          grid: conversation.group?.uid ?? conversation.group?.id,
-          msgId: Number(message.msgId),
-          cliMsgId: Number(message.cliMsgId),
-          reaction: reactionId,
-        }
-      : {
-          id_account: conversation.account,
-          idTo:
-            message.idTo === "0"
-              ? conversation.friend?.id
-              : message.idTo,
-          msgId: Number(message.msgId),
-          cliMsgId: Number(message.cliMsgId),
-          reaction: reactionId,
-        };
-
-    await api.post(endpoint, body);
-  },
-
   async markAllConversationsRead(id_account: number): Promise<void> {
     await api.post(API_ZALO_MESSENGER.MARK_READ_ALL, { id_account });
   },

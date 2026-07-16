@@ -201,6 +201,22 @@ export interface MessageAckPayload {
   result?: unknown;
 }
 
+/** Response WS cho reaction / sticker / forward / block — `type: message` */
+export interface WsActionMessagePayload {
+  type: "message";
+  command?: string;
+  success?: boolean;
+  status?: string;
+  requestId?: string;
+  id_conversation?: number;
+  result?: {
+    success?: boolean;
+    error_code?: number;
+    message?: string;
+  };
+  error?: string;
+}
+
 export type MessengerConversationFilter = "all" | "unread" | "friend" | "group";
 
 export type MessengerMobilePanel = "accounts" | "conversations" | "chat";
@@ -209,10 +225,22 @@ export type MessengerChatType =
   | "send-message"
   | "send-file"
   | "quote"
+  | "share-photo"
+  | "share-video"
+  | "share-file"
+  | "share-link"
+  | "share-product"
   | "mention-all"
   | "mentions"
   | "send-sticker"
-  | "send-message-phone";
+  | "forward-video"
+  | "forward-album"
+  | "send-message-phone"
+  | "send-message-uid"
+  | "send-reaction-to-group"
+  | "send-reaction-to-uid"
+  | "block-friend"
+  | "reset-unread-count";
 
 export interface MessengerCreateGroupResult {
   status?: string;

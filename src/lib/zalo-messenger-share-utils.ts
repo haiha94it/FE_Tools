@@ -15,7 +15,7 @@ export function buildShareWsPayload(
       id_conversation: targetConversationId,
       message: text,
       attachment: null,
-      chat_type: "send-message",
+      type: "send-message",
       message_details: null,
       phone_number: null,
     };
@@ -30,7 +30,7 @@ export function buildShareWsPayload(
       id_conversation: targetConversationId,
       message: "",
       attachment: null,
-      chat_type: "share-photo",
+      type: "share-photo",
       message_details: {
         uidFrom: message.uidFrom === "0" ? accountUid : message.uidFrom,
         qmsgId: message.msgId,
@@ -55,7 +55,7 @@ export function buildShareWsPayload(
     return {
       id_conversation: targetConversationId,
       message: "",
-      chat_type: "share-video",
+      type: "share-video",
       share_info: {
         url: href,
         thumb: attachment.thumb || href,
@@ -70,7 +70,7 @@ export function buildShareWsPayload(
     return {
       id_conversation: targetConversationId,
       message: "",
-      chat_type: "share-file",
+      type: "share-file",
       share_info: {
         url: href,
         fileName: attachment.title || "Tệp đính kèm",
@@ -86,7 +86,7 @@ export function buildShareWsPayload(
     return {
       id_conversation: targetConversationId,
       message: "",
-      chat_type: "share-photo",
+      type: "share-photo",
       share_info: {
         oriUrl: stickerUrl,
         title: "",
