@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import AvatarText from "@/components/ui/avatar/AvatarText";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import React, { useState } from "react";
@@ -41,12 +41,11 @@ export default function UserDropdown() {
           className="dropdown-toggle flex cursor-pointer items-center text-gray-700 dark:text-gray-400"
           aria-label="Menu tài khoản"
         >
-        <span className="mr-3 h-11 w-11 overflow-hidden rounded-full">
-          <Image
-            width={44}
-            height={44}
-            src="/images/user/owner.jpg"
-            alt={displayName}
+        <span className="mr-3 shrink-0">
+          <AvatarText
+            name={displayName}
+            size="md"
+            className="!h-11 !w-11 !text-sm"
           />
         </span>
 

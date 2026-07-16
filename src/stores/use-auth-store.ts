@@ -27,6 +27,11 @@ interface AuthState {
   ensureCareSession: () => Promise<boolean>;
   bootstrap: () => Promise<void>;
   activateEmail: (token: string) => Promise<void>;
+  acceptTerms: (payload?: {
+    signature?: string;
+    contractPdfBase64?: string;
+    contractFilename?: string;
+  }) => Promise<void>;
   logout: () => Promise<void>;
   clearError: () => void;
 }
@@ -149,6 +154,26 @@ export const useAuthStore = create<AuthState>()(
         } finally {
           set({ isBootstrapped: true });
         }
+      },
+
+      acceptTerms: async (payload) => {
+        await runAsyncAction(
+          async () => {
+            await authService.acceptTerms(
+              payload?.signature || payload?.contractPdfBase64
+                ? {
+                    signature: payload.signature,
+                    contract_pdf: payload.contractPdfBase64,
+                    contract_filename: payload.contractFilename,
+                  }
+                : undefined,
+            );
+            const user = await authService.fetchMe();
+            set({ user, isAuthenticated: true });
+          },
+          set,
+          { silent: true },
+        );
       },
 
       logout: async () => {

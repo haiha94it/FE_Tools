@@ -175,10 +175,7 @@ function MessageDetailDialog({
               label="Người thao tác"
             >
               <div className="flex items-center gap-3">
-                <AvatarText
-                  name={detail.operatorName}
-                  className="!h-9 !w-9 text-xs"
-                />
+                <AvatarText name={detail.operatorName} size="sm" />
                 <div className="min-w-0">
                   <p className="truncate font-medium">{detail.operatorName}</p>
                   {detail.operatorUsername ? (

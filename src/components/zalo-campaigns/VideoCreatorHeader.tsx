@@ -1,5 +1,6 @@
 "use client";
 
+import AvatarText from "@/components/ui/avatar/AvatarText";
 import { VIDEO_CREATOR_BASE } from "@/config/api";
 import { isZaloAccountActive } from "@/lib/zalo-account-utils";
 import { useZaloVideoStore } from "@/stores/use-zalo-video-store";
@@ -71,9 +72,7 @@ export default function VideoCreatorHeader({
                   className="h-8 w-8 shrink-0 rounded-full object-cover"
                 />
               ) : (
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100 text-xs font-semibold text-gray-600 dark:bg-gray-800 dark:text-gray-300">
-                  {label.charAt(0).toUpperCase()}
-                </span>
+                <AvatarText name={label} size="sm" />
               )}
               <span className="max-w-[100px] truncate text-left text-xs font-medium text-gray-700 dark:text-gray-300">
                 {label}

@@ -1,5 +1,6 @@
 "use client";
 
+import AvatarText from "@/components/ui/avatar/AvatarText";
 import Button from "@/components/ui/button/Button";
 import Input from "@/components/form/input/InputField";
 import TimePicker from "@/components/form/time-picker";
@@ -724,7 +725,9 @@ export default function InviteJoinGroupCampaignFormModal({
                               unoptimized
                               className="object-cover"
                             />
-                          ) : null}
+                          ) : (
+                            <AvatarText name={label} size="md" className="!h-10 !w-10" />
+                          )}
                         </span>
                         <span className="min-w-0 max-w-[140px] text-left">
                           <span className="block truncate text-sm font-medium text-gray-800 dark:text-white/90">

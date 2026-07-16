@@ -3,6 +3,7 @@ import api, { clearTokens, getRefreshToken, updateTokens } from "@/lib/axios";
 import { clearCareTokens, updateCareTokens } from "@/lib/care-axios";
 import { mapApiUser } from "@/lib/map-auth-user";
 import type {
+  AcceptTermsPayload,
   ApiUserProfile,
   AuthUser,
   LoginCareResponse,
@@ -36,6 +37,15 @@ export const authService = {
   async fetchMe(): Promise<AuthUser> {
     const response = await api.get<ApiUserProfile>(API_AUTH.ME);
     return mapApiUser(response.data);
+  },
+
+  /** Xác nhận điều khoản — POST kèm chữ ký + PDF; fallback GET (ZaloCN) khi không có payload */
+  async acceptTerms(payload?: AcceptTermsPayload): Promise<void> {
+    if (payload?.signature || payload?.contract_pdf) {
+      await api.post(API_AUTH.ACCEPT_TERMS, payload);
+      return;
+    }
+    await api.get(API_AUTH.ACCEPT_TERMS);
   },
 
   async logout(): Promise<void> {

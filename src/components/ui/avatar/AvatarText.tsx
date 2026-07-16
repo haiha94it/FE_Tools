@@ -1,45 +1,36 @@
+import { getAvatarColorClass, getAvatarInitials } from "@/lib/avatar-utils";
 import React from "react";
+
+export type AvatarTextSize = "xs" | "sm" | "md" | "lg" | "xl";
 
 interface AvatarTextProps {
   name: string;
+  size?: AvatarTextSize;
   className?: string;
 }
 
-const AvatarText: React.FC<AvatarTextProps> = ({ name, className = "" }) => {
-  // Generate initials from name
-  const initials = name
-    .split(" ")
-    .map((word) => word[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
+const sizeClasses: Record<AvatarTextSize, string> = {
+  xs: "h-6 w-6 text-[10px]",
+  sm: "h-8 w-8 text-xs",
+  md: "h-10 w-10 text-sm",
+  lg: "h-12 w-12 text-base",
+  xl: "h-14 w-14 text-lg",
+};
 
-  // Generate a consistent pastel color based on the name
-  const getColorClass = (name: string) => {
-    const colors = [
-      "bg-brand-100 text-brand-600",
-      "bg-pink-100 text-pink-600",
-      "bg-cyan-100 text-cyan-600",
-      "bg-orange-100 text-orange-600",
-      "bg-green-100 text-green-600",
-      "bg-purple-100 text-purple-600",
-      "bg-yellow-100 text-yellow-600",
-      "bg-error-100 text-error-600",
-    ];
-
-    const index = name
-      .split("")
-      .reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    return colors[index % colors.length];
-  };
+const AvatarText: React.FC<AvatarTextProps> = ({
+  name,
+  size = "md",
+  className = "",
+}) => {
+  const initials = getAvatarInitials(name);
+  const colorClass = getAvatarColorClass(name);
 
   return (
     <div
-      className={`flex h-10 w-10 ${className} items-center justify-center rounded-full ${getColorClass(
-        name
-      )}`}
+      className={`flex shrink-0 items-center justify-center rounded-full font-semibold ${sizeClasses[size]} ${colorClass} ${className}`.trim()}
+      aria-hidden
     >
-      <span className="text-sm font-medium">{initials}</span>
+      <span>{initials}</span>
     </div>
   );
 };

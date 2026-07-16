@@ -1,4 +1,4 @@
-import AvatarText from "@/components/ui/avatar/AvatarText";
+import AvatarText, { type AvatarTextSize } from "@/components/ui/avatar/AvatarText";
 
 interface ContactAvatarProps {
   name: string;
@@ -6,23 +6,38 @@ interface ContactAvatarProps {
   size?: "sm" | "md";
 }
 
+const sizeMap: Record<NonNullable<ContactAvatarProps["size"]>, AvatarTextSize> = {
+  sm: "sm",
+  md: "md",
+};
+
+const imageSizeMap = {
+  sm: 32,
+  md: 40,
+} as const;
+
+const imageClassMap = {
+  sm: "h-8 w-8",
+  md: "h-10 w-10",
+} as const;
+
 export default function ContactAvatar({
   name,
   avatar,
   size = "sm",
 }: ContactAvatarProps) {
-  const sizeClass = size === "sm" ? "h-9 w-9" : "h-10 w-10";
-  const textSizeClass = size === "sm" ? "h-9 w-9 text-xs" : "h-10 w-10";
-  const imageSize = size === "sm" ? 36 : 40;
+  const displayName = name.trim() || "?";
 
   if (avatar) {
     return (
-      <div className={`${sizeClass} shrink-0 overflow-hidden rounded-full`}>
+      <div
+        className={`${imageClassMap[size]} shrink-0 overflow-hidden rounded-full`}
+      >
         <img
-          width={imageSize}
-          height={imageSize}
+          width={imageSizeMap[size]}
+          height={imageSizeMap[size]}
           src={avatar}
-          alt={name}
+          alt={displayName}
           loading="lazy"
           decoding="async"
           className="h-full w-full object-cover"
@@ -31,7 +46,7 @@ export default function ContactAvatar({
     );
   }
 
-  return <AvatarText name={name} className={textSizeClass} />;
+  return <AvatarText name={displayName} size={sizeMap[size]} />;
 }
 
 interface ContactNameCellProps {

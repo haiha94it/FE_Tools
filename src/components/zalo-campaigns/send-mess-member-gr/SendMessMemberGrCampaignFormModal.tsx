@@ -1,5 +1,6 @@
 "use client";
 
+import AvatarText from "@/components/ui/avatar/AvatarText";
 import Button from "@/components/ui/button/Button";
 import Input from "@/components/form/input/InputField";
 import TimePicker from "@/components/form/time-picker";
@@ -583,7 +584,13 @@ export default function SendMessMemberGrCampaignFormModal({
                         <span className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
                           {account.avatar ? (
                             <Image src={account.avatar} alt="" fill unoptimized className="object-cover" />
-                          ) : null}
+                          ) : (
+                            <AvatarText
+                              name={account.name || `#${account.id}`}
+                              size="sm"
+                              className="!h-9 !w-9"
+                            />
+                          )}
                         </span>
                         <span className="max-w-[120px] truncate text-left text-sm font-medium text-gray-800 dark:text-white/90">
                           {account.name || `#${account.id}`}

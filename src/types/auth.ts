@@ -20,6 +20,7 @@ export interface ApiUserProfile {
   is_manager?: boolean;
   is_employee?: boolean;
   is_developer?: boolean;
+  accept_terms?: boolean;
 }
 
 export interface AuthUser {
@@ -41,6 +42,13 @@ export interface AuthUser {
   isManager?: boolean;
   isEmployee?: boolean;
   isDeveloper?: boolean;
+  acceptTerms?: boolean;
+}
+
+export interface AcceptTermsPayload {
+  signature?: string;
+  contract_pdf?: string;
+  contract_filename?: string;
 }
 
 export interface AuthTokens {

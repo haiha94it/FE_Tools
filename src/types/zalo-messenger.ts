@@ -107,6 +107,13 @@ export interface MessengerMessageAttachment {
   description?: string;
   /** Thời lượng voice/video (ms) */
   durationMs?: number;
+  /** share.file — phần mở rộng từ content.params */
+  fileExt?: string;
+  fileSizeBytes?: number;
+  /** share.file — video / image / file (CDN Zalo thường trả attachment download) */
+  fileKind?: "video" | "image" | "file";
+  /** Link CDN — mở sẽ tải file, không stream inline */
+  downloadOnly?: boolean;
 }
 
 /** Một ô trong album ảnh/video Zalo (group_layout_id) */

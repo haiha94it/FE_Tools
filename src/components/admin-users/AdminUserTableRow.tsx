@@ -67,7 +67,7 @@ export default function AdminUserTableRow({
       <TableCell className={`${cellClass} w-14 tabular-nums`}>{index}</TableCell>
       <TableCell className="px-4 py-3 text-start">
         <div className="flex min-w-[180px] items-center gap-3">
-          <AvatarText name={displayName} className="!h-9 !w-9 !text-xs" />
+          <AvatarText name={displayName} size="sm" />
           <div className="min-w-0">
             <p className="truncate font-medium text-gray-800 text-theme-sm dark:text-white/90">
               {user.username}

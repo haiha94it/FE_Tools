@@ -62,7 +62,7 @@ export const Modal: React.FC<ModalProps> = ({
 
   const panelClasses = isFullscreen
     ? "relative z-10 h-full w-full"
-    : `relative z-10 flex max-h-[calc(100dvh-2rem)] w-full flex-col overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-theme-xl dark:border-gray-800 dark:bg-gray-900 ${className}`;
+    : `relative z-10 flex max-h-[calc(100dvh-2rem)] w-full min-w-0 flex-col overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-theme-xl dark:border-gray-800 dark:bg-gray-900 ${className}`;
 
   const layerClass = layer === "top" ? "z-[100001]" : "z-[99999]";
 

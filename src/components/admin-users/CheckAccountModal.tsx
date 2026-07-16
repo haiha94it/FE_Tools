@@ -1,14 +1,15 @@
 "use client";
 
 import Input from "@/components/form/input/InputField";
+import AvatarText from "@/components/ui/avatar/AvatarText";
 import Button from "@/components/ui/button/Button";
+import Image from "next/image";
 import { Modal } from "@/components/ui/modal";
 import { confirm } from "@/lib/confirm";
 import { getApiErrorMessage } from "@/lib/errors";
 import { toast } from "@/lib/toast";
 import { zaloUserAdminService } from "@/services/zalo-user-admin.service";
 import type { CheckedZaloAccount } from "@/types/zalo-user-admin";
-import Image from "next/image";
 import { useState } from "react";
 
 interface CheckAccountModalProps {
@@ -89,7 +90,9 @@ export default function CheckAccountModal({ open, onClose }: CheckAccountModalPr
                     className="rounded-full object-cover"
                     unoptimized
                   />
-                ) : null}
+                ) : (
+                  <AvatarText name={item.name ?? "?"} size="md" />
+                )}
                 <p className="font-semibold text-gray-800 dark:text-white/90">
                   {item.name ?? "—"}
                 </p>

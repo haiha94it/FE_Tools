@@ -49,6 +49,9 @@ export function useMessengerSend(options?: {
     (s) => s.buildOutboundPayloads,
   );
   const clearComposer = useZaloMessengerStore((s) => s.clearComposer);
+  const resetConversationUnread = useZaloMessengerStore(
+    (s) => s.resetConversationUnread,
+  );
 
   const send = useCallback((mentionInfo: MessengerMentionInfo[] = []) => {
     if (!selectedAccountId || !activeConversationId) return false;
@@ -76,6 +79,10 @@ export function useMessengerSend(options?: {
 
     if (!payloads.length) return false;
 
+    if (activeConversation?.new_message) {
+      resetConversationUnread(selectedAccountId, activeConversationId);
+    }
+
     for (const payload of payloads) {
       const sent = wsSendPayload(wsSend, payload);
       if (!sent) {
@@ -87,11 +94,13 @@ export function useMessengerSend(options?: {
     clearComposer();
     return true;
   }, [
+    activeConversation,
     activeConversationId,
     attachmentDrafts.length,
     buildOutboundPayloads,
     clearComposer,
     composerText,
+    resetConversationUnread,
     options?.accountUid,
     selectedAccountId,
     uploadingAttachment,

@@ -44,6 +44,7 @@ import {
   LocationMessageContent,
   RecommendedContactContent,
   SystemTipContent,
+  VideoMessageContent,
   VoiceMessageContent,
 } from "./MessageRichContent";
 import type { MessageMediaPreviewItem } from "./MessageMediaLightbox";
@@ -200,44 +201,18 @@ function MessageContent({
   }
 
   if (attachment?.action === "video" || message.msgType === "chat.video.msg") {
-    const thumb = attachment?.thumb || attachment?.href;
     const videoSrc = attachment?.href || attachment?.thumb;
-
+    if (!videoSrc) {
+      return <span className="text-sm">Video</span>;
+    }
     return (
       <div className="space-y-1">
-        {videoSrc ? (
-          <button
-            type="button"
-            onClick={() =>
-              onOpenPreview({
-                type: "video",
-                src: videoSrc,
-                title: text || attachment?.title,
-              })
-            }
-            className="group relative block max-w-[240px] overflow-hidden rounded-xl"
-          >
-            {thumb ? (
-              <Image
-                src={thumb}
-                alt="Video"
-                width={240}
-                height={160}
-                className="h-auto w-full object-cover transition group-hover:brightness-90"
-                unoptimized
-              />
-            ) : (
-              <span className="flex h-40 w-60 items-center justify-center rounded-xl bg-black/20 text-sm">
-                Video
-              </span>
-            )}
-            <span className="absolute inset-0 flex items-center justify-center bg-black/30 text-white text-xs font-medium transition group-hover:bg-black/40">
-              ▶ Phát video
-            </span>
-          </button>
-        ) : (
-          <span className="text-sm">Video</span>
-        )}
+        <VideoMessageContent
+          src={videoSrc}
+          thumb={attachment?.thumb}
+          title={text || attachment?.title}
+          onOpenPreview={onOpenPreview}
+        />
         {text ? <p className={messageTextClass}>{text}</p> : null}
       </div>
     );
@@ -277,12 +252,16 @@ function MessageContent({
     );
   }
 
-  if (attachment?.action === "file" || message.msgType === "share.file") {
+  if (attachment?.action === "file") {
     return (
       <FileAttachmentContent
         href={attachment?.href}
         title={attachment?.title}
         thumb={attachment?.thumb}
+        fileExt={attachment?.fileExt}
+        fileSizeBytes={attachment?.fileSizeBytes}
+        fileKind={attachment?.fileKind}
+        downloadOnly={attachment?.downloadOnly}
         onOpenPreview={onOpenPreview}
       />
     );

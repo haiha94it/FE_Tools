@@ -73,6 +73,61 @@ export function resolveStickerImageUrl(message: DisplayMessage): string | null {
   );
 }
 
+const VIDEO_FILE_EXTENSIONS = new Set([
+  "mp4",
+  "mov",
+  "avi",
+  "mkv",
+  "webm",
+  "m4v",
+  "3gp",
+]);
+
+const IMAGE_FILE_EXTENSIONS = new Set([
+  "jpg",
+  "jpeg",
+  "png",
+  "gif",
+  "webp",
+  "bmp",
+  "heic",
+  "heif",
+]);
+
+function extractNameExtension(value?: string | null): string {
+  if (!value) return "";
+  const clean = value.split("?")[0]?.split("#")[0] ?? "";
+  const dot = clean.lastIndexOf(".");
+  if (dot < 0 || dot === clean.length - 1) return "";
+  return clean.slice(dot + 1).toLowerCase();
+}
+
+/** share.file — suy loại media từ params.fileExt / tên file / URL */
+export function inferShareFileMediaKind(options: {
+  href?: string;
+  title?: string;
+  fileExt?: string;
+}): "video" | "image" | "file" {
+  const ext = (
+    trimToString(options.fileExt).toLowerCase() ||
+    extractNameExtension(options.title) ||
+    extractNameExtension(options.href)
+  );
+  if (VIDEO_FILE_EXTENSIONS.has(ext)) return "video";
+  if (IMAGE_FILE_EXTENSIONS.has(ext)) return "image";
+  return "file";
+}
+
+export function formatFileSize(bytes?: number): string {
+  if (bytes == null || !Number.isFinite(bytes) || bytes <= 0) return "";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  if (bytes < 1024 * 1024 * 1024) {
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+}
+
 function parseContentParams(params: unknown): Record<string, unknown> | null {
   if (params == null || params === "") return null;
   if (typeof params === "object" && !Array.isArray(params)) {
@@ -450,15 +505,34 @@ export function normalizeIncomingMessage(raw: RawZaloMessage): DisplayMessage {
 
     case "share.file": {
       const record = readContentRecord(content);
+      const params = parseContentParams(record?.params);
       const href = trimToString(record?.href);
       const thumb = trimToString(record?.thumb);
       const title = trimToString(record?.title) || "Tệp đính kèm";
+      const fileExt = trimToString(params?.fileExt).toLowerCase();
+      const rawSize = Number(params?.fileSize);
+      const fileSizeBytes =
+        Number.isFinite(rawSize) && rawSize > 0 ? rawSize : undefined;
+      const fileKind = inferShareFileMediaKind({ href, title, fileExt });
+
       return {
         ...base,
         attachments: href
-          ? [{ href, thumb: thumb || undefined, title, action: "file" }]
+          ? [
+              {
+                href,
+                thumb: thumb || undefined,
+                title,
+                action: "file",
+                fileExt: fileExt || undefined,
+                fileSizeBytes,
+                fileKind,
+                /** CDN dlfl — Content-Disposition attachment, không phát inline */
+                downloadOnly: true,
+              },
+            ]
           : [],
-        text_message: thumb ? [] : [{ text: title }],
+        text_message: [],
       };
     }
 
@@ -543,7 +617,10 @@ export function getMessageKindLabel(message: DisplayMessage): string {
   if (message.msgType === "chat.photo") return "Ảnh";
   if (message.msgType === "chat.video.msg" || action === "video") return "Video";
   if (message.msgType === "chat.voice" || action === "voice") return "Tin thoại";
-  if (message.msgType === "share.file" || action === "file") return "Tệp đính kèm";
+  if (action === "file") {
+    if (attachment?.fileKind === "video") return "Video";
+    return "Tệp đính kèm";
+  }
   if (message.msgType === "chat.location.new" || action === "location") {
     return "Vị trí";
   }

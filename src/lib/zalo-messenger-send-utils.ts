@@ -149,7 +149,9 @@ export function getQuotePreviewText(message: DisplayMessage): string {
       : "Danh thiếp";
   }
   if (message.msgType === "share.file") {
-    return message.attachments?.[0]?.title || "Tệp đính kèm";
+    const att = message.attachments?.[0];
+    if (att?.fileKind === "video") return "Video";
+    return att?.title || "Tệp đính kèm";
   }
   return "Tin nhắn";
 }

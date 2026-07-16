@@ -5,8 +5,10 @@ import type {
   MessengerGroupMediaItem,
 } from "@/types/zalo-messenger";
 import Image from "next/image";
+import { formatFileSize } from "@/lib/zalo-messenger-message-utils";
 import {
   HiOutlineBellAlert,
+  HiOutlineDocumentArrowDown,
   HiOutlineMapPin,
   HiOutlinePlay,
   HiOutlineUserPlus,
@@ -297,20 +299,80 @@ export function VoiceMessageContent({
   );
 }
 
+function fileExtLabel(fileExt?: string, title?: string, href?: string): string {
+  const ext =
+    fileExt?.toUpperCase() ||
+    (title?.split(".").pop() ?? href?.split(".").pop() ?? "").toUpperCase();
+  return ext.length <= 6 ? ext : "FILE";
+}
+
+function buildDownloadFileName(title?: string, fileExt?: string): string | undefined {
+  const name = title?.trim();
+  if (!name) return undefined;
+  if (fileExt && !name.toLowerCase().endsWith(`.${fileExt.toLowerCase()}`)) {
+    return `${name}.${fileExt}`;
+  }
+  return name;
+}
+
 export function FileAttachmentContent({
   href,
   title,
   thumb,
+  fileExt,
+  fileSizeBytes,
+  fileKind,
+  downloadOnly = false,
   onOpenPreview,
 }: {
   href?: string;
   title?: string;
   thumb?: string;
+  fileExt?: string;
+  fileSizeBytes?: number;
+  fileKind?: "video" | "image" | "file";
+  downloadOnly?: boolean;
   onOpenPreview: (item: MessageMediaPreviewItem) => void;
 }) {
+  const sizeLabel = formatFileSize(fileSizeBytes);
+  const extLabel = fileExtLabel(fileExt, title, href);
+  const downloadName = buildDownloadFileName(title, fileExt);
+
+  if (href && downloadOnly && fileKind === "video") {
+    return (
+      <a
+        href={href}
+        target="_blank"
+        rel="noreferrer"
+        download={downloadName}
+        className="flex max-w-[min(100%,300px)] items-center gap-3 rounded-xl border border-gray-200 bg-gradient-to-br from-gray-900 to-gray-800 px-3.5 py-3 text-white shadow-sm transition hover:border-brand-400/40 hover:from-gray-800 hover:to-gray-900 dark:border-gray-700"
+      >
+        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/10">
+          <HiOutlinePlay className="h-6 w-6" aria-hidden />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-xs font-medium uppercase tracking-wide text-white/60">
+            Video · tải xuống
+          </span>
+          <span className="mt-0.5 block truncate text-sm font-medium">
+            {title || "Video đính kèm"}
+          </span>
+          <span className="mt-0.5 block text-xs text-white/55">
+            {[extLabel, sizeLabel].filter(Boolean).join(" · ") || "Nhấn để tải file"}
+          </span>
+        </span>
+        <HiOutlineDocumentArrowDown
+          className="h-5 w-5 shrink-0 text-white/70"
+          aria-hidden
+        />
+      </a>
+    );
+  }
+
   const isImageFile =
-    Boolean(thumb) ||
-    /\.(jpg|jpeg|png|gif|webp)(\?|$)/i.test(href ?? "");
+    !downloadOnly &&
+    (Boolean(thumb) ||
+      /\.(jpg|jpeg|png|gif|webp|bmp|heic)(\?|$)/i.test(href ?? title ?? ""));
 
   if (isImageFile && href) {
     return (
@@ -342,15 +404,78 @@ export function FileAttachmentContent({
       href={href}
       target="_blank"
       rel="noreferrer"
-      className="flex max-w-[260px] items-center gap-2.5 rounded-xl border border-gray-100 bg-gray-50 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900/40"
+      download={downloadOnly ? downloadName : undefined}
+      className="flex max-w-[min(100%,280px)] items-center gap-3 rounded-xl border border-gray-200 bg-gray-50/90 px-3 py-2.5 transition hover:border-brand-200 hover:bg-brand-50/40 dark:border-gray-700 dark:bg-gray-900/50 dark:hover:border-brand-500/30"
     >
-      <span className="text-lg" aria-hidden>
-        📎
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-[10px] font-bold uppercase tracking-wide text-brand-600 dark:bg-brand-500/15 dark:text-brand-400">
+        {extLabel || "FILE"}
       </span>
-      <span className="min-w-0 flex-1 truncate underline-offset-2 hover:underline">
-        {title || "Tệp đính kèm"}
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm font-medium text-gray-800 dark:text-white/90">
+          {title || "Tệp đính kèm"}
+        </span>
+        {sizeLabel ? (
+          <span className="mt-0.5 block text-xs text-gray-500 dark:text-gray-400">
+            {sizeLabel}
+          </span>
+        ) : null}
       </span>
+      <HiOutlineDocumentArrowDown
+        className="h-5 w-5 shrink-0 text-gray-400 dark:text-gray-500"
+        aria-hidden
+      />
     </a>
+  );
+}
+
+export function VideoMessageContent({
+  src,
+  thumb,
+  title,
+  onOpenPreview,
+}: {
+  src: string;
+  thumb?: string;
+  title?: string;
+  onOpenPreview: (item: MessageMediaPreviewItem) => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() =>
+        onOpenPreview({
+          type: "video",
+          src,
+          title,
+        })
+      }
+      className="group relative block max-w-[min(100%,260px)] overflow-hidden rounded-xl bg-gray-900/90"
+    >
+      {thumb ? (
+        <Image
+          src={thumb}
+          alt={title || "Video"}
+          width={260}
+          height={160}
+          className="h-auto min-h-[120px] w-full object-cover transition group-hover:brightness-90"
+          unoptimized
+        />
+      ) : (
+        <span className="flex min-h-[140px] w-full min-w-[200px] items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900 px-4 text-center text-xs text-gray-400">
+          {title ? (
+            <span className="line-clamp-2 break-all">{title}</span>
+          ) : (
+            "Video"
+          )}
+        </span>
+      )}
+      <span className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-black/35 text-white transition group-hover:bg-black/45">
+        <span className="flex h-11 w-11 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm">
+          <HiOutlinePlay className="h-6 w-6" aria-hidden />
+        </span>
+        <span className="text-xs font-medium">Phát video</span>
+      </span>
+    </button>
   );
 }
 

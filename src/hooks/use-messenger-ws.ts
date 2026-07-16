@@ -55,8 +55,10 @@ export function useMessengerWs() {
         mergeAccountBadge,
         appendLiveMessages,
         handleMessageAck,
+        resetConversationUnread,
         selectedAccountId,
         activeConversation,
+        activeConversationId,
         accounts,
       } = useZaloMessengerStore.getState();
 
@@ -92,6 +94,20 @@ export function useMessengerWs() {
 
         if (payload.account?.id != null) {
           mergeAccountBadge(payload.account.id, Boolean(payload.account.status));
+        }
+
+        if (
+          wsAccountId != null &&
+          wsAccountId === selectedAccountId &&
+          activeConversationId
+        ) {
+          const { conversations } = useZaloMessengerStore.getState();
+          const openConversation = conversations.find(
+            (item) => item.id === activeConversationId,
+          );
+          if (openConversation?.new_message) {
+            resetConversationUnread(wsAccountId, activeConversationId);
+          }
         }
         return;
       }

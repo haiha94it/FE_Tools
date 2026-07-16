@@ -20,8 +20,10 @@ import {
 import { getAssignedLabelIds } from "@/lib/zalo-label-utils";
 import { zaloFriendService } from "@/services/zalo-friend.service";
 import { zaloLabelService } from "@/services/zalo-label.service";
+import { buildResetUnreadWsPayload } from "@/lib/zalo-messenger-ws";
 import { zaloMessengerService } from "@/services/zalo-messenger.service";
 import { useAuthStore } from "@/stores/use-auth-store";
+import { useWebSocketStore } from "@/stores/use-websocket-store";
 import type { PaginatedResponse, ZaloFriendItem } from "@/types/zalo-contacts";
 import { getApiErrorMessage } from "@/lib/errors";
 import { toast } from "@/lib/toast";
@@ -168,6 +170,10 @@ interface ZaloMessengerState {
     categoryId: number,
   ) => Promise<void>;
   markAllConversationsRead: (accountId: number) => Promise<void>;
+  resetConversationUnread: (
+    accountId: number,
+    conversationId: number,
+  ) => void;
   fetchFriendsForCreateGroup: (
     accountId: number,
     options?: { search?: string; page?: number },
@@ -616,6 +622,57 @@ export const useZaloMessengerStore = create<ZaloMessengerState>((set, get) => ({
     }));
   },
 
+  resetConversationUnread: (accountId, conversationId) => {
+    const state = get();
+    const conversation =
+      state.conversations.find((item) => item.id === conversationId) ??
+      (state.activeConversationId === conversationId
+        ? state.activeConversation
+        : null);
+    if (!conversation?.new_message) return;
+
+    useWebSocketStore
+      .getState()
+      .send(buildResetUnreadWsPayload({ accountId, conversationId }));
+
+    set((current) => {
+      const conversations = current.conversations.map((item) =>
+        item.id === conversationId ? { ...item, new_message: false } : item,
+      );
+      const hasUnread = conversations.some((item) => item.new_message);
+      const accounts = current.accounts.map((item) =>
+        item.id === accountId ? { ...item, new_message: hasUnread } : item,
+      );
+      const activeConversation =
+        current.activeConversationId === conversationId &&
+        current.activeConversation
+          ? { ...current.activeConversation, new_message: false }
+          : current.activeConversation;
+
+      return {
+        conversations,
+        accounts,
+        activeConversation,
+        ...(current.selectedAccountId === accountId
+          ? {
+              conversationCache: saveConversationCache(
+                accountId,
+                {
+                  conversations,
+                  conversationLinks: current.conversationLinks,
+                  conversationPage: current.conversationPage,
+                  conversationSearch: current.conversationSearch,
+                  conversationFilter: current.conversationFilter,
+                  selectedCategoryId: current.selectedCategoryId,
+                },
+                current.conversationCache,
+              ),
+            }
+          : {}),
+      };
+    });
+  },
+
   fetchFriendsForCreateGroup: async (accountId, options = {}) => {
     return zaloFriendService.list({
       accountId,
@@ -737,12 +794,21 @@ export const useZaloMessengerStore = create<ZaloMessengerState>((set, get) => ({
     if (selectConversationInflight === conversationId) return;
 
     const state = get();
+    const existingConversation =
+      state.conversations.find((c) => c.id === conversationId) ??
+      (state.activeConversationId === conversationId
+        ? state.activeConversation
+        : null);
+
     if (
       state.activeConversationId === conversationId &&
       state.messages.length > 0 &&
       !state.messagesLoading &&
       !state.messagesLoadingMore
     ) {
+      if (existingConversation?.new_message) {
+        get().resetConversationUnread(accountId, conversationId);
+      }
       set({ mobilePanel: "chat" });
       return;
     }
@@ -751,9 +817,11 @@ export const useZaloMessengerStore = create<ZaloMessengerState>((set, get) => ({
     get().prepareConversationSwitch(conversationId);
     set({ mobilePanel: "chat" });
 
-    const existing = get().conversations.find((c) => c.id === conversationId);
-    if (existing) {
-      set({ activeConversation: existing });
+    if (existingConversation) {
+      set({ activeConversation: existingConversation });
+      if (existingConversation.new_message) {
+        get().resetConversationUnread(accountId, conversationId);
+      }
     }
 
     try {

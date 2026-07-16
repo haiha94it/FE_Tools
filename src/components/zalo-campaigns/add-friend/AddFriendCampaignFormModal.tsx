@@ -1,5 +1,6 @@
 "use client";
 
+import AvatarText from "@/components/ui/avatar/AvatarText";
 import Button from "@/components/ui/button/Button";
 import Checkbox from "@/components/form/input/Checkbox";
 import Input from "@/components/form/input/InputField";
@@ -489,7 +490,13 @@ export default function AddFriendCampaignFormModal({
                               unoptimized
                               className="object-cover"
                             />
-                          ) : null}
+                          ) : (
+                            <AvatarText
+                              name={account.name || `Tài khoản #${account.id}`}
+                              size="sm"
+                              className="!h-9 !w-9"
+                            />
+                          )}
                         </span>
                         <span className="min-w-0">
                           <span className="block truncate text-sm font-medium text-gray-800 dark:text-white/90">

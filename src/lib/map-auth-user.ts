@@ -60,5 +60,6 @@ export function mapApiUser(profile: ApiUserProfile): AuthUser {
     isManager: profile.is_manager,
     isEmployee: profile.is_employee,
     isDeveloper: profile.is_developer,
+    acceptTerms: profile.accept_terms ?? false,
   };
 }

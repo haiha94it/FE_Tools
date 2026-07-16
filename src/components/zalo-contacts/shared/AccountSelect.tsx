@@ -27,7 +27,6 @@ function AccountAvatar({
 }) {
   const displayName = getAccountLabel(account);
   const sizeClass = size === "sm" ? "h-8 w-8" : "h-9 w-9";
-  const textSizeClass = size === "sm" ? "h-8 w-8 text-xs" : "h-9 w-9";
 
   if (account.avatar) {
     return (
@@ -44,7 +43,7 @@ function AccountAvatar({
     );
   }
 
-  return <AvatarText name={displayName} className={textSizeClass} />;
+  return <AvatarText name={displayName} size={size === "sm" ? "sm" : "md"} />;
 }
 
 const triggerClass =

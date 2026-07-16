@@ -38,6 +38,7 @@ export const API_AUTH = {
   ACTIVATE: "/api/register/activate",
   REGISTER_RESULT: "/api/register/result",
   RESET_PASSWORD: "/api/users/reset-password/create",
+  ACCEPT_TERMS: "/api/users/accept-terms",
 } as const;
 
 /** Popup / thông báo hệ thống */

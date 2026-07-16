@@ -35,7 +35,7 @@ export default function TermsContent() {
 
   return (
     <div
-      className="prose prose-sm max-w-none text-gray-700 dark:prose-invert dark:text-gray-300"
+      className="dialog-quill text-sm leading-relaxed text-gray-700 dark:text-gray-300"
       dangerouslySetInnerHTML={{ __html: content }}
     />
   );
