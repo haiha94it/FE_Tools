@@ -1,5 +1,28 @@
 import type { MessengerFriend } from "@/types/zalo-messenger";
 
+/** Derive is_friend / is_waiting / is_request_sent từ relation_status (contract §4) */
+export function normalizeMessengerFriend(
+  friend: MessengerFriend | null | undefined,
+): MessengerFriend | null | undefined {
+  if (!friend) return friend;
+  const status = friend.relation_status;
+  if (status == null) return friend;
+  return {
+    ...friend,
+    is_friend: status === 1,
+    is_waiting: status === 2 || status === 3,
+    is_request_sent: status === 2,
+  };
+}
+
+export function normalizeConversationFriend(
+  conversation: { friend?: MessengerFriend | null },
+): void {
+  if (conversation.friend) {
+    conversation.friend = normalizeMessengerFriend(conversation.friend) ?? null;
+  }
+}
+
 export type ChatFriendActionKind =
   | "incoming_request"
   | "add_friend"

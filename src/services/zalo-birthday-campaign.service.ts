@@ -19,6 +19,11 @@ function normalizeCampaign(body: unknown): BirthdayCampaign | null {
   return null;
 }
 
+function stripCategoryId(payload: BirthdayCampaignFormPayload) {
+  const { id_category: _id, ...rest } = payload;
+  return rest;
+}
+
 export const zaloBirthdayCampaignService = {
   async getCampaign(): Promise<BirthdayCampaign | null> {
     const response = await api.get(API_ZALO_BIRTHDAY_CAMPAIGN.GET);
@@ -26,7 +31,14 @@ export const zaloBirthdayCampaignService = {
   },
 
   async createOrEditCampaign(payload: BirthdayCampaignFormPayload): Promise<void> {
-    await api.post(API_ZALO_BIRTHDAY_CAMPAIGN.CREATE_OR_EDIT, payload);
+    if (payload.id_category) {
+      await api.patch(
+        API_ZALO_BIRTHDAY_CAMPAIGN.detail(payload.id_category),
+        stripCategoryId(payload),
+      );
+    } else {
+      await api.post(API_ZALO_BIRTHDAY_CAMPAIGN.LIST, stripCategoryId(payload));
+    }
   },
 
   async startCampaign(id: number): Promise<void> {
@@ -60,8 +72,8 @@ export const zaloBirthdayCampaignService = {
   },
 
   async deleteResults(ids: number[]): Promise<void> {
-    await api.post(API_ZALO_BIRTHDAY_CAMPAIGN.DELETE_RESULTS, {
-      id_results: ids,
+    await api.delete(API_ZALO_BIRTHDAY_CAMPAIGN.RESULTS, {
+      data: { id_results: ids },
     });
   },
 

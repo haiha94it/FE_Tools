@@ -241,7 +241,10 @@ export const useZaloSendMessPhoneCampaignStore = create<SendMessPhoneCampaignSta
       if (!resultsSelectedIds.length || !resultsCampaignId) return;
       const idsToDelete = new Set(resultsSelectedIds);
       try {
-        await zaloSendMessPhoneCampaignService.deleteResults(resultsSelectedIds);
+        await zaloSendMessPhoneCampaignService.deleteResults(
+          resultsCampaignId,
+          resultsSelectedIds,
+        );
         set((state) => ({
           results: state.results.filter((item) => !idsToDelete.has(item.id)),
           resultsTotal: Math.max(0, state.resultsTotal - idsToDelete.size),

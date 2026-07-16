@@ -1,4 +1,5 @@
 import { env } from "@/config/env";
+import { buildCampaignApiPaths } from "@/lib/campaign-api-paths";
 
 /** Base URL API chính */
 export const API_BASE_URL = env.NEXT_PUBLIC_API_URL;
@@ -91,144 +92,62 @@ export const API_ZALO_FRIEND = {
   ADD_FRIEND: "/api/friend/add-friend",
 } as const;
 
-/** Chiến dịch kết bạn — đồng bộ ZaloCN /add-friend */
-export const API_ZALO_ADD_FRIEND_CAMPAIGN = {
-  LIST: "/api/friend/category/get",
-  CREATE_OR_EDIT: "/api/friend/category/create-or-edit",
-  ADD_TO_ACCOUNT: "/api/friend/category/add",
-  DELETE: "/api/friend/category/delete",
-  START: "/api/friend/category/start",
-  STOP: "/api/friend/category/stop",
-  COPY: "/api/friend/category/copy",
-  RESULTS: "/api/friend/category/result",
-  DELETE_RESULTS: "/api/friend/category/result/delete",
-  STATISTICS: "/api/friend/category/result/statistics",
-  FAILED_PHONES: "/api/friend/category/failed-campaigns-phone-numbers",
-  ACCOUNT_LIMIT: "/api/friend/category/account-limit",
-} as const;
+/** Chiến dịch kết bạn — /api/campaign/add-friend/category/ */
+export const API_ZALO_ADD_FRIEND_CAMPAIGN = buildCampaignApiPaths("add-friend");
 
 export const ADD_FRIEND_CAMPAIGN_BASE = "/zalo-campaigns/add-friend";
 
-/** Chiến dịch tham gia nhóm — đồng bộ ZaloCN /join-group */
-export const API_ZALO_JOIN_GROUP_CAMPAIGN = {
-  LIST: "/api/group/category",
-  CREATE_OR_EDIT: "/api/group/category/create-or-edit",
-  ADD_TO_ACCOUNT: "/api/group/category/add",
-  DELETE: "/api/group/category/delete",
-  START: "/api/group/category/start",
-  STOP: "/api/group/category/stop",
-  COPY: "/api/group/category/copy",
-  RESULTS: "/api/group/category/result",
-  DELETE_RESULTS: "/api/group/category/result/delete",
-  STATISTICS: "/api/group/category/result/statistics",
-  FAILED_LINKS: "/api/group/category/failed-campaigns-link-group",
-} as const;
+/** Chiến dịch tham gia nhóm — /api/campaign/join-group/category/ */
+export const API_ZALO_JOIN_GROUP_CAMPAIGN = buildCampaignApiPaths("join-group");
 
 export const JOIN_GROUP_CAMPAIGN_BASE = "/zalo-campaigns/join-group";
 
-/** Chiến dịch mời bạn bè tham gia nhóm — đồng bộ ZaloCN /invine-join-gr */
-export const API_ZALO_INVITE_JOIN_GROUP_CAMPAIGN = {
-  LIST: "/api/group/category/invite",
-  CREATE_OR_EDIT: "/api/group/category/invite/create-or-edit",
-  DELETE: "/api/group/category/invite/delete",
-  START: "/api/group/category/invite/start",
-  STOP: "/api/group/category/invite/stop",
-  COPY: "/api/group/category/invite/copy",
-  RESULTS: "/api/group/category/invite/result",
-  DELETE_RESULTS: "/api/group/category/invite/result/delete",
-  STATISTICS: "/api/group/category/invite/statistics",
-  FAILED_PHONES: "/api/group/category/invite/failed-campaigns-phone-numbers",
-} as const;
+/** Chiến dịch mời bạn bè tham gia nhóm — /api/campaign/invite-group/category/ */
+export const API_ZALO_INVITE_JOIN_GROUP_CAMPAIGN =
+  buildCampaignApiPaths("invite-group");
 
 export const INVITE_JOIN_GROUP_CAMPAIGN_BASE = "/zalo-campaigns/invite-join-group";
 
-/** Chiến dịch mời SĐT tham gia nhóm — đồng bộ ZaloCN /phone-number-invine-group */
-export const API_ZALO_PHONE_INVITE_GROUP_CAMPAIGN = {
-  LIST: "/api/group/category/invite-phone",
-  CREATE_OR_EDIT: "/api/group/category/invite-phone/create-or-edit",
-  DELETE: "/api/group/category/invite-phone/delete",
-  START: "/api/group/category/invite-phone/start",
-  STOP: "/api/group/category/invite-phone/stop",
-  COPY: "/api/group/category/invite-phone/copy",
-  RESULTS: "/api/group/category/invite-phone/result",
-  DELETE_RESULTS: "/api/group/category/invite-phone/result/delete",
-  STATISTICS: "/api/group/category/invite-phone/statistics",
-  ALL_GROUPS: "/api/campaign/spam-link-group/category/all-group",
-} as const;
+/** Chiến dịch mời SĐT tham gia nhóm — /api/campaign/invite-phone-group/category/ */
+export const API_ZALO_PHONE_INVITE_GROUP_CAMPAIGN =
+  buildCampaignApiPaths("invite-phone-group");
 
 export const PHONE_INVITE_GROUP_CAMPAIGN_BASE =
   "/zalo-campaigns/phone-number-invite-group";
 
-/** Chiến dịch nhắn tin bạn bè — đồng bộ ZaloCN /send-mes-fr */
-export const API_ZALO_SEND_MES_FR_CAMPAIGN = {
-  LIST: "/api/message/friend/category",
-  CREATE_OR_EDIT: "/api/message/friend/category/create-or-edit",
-  DELETE: "/api/message/friend/category/delete",
-  START: "/api/message/friend/category/start",
-  STOP: "/api/message/friend/category/stop",
-  COPY: "/api/message/friend/category/copy",
-  RESULTS: "/api/message/friend/result",
-  DELETE_RESULTS: "/api/message/friend/result/delete",
-  STATISTICS: "/api/message/friend/statistics",
-} as const;
+/** Chiến dịch nhắn tin bạn bè — /api/campaign/mess-friend/category/ */
+export const API_ZALO_SEND_MES_FR_CAMPAIGN =
+  buildCampaignApiPaths("mess-friend");
 
 export const SEND_MES_FR_CAMPAIGN_BASE = "/zalo-campaigns/send-mes-fr";
 
-/** Chiến dịch nhắn tin đến số điện thoại — đồng bộ ZaloCN /send-mess-number-phone */
-export const API_ZALO_SEND_MESS_PHONE_CAMPAIGN = {
-  LIST: "/api/message/phone-number/category",
-  CREATE_OR_EDIT: "/api/message/phone-number/category/create-or-edit",
-  DELETE: "/api/message/phone-number/category/delete",
-  START: "/api/message/phone-number/category/start",
-  STOP: "/api/message/phone-number/category/stop",
-  COPY: "/api/message/phone-number/category/copy",
-  RESULTS: "/api/message/phone-number/result",
-  DELETE_RESULTS: "/api/message/phone-number/result/delete",
-  STATISTICS: "/api/message/phone-number/statistics",
-} as const;
+/** Chiến dịch nhắn tin SĐT — /api/campaign/mess-phone-number/category/ */
+export const API_ZALO_SEND_MESS_PHONE_CAMPAIGN =
+  buildCampaignApiPaths("mess-phone-number");
 
 export const SEND_MESS_PHONE_CAMPAIGN_BASE =
   "/zalo-campaigns/send-mess-number-phone";
 
-/** Chiến dịch nhắn tin vào nhóm — đồng bộ ZaloCN /send-mes-group */
-export const API_ZALO_SEND_MES_GROUP_CAMPAIGN = {
-  LIST: "/api/message/group/category",
-  CREATE_OR_EDIT: "/api/message/group/category/create-or-edit",
-  DELETE: "/api/message/group/category/delete",
-  START: "/api/message/group/category/start",
-  STOP: "/api/message/group/category/stop",
-  COPY: "/api/message/group/category/copy",
-  RESULTS: "/api/message/group/result",
-  DELETE_RESULTS: "/api/message/group/result/delete",
-  STATISTICS: "/api/message/group/statistics",
-} as const;
+/** Chiến dịch nhắn tin vào nhóm — /api/campaign/mess-group/category/ */
+export const API_ZALO_SEND_MES_GROUP_CAMPAIGN =
+  buildCampaignApiPaths("mess-group");
 
 export const SEND_MES_GROUP_CAMPAIGN_BASE = "/zalo-campaigns/send-mes-group";
 
-/** Chiến dịch tương tác nhóm đã tham gia — đồng bộ ZaloCN /send-mess-member-gr */
-export const API_ZALO_SEND_MESS_MEMBER_GR_CAMPAIGN = {
-  LIST: "/api/message/mem-group/category",
-  CREATE_OR_EDIT: "/api/message/mem-group/category/create-or-edit",
-  DELETE: "/api/message/mem-group/category/delete",
-  START: "/api/message/mem-group/category/start",
-  STOP: "/api/message/mem-group/category/stop",
-  COPY: "/api/message/mem-group/category/copy",
-  RESULTS: "/api/message/mem-group/result",
-  DELETE_RESULTS: "/api/message/mem-group/result/delete",
-  STATISTICS: "/api/message/mem-group/statistics",
-} as const;
+/** Chiến dịch tương tác thành viên nhóm — /api/campaign/mess-member-group/category/ */
+export const API_ZALO_SEND_MESS_MEMBER_GR_CAMPAIGN =
+  buildCampaignApiPaths("mess-member-group");
 
 export const SEND_MESS_MEMBER_GR_CAMPAIGN_BASE =
   "/zalo-campaigns/send-mess-member-gr";
 
-/** Chúc mừng sinh nhật — đồng bộ ZaloCN /messenger-birthday */
+/** Chúc mừng sinh nhật — /api/campaign/mess-birthday/ (results không có {id}) */
+const MESS_BIRTHDAY_PATHS = buildCampaignApiPaths("mess-birthday");
 export const API_ZALO_BIRTHDAY_CAMPAIGN = {
-  GET: "/api/message/birthday/category",
-  CREATE_OR_EDIT: "/api/message/birthday/category/create-or-edit",
-  START: "/api/message/birthday/category/start",
-  STOP: "/api/message/birthday/category/stop",
-  RESULTS: "/api/message/birthday/result",
-  DELETE_RESULTS: "/api/message/birthday/result/delete",
+  ...MESS_BIRTHDAY_PATHS,
+  GET: MESS_BIRTHDAY_PATHS.LIST,
+  RESULTS: "/api/campaign/mess-birthday/results/",
+  RUN_NOW: "/api/campaign/mess-birthday/run-now/",
   SHOW_VIDEOS: "/api/message/video/show",
   SHOW_ALBUMS: "/api/message/album/show",
 } as const;

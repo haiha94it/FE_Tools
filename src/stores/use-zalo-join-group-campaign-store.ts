@@ -252,7 +252,10 @@ export const useZaloJoinGroupCampaignStore = create<JoinGroupCampaignState>(
       if (!resultsSelectedIds.length || !resultsCampaignId) return;
       const idsToDelete = new Set(resultsSelectedIds);
       try {
-        await zaloJoinGroupCampaignService.deleteResults(resultsSelectedIds);
+        await zaloJoinGroupCampaignService.deleteResults(
+          resultsCampaignId,
+          resultsSelectedIds,
+        );
         set((state) => ({
           results: state.results.filter((item) => !idsToDelete.has(item.id)),
           resultsTotal: Math.max(0, state.resultsTotal - idsToDelete.size),

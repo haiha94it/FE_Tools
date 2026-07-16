@@ -1,3 +1,4 @@
+import { normalizeConversationFriend } from "@/lib/zalo-messenger-friend-utils";
 import { getGroupMemberDisplay } from "@/lib/zalo-contacts-utils";
 import type { ZaloGroupMember } from "@/types/zalo-contacts";
 import type {
@@ -138,6 +139,7 @@ export function mergeConversationRecords(
   ) {
     merged.category_message = base.category_message;
   }
+  normalizeConversationFriend(merged);
   return merged;
 }
 
@@ -148,6 +150,9 @@ export function dedupeConversations(
   for (const conversation of conversations) {
     if (!Number.isFinite(conversation.id)) continue;
     const existing = byId.get(conversation.id);
+    if (!existing) {
+      normalizeConversationFriend(conversation);
+    }
     byId.set(
       conversation.id,
       existing
@@ -180,6 +185,7 @@ export function prepareConversationsFromGlobalUpdate(
   if (!latestByConv.size) return conversations;
 
   return conversations.map((conversation) => {
+    normalizeConversationFriend(conversation);
     const latest = latestByConv.get(conversation.id);
     if (!latest) return conversation;
 

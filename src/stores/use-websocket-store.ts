@@ -16,8 +16,6 @@ import { create } from "zustand";
 const MAX_RECONNECT_ATTEMPTS = 100;
 const BASE_RECONNECT_MS = 2000;
 const MAX_RECONNECT_MS = 30000;
-const PING_INTERVAL_MS = 60_000;
-
 const RECOVERABLE_CLOSE_CODES = new Set([
   1000, 1001, 1006, 1012, 1013, 4000, 4001, 4002, 4500,
 ]);
@@ -38,19 +36,12 @@ interface WebSocketState {
 let socket: WebSocket | null = null;
 let intentionalClose = false;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
-let pingTimer: ReturnType<typeof setInterval> | null = null;
 const listeners = new Set<WsMessageListener>();
 
 function clearReconnectTimer() {
   if (!reconnectTimer) return;
   clearTimeout(reconnectTimer);
   reconnectTimer = null;
-}
-
-function clearPingTimer() {
-  if (!pingTimer) return;
-  clearInterval(pingTimer);
-  pingTimer = null;
 }
 
 function notifyListeners(payload: WsMessagePayload) {
@@ -85,7 +76,6 @@ function closeActiveSocket() {
 
   const active = socket;
   socket = null;
-  clearPingTimer();
 
   if (
     active.readyState === WebSocket.CONNECTING ||
@@ -148,13 +138,6 @@ function bindSocketHandlers(
   client.onopen = () => {
     set({ status: "connected", reconnectAttempts: 0 });
     clearReconnectTimer();
-    clearPingTimer();
-
-    pingTimer = setInterval(() => {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(JSON.stringify({ type: "ping" }));
-      }
-    }, PING_INTERVAL_MS);
   };
 
   client.onmessage = async (event) => {
@@ -191,7 +174,6 @@ function bindSocketHandlers(
   };
 
   client.onclose = async (event) => {
-    clearPingTimer();
     if (socket === client) socket = null;
 
     if (intentionalClose) {
@@ -265,7 +247,6 @@ export const useWebSocketStore = create<WebSocketState>((set, get) => ({
   disconnect: () => {
     intentionalClose = true;
     clearReconnectTimer();
-    clearPingTimer();
     closeActiveSocket();
     set({
       status: "disconnected",

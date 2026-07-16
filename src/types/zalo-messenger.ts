@@ -21,6 +21,8 @@ export interface MessengerFriend {
   avatar?: string | null;
   gender?: string;
   phone_number?: string;
+  /** SSOT từ BE — 0 none · 1 bạn · 2 đã gửi · 3 nhận lời mời */
+  relation_status?: 0 | 1 | 2 | 3;
   is_friend?: boolean;
   is_waiting?: boolean;
   is_request_sent?: boolean;
