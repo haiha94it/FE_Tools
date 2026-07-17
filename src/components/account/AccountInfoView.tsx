@@ -244,24 +244,6 @@ export default function AccountInfoView() {
             <InfoTableRow label="Tài khoản" value={user?.username ?? "—"} />
             <InfoTableRow label="Họ và tên" value={user?.name ?? "Chưa cập nhật"} />
             <InfoTableRow label="Email" value={user?.email || "—"} />
-            <InfoTableRow label="Số điện thoại" value={user?.phone || "—"} />
-            <InfoTableRow
-              label="Facebook"
-              value={
-                user?.facebookLink ? (
-                  <a
-                    href={user.facebookLink}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="break-all text-brand-600 hover:underline dark:text-brand-400"
-                  >
-                    {user.facebookLink}
-                  </a>
-                ) : (
-                  "—"
-                )
-              }
-            />
             <InfoTableRow
               label="Quyền hạn"
               value={
