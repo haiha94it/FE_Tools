@@ -180,8 +180,13 @@ export default function BirthdayResultsPanel({ accounts }: BirthdayResultsPanelP
                           </span>
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-theme-sm font-medium text-gray-800 dark:text-white/90">
-                        {formatBirthdayResultStatus(row.status)}
+                      <td className="px-4 py-3 text-theme-sm font-medium">
+                        {(() => {
+                          const status = formatBirthdayResultStatus(row.status);
+                          return (
+                            <span className={status.className}>{status.label}</span>
+                          );
+                        })()}
                         {row.status_message ? (
                           <span className="mt-0.5 block text-theme-xs font-normal text-gray-500">
                             {row.status_message}

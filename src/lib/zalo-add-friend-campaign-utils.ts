@@ -44,21 +44,56 @@ export function formatCampaignRunStatus(
   }
 }
 
-export function formatResultStatus(status: AddFriendResultStatus): string {
+export interface CampaignLogStatusDisplay {
+  label: string;
+  className: string;
+}
+
+/**
+ * Màu trạng thái dòng log (khác status kịch bản).
+ * Living doc: 1 thành công · 0 thất bại · 3 limit/bị chặn
+ */
+export function getCampaignLogResultColor(
+  status: number | null | undefined,
+): string {
+  switch (status) {
+    case 1:
+      return "text-success-600 dark:text-success-400";
+    case 0:
+      return "text-error-600 dark:text-error-400";
+    case 3:
+      return "text-amber-600 dark:text-amber-400";
+    case 5:
+      return "text-brand-600 dark:text-brand-400";
+    default:
+      return "text-gray-600 dark:text-gray-400";
+  }
+}
+
+export function formatResultStatus(
+  status: AddFriendResultStatus,
+): CampaignLogStatusDisplay {
+  let label: string;
   switch (status) {
     case 0:
-      return "Thất bại";
+      label = "Thất bại";
+      break;
     case 1:
-      return "Thành công";
+      label = "Thành công";
+      break;
     case 2:
-      return "Không xác định";
+      label = "Không xác định";
+      break;
     case 3:
-      return "Hạn chế";
+      label = "Hạn chế";
+      break;
     case 4:
-      return "Nhóm chặn chat";
+      label = "Nhóm chặn chat";
+      break;
     default:
-      return "Không xác định";
+      label = "Không xác định";
   }
+  return { label, className: getCampaignLogResultColor(status) };
 }
 
 export function formatCampaignStartTime(value?: string | null): string {

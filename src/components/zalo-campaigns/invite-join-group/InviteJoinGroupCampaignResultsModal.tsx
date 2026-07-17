@@ -277,9 +277,16 @@ export default function InviteJoinGroupCampaignResultsModal({
                           </span>
                         </TableCell>
                         <TableCell className="px-4 py-3 text-theme-sm">
-                          <span className="font-medium text-gray-800 dark:text-white/90">
-                            {formatInviteJoinGroupResultStatus(row.status)}
-                          </span>
+                          {(() => {
+                            const status = formatInviteJoinGroupResultStatus(
+                              row.status,
+                            );
+                            return (
+                              <span className={`font-medium ${status.className}`}>
+                                {status.label}
+                              </span>
+                            );
+                          })()}
                           {row.status_message ? (
                             <span className="mt-0.5 block text-theme-xs text-gray-500">
                               {row.status_message}

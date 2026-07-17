@@ -266,6 +266,7 @@ export default function JoinGroupCampaignResultsModal({
                 <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
                   {results.map((row) => {
                     const account = accountMap.get(row.account);
+                    const status = formatJoinGroupResultStatus(row.status);
                     return (
                       <TableRow key={row.id}>
                         <TableCell className="px-4 py-3">
@@ -286,8 +287,8 @@ export default function JoinGroupCampaignResultsModal({
                           </span>
                         </TableCell>
                         <TableCell className="px-4 py-3 text-theme-sm">
-                          <span className="font-medium text-gray-800 dark:text-white/90">
-                            {formatJoinGroupResultStatus(row.status)}
+                          <span className={`font-medium ${status.className}`}>
+                            {status.label}
                           </span>
                           {row.status_message ? (
                             <span className="mt-0.5 block text-theme-xs text-gray-500">

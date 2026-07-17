@@ -9,6 +9,7 @@ export {
   formatTimeForApi,
   parseTimeToDate,
 } from "@/lib/zalo-add-friend-campaign-utils";
+import { getCampaignLogResultColor } from "@/lib/zalo-add-friend-campaign-utils";
 
 export function formatSendMesGroupCampaignRunStatus(
   status: SendMesGroupCampaignRunStatus,
@@ -49,23 +50,34 @@ export function formatSendMesGroupCampaignRunStatus(
 
 export function formatSendMesGroupResultStatus(
   status: SendMesGroupResultStatus,
-): string {
+): { label: string; className: string } {
+  let label: string;
   switch (status) {
     case 0:
-      return "Thất bại";
+      label = "Thất bại";
+      break;
     case 1:
-      return "Thành công";
+      label = "Thành công";
+      break;
     case 2:
-      return "Không xác định";
+      label = "Không xác định";
+      break;
     case 3:
-      return "Hạn chế";
+      label = "Hạn chế";
+      break;
     case 4:
-      return "Nhóm chặn chat";
+      label = "Nhóm chặn chat";
+      break;
     case 5:
-      return "Đang chờ duyệt";
+      label = "Đang chờ duyệt";
+      break;
     default:
-      return "Không xác định";
+      label = "Không xác định";
   }
+  return {
+    label,
+    className: getCampaignLogResultColor(status),
+  };
 }
 
 export function canEditSendMesGroupGroups(

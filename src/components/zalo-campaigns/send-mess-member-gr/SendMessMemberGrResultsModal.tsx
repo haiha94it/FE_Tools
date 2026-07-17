@@ -268,11 +268,25 @@ export default function SendMessMemberGrResultsModal({
                             {row.first_message || "—"}
                           </span>
                         </TableCell>
-                        <TableCell className="px-4 py-3 text-theme-sm font-medium text-gray-800 dark:text-white/90">
-                          {formatSendMessMemberGrResultStatus(row.status_send_message)}
+                        <TableCell className="px-4 py-3 text-theme-sm font-medium">
+                          {(() => {
+                            const status = formatSendMessMemberGrResultStatus(
+                              row.status_send_message,
+                            );
+                            return (
+                              <span className={status.className}>{status.label}</span>
+                            );
+                          })()}
                         </TableCell>
-                        <TableCell className="px-4 py-3 text-theme-sm font-medium text-gray-800 dark:text-white/90">
-                          {formatSendMessMemberGrResultStatus(row.status_add_friend)}
+                        <TableCell className="px-4 py-3 text-theme-sm font-medium">
+                          {(() => {
+                            const status = formatSendMessMemberGrResultStatus(
+                              row.status_add_friend,
+                            );
+                            return (
+                              <span className={status.className}>{status.label}</span>
+                            );
+                          })()}
                           {row.status_find_info_message ? (
                             <span className="mt-0.5 block text-theme-xs font-normal text-gray-500">
                               {row.status_find_info_message}

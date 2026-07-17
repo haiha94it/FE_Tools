@@ -281,9 +281,16 @@ export default function PhoneInviteGroupCampaignResultsModal({
                           {row.group_name || "—"}
                         </TableCell>
                         <TableCell className="px-4 py-3 text-theme-sm">
-                          <span className="font-medium text-gray-800 dark:text-white/90">
-                            {formatPhoneInviteGroupResultStatus(row.status)}
-                          </span>
+                          {(() => {
+                            const status = formatPhoneInviteGroupResultStatus(
+                              row.status,
+                            );
+                            return (
+                              <span className={`font-medium ${status.className}`}>
+                                {status.label}
+                              </span>
+                            );
+                          })()}
                         </TableCell>
                         <TableCell className="px-4 py-3 text-theme-sm text-gray-500">
                           {row.status_message || "—"}

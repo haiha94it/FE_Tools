@@ -244,6 +244,7 @@ export default function AddFriendCampaignResultsModal({
                 <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
                   {results.map((row) => {
                     const account = accountMap.get(row.account);
+                    const status = formatResultStatus(row.status);
                     return (
                       <TableRow key={row.id}>
                         <TableCell className="px-4 py-3">
@@ -268,8 +269,8 @@ export default function AddFriendCampaignResultsModal({
                           <span className="line-clamp-2">{row.message || "—"}</span>
                         </TableCell>
                         <TableCell className="px-4 py-3 text-theme-sm">
-                          <span className="font-medium text-gray-800 dark:text-white/90">
-                            {formatResultStatus(row.status)}
+                          <span className={`font-medium ${status.className}`}>
+                            {status.label}
                           </span>
                           {row.status_message ? (
                             <span className="mt-0.5 block text-theme-xs text-gray-500">
