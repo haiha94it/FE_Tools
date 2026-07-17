@@ -216,7 +216,7 @@ export default function ZaloAccountsView() {
 
     const proxy = qrProxy.trim();
     if (!canSkipProxy && !proxy) {
-      toast.error("Vui lòng nhập proxy trước khi lấy mã QR.");
+      toast.error("Vui lòng chọn proxy trước khi lấy mã QR.");
       return;
     }
 
@@ -403,6 +403,8 @@ export default function ZaloAccountsView() {
         qrCountdown={qrCountdown}
         cookieLoading={cookieLoading}
         cookieTaskId={cookieTaskId}
+        proxies={proxies}
+        isLoadingProxies={isLoadingProxies}
         canSkipProxy={canSkipProxy}
         onClose={closeQr}
         onQrProxyChange={setQrProxy}

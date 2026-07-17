@@ -4,6 +4,7 @@ import {
   formatMessageListenerError,
   getZaloCheckTaskStatus,
   isZaloCheckTaskPending,
+  resolveProxyString,
 } from "@/lib/zalo-account-utils";
 import { toast } from "@/lib/toast";
 import { fetchAccessibleAccounts } from "@/lib/fetch-accessible-accounts";
@@ -406,6 +407,7 @@ export const useZaloAccountStore = create<ZaloAccountState>((set, get) => ({
       cookieTaskId: null,
       cookieLoading: false,
     });
+    void get().fetchProxies();
   },
 
   openReloginQr: (account) => {
@@ -414,11 +416,12 @@ export const useZaloAccountStore = create<ZaloAccountState>((set, get) => ({
       isQrOpen: true,
       qrImage: null,
       qrCountdown: 0,
-      qrProxy: account.proxy?.proxy ?? "",
+      qrProxy: account.proxy ? resolveProxyString(account.proxy) : "",
       qrAccountId: account.id,
       cookieTaskId: null,
       cookieLoading: false,
     });
+    void get().fetchProxies();
   },
 
   closeQr: () =>
