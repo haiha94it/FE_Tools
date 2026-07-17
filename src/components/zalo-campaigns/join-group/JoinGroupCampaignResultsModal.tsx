@@ -90,6 +90,7 @@ export default function JoinGroupCampaignResultsModal({
   const resultsLoading = useZaloJoinGroupCampaignStore((s) => s.resultsLoading);
   const statistics = useZaloJoinGroupCampaignStore((s) => s.statistics);
   const failedLinks = useZaloJoinGroupCampaignStore((s) => s.failedLinks);
+  const accountLimits = useZaloJoinGroupCampaignStore((s) => s.accountLimits);
   const toggleResultSelected = useZaloJoinGroupCampaignStore((s) => s.toggleResultSelected);
   const toggleSelectAllResults = useZaloJoinGroupCampaignStore((s) => s.toggleSelectAllResults);
   const setResultsPage = useZaloJoinGroupCampaignStore((s) => s.setResultsPage);
@@ -178,6 +179,19 @@ export default function JoinGroupCampaignResultsModal({
           <p className="mb-3 text-sm text-warning-600 dark:text-warning-400">
             Số tài khoản hạn chế: {statistics.account_excluded_count}
           </p>
+        ) : null}
+
+        {accountLimits.length > 0 ? (
+          <div className="mb-3 rounded-xl border border-error-200 bg-error-50 px-3 py-2 text-sm text-error-700 dark:border-error-500/30 dark:bg-error-500/10 dark:text-error-300">
+            Nick bị limit ({accountLimits.length}):{" "}
+            {accountLimits
+              .slice(0, 5)
+              .map((item) => item.label)
+              .join(", ")}
+            {accountLimits.length > 5
+              ? ` … (+${accountLimits.length - 5})`
+              : ""}
+          </div>
         ) : null}
 
         {failedLinks.length > 0 ? (

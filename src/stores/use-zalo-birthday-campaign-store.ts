@@ -35,6 +35,7 @@ interface BirthdayCampaignState {
   createOrEditCampaign: (payload: BirthdayCampaignFormPayload) => Promise<void>;
   startCampaign: () => Promise<void>;
   stopCampaign: () => Promise<void>;
+  runNow: () => Promise<void>;
 
   setResultsPage: (page: number) => void;
   setResultsPerPage: (perPage: number) => void;
@@ -141,6 +142,21 @@ export const useZaloBirthdayCampaignStore = create<BirthdayCampaignState>(
         await zaloBirthdayCampaignService.stopCampaign(campaign.id);
         set({ actionLoading: false });
         await get().fetchCampaign({ silent: true });
+      } catch (error) {
+        set({ actionLoading: false });
+        throw error;
+      }
+    },
+
+    runNow: async () => {
+      set({ actionLoading: true });
+      try {
+        await zaloBirthdayCampaignService.runNow();
+        set({ actionLoading: false });
+        await Promise.all([
+          get().fetchCampaign({ silent: true }),
+          get().refreshResults({ silent: true }),
+        ]);
       } catch (error) {
         set({ actionLoading: false });
         throw error;

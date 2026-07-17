@@ -3,6 +3,10 @@ import type {
   AddFriendResultStatus,
 } from "@/types/zalo-add-friend-campaign";
 
+/**
+ * status kịch bản (category) — living doc:
+ * 0 tạm dừng · 1 đang chạy · 2 hoàn thành · 3 bị chặn/limit · 4 chưa chạy
+ */
 export function formatCampaignRunStatus(
   status: AddFriendCampaignRunStatus,
 ): { label: string; className: string } {
@@ -24,8 +28,13 @@ export function formatCampaignRunStatus(
       };
     case 3:
       return {
-        label: "Dừng do bị hạn chế",
+        label: "Bị chặn / limit",
         className: "text-error-600 dark:text-error-400",
+      };
+    case 4:
+      return {
+        label: "Chưa chạy",
+        className: "text-gray-600 dark:text-gray-400",
       };
     default:
       return {

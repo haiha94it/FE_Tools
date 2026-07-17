@@ -1,7 +1,7 @@
 import type { TeamCategoryFields } from "@/types/team-collaboration";
 
 /** Trạng thái chạy kịch bản */
-export type InviteJoinGroupCampaignRunStatus = 0 | 1 | 2 | 3 | null;
+export type InviteJoinGroupCampaignRunStatus = 0 | 1 | 2 | 3 | 4 | null;
 
 export type InviteJoinGroupType = "friend" | "phone_number" | "uids";
 

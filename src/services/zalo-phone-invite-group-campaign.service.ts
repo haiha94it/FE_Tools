@@ -31,6 +31,7 @@ const base = createCampaignService<
 
 export const zaloPhoneInviteGroupCampaignService = {
   ...base,
+  fetchFailedPhones: base.fetchFailedPhones,
   async fetchGroupsByAccounts(options: {
     accountIds: number[];
     keyword?: string;

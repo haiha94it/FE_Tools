@@ -1,3 +1,4 @@
+import type { CampaignAccountLimitItem } from "@/lib/campaign-service";
 import { resolveCampaignStartStopIds, resolveCampaignToggleSelectAll } from "@/lib/campaign-team-selection";
 import { zaloAddFriendCampaignService } from "@/services/zalo-add-friend-campaign.service";
 import { fetchAccessibleAccounts } from "@/lib/fetch-accessible-accounts";
@@ -30,6 +31,7 @@ interface AddFriendCampaignState {
   resultsLoading: boolean;
   statistics: AddFriendCampaignStatistics;
   failedPhones: string[];
+  accountLimits: CampaignAccountLimitItem[];
 
   fetchCampaigns: (options?: { silent?: boolean }) => Promise<void>;
   fetchAccounts: () => Promise<void>;
@@ -75,6 +77,7 @@ export const useZaloAddFriendCampaignStore = create<AddFriendCampaignState>(
     resultsLoading: false,
     statistics: {},
     failedPhones: [],
+    accountLimits: [],
 
     fetchCampaigns: async (options) => {
       const silent = options?.silent ?? false;
@@ -217,6 +220,7 @@ export const useZaloAddFriendCampaignStore = create<AddFriendCampaignState>(
         resultsSelectedIds: [],
         statistics: {},
         failedPhones: [],
+        accountLimits: [],
       }),
 
     setResultsPage: (page) => {
@@ -275,20 +279,28 @@ export const useZaloAddFriendCampaignStore = create<AddFriendCampaignState>(
         set({ resultsLoading: true });
       }
       try {
-        const [pageData, statistics, failedPhones] = await Promise.all([
+        const [pageData, statistics] = await Promise.all([
           zaloAddFriendCampaignService.fetchResults({
             categoryId: resultsCampaignId,
             page: resultsPage,
             perPage: resultsPerPage,
           }),
           zaloAddFriendCampaignService.fetchStatistics(resultsCampaignId),
-          zaloAddFriendCampaignService.fetchFailedPhones(resultsCampaignId),
+        ]);
+        const [failedPhones, accountLimits] = await Promise.all([
+          zaloAddFriendCampaignService
+            .fetchFailedPhones(resultsCampaignId)
+            .catch(() => (silent ? get().failedPhones : [])),
+          zaloAddFriendCampaignService
+            .fetchAccountLimit(resultsCampaignId)
+            .catch(() => (silent ? get().accountLimits : [])),
         ]);
         set({
           results: pageData.results ?? [],
           resultsTotal: pageData.count ?? pageData.results?.length ?? 0,
           statistics,
           failedPhones,
+          accountLimits,
           resultsLoading: false,
         });
       } catch {
@@ -297,6 +309,7 @@ export const useZaloAddFriendCampaignStore = create<AddFriendCampaignState>(
           resultsTotal: silent ? state.resultsTotal : 0,
           statistics: silent ? state.statistics : {},
           failedPhones: silent ? state.failedPhones : [],
+          accountLimits: silent ? state.accountLimits : [],
           resultsLoading: false,
         }));
       }

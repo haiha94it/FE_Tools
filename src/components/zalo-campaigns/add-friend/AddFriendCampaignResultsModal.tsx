@@ -86,6 +86,7 @@ export default function AddFriendCampaignResultsModal({
   const resultsLoading = useZaloAddFriendCampaignStore((s) => s.resultsLoading);
   const statistics = useZaloAddFriendCampaignStore((s) => s.statistics);
   const failedPhones = useZaloAddFriendCampaignStore((s) => s.failedPhones);
+  const accountLimits = useZaloAddFriendCampaignStore((s) => s.accountLimits);
   const toggleResultSelected = useZaloAddFriendCampaignStore((s) => s.toggleResultSelected);
   const toggleSelectAllResults = useZaloAddFriendCampaignStore((s) => s.toggleSelectAllResults);
   const setResultsPage = useZaloAddFriendCampaignStore((s) => s.setResultsPage);
@@ -158,9 +159,22 @@ export default function AddFriendCampaignResultsModal({
         </div>
 
         {failedPhones.length > 0 ? (
-          <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
+          <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
             SĐT thất bại: {failedPhones.slice(0, 8).join(", ")}
             {failedPhones.length > 8 ? ` … (+${failedPhones.length - 8})` : ""}
+          </div>
+        ) : null}
+
+        {accountLimits.length > 0 ? (
+          <div className="mb-4 rounded-xl border border-error-200 bg-error-50 px-3 py-2 text-sm text-error-700 dark:border-error-500/30 dark:bg-error-500/10 dark:text-error-300">
+            Nick bị limit ({accountLimits.length}):{" "}
+            {accountLimits
+              .slice(0, 5)
+              .map((item) => item.label)
+              .join(", ")}
+            {accountLimits.length > 5
+              ? ` … (+${accountLimits.length - 5})`
+              : ""}
           </div>
         ) : null}
 

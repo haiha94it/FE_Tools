@@ -1,3 +1,4 @@
+import type { CampaignAccountLimitItem } from "@/lib/campaign-service";
 import { resolveCampaignStartStopIds, resolveCampaignToggleSelectAll } from "@/lib/campaign-team-selection";
 import { zaloSendMessPhoneCampaignService } from "@/services/zalo-send-mess-phone-campaign.service";
 import { fetchAccessibleAccounts } from "@/lib/fetch-accessible-accounts";
@@ -29,6 +30,9 @@ interface SendMessPhoneCampaignState {
   resultsTotal: number;
   resultsLoading: boolean;
   statistics: SendMessPhoneCampaignStatistics;
+  failedPhones: string[];
+  phoneNumbersError: string[];
+  accountLimits: CampaignAccountLimitItem[];
 
   fetchCampaigns: (options?: { silent?: boolean }) => Promise<void>;
   fetchAccounts: () => Promise<void>;
@@ -71,6 +75,9 @@ export const useZaloSendMessPhoneCampaignStore = create<SendMessPhoneCampaignSta
     resultsTotal: 0,
     resultsLoading: false,
     statistics: {},
+    failedPhones: [],
+    phoneNumbersError: [],
+    accountLimits: [],
 
     fetchCampaigns: async (options) => {
       const silent = options?.silent ?? false;
@@ -206,6 +213,9 @@ export const useZaloSendMessPhoneCampaignStore = create<SendMessPhoneCampaignSta
         results: [],
         resultsSelectedIds: [],
         statistics: {},
+        failedPhones: [],
+        phoneNumbersError: [],
+        accountLimits: [],
       }),
 
     setResultsPage: (page) => {
@@ -270,10 +280,25 @@ export const useZaloSendMessPhoneCampaignStore = create<SendMessPhoneCampaignSta
           }),
           zaloSendMessPhoneCampaignService.fetchStatistics(resultsCampaignId),
         ]);
+        const [failedPhones, phoneNumbersError, accountLimits] =
+          await Promise.all([
+            zaloSendMessPhoneCampaignService
+              .fetchFailedPhones(resultsCampaignId)
+              .catch(() => (silent ? get().failedPhones : [])),
+            zaloSendMessPhoneCampaignService
+              .fetchPhoneNumbersError(resultsCampaignId)
+              .catch(() => (silent ? get().phoneNumbersError : [])),
+            zaloSendMessPhoneCampaignService
+              .fetchAccountLimit(resultsCampaignId)
+              .catch(() => (silent ? get().accountLimits : [])),
+          ]);
         set({
           results: pageData.results ?? [],
           resultsTotal: pageData.count ?? pageData.results?.length ?? 0,
           statistics,
+          failedPhones,
+          phoneNumbersError,
+          accountLimits,
           resultsLoading: false,
         });
       } catch {
@@ -281,6 +306,9 @@ export const useZaloSendMessPhoneCampaignStore = create<SendMessPhoneCampaignSta
           results: silent ? state.results : [],
           resultsTotal: silent ? state.resultsTotal : 0,
           statistics: silent ? state.statistics : {},
+          failedPhones: silent ? state.failedPhones : [],
+          phoneNumbersError: silent ? state.phoneNumbersError : [],
+          accountLimits: silent ? state.accountLimits : [],
           resultsLoading: false,
         }));
       }

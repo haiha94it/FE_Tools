@@ -1,7 +1,7 @@
 import type { TeamCategoryFields } from "@/types/team-collaboration";
 
 /** Trạng thái chạy kịch bản — đồng bộ ZaloCN statusRunTools */
-export type JoinGroupCampaignRunStatus = 0 | 1 | 2 | 3 | null;
+export type JoinGroupCampaignRunStatus = 0 | 1 | 2 | 3 | 4 | null;
 
 /** Trạng thái từng dòng kết quả tham gia nhóm */
 export type JoinGroupResultStatus = 0 | 1 | 2 | 3 | 4 | 5;

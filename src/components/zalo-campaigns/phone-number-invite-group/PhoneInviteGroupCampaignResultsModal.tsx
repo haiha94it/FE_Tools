@@ -84,6 +84,7 @@ export default function PhoneInviteGroupCampaignResultsModal({
   const resultsTotal = useZaloPhoneInviteGroupCampaignStore((s) => s.resultsTotal);
   const resultsLoading = useZaloPhoneInviteGroupCampaignStore((s) => s.resultsLoading);
   const statistics = useZaloPhoneInviteGroupCampaignStore((s) => s.statistics);
+  const failedPhones = useZaloPhoneInviteGroupCampaignStore((s) => s.failedPhones);
   const toggleResultSelected = useZaloPhoneInviteGroupCampaignStore((s) => s.toggleResultSelected);
   const toggleSelectAllResults = useZaloPhoneInviteGroupCampaignStore((s) => s.toggleSelectAllResults);
   const setResultsPage = useZaloPhoneInviteGroupCampaignStore((s) => s.setResultsPage);
@@ -97,6 +98,19 @@ export default function PhoneInviteGroupCampaignResultsModal({
     results.length > 0 && results.every((item) => selectedSet.has(item.id));
   const totalPages = Math.max(1, Math.ceil(resultsTotal / resultsPerPage));
   const resultStats = buildResultStats(statistics, resultsTotal);
+
+  const handleCopyFailed = async () => {
+    if (!failedPhones.length) {
+      toast.error("Không có SĐT thất bại để sao chép.");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(failedPhones.join("\n"));
+      toast.success("Đã sao chép danh sách SĐT thất bại.");
+    } catch {
+      toast.error("Không sao chép được.");
+    }
+  };
 
   const handleDelete = async () => {
     if (!resultsSelectedIds.length) {
@@ -149,6 +163,18 @@ export default function PhoneInviteGroupCampaignResultsModal({
             ))}
           </div>
         </div>
+
+        {failedPhones.length > 0 ? (
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
+            <span className="min-w-0 flex-1 truncate">
+              SĐT thất bại: {failedPhones.slice(0, 5).join(", ")}
+              {failedPhones.length > 5 ? ` … (+${failedPhones.length - 5})` : ""}
+            </span>
+            <Button size="sm" variant="outline" onClick={() => void handleCopyFailed()}>
+              Sao chép
+            </Button>
+          </div>
+        ) : null}
 
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">

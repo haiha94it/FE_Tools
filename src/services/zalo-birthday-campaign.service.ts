@@ -1,4 +1,5 @@
 import { API_UPLOAD, API_ZALO_BIRTHDAY_CAMPAIGN } from "@/config/api";
+import { unwrapPaginatedPayload } from "@/lib/campaign-service";
 import { parseUploadedFileLink } from "@/lib/zalo-messenger-send-utils";
 import api from "@/lib/axios";
 import type { PaginatedResponse } from "@/types/api";
@@ -42,11 +43,17 @@ export const zaloBirthdayCampaignService = {
   },
 
   async startCampaign(id: number): Promise<void> {
-    await api.post(API_ZALO_BIRTHDAY_CAMPAIGN.START, { id_category: id });
+    await api.post(API_ZALO_BIRTHDAY_CAMPAIGN.START, {
+      id_categories: [id],
+    });
   },
 
   async stopCampaign(id: number): Promise<void> {
     await api.post(API_ZALO_BIRTHDAY_CAMPAIGN.STOP, { id_categories: [id] });
+  },
+
+  async runNow(): Promise<void> {
+    await api.post(API_ZALO_BIRTHDAY_CAMPAIGN.RUN_NOW);
   },
 
   async fetchResults(options: {
@@ -59,16 +66,7 @@ export const zaloBirthdayCampaignService = {
         number_per_page: options.perPage ?? 100,
       },
     });
-    const body = response.data;
-    if (body && typeof body === "object" && "results" in body) {
-      return body as PaginatedResponse<BirthdayCampaignResult>;
-    }
-    return {
-      results: Array.isArray(body) ? (body as BirthdayCampaignResult[]) : [],
-      count: 0,
-      next: null,
-      previous: null,
-    };
+    return unwrapPaginatedPayload<BirthdayCampaignResult>(response.data);
   },
 
   async deleteResults(ids: number[]): Promise<void> {

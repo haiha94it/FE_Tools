@@ -275,15 +275,17 @@ export const useZaloInviteJoinGroupCampaignStore = create<InviteJoinGroupCampaig
         set({ resultsLoading: true });
       }
       try {
-        const [pageData, statistics, failedPhones] = await Promise.all([
+        const [pageData, statistics] = await Promise.all([
           zaloInviteJoinGroupCampaignService.fetchResults({
             categoryId: resultsCampaignId,
             page: resultsPage,
             perPage: resultsPerPage,
           }),
           zaloInviteJoinGroupCampaignService.fetchStatistics(resultsCampaignId),
-          zaloInviteJoinGroupCampaignService.fetchFailedPhones(resultsCampaignId),
         ]);
+        const failedPhones = await zaloInviteJoinGroupCampaignService
+          .fetchFailedPhones(resultsCampaignId)
+          .catch(() => (silent ? get().failedPhones : []));
         set({
           results: pageData.results ?? [],
           resultsTotal: pageData.count ?? pageData.results?.length ?? 0,

@@ -1,7 +1,7 @@
 import type { TeamCategoryFields } from "@/types/team-collaboration";
 
-/** Trạng thái chạy kịch bản — đồng bộ ZaloCN statusRunTools */
-export type AddFriendCampaignRunStatus = 0 | 1 | 2 | 3 | null;
+/** Trạng thái chạy kịch bản — living doc: 0 tạm dừng · 1 chạy · 2 xong · 3 limit · 4 chưa chạy */
+export type AddFriendCampaignRunStatus = 0 | 1 | 2 | 3 | 4 | null;
 
 /** Trạng thái từng dòng kết quả */
 export type AddFriendResultStatus = 0 | 1 | 2 | 3 | 4;

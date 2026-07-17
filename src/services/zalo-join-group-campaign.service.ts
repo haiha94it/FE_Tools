@@ -18,4 +18,5 @@ const base = createCampaignService<
 export const zaloJoinGroupCampaignService = {
   ...base,
   fetchFailedLinks: base.fetchFailedLinks,
+  fetchAccountLimit: base.fetchAccountLimit,
 };

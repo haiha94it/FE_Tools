@@ -1,3 +1,4 @@
+import type { CampaignAccountLimitItem } from "@/lib/campaign-service";
 import { resolveCampaignStartStopIds, resolveCampaignToggleSelectAll } from "@/lib/campaign-team-selection";
 import { zaloJoinGroupCampaignService } from "@/services/zalo-join-group-campaign.service";
 import { fetchAccessibleAccounts } from "@/lib/fetch-accessible-accounts";
@@ -30,6 +31,7 @@ interface JoinGroupCampaignState {
   resultsLoading: boolean;
   statistics: JoinGroupCampaignStatistics;
   failedLinks: string[];
+  accountLimits: CampaignAccountLimitItem[];
 
   fetchCampaigns: (options?: { silent?: boolean }) => Promise<void>;
   fetchAccounts: () => Promise<void>;
@@ -75,6 +77,7 @@ export const useZaloJoinGroupCampaignStore = create<JoinGroupCampaignState>(
     resultsLoading: false,
     statistics: {},
     failedLinks: [],
+    accountLimits: [],
 
     fetchCampaigns: async (options) => {
       const silent = options?.silent ?? false;
@@ -217,6 +220,7 @@ export const useZaloJoinGroupCampaignStore = create<JoinGroupCampaignState>(
         resultsSelectedIds: [],
         statistics: {},
         failedLinks: [],
+        accountLimits: [],
       }),
 
     setResultsPage: (page) => {
@@ -275,20 +279,28 @@ export const useZaloJoinGroupCampaignStore = create<JoinGroupCampaignState>(
         set({ resultsLoading: true });
       }
       try {
-        const [pageData, statistics, failedLinks] = await Promise.all([
+        const [pageData, statistics] = await Promise.all([
           zaloJoinGroupCampaignService.fetchResults({
             categoryId: resultsCampaignId,
             page: resultsPage,
             perPage: resultsPerPage,
           }),
           zaloJoinGroupCampaignService.fetchStatistics(resultsCampaignId),
-          zaloJoinGroupCampaignService.fetchFailedLinks(resultsCampaignId),
+        ]);
+        const [failedLinks, accountLimits] = await Promise.all([
+          zaloJoinGroupCampaignService
+            .fetchFailedLinks(resultsCampaignId)
+            .catch(() => (silent ? get().failedLinks : [])),
+          zaloJoinGroupCampaignService
+            .fetchAccountLimit(resultsCampaignId)
+            .catch(() => (silent ? get().accountLimits : [])),
         ]);
         set({
           results: pageData.results ?? [],
           resultsTotal: pageData.count ?? pageData.results?.length ?? 0,
           statistics,
           failedLinks,
+          accountLimits,
           resultsLoading: false,
         });
       } catch {
@@ -297,6 +309,7 @@ export const useZaloJoinGroupCampaignStore = create<JoinGroupCampaignState>(
           resultsTotal: silent ? state.resultsTotal : 0,
           statistics: silent ? state.statistics : {},
           failedLinks: silent ? state.failedLinks : [],
+          accountLimits: silent ? state.accountLimits : [],
           resultsLoading: false,
         }));
       }

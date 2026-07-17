@@ -18,4 +18,5 @@ const base = createCampaignService<
 export const zaloAddFriendCampaignService = {
   ...base,
   fetchFailedPhones: base.fetchFailedPhones,
+  fetchAccountLimit: base.fetchAccountLimit,
 };

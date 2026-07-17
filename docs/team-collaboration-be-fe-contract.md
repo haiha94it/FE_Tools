@@ -1170,6 +1170,17 @@ GET    /api/campaign/{prefix}/statistics/            → thống kê
 | `spam_link_group` | `spam-link-group` | `category/all-group/` |
 | `auto_inbox` | `auto-inbox` | `get-script`, `save-script`, `start`, `stop`, `status` — không list team |
 
+**API phụ (failed / limit / lỗi parse) — mount trực tiếp dưới prefix, KHÔNG chèn `/category/`:**
+
+```
+GET /api/campaign/{prefix}/failed-campaigns-phone-numbers/?id_category=
+GET /api/campaign/join-group/failed-campaigns-link-group/?id_category=
+GET /api/campaign/{prefix}/account-limit/?id_category=
+GET /api/campaign/mess-phone-number/phone-numbers-error/?id_category=
+```
+
+Sai path hay gặp (404): `.../category/failed-campaigns-*`. Living doc FE: [`fe-campaign-integration-notes.md`](./fe-campaign-integration-notes.md).
+
 **Nhãn chat** (manager CRUD / NV members):
 
 | Method | Path |

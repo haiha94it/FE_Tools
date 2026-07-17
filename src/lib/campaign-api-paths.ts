@@ -7,9 +7,11 @@ export interface CampaignApiPaths {
   copy: (id: number | string) => string;
   results: (id: number | string) => string;
   STATISTICS: string;
+  /** Không gắn `/category/` — xem living doc failed-campaigns */
   FAILED_PHONES: string;
   FAILED_LINKS: string;
   ACCOUNT_LIMIT: string;
+  PHONE_NUMBERS_ERROR: string;
   ALL_GROUPS: string;
 }
 
@@ -23,9 +25,11 @@ export function buildCampaignApiPaths(prefix: string): CampaignApiPaths {
     copy: (id) => `${base}/category/${id}/copy/`,
     results: (id) => `${base}/category/${id}/results/`,
     STATISTICS: `${base}/statistics/`,
-    FAILED_PHONES: `${base}/category/failed-campaigns-phone-numbers/`,
-    FAILED_LINKS: `${base}/category/failed-campaigns-link-group/`,
-    ACCOUNT_LIMIT: `${base}/category/account-limit/`,
+    // Phụ: mount trực tiếp dưới prefix — KHÔNG chèn /category/ (404 nếu sai)
+    FAILED_PHONES: `${base}/failed-campaigns-phone-numbers/`,
+    FAILED_LINKS: `${base}/failed-campaigns-link-group/`,
+    ACCOUNT_LIMIT: `${base}/account-limit/`,
+    PHONE_NUMBERS_ERROR: `${base}/phone-numbers-error/`,
     ALL_GROUPS: `${base}/category/all-group/`,
   };
 }

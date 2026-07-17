@@ -20,6 +20,9 @@ const base = createCampaignService<
 
 export const zaloSendMessPhoneCampaignService = {
   ...base,
+  fetchFailedPhones: base.fetchFailedPhones,
+  fetchPhoneNumbersError: base.fetchPhoneNumbersError,
+  fetchAccountLimit: base.fetchAccountLimit,
   async uploadImage(file: File): Promise<string> {
     const formData = new FormData();
     formData.append("file", file);

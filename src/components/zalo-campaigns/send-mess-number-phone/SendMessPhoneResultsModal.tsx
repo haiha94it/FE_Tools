@@ -78,6 +78,11 @@ export default function SendMessPhoneResultsModal({
   const resultsTotal = useZaloSendMessPhoneCampaignStore((s) => s.resultsTotal);
   const resultsLoading = useZaloSendMessPhoneCampaignStore((s) => s.resultsLoading);
   const statistics = useZaloSendMessPhoneCampaignStore((s) => s.statistics);
+  const failedPhones = useZaloSendMessPhoneCampaignStore((s) => s.failedPhones);
+  const phoneNumbersError = useZaloSendMessPhoneCampaignStore(
+    (s) => s.phoneNumbersError,
+  );
+  const accountLimits = useZaloSendMessPhoneCampaignStore((s) => s.accountLimits);
   const toggleResultSelected = useZaloSendMessPhoneCampaignStore((s) => s.toggleResultSelected);
   const toggleSelectAllResults = useZaloSendMessPhoneCampaignStore((s) => s.toggleSelectAllResults);
   const setResultsPage = useZaloSendMessPhoneCampaignStore((s) => s.setResultsPage);
@@ -91,6 +96,19 @@ export default function SendMessPhoneResultsModal({
     results.length > 0 && results.every((item) => selectedSet.has(item.id));
   const totalPages = Math.max(1, Math.ceil(resultsTotal / resultsPerPage));
   const resultStats = buildResultStats(statistics, resultsTotal);
+
+  const handleCopyList = async (items: string[], emptyMsg: string, okMsg: string) => {
+    if (!items.length) {
+      toast.error(emptyMsg);
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(items.join("\n"));
+      toast.success(okMsg);
+    } catch {
+      toast.error("Không sao chép được.");
+    }
+  };
 
   const handleDelete = async () => {
     if (!resultsSelectedIds.length) {
@@ -143,6 +161,65 @@ export default function SendMessPhoneResultsModal({
             ))}
           </div>
         </div>
+
+        {failedPhones.length > 0 ? (
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
+            <span className="min-w-0 flex-1 truncate">
+              SĐT thất bại: {failedPhones.slice(0, 5).join(", ")}
+              {failedPhones.length > 5 ? ` … (+${failedPhones.length - 5})` : ""}
+            </span>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() =>
+                void handleCopyList(
+                  failedPhones,
+                  "Không có SĐT thất bại để sao chép.",
+                  "Đã sao chép danh sách SĐT thất bại.",
+                )
+              }
+            >
+              Sao chép
+            </Button>
+          </div>
+        ) : null}
+
+        {phoneNumbersError.length > 0 ? (
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-error-200 bg-error-50 px-3 py-2 text-sm text-error-700 dark:border-error-500/30 dark:bg-error-500/10 dark:text-error-300">
+            <span className="min-w-0 flex-1 truncate">
+              SĐT lỗi parse: {phoneNumbersError.slice(0, 5).join(", ")}
+              {phoneNumbersError.length > 5
+                ? ` … (+${phoneNumbersError.length - 5})`
+                : ""}
+            </span>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() =>
+                void handleCopyList(
+                  phoneNumbersError,
+                  "Không có SĐT lỗi parse để sao chép.",
+                  "Đã sao chép danh sách SĐT lỗi parse.",
+                )
+              }
+            >
+              Sao chép
+            </Button>
+          </div>
+        ) : null}
+
+        {accountLimits.length > 0 ? (
+          <div className="mb-4 rounded-xl border border-error-200 bg-error-50 px-3 py-2 text-sm text-error-700 dark:border-error-500/30 dark:bg-error-500/10 dark:text-error-300">
+            Nick bị limit ({accountLimits.length}):{" "}
+            {accountLimits
+              .slice(0, 5)
+              .map((item) => item.label)
+              .join(", ")}
+            {accountLimits.length > 5
+              ? ` … (+${accountLimits.length - 5})`
+              : ""}
+          </div>
+        ) : null}
 
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">

@@ -29,6 +29,7 @@ interface PhoneInviteGroupCampaignState {
   resultsTotal: number;
   resultsLoading: boolean;
   statistics: PhoneInviteGroupCampaignStatistics;
+  failedPhones: string[];
 
   fetchCampaigns: (options?: { silent?: boolean }) => Promise<void>;
   fetchAccounts: () => Promise<void>;
@@ -73,6 +74,7 @@ export const useZaloPhoneInviteGroupCampaignStore = create<PhoneInviteGroupCampa
     resultsTotal: 0,
     resultsLoading: false,
     statistics: {},
+    failedPhones: [],
 
     fetchCampaigns: async (options) => {
       const silent = options?.silent ?? false;
@@ -214,6 +216,7 @@ export const useZaloPhoneInviteGroupCampaignStore = create<PhoneInviteGroupCampa
         results: [],
         resultsSelectedIds: [],
         statistics: {},
+        failedPhones: [],
       }),
 
     setResultsPage: (page) => {
@@ -280,10 +283,14 @@ export const useZaloPhoneInviteGroupCampaignStore = create<PhoneInviteGroupCampa
           }),
           zaloPhoneInviteGroupCampaignService.fetchStatistics(resultsCampaignId),
         ]);
+        const failedPhones = await zaloPhoneInviteGroupCampaignService
+          .fetchFailedPhones(resultsCampaignId)
+          .catch(() => (silent ? get().failedPhones : []));
         set({
           results: pageData.results ?? [],
           resultsTotal: pageData.count ?? pageData.results?.length ?? 0,
           statistics,
+          failedPhones,
           resultsLoading: false,
         });
       } catch {
@@ -291,6 +298,7 @@ export const useZaloPhoneInviteGroupCampaignStore = create<PhoneInviteGroupCampa
           results: silent ? state.results : [],
           resultsTotal: silent ? state.resultsTotal : 0,
           statistics: silent ? state.statistics : {},
+          failedPhones: silent ? state.failedPhones : [],
           resultsLoading: false,
         }));
       }
