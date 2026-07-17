@@ -16,6 +16,7 @@ export interface PhoneInviteGroupCampaign extends TeamCategoryFields {
   number_count?: number;
   accounts?: number[];
   account?: number;
+  /** Legacy — BE resolve từ group_invite; FE không gửi khi create */
   group_link?: string;
   group_invite?: string;
   phone_numbers?: string | string[] | null;
@@ -23,17 +24,21 @@ export interface PhoneInviteGroupCampaign extends TeamCategoryFields {
   to_time?: string | null;
 }
 
+/**
+ * Body create/update — chỉ `group_invite` (name|avt), không `group_link`.
+ * Update: PUT .../category/{id}/
+ */
 export interface PhoneInviteGroupCampaignFormPayload {
   id_category: number | null;
   name: string;
   delay_time: number;
   number_count: number;
   id_accounts: number[];
-  group_link?: string;
+  /** `name|avt` — avatar rỗng OK: "Tên nhóm|" */
+  group_invite: string;
   phone_numbers: string[];
   from_time: string | null;
   to_time: string | null;
-  group_invite: string;
 }
 
 export interface PhoneInviteGroupCampaignResult {
@@ -61,9 +66,20 @@ export interface PhoneInviteGroupCampaignStatistics {
   [key: string]: number | undefined;
 }
 
+/**
+ * Item từ POST .../category/all-group/ — GroupDetail (sau fix BE).
+ * `group_invite` = `${name}|${avt}`
+ */
 export interface PhoneInviteGroupItem {
   id?: number;
+  uid?: string;
   name: string;
+  /** Avatar URL — field chính từ GroupDetail */
   avt?: string;
+  /** Alias legacy nếu BE còn trả `avatar` */
   avatar?: string;
+  link_group?: string;
+  total_member?: number;
+  is_joined?: boolean;
+  is_blocked_chat?: boolean;
 }

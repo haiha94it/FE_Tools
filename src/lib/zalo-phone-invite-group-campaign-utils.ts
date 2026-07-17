@@ -90,24 +90,34 @@ export function normalizePhoneNumbers(
   return value;
 }
 
+/** Doc: `${group.name || ""}|${group.avt || ""}` — avatar rỗng OK: "Tên nhóm|" */
 export function buildGroupInviteString(group: PhoneInviteGroupItem): string {
-  const avatar = group.avt ?? group.avatar ?? "";
-  return `${group.name}|${avatar}`;
+  const name = group.name?.trim() || "";
+  const avt = group.avt?.trim() || group.avatar?.trim() || "";
+  return `${name}|${avt}`;
 }
 
 export function parseGroupInviteString(
   value?: string | null,
-): { name: string; avatar: string } | null {
+): { name: string; avt: string } | null {
   if (!value?.includes("|")) return null;
-  const [name, avatar] = value.split("|");
+  const pipe = value.indexOf("|");
+  const name = value.slice(0, pipe).trim();
+  const avt = value.slice(pipe + 1).trim();
   if (!name) return null;
-  return { name, avatar: avatar ?? "" };
+  return { name, avt };
 }
 
 export function getGroupAvatar(group: PhoneInviteGroupItem): string | undefined {
-  return group.avt ?? group.avatar;
+  return group.avt?.trim() || group.avatar?.trim() || undefined;
 }
 
 export function isZaloAccountRunnable(account: ZaloAccount): boolean {
   return isZaloAccountActive(account) && account.proxy?.status === true;
 }
+
+/** BE: mọi nick phải đã join nhóm trong group_invite */
+export const GROUP_NOT_ON_ALL_ACCOUNTS = "GROUP_NOT_ON_ALL_ACCOUNTS";
+
+export const GROUP_NOT_ON_ALL_ACCOUNTS_MESSAGE =
+  "Một số nick chưa có nhóm này hoặc chưa sync. Bỏ nick đó hoặc chọn nhóm chung khác.";

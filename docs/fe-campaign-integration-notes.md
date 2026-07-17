@@ -5,97 +5,47 @@
 
 ---
 
-## Invite-phone-group — `category/all-group/` **404 (không tồn tại)**
+## Invite-phone-group — picker nhóm chung (cập nhật BE)
 
-**Triệu chứng:** màn `/zalo-campaigns/phone-number-invite-group` gọi:
+> **SSOT FE:** [`fe-guide-invite-phone-group.md`](./fe-guide-invite-phone-group.md).  
+> Section cũ (all-group 404 + union `GET /api/group/`) **hết hiệu lực** sau khi BE mount route invite-phone.
+
+### Picker nhóm
 
 ```http
 POST /api/campaign/invite-phone-group/category/all-group/
-Content-Type: application/json
-
-{ "id_accounts": [25], "keyword": "" }
+{ "id_accounts": [21, 25], "keyword": "" }
 ```
 
-→ **404** / route không mount.
+| `id_accounts` | `data` |
+|---------------|--------|
+| 1 nick | Toàn bộ nhóm nick đã join |
+| ≥ 2 nick | Chỉ **nhóm chung** |
+| Không chung | `[]` |
 
-### Kết luận BE (SSOT `campaign/urls.py`)
+Envelope: `{ success, message, data: GroupDetail[] }` — fields: `id`, `uid`, `name`, `avt`, `link_group`, `total_member`, …
 
-| Path | Có? | Dùng cho |
-|------|-----|----------|
-| `POST /api/campaign/spam-link-group/category/all-group/` | ✅ | **Chỉ** spam link nhóm — picker nhóm **chung** nhiều nick |
-| `POST /api/campaign/invite-phone-group/category/all-group/` | ❌ **Không có** | — |
-| `POST /api/campaign/invite-group/category/all-group/` | ❌ **Không có** | — |
-| `GET /api/group/?id_account=` | ✅ | List nhóm 1 nick (picker invite-phone / invite-group) |
+**Không** dùng:
 
-Route invite-phone-group **chỉ** có:
+- `POST .../spam-link-group/category/all-group/` (permission spam)
+- Union `GET /api/group/?id_account=` cho màn này
 
-```text
-GET|POST  /api/campaign/invite-phone-group/category/
-POST      /api/campaign/invite-phone-group/category/start/
-POST      /api/campaign/invite-phone-group/category/stop/
-GET|PUT|PATCH|DELETE  /api/campaign/invite-phone-group/category/{id}/
-POST      /api/campaign/invite-phone-group/category/{id}/copy/
-GET|DELETE /api/campaign/invite-phone-group/category/{id}/results/
-GET       /api/campaign/invite-phone-group/failed-campaigns-phone-numbers/?id_category=
-GET       /api/campaign/invite-phone-group/statistics/
-```
-
-### FE phải làm (màn mời SĐT vào nhóm)
-
-**1. Picker nhóm** — **không** copy API spam-link. Dùng groups:
-
-```http
-GET /api/group/?id_account=25&page=1&number_per_page=50
-```
-
-- Query bắt buộc: `id_account` (một nick).
-- Lọc tên: `?name=keyword` (không body `keyword` kiểu spam).
-- Multi nick: gọi **lặp** theo từng `id_account` đã chọn (hoặc union FE).
-- Envelope: `data.results[]` (paginated) — `unwrapPaginatedPayload`.
-
-**2. Tạo / sửa kịch bản** — field nhóm là chuỗi `group_invite = "{name}|{avatar}"` (không gửi `id` nhóm trên collection):
+### Tạo / sửa
 
 ```http
 POST /api/campaign/invite-phone-group/category/
-Content-Type: application/json
-
-{
-  "name": "Mời SĐT test",
-  "id_accounts": [25],
-  "group_invite": "Tên nhóm|https://avatar-url...",
-  "phone_numbers": ["0964456370"],
-  "delay_time": 60,
-  "number_count": 1,
-  "from_time": "07:00:00",
-  "to_time": "21:00:00"
-}
+PUT  /api/campaign/invite-phone-group/category/{id}/
 ```
 
-| Field | Bắt buộc | Ghi chú |
-|-------|----------|---------|
-| `name` | ✅ | Tên kịch bản |
-| `id_accounts` | ✅ | Nick chạy |
-| `group_invite` | ✅ | `name\|avatar` từ item list group (`global_profile.name` + `avatar`) |
-| `phone_numbers` | ✅ | Mảng SĐT |
-| `delay_time`, `number_count`, `from_time`, `to_time` | — | Có default BE |
+Body: `group_invite = "${name}|${avt}"` — **không** gửi `group_link` (BE tự resolve).
 
-**3. Khi nào dùng `spam-link-group/.../all-group/`**
+Lỗi: `error_code: GROUP_NOT_ON_ALL_ACCOUNTS` → toast bỏ nick / chọn nhóm all-group khác.
 
-Chỉ màn **spam link nhóm** (`spam_link_group`):
+### Start / results
 
-```http
-POST /api/campaign/spam-link-group/category/all-group/
-{ "id_accounts": [25, 26], "keyword": "" }
-```
-
-Trả nhóm **chung** mọi nick trong `id_accounts` (intersection). Permission key: `spam_link_group` — **không** dùng cho invite-phone.
-
-### Checklist FE
-
-1. Grep `invite-phone-group/category/all-group` → xóa / đổi sang `GET /api/group/`.
-2. Build `group_invite` = `` `${group.name}|${group.avatar}` `` (field đúng serializer group).
-3. Start/stop/results theo contract §5.7 (`invite-phone-group`).
-4. Failed SĐT: `GET /api/campaign/invite-phone-group/failed-campaigns-phone-numbers/?id_category=` — **không** chèn `/category/` trước `failed-campaigns-*`.
+- `POST .../start/` `{ id_categories, type: "new" }`
+- Poll results + `unwrapPaginatedPayload` — **không** `id_task`
+- Failed SĐT: `GET .../failed-campaigns-phone-numbers/?id_category=` (không chèn `/category/`)
 
 ---
 

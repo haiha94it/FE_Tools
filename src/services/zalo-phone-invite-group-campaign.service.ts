@@ -1,10 +1,6 @@
 import { API_ZALO_PHONE_INVITE_GROUP_CAMPAIGN } from "@/config/api";
+import api from "@/lib/axios";
 import { createCampaignService } from "@/lib/campaign-service";
-import {
-  getZaloGroupAvatar,
-  getZaloGroupDisplayName,
-} from "@/lib/zalo-contacts-utils";
-import { zaloGroupService } from "@/services/zalo-group.service";
 import type {
   PhoneInviteGroupCampaign,
   PhoneInviteGroupCampaignFormPayload,
@@ -21,47 +17,107 @@ const base = createCampaignService<
   PhoneInviteGroupCampaignStatistics
 >(API_ZALO_PHONE_INVITE_GROUP_CAMPAIGN);
 
-/**
- * BE **không** có POST invite-phone-group/category/all-group/ (404).
- * Picker nhóm: GET /api/group/?id_account= — lặp theo từng nick.
- */
-async function fetchGroupsForAccount(
-  accountId: number,
-  keyword?: string,
-): Promise<PhoneInviteGroupItem[]> {
-  const page = await zaloGroupService.list({
-    accountId,
-    page: 1,
-    pageSize: 100,
-    name: keyword?.trim() || undefined,
-    detail: true,
-  });
-  let groups = page.results ?? [];
-
-  // List đôi khi thiếu avatar — hydrate bằng fetchs
-  if (groups.some((item) => !getZaloGroupAvatar(item))) {
-    try {
-      const details = await zaloGroupService.fetchDetails(groups);
-      if (details.length) {
-        const map = new Map(details.map((item) => [item.id, item]));
-        groups = groups.map((item) => map.get(item.id) ?? item);
-      }
-    } catch {
-      // giữ list gốc
-    }
-  }
-
-  return groups.map((group) => ({
-    id: group.id,
-    name: getZaloGroupDisplayName(group),
-    avt: getZaloGroupAvatar(group) ?? undefined,
-    avatar: getZaloGroupAvatar(group) ?? undefined,
-  }));
+function asOptionalString(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }
 
+function asOptionalNumber(value: unknown): number | undefined {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim()) {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : undefined;
+  }
+  return undefined;
+}
+
+/**
+ * Map GroupDetail từ all-group:
+ * id, uid, name, avt, link_group, total_member, is_joined, is_blocked_chat
+ */
+function mapGroupDetail(raw: unknown): PhoneInviteGroupItem | null {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const record = raw as Record<string, unknown>;
+
+  const name =
+    asOptionalString(record.name) ||
+    // fallback nếu BE còn bọc global_profile
+    (record.global_profile &&
+    typeof record.global_profile === "object" &&
+    !Array.isArray(record.global_profile)
+      ? asOptionalString(
+          (record.global_profile as Record<string, unknown>).name,
+        )
+      : undefined);
+
+  if (!name) return null;
+
+  const profile =
+    record.global_profile &&
+    typeof record.global_profile === "object" &&
+    !Array.isArray(record.global_profile)
+      ? (record.global_profile as Record<string, unknown>)
+      : null;
+
+  const avt =
+    asOptionalString(record.avt) ||
+    asOptionalString(record.avatar) ||
+    asOptionalString(profile?.avt) ||
+    asOptionalString(profile?.avatar);
+
+  return {
+    id: asOptionalNumber(record.id),
+    uid: asOptionalString(record.uid),
+    name,
+    avt,
+    avatar: avt,
+    link_group: asOptionalString(record.link_group),
+    total_member: asOptionalNumber(record.total_member),
+    is_joined:
+      typeof record.is_joined === "boolean" ? record.is_joined : undefined,
+    is_blocked_chat:
+      typeof record.is_blocked_chat === "boolean"
+        ? record.is_blocked_chat
+        : undefined,
+  };
+}
+
+function stripCategoryId(
+  payload: PhoneInviteGroupCampaignFormPayload,
+): Omit<PhoneInviteGroupCampaignFormPayload, "id_category"> {
+  const { id_category: _id, ...rest } = payload;
+  return rest;
+}
+
+/**
+ * Picker nhóm chung — POST invite-phone-group/category/all-group/
+ * - 1 nick: toàn bộ nhóm nick đã join
+ * - ≥ 2 nick: chỉ nhóm chung (mọi nick đều trong nhóm)
+ * - Không chung: data []
+ *
+ * Không dùng spam-link-group/.../all-group/ hay GET /api/group/ union.
+ */
 export const zaloPhoneInviteGroupCampaignService = {
   ...base,
   fetchFailedPhones: base.fetchFailedPhones,
+
+  /**
+   * Update: PUT (doc) — shared campaign-service dùng PATCH; override cho resource này.
+   * Create: POST .../category/
+   * Body: group_invite only (không group_link).
+   */
+  async createOrEditCampaign(
+    payload: PhoneInviteGroupCampaignFormPayload,
+  ): Promise<void> {
+    const body = stripCategoryId(payload);
+    if (payload.id_category) {
+      await api.put(
+        API_ZALO_PHONE_INVITE_GROUP_CAMPAIGN.detail(payload.id_category),
+        body,
+      );
+    } else {
+      await api.post(API_ZALO_PHONE_INVITE_GROUP_CAMPAIGN.LIST, body);
+    }
+  },
 
   async fetchGroupsByAccounts(options: {
     accountIds: number[];
@@ -72,27 +128,20 @@ export const zaloPhoneInviteGroupCampaignService = {
     );
     if (!accountIds.length) return [];
 
-    const batches = await Promise.all(
-      accountIds.map((accountId) =>
-        fetchGroupsForAccount(accountId, options.keyword).catch(
-          () => [] as PhoneInviteGroupItem[],
-        ),
-      ),
+    const response = await api.post(
+      API_ZALO_PHONE_INVITE_GROUP_CAMPAIGN.ALL_GROUPS,
+      {
+        id_accounts: accountIds,
+        keyword: options.keyword?.trim() ?? "",
+      },
     );
 
-    // Union theo id / tên — multi nick
-    const byKey = new Map<string, PhoneInviteGroupItem>();
-    for (const list of batches) {
-      for (const group of list) {
-        const key =
-          group.id != null
-            ? `id:${group.id}`
-            : `name:${group.name.trim().toLowerCase()}`;
-        if (!byKey.has(key)) byKey.set(key, group);
-      }
-    }
-    return Array.from(byKey.values()).sort((a, b) =>
-      a.name.localeCompare(b.name, "vi"),
-    );
+    // Envelope unwrap → data: GroupDetail[]
+    const rawList = Array.isArray(response.data) ? response.data : [];
+    const items = rawList
+      .map(mapGroupDetail)
+      .filter((item): item is PhoneInviteGroupItem => item != null);
+
+    return items.sort((a, b) => a.name.localeCompare(b.name, "vi"));
   },
 };

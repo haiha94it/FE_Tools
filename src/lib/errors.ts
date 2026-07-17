@@ -173,6 +173,15 @@ export function getApiErrorMessage(error: unknown): string {
   return messages[0] ?? API_ERROR_FALLBACK;
 }
 
+/** Trích error_code từ body envelope / axios error */
+export function getApiErrorCode(error: unknown): string | undefined {
+  if (!axios.isAxiosError(error)) return undefined;
+  const data = error.response?.data;
+  if (!data || typeof data !== "object") return undefined;
+  const code = (data as Record<string, unknown>).error_code;
+  return typeof code === "string" && code.trim() ? code.trim() : undefined;
+}
+
 /** Lấy tất cả message lỗi */
 export function getApiErrorMessages(error: unknown): string[] {
   const { messages, skipped } = parseApiError(error);

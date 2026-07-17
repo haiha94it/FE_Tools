@@ -13,8 +13,10 @@ export interface CampaignApiPaths {
   ACCOUNT_LIMIT: string;
   PHONE_NUMBERS_ERROR: string;
   /**
-   * Chỉ spam-link-group — invite-phone / invite-group **không** có route này (404).
-   * Picker invite: GET /api/group/?id_account=
+   * POST body `{ id_accounts, keyword }`.
+   * - spam-link-group (legacy)
+   * - invite-phone-group: nhóm chung theo multi-nick (1 nick = all groups; ≥2 = intersection)
+   * - invite-group: **không** có route này (404) — dùng GET /api/group/
    */
   ALL_GROUPS: string;
 }
@@ -34,7 +36,7 @@ export function buildCampaignApiPaths(prefix: string): CampaignApiPaths {
     FAILED_LINKS: `${base}/failed-campaigns-link-group/`,
     ACCOUNT_LIMIT: `${base}/account-limit/`,
     PHONE_NUMBERS_ERROR: `${base}/phone-numbers-error/`,
-    // Chỉ dùng cho spam-link-group
+    // spam-link-group + invite-phone-group (intersection multi-nick)
     ALL_GROUPS: `${base}/category/all-group/`,
   };
 }

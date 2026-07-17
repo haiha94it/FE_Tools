@@ -5,7 +5,11 @@ import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import { adminDataPanelClass } from "@/components/ui/table/ScrollableTableContainer";
 import { Modal } from "@/components/ui/modal";
 import { confirm, prompt } from "@/lib/confirm";
-import { getApiErrorMessage } from "@/lib/errors";
+import { getApiErrorCode, getApiErrorMessage } from "@/lib/errors";
+import {
+  GROUP_NOT_ON_ALL_ACCOUNTS,
+  GROUP_NOT_ON_ALL_ACCOUNTS_MESSAGE,
+} from "@/lib/zalo-phone-invite-group-campaign-utils";
 import { toast } from "@/lib/toast";
 import { zaloPhoneInviteGroupCampaignService } from "@/services/zalo-phone-invite-group-campaign.service";
 import { useWebSocketStore } from "@/stores/use-websocket-store";
@@ -146,6 +150,10 @@ export default function PhoneInviteGroupCampaignView() {
       await startCampaigns(type);
       toast.success(type === "new" ? "Chiến dịch bắt đầu chạy." : "Chiến dịch tiếp tục chạy.");
     } catch (error) {
+      if (getApiErrorCode(error) === GROUP_NOT_ON_ALL_ACCOUNTS) {
+        toast.error(GROUP_NOT_ON_ALL_ACCOUNTS_MESSAGE);
+        return;
+      }
       toast.error(getApiErrorMessage(error));
     }
   };
@@ -170,7 +178,7 @@ export default function PhoneInviteGroupCampaignView() {
 
       <ComponentCard
         title="Chiến dịch mời số điện thoại tham gia nhóm"
-        desc="Chọn tài khoản, nhóm Zalo và danh sách SĐT để mời tham gia nhóm"
+        desc="Chọn nick + nhóm chung; SĐT là queue chung, các nick thay phiên mời vào cùng nhóm"
         fill
       >
         <div className="mb-4 flex min-h-0 flex-1 flex-col gap-4">
@@ -232,11 +240,17 @@ export default function PhoneInviteGroupCampaignView() {
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
             Ghi chú quan trọng
           </h3>
-          <p className="mt-3 text-sm leading-6 text-gray-600 dark:text-gray-300">
-            Hệ thống sẽ tự động tạm dừng chiến dịch khi nick Zalo bị hạn chế.
-            Khuyến nghị thời gian chờ 180 giây trở lên và số lượt mời 20/ngày.
-            Hiện tại Zalo chỉ cho phép mời vào nhóm cộng đồng khi là bạn bè.
-          </p>
+          <div className="mt-3 space-y-2 text-sm leading-6 text-gray-600 dark:text-gray-300">
+            <p>
+              SĐT là <strong>1 queue chung</strong>; các nick <strong>thay phiên</strong> mời
+              vào <strong>cùng nhóm chung</strong>. Nick mất group / proxy / limit sẽ không
+              nhận SĐT (số không bị nuốt).
+            </p>
+            <p>
+              Hệ thống tạm dừng khi nick bị hạn chế. Khuyến nghị chờ ≥ 180 giây và ≤ 20
+              lượt mời/ngày. Zalo chỉ cho mời vào nhóm cộng đồng khi đã là bạn bè.
+            </p>
+          </div>
         </div>
       </Modal>
     </div>
