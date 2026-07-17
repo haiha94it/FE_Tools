@@ -108,10 +108,15 @@ export const getCsrfToken = async (params) => {
         const clientCookie = storedDataFb?.find(
             (item) => item.id === Number(params.account),
         )?.webSession;
-        const proxy = formatProxy(
-            storedDataFb?.filter((item) => item.id === Number(params.account))[0]
-                ?.proxy?.proxy,
-        );
+        let proxy;
+        try {
+            const rawProxy = storedDataFb?.find(
+                (item) => item.id === Number(params.account),
+            )?.proxy?.proxy;
+            proxy = rawProxy ? formatProxy(rawProxy) : undefined;
+        } catch {
+            proxy = undefined;
+        }
         const response = await fetch('/next-api/get_csrf_token_zl', {
             method: 'POST',
             headers: {
@@ -120,13 +125,11 @@ export const getCsrfToken = async (params) => {
             body: JSON.stringify({ clientCookie, proxy }),
         });
 
-        if (!response.ok) {
+        const text = await response.text();
+        if (!response.ok || !text?.trim()) {
             throw new Error('Failed to fetch CSRF token');
         }
-
-        const result = await response.json();
-
-        // Lưu vào localStorage
+        const result = JSON.parse(text);
         localStorage.setItem('csrfZaloData', JSON.stringify(result));
     } catch (error) {
         console.error('Error fetching CSRF token:', error.message);
@@ -331,11 +334,11 @@ export const getInforDaily = async (params, setData) => {
             body: JSON.stringify({ clientCookie }),
         });
 
-        if (!response.ok) {
+        const text = await response.text();
+        if (!response.ok || !text?.trim()) {
             throw new Error('Failed to fetch CSRF token');
         }
-
-        const result = await response.json();
+        const result = JSON.parse(text);
         if (setData) {
             setData(result);
         }

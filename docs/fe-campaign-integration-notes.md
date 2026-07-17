@@ -1,7 +1,7 @@
 # FE integration notes — bug fix & migrate (living doc)
 
-> Spec đầy đủ: [`team-collaboration-be-fe-contract.md`](./team-collaboration-be-fe-contract.md).  
-> Chat realtime handler: contract **§2.3.2**.
+> SSOT logic BE: [`BE/docs/backend_logic_guide.md`](../../BE/docs/backend_logic_guide.md) **§15** · **§15.13**.  
+> Stub cũ team contract: [`team-collaboration-be-fe-contract.md`](./team-collaboration-be-fe-contract.md) (chỉ trỏ SSOT).
 
 ---
 

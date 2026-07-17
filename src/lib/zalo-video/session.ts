@@ -62,6 +62,27 @@ export async function ensureCsrfToken(accountId: number): Promise<string> {
   return token;
 }
 
+/** Cập nhật webSession trong localStorage dataFb sau BE channel login. */
+export function patchDataFbWebSession(
+  accountId: number,
+  webSession: string | null | undefined,
+): void {
+  if (typeof window === "undefined" || !webSession) return;
+  try {
+    const raw = localStorage.getItem(DATA_FB_KEY);
+    const list = raw ? (JSON.parse(raw) as DataFbAccount[]) : [];
+    if (!Array.isArray(list)) return;
+    const next = list.map((item) =>
+      item.id === accountId ? { ...item, webSession } : item,
+    );
+    // Nếu chưa có entry account — không tạo full object (fetchAccounts sẽ sync)
+    if (!next.some((item) => item.id === accountId)) return;
+    localStorage.setItem(DATA_FB_KEY, JSON.stringify(next));
+  } catch {
+    /* ignore */
+  }
+}
+
 export async function refreshCsrfToken(accountId: number): Promise<void> {
   const session = getAccountSession(accountId);
   if (!session?.clientCookie) return;
@@ -75,8 +96,16 @@ export async function refreshCsrfToken(accountId: number): Promise<void> {
     }),
   });
 
-  if (!response.ok) return;
+  // Body rỗng / non-JSON (nginx 200 5 bytes) → không .json() mù
+  const text = await response.text();
+  if (!response.ok || !text?.trim()) return;
 
-  const result = await response.json();
-  localStorage.setItem(CSRF_KEY, JSON.stringify(result));
+  try {
+    const result = JSON.parse(text) as unknown;
+    if (result != null && typeof result === "object") {
+      localStorage.setItem(CSRF_KEY, JSON.stringify(result));
+    }
+  } catch {
+    // Unexpected end of JSON input — bỏ qua, không chặn login kênh
+  }
 }

@@ -7,7 +7,7 @@ import {
   normalizeVideoTaskResult,
 } from "@/lib/zalo-video/task-utils";
 import { hasZaloVideoChannel } from "@/lib/zalo-video/channel-utils";
-import { refreshCsrfToken } from "@/lib/zalo-video/session";
+import { patchDataFbWebSession, refreshCsrfToken } from "@/lib/zalo-video/session";
 import { syncDataFbAccounts } from "@/lib/zalo-video/sync-data-fb";
 import { toast } from "@/lib/toast";
 import { zaloVideoService } from "@/services/zalo-video.service";
@@ -124,7 +124,7 @@ export const useZaloVideoStore = create<ZaloVideoState>((set, get) => ({
     });
 
     try {
-      await refreshCsrfToken(accountId);
+      // 1) BE login channel trước — lấy web_session mới (CSRF cần cookie này)
       const result = normalizeVideoTaskResult(
         await zaloVideoService.loginChannel(accountId),
       );
@@ -156,6 +156,32 @@ export const useZaloVideoStore = create<ZaloVideoState>((set, get) => ({
           toast.error(errorMessage);
         }
         return;
+      }
+
+      // 2) Lưu webSession từ BE → localStorage rồi mới lấy CSRF (Next → Zalo)
+      // Celery result nằm ở result.result sau normalizeVideoTaskResult
+      const rawResult = result as {
+        web_session?: string;
+        webSession?: string;
+        result?: { web_session?: string; webSession?: string };
+      };
+      const webSession =
+        rawResult.web_session
+        ?? rawResult.webSession
+        ?? rawResult.result?.web_session
+        ?? rawResult.result?.webSession;
+      if (webSession) {
+        patchDataFbWebSession(accountId, webSession);
+        set({
+          accounts: get().accounts.map((item) =>
+            item.id === accountId ? { ...item, webSession } : item,
+          ),
+        });
+      }
+      try {
+        await refreshCsrfToken(accountId);
+      } catch {
+        // CSRF lỗi không chặn xem info kênh
       }
 
       const info = await zaloVideoService.getChannelInfo(accountId);
