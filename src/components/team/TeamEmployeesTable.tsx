@@ -19,10 +19,11 @@ function TeamEmployeesTable({
 }: TeamEmployeesTableProps) {
   return (
     <div className="custom-scrollbar overflow-x-auto overscroll-x-contain">
-      <table className="w-full min-w-[640px] text-left text-sm">
+      <table className="w-full min-w-[760px] text-left text-sm">
         <thead>
           <tr className="border-b border-gray-200 text-xs uppercase text-gray-500 dark:border-gray-800">
             <th className="px-3 py-3 font-medium">Nhân viên</th>
+            <th className="px-3 py-3 font-medium">Mật khẩu</th>
             <th className="px-3 py-3 font-medium">Tài khoản</th>
             <th className="px-3 py-3 font-medium text-right">Thao tác</th>
           </tr>

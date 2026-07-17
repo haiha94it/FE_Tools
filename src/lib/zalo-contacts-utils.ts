@@ -34,11 +34,33 @@ export function normalizeZaloGroupItem(raw: unknown): ZaloGroupItem | null {
 
   if (raw && typeof raw === "object" && !Array.isArray(raw)) {
     const record = raw as Record<string, unknown>;
+    const profile =
+      record.global_profile &&
+      typeof record.global_profile === "object" &&
+      !Array.isArray(record.global_profile)
+        ? (record.global_profile as Record<string, unknown>)
+        : null;
+
+    const nameFromProfile =
+      typeof profile?.name === "string" ? profile.name : null;
+    const avatarFromProfile =
+      typeof profile?.avatar === "string"
+        ? profile.avatar
+        : typeof profile?.avt === "string"
+          ? profile.avt
+          : null;
+
     return {
       id,
-      name: typeof record.name === "string" ? record.name : null,
-      avatar: typeof record.avatar === "string" ? record.avatar : null,
-      avt: typeof record.avt === "string" ? record.avt : null,
+      name:
+        (typeof record.name === "string" ? record.name : null) ||
+        nameFromProfile,
+      avatar:
+        (typeof record.avatar === "string" ? record.avatar : null) ||
+        avatarFromProfile,
+      avt:
+        (typeof record.avt === "string" ? record.avt : null) ||
+        avatarFromProfile,
       total_member:
         typeof record.total_member === "number"
           ? record.total_member
@@ -189,21 +211,194 @@ export function extractFetchedContacts<T>(data: unknown): T[] {
   return extractContactList<T>(body);
 }
 
-/** Một số thành viên nhóm API trả `friend: null` */
+/**
+ * Label / avatar member — living doc 2026-07-17:
+ * friend.name → alias_name → uid; friend null = Tôi/Admin.
+ */
 export function getGroupMemberDisplay(member: ZaloGroupMember): {
   key: string | number;
   name: string;
   avatar: string | null;
+  friendId: number | null;
+  selectable: boolean;
 } {
   const friend = member.friend;
+  if (!friend) {
+    const name = member.is_creator
+      ? "Tôi (chủ nhóm)"
+      : member.is_admin
+        ? "Admin"
+        : "Thành viên";
+    return {
+      key: member.id ?? name,
+      name,
+      avatar: null,
+      friendId: null,
+      selectable: false,
+    };
+  }
+
   const name =
-    friend?.name?.trim() ||
-    friend?.uid?.trim() ||
-    (member.id ? `Thành viên #${member.id}` : "Thành viên");
+    friend.name?.trim() ||
+    friend.alias_name?.trim() ||
+    friend.uid?.trim() ||
+    `Friend #${friend.id}`;
 
   return {
-    key: member.id ?? friend?.id ?? name,
+    key: friend.id ?? member.id ?? name,
     name,
-    avatar: friend ? getZaloGroupAvatar(friend) : null,
+    avatar: getZaloGroupAvatar(friend),
+    friendId: friend.id ?? null,
+    selectable: friend.id != null,
   };
+}
+
+/** FriendModel.id — value chọn campaign / queue (không membership.id) */
+export function getGroupMemberSelectId(member: ZaloGroupMember): number | null {
+  return member.friend?.id ?? null;
+}
+
+export function filterSelectableGroupMembers(
+  members: ZaloGroupMember[],
+): ZaloGroupMember[] {
+  return members.filter((member) => member.friend?.id != null);
+}
+
+export function normalizeGroupMember(raw: unknown): ZaloGroupMember | null {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const record = raw as Record<string, unknown>;
+  const membershipId =
+    typeof record.id === "number" && Number.isFinite(record.id)
+      ? record.id
+      : null;
+
+  let friend: ZaloGroupMember["friend"] = null;
+  if (record.friend && typeof record.friend === "object" && !Array.isArray(record.friend)) {
+    const f = record.friend as Record<string, unknown>;
+    const friendId =
+      typeof f.id === "number" && Number.isFinite(f.id) ? f.id : null;
+    if (friendId != null) {
+      const profile =
+        f.global_profile &&
+        typeof f.global_profile === "object" &&
+        !Array.isArray(f.global_profile)
+          ? (f.global_profile as Record<string, unknown>)
+          : null;
+      const nameFromProfile =
+        typeof profile?.name === "string" ? profile.name : null;
+      const avatarFromProfile =
+        typeof profile?.avatar === "string"
+          ? profile.avatar
+          : typeof profile?.avt === "string"
+            ? profile.avt
+            : null;
+
+      friend = {
+        id: friendId,
+        uid: typeof f.uid === "string" ? f.uid : String(f.uid ?? ""),
+        name:
+          (typeof f.name === "string" ? f.name : null) ||
+          (typeof f.alias_name === "string" ? f.alias_name : null) ||
+          nameFromProfile ||
+          "",
+        alias_name:
+          typeof f.alias_name === "string" ? f.alias_name : undefined,
+        avatar:
+          (typeof f.avatar === "string" ? f.avatar : null) ||
+          avatarFromProfile,
+        avt:
+          (typeof f.avt === "string" ? f.avt : null) || avatarFromProfile,
+        phone_number:
+          typeof f.phone_number === "string" ? f.phone_number : null,
+      };
+    }
+  }
+
+  if (membershipId == null && !friend) return null;
+
+  return {
+    id: membershipId ?? friend?.id ?? 0,
+    friend,
+    is_admin: Boolean(record.is_admin),
+    is_creator: Boolean(record.is_creator),
+  };
+}
+
+export function normalizeGroupMemberList(items: unknown[]): ZaloGroupMember[] {
+  return items
+    .map((item) => normalizeGroupMember(item))
+    .filter((item): item is ZaloGroupMember => item != null);
+}
+
+/**
+ * Unwrap get-member poll:
+ * data.result.data  (Celery SUCCESS + zalo envelope lồng)
+ * living doc 2026-07-17
+ */
+export function extractGroupMembersFromPoll(body: unknown): {
+  members: ZaloGroupMember[];
+  groupName?: string;
+  totalMember?: number;
+} {
+  if (!body) return { members: [] };
+
+  // Already array of members
+  if (Array.isArray(body)) {
+    return { members: normalizeGroupMemberList(body) };
+  }
+
+  if (typeof body !== "object") return { members: [] };
+  const record = body as Record<string, unknown>;
+
+  // Celery SUCCESS payload may be nested at result
+  const status =
+    (typeof record.task_status === "string" ? record.task_status : undefined) ??
+    (typeof record.status === "string" ? record.status : undefined);
+
+  let payload: unknown =
+    status === "SUCCESS" ? (record.result ?? record.data) : record.data;
+  if (payload == null && status !== "SUCCESS") {
+    // show endpoint: envelope already unwrapped to zalo payload or list
+    payload = "data" in record ? record.data : body;
+  }
+
+  // Nested zalo envelope: { success, data: members[], group_name, total_member }
+  if (payload && typeof payload === "object" && !Array.isArray(payload)) {
+    const nested = payload as Record<string, unknown>;
+    if (Array.isArray(nested.data)) {
+      return {
+        members: normalizeGroupMemberList(nested.data),
+        groupName:
+          typeof nested.group_name === "string" ? nested.group_name : undefined,
+        totalMember:
+          typeof nested.total_member === "number"
+            ? nested.total_member
+            : typeof nested.total_member === "string"
+              ? Number(nested.total_member) || undefined
+              : undefined,
+      };
+    }
+    if (Array.isArray(nested.results)) {
+      return { members: normalizeGroupMemberList(nested.results) };
+    }
+  }
+
+  if (Array.isArray(payload)) {
+    return { members: normalizeGroupMemberList(payload) };
+  }
+
+  // Fallback: body itself has data/results
+  if (Array.isArray(record.data)) {
+    return {
+      members: normalizeGroupMemberList(record.data),
+      groupName:
+        typeof record.group_name === "string" ? record.group_name : undefined,
+      totalMember:
+        typeof record.total_member === "number"
+          ? record.total_member
+          : undefined,
+    };
+  }
+
+  return { members: [] };
 }

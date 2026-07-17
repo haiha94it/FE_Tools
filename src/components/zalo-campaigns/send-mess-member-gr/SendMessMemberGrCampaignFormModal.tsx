@@ -193,12 +193,20 @@ export default function SendMessMemberGrCampaignFormModal({
   }, [groups, groupSearch]);
 
   const filteredMembers = useMemo(() => {
-    const key = memberSearch.trim().toLowerCase();
-    const withUid = members.filter((item) => getGroupMemberUid(item));
-    if (!key) return withUid;
-    return withUid.filter((item) =>
-      getGroupMemberDisplay(item).name.toLowerCase().includes(key),
+    // Chọn được khi có friend.id (hoặc uid fallback cho API uids)
+    const selectable = members.filter(
+      (item) => item.friend?.id != null || Boolean(getGroupMemberUid(item)),
     );
+    const key = memberSearch.trim().toLowerCase();
+    if (!key) return selectable;
+    return selectable.filter((item) => {
+      const display = getGroupMemberDisplay(item);
+      const uid = String(item.friend?.uid ?? "");
+      return (
+        display.name.toLowerCase().includes(key) ||
+        uid.toLowerCase().includes(key)
+      );
+    });
   }, [members, memberSearch]);
 
   const resetForm = useCallback(() => {

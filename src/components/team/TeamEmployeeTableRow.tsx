@@ -1,7 +1,10 @@
 "use client";
 
+import { getTeamEmployeePassword } from "@/lib/team-employee-utils";
+import { toast } from "@/lib/toast";
 import type { TeamEmployee } from "@/types/team-collaboration";
-import { memo } from "react";
+import { memo, useState } from "react";
+import { HiOutlineClipboard, HiOutlineEye, HiOutlineEyeOff } from "react-icons/hi";
 
 interface TeamEmployeeTableRowProps {
   employee: TeamEmployee;
@@ -16,6 +19,24 @@ function TeamEmployeeTableRow({
   onEditPermissions,
   onEditEmployee,
 }: TeamEmployeeTableRowProps) {
+  const [showPassword, setShowPassword] = useState(false);
+  const password = getTeamEmployeePassword(employee);
+  const masked =
+    password.length > 0 ? "•".repeat(Math.min(password.length, 12)) : "—";
+
+  const handleCopyPassword = async () => {
+    if (!password) {
+      toast.error("Không có mật khẩu để sao chép.");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(password);
+      toast.success("Đã sao chép mật khẩu.");
+    } catch {
+      toast.error("Không sao chép được mật khẩu.");
+    }
+  };
+
   return (
     <tr className="border-b border-gray-100 dark:border-gray-800">
       <td className="px-3 py-3">
@@ -23,6 +44,39 @@ function TeamEmployeeTableRow({
           {employee.fullname || employee.username}
         </p>
         <p className="text-xs text-gray-500">@{employee.username}</p>
+      </td>
+      <td className="px-3 py-3">
+        <div className="flex min-w-[140px] items-center gap-1.5">
+          <span className="font-mono text-theme-xs text-gray-700 dark:text-gray-300">
+            {showPassword ? password || "—" : masked}
+          </span>
+          {password ? (
+            <div className="flex shrink-0 items-center gap-0.5">
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                className="rounded p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-800 dark:hover:bg-white/[0.06] dark:hover:text-white/90"
+                aria-label={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+                title={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+              >
+                {showPassword ? (
+                  <HiOutlineEyeOff className="h-4 w-4" />
+                ) : (
+                  <HiOutlineEye className="h-4 w-4" />
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleCopyPassword()}
+                className="rounded p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-800 dark:hover:bg-white/[0.06] dark:hover:text-white/90"
+                aria-label="Sao chép mật khẩu"
+                title="Sao chép mật khẩu"
+              >
+                <HiOutlineClipboard className="h-4 w-4" />
+              </button>
+            </div>
+          ) : null}
+        </div>
       </td>
       <td className="px-3 py-3 text-gray-600 dark:text-gray-400">
         {employee.account_count ?? employee.logged_account_count ?? 0} /{" "}

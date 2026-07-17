@@ -72,6 +72,7 @@ export interface ZaloGroupMemberFriend {
   id: number;
   uid: string;
   name: string;
+  alias_name?: string | null;
   avatar?: string | null;
   avt?: string | null;
   phone_number?: string | null;

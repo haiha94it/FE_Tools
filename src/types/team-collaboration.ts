@@ -73,6 +73,9 @@ export interface TeamEmployee {
   account_count?: number;
   listener_limit?: number;
   logged_account_count?: number;
+  /** Mật khẩu plain (BE UserManagerSerializer / raw_password) — hiển thị cho manager */
+  password?: string | null;
+  raw_password?: string | null;
 }
 
 /** POST /api/users/create-employee — đồng bộ ZaloCN ManageEmployee */

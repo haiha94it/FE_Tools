@@ -176,7 +176,10 @@ export default function TeamEditEmployeeModal({
 
         <div>
           <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
-            Mật khẩu mới (tùy chọn)
+            {employee &&
+            (employee.raw_password || employee.password)
+              ? `Mật khẩu mới (hiện tại: ${employee.raw_password || employee.password})`
+              : "Mật khẩu mới (tùy chọn)"}
           </label>
           <Input
             type="password"
