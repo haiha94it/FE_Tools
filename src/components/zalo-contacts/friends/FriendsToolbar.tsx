@@ -17,7 +17,7 @@ const views: {
   label: string;
   shortLabel: string;
 }[] = [
-  { id: "scan", label: "Quét danh sách bạn bè", shortLabel: "Quét DS" },
+  { id: "scan", label: "Danh sách bạn bè", shortLabel: "Quét DS" },
   { id: "label", label: "Gán nhãn", shortLabel: "Gán nhãn" },
   { id: "recommend", label: "Gợi ý kết bạn", shortLabel: "Gợi ý KB" },
   { id: "sent-requests", label: "Lời mời kết bạn đã gửi", shortLabel: "Lời mời" },

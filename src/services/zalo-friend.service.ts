@@ -7,6 +7,7 @@ import {
   extractFetchedContacts,
   extractPaginated,
   normalizeZaloFriendList,
+  normalizeZaloSentFriendRequestList,
 } from "@/lib/zalo-contacts-utils";
 import api from "@/lib/axios";
 import type {
@@ -101,11 +102,16 @@ export const zaloFriendService = {
     const response = await api.get(API_ZALO_FRIEND.SENT_REQUEST_SHOW, {
       params: { id_account: accountId },
     });
-    const body = unwrapApiBody<unknown>(response.data);
-    if (Array.isArray(body)) return body as ZaloSentFriendRequestItem[];
+    // Interceptor đã unwrap envelope → data có thể là mảng hoặc { results }
+    const body = response.data;
+    if (Array.isArray(body)) {
+      return normalizeZaloSentFriendRequestList(body);
+    }
     if (body && typeof body === "object") {
-      const record = body as { results?: ZaloSentFriendRequestItem[] };
-      return record.results ?? [];
+      const record = body as { results?: unknown[] };
+      if (Array.isArray(record.results)) {
+        return normalizeZaloSentFriendRequestList(record.results);
+      }
     }
     return [];
   },

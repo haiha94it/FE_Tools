@@ -4,6 +4,7 @@ import type {
   ZaloFriendItem,
   ZaloGroupItem,
   ZaloGroupMember,
+  ZaloSentFriendRequestItem,
 } from "@/types/zalo-contacts";
 
 type RawContact = number | string | Record<string, unknown>;
@@ -75,6 +76,39 @@ export function normalizeZaloGroupItem(raw: unknown): ZaloGroupItem | null {
   return { id };
 }
 
+/** BE: gender 0 = Nam, 1 = Nữ (số). Giữ số để không mất `0` khi truthy-check. */
+export function normalizeZaloFriendGender(
+  value: unknown,
+): ZaloFriendItem["gender"] {
+  if (value === 0 || value === 1) return value;
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim()) {
+    const trimmed = value.trim();
+    if (trimmed === "0" || trimmed === "1") return Number(trimmed) as 0 | 1;
+    // legacy text
+    const lower = trimmed.toLowerCase();
+    if (lower === "nam" || lower === "male") return 0;
+    if (lower === "nữ" || lower === "nu" || lower === "female") return 1;
+    const asNum = Number(trimmed);
+    if (Number.isFinite(asNum)) return asNum;
+    return trimmed;
+  }
+  return null;
+}
+
+/** Hiển thị UI: 0 → Nam, 1 → Nữ */
+export function formatZaloFriendGender(
+  gender?: ZaloFriendItem["gender"],
+): string {
+  if (gender === 0 || gender === "0") return "Nam";
+  if (gender === 1 || gender === "1") return "Nữ";
+  if (typeof gender === "string" && gender.trim()) return gender.trim();
+  if (typeof gender === "number" && Number.isFinite(gender)) {
+    return String(gender);
+  }
+  return "—";
+}
+
 export function normalizeZaloFriendItem(raw: unknown): ZaloFriendItem | null {
   const id = resolveContactId(raw);
   if (id == null) return null;
@@ -89,8 +123,11 @@ export function normalizeZaloFriendItem(raw: unknown): ZaloFriendItem | null {
       uid: typeof record.uid === "string" ? record.uid : null,
       avatar: typeof record.avatar === "string" ? record.avatar : null,
       avt: typeof record.avt === "string" ? record.avt : null,
-      gender: typeof record.gender === "string" ? record.gender : null,
-      sdob: typeof record.sdob === "string" ? record.sdob : null,
+      gender: normalizeZaloFriendGender(record.gender),
+      sdob:
+        typeof record.sdob === "string" && record.sdob.trim()
+          ? record.sdob.trim()
+          : null,
     };
   }
 
@@ -107,6 +144,56 @@ export function normalizeZaloFriendList(items: unknown[]): ZaloFriendItem[] {
   return items
     .map((item) => normalizeZaloFriendItem(item))
     .filter((item): item is ZaloFriendItem => item != null);
+}
+
+/** List lời mời đã gửi — show endpoint có gender 0/1 */
+export function normalizeZaloSentFriendRequestItem(
+  raw: unknown,
+): ZaloSentFriendRequestItem | null {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const record = raw as Record<string, unknown>;
+  const id =
+    typeof record.id === "number" && Number.isFinite(record.id)
+      ? record.id
+      : undefined;
+  const name =
+    typeof record.name === "string"
+      ? record.name
+      : typeof record.zaloName === "string"
+        ? record.zaloName
+        : null;
+  const uid =
+    typeof record.uid === "string"
+      ? record.uid
+      : typeof record.userId === "string"
+        ? record.userId
+        : typeof record.user_id === "string"
+          ? record.user_id
+          : null;
+  const avatar =
+    typeof record.avatar === "string"
+      ? record.avatar
+      : typeof record.avt === "string"
+        ? record.avt
+        : null;
+
+  if (id == null && !name && !uid) return null;
+
+  return {
+    id,
+    name,
+    uid,
+    avatar,
+    gender: normalizeZaloFriendGender(record.gender),
+  };
+}
+
+export function normalizeZaloSentFriendRequestList(
+  items: unknown[],
+): ZaloSentFriendRequestItem[] {
+  return items
+    .map((item) => normalizeZaloSentFriendRequestItem(item))
+    .filter((item): item is ZaloSentFriendRequestItem => item != null);
 }
 
 export function getZaloGroupDisplayName(group: ZaloGroupItem): string {

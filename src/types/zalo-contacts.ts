@@ -5,11 +5,19 @@ export interface PaginatedResponse<T> {
   previous?: string | null;
 }
 
+/**
+ * gender từ BE (FriendModel):
+ * - 0 = Nam
+ * - 1 = Nữ
+ * (một số payload legacy có thể là string)
+ */
+export type ZaloFriendGender = 0 | 1 | number | string | null;
+
 export interface ZaloFriendItem {
   id: number;
   name?: string | null;
   alias_name?: string | null;
-  gender?: string | null;
+  gender?: ZaloFriendGender;
   sdob?: string | null;
   uid?: string | null;
   avatar?: string | null;
@@ -40,6 +48,8 @@ export interface ZaloSentFriendRequestItem {
   name?: string | null;
   uid?: string | null;
   avatar?: string | null;
+  /** 0 = Nam, 1 = Nữ (BE FriendModel) */
+  gender?: ZaloFriendGender;
 }
 
 export interface ZaloGroupLinkItem {

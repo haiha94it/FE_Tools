@@ -7,7 +7,6 @@ import Badge from "@/components/ui/badge/Badge";
 import { APP_NAME } from "@/constants/brand";
 import {
   formatAccountDate,
-  formatCoinBalance,
   getUserRoleLabel,
   isAccountExpired,
 } from "@/lib/account-utils";
@@ -215,16 +214,11 @@ export default function AccountInfoView() {
           </p>
         ) : null}
 
-        <div className="relative mt-4 grid grid-cols-1 gap-3 border-t border-white/15 pt-4 sm:grid-cols-3 sm:gap-4">
+        <div className="relative mt-4 grid grid-cols-1 gap-3 border-t border-white/15 pt-4 sm:grid-cols-2 sm:gap-4">
           <HeroMetric
             label="Hạn sử dụng"
             value={formatAccountDate(user?.expirationDate)}
             hint={expired ? "Cần gia hạn" : "Còn hiệu lực"}
-          />
-          <HeroMetric
-            label="Số dư xu"
-            value={formatCoinBalance(user?.coinBalance)}
-            hint="Tính năng trả phí"
           />
           <HeroMetric
             label="Tài khoản Zalo"

@@ -15,7 +15,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useScanTaskPoll } from "@/hooks/use-scan-task-poll";
-import { isScanTaskDone } from "@/lib/zalo-contacts-utils";
+import {
+  formatZaloFriendGender,
+  isScanTaskDone,
+} from "@/lib/zalo-contacts-utils";
 import { toast } from "@/lib/toast";
 import { isEmployeeUser } from "@/lib/team-collaboration-utils";
 import { zaloFriendService } from "@/services/zalo-friend.service";
@@ -185,25 +188,37 @@ export default function ScanFriendsPanel({
                 <TableCell className={cellClass}>{" "}</TableCell>
               </TableRow>
             ) : (
-              friends.map((friend, index) => (
-                <TableRow key={friend.id}>
-                  <TableCell className={cellClass}>
-                    {(page - 1) * pageSize + index + 1}
-                  </TableCell>
-                  <TableCell className={cellClass}>
-                    <FriendNameCell
-                      name={friend.name}
-                      avatar={friend.avatar}
-                    />
-                  </TableCell>
-                  <TableCell className={cellClass}>
-                    {friend.gender || "—"}
-                  </TableCell>
-                  <TableCell className={cellClass}>
-                    {friend.sdob || "—"}
-                  </TableCell>
-                </TableRow>
-              ))
+              friends.map((friend, index) => {
+                const genderLabel = formatZaloFriendGender(friend.gender);
+                return (
+                  <TableRow key={friend.id}>
+                    <TableCell className={cellClass}>
+                      {(page - 1) * pageSize + index + 1}
+                    </TableCell>
+                    <TableCell className={cellClass}>
+                      <FriendNameCell
+                        name={friend.name ?? friend.alias_name}
+                        avatar={friend.avatar ?? friend.avt}
+                        subtitle={genderLabel !== "—" ? genderLabel : null}
+                      />
+                    </TableCell>
+                    <TableCell className={cellClass}>
+                      <span
+                        className={
+                          genderLabel === "—"
+                            ? "text-gray-400"
+                            : "font-medium text-gray-800 dark:text-white/90"
+                        }
+                      >
+                        {genderLabel}
+                      </span>
+                    </TableCell>
+                    <TableCell className={cellClass}>
+                      {friend.sdob?.trim() ? friend.sdob : "—"}
+                    </TableCell>
+                  </TableRow>
+                );
+              })
             )}
           </TableBody>
         </Table>

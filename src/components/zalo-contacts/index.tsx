@@ -57,6 +57,8 @@ export default function ZaloContactsView() {
         parents={[
           { label: "Quản lý tài khoản Zalo", href: "/zalo-accounts" },
         ]}
+        backHref="/zalo-accounts"
+        backLabel="Quay lại"
       />
 
       <ComponentCard fill>

@@ -13,7 +13,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useScanTaskPoll } from "@/hooks/use-scan-task-poll";
-import { isScanTaskDone } from "@/lib/zalo-contacts-utils";
+import {
+  formatZaloFriendGender,
+  isScanTaskDone,
+} from "@/lib/zalo-contacts-utils";
 import { toast } from "@/lib/toast";
 import { zaloFriendService } from "@/services/zalo-friend.service";
 import { FriendNameCell } from "@/components/zalo-contacts/shared/ContactAvatar";
@@ -133,7 +136,7 @@ export default function SentFriendRequestsPanel({
                 Tên
               </TableCell>
               <TableCell isHeader className={headerClass}>
-                UID
+                Giới tính
               </TableCell>
             </TableRow>
           </TableHeader>
@@ -151,17 +154,32 @@ export default function SentFriendRequestsPanel({
                 <TableCell className={cellClass}>{" "}</TableCell>
               </TableRow>
             ) : (
-              items.map((item, index) => (
-                <TableRow key={`${item.uid ?? item.id ?? index}`}>
-                  <TableCell className={cellClass}>{index + 1}</TableCell>
-                  <TableCell className={cellClass}>
-                    <FriendNameCell name={item.name} avatar={item.avatar} />
-                  </TableCell>
-                  <TableCell className={cellClass}>
-                    {item.uid || "—"}
-                  </TableCell>
-                </TableRow>
-              ))
+              items.map((item, index) => {
+                const genderLabel = formatZaloFriendGender(item.gender);
+                return (
+                  <TableRow key={`${item.uid ?? item.id ?? index}`}>
+                    <TableCell className={cellClass}>{index + 1}</TableCell>
+                    <TableCell className={cellClass}>
+                      <FriendNameCell
+                        name={item.name}
+                        avatar={item.avatar}
+                        subtitle={genderLabel !== "—" ? genderLabel : null}
+                      />
+                    </TableCell>
+                    <TableCell className={cellClass}>
+                      <span
+                        className={
+                          genderLabel === "—"
+                            ? "text-gray-400"
+                            : "font-medium text-gray-800 dark:text-white/90"
+                        }
+                      >
+                        {genderLabel}
+                      </span>
+                    </TableCell>
+                  </TableRow>
+                );
+              })
             )}
           </TableBody>
         </Table>
