@@ -5,6 +5,7 @@ import {
   filterMessageDetailsForAccount,
   groupConversationsByAccount,
   prepareConversationsFromGlobalUpdate,
+  resolveAccountActivityTsFromGlobalUpdate,
 } from "@/lib/zalo-messenger-utils";
 import { useZaloMessengerStore } from "@/stores/use-zalo-messenger-store";
 import { useWebSocketStore } from "@/stores/use-websocket-store";
@@ -16,7 +17,15 @@ import type {
   WsActionMessagePayload,
 } from "@/types/zalo-messenger";
 import type { WsMessagePayload } from "@/types/websocket";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+
+/** Gộp storm WS — 1 lần mergeAccountActivity / ~150ms */
+const ACCOUNT_ACTIVITY_THROTTLE_MS = 150;
+
+type PendingAccountActivity = {
+  ts: number | null;
+  hasUnread?: boolean;
+};
 
 const WS_ACTION_FAILURE_HINT: Record<string, string> = {
   "send-reaction-to-group": "Không gửi được cảm xúc.",
@@ -46,6 +55,10 @@ function isWsActionMessage(
 export function useMessengerWs() {
   const connect = useWebSocketStore((s) => s.connect);
   const subscribe = useWebSocketStore((s) => s.subscribe);
+  const pendingActivityRef = useRef<Map<number, PendingAccountActivity>>(
+    new Map(),
+  );
+  const activityTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     connect();
@@ -53,10 +66,46 @@ export function useMessengerWs() {
 
   // Subscribe một lần — đọc state mới nhất qua getState(), tránh re-subscribe khi store đổi
   useEffect(() => {
-    return subscribe((payload) => {
+    const flushAccountActivity = () => {
+      activityTimerRef.current = null;
+      const pending = pendingActivityRef.current;
+      if (!pending.size) return;
+      pendingActivityRef.current = new Map();
+      const { mergeAccountActivity } = useZaloMessengerStore.getState();
+      for (const [accountId, patch] of pending) {
+        mergeAccountActivity(accountId, {
+          ts: patch.ts,
+          hasUnread: patch.hasUnread,
+        });
+      }
+    };
+
+    const scheduleAccountActivity = (
+      accountId: number,
+      patch: PendingAccountActivity,
+    ) => {
+      const prev = pendingActivityRef.current.get(accountId);
+      const nextTs =
+        patch.ts != null && (prev?.ts == null || patch.ts >= prev.ts)
+          ? patch.ts
+          : (prev?.ts ?? patch.ts ?? null);
+      pendingActivityRef.current.set(accountId, {
+        ts: nextTs,
+        hasUnread:
+          patch.hasUnread !== undefined
+            ? patch.hasUnread
+            : prev?.hasUnread,
+      });
+      if (activityTimerRef.current != null) return;
+      activityTimerRef.current = setTimeout(
+        flushAccountActivity,
+        ACCOUNT_ACTIVITY_THROTTLE_MS,
+      );
+    };
+
+    const unsubscribe = subscribe((payload) => {
       const {
         mergeConversations,
-        mergeAccountBadge,
         appendLiveMessages,
         handleMessageAck,
         resetConversationUnread,
@@ -125,8 +174,16 @@ export function useMessengerWs() {
           }
         }
 
+        // Bump activity + re-sort nick (throttle) — không REST / không switchAccount
         if (wsAccountId != null) {
-          mergeAccountBadge(wsAccountId, Boolean(payload.account?.status));
+          const activityTs = resolveAccountActivityTsFromGlobalUpdate({
+            message_details: messageDetails,
+            conversations,
+          });
+          scheduleAccountActivity(wsAccountId, {
+            ts: activityTs ?? Date.now(),
+            hasUnread: Boolean(payload.account?.status),
+          });
         }
 
         if (
@@ -173,5 +230,14 @@ export function useMessengerWs() {
         toast.error(hint);
       }
     });
+
+    return () => {
+      unsubscribe();
+      if (activityTimerRef.current != null) {
+        clearTimeout(activityTimerRef.current);
+        activityTimerRef.current = null;
+      }
+      pendingActivityRef.current.clear();
+    };
   }, [subscribe]);
 }

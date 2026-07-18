@@ -9,6 +9,7 @@ import {
   dedupeConversations,
   extractNextPage,
   generateClientMsgId,
+  maxMessengerAccountActivityTime,
   mergeConversationRecords,
   normalizeMessageList,
   scopeConversationsToAccount,
@@ -215,6 +216,14 @@ interface ZaloMessengerState {
     accountId?: number | null,
   ) => void;
   mergeAccountBadge: (accountId: number, hasUnread: boolean) => void;
+  /** WS: bump updated_time + badge + re-sort nick (không REST / không switchAccount) */
+  mergeAccountActivity: (
+    accountId: number,
+    options: {
+      ts?: string | number | null;
+      hasUnread?: boolean;
+    },
+  ) => void;
   appendLiveMessages: (
     accountId: number,
     openConversation: MessengerConversation | null,
@@ -693,9 +702,7 @@ export const useZaloMessengerStore = create<ZaloMessengerState>((set, get) => ({
   fetchAccounts: async () => {
     set({ accountsLoading: true, error: null });
     try {
-      let accounts = sortMessengerAccounts(
-        await zaloMessengerService.listAccounts(),
-      );
+      let accounts = await zaloMessengerService.listAccounts();
       const user = useAuthStore.getState().user;
       if (isEmployeeUser(user)) {
         const assignedIds = new Set(
@@ -703,7 +710,11 @@ export const useZaloMessengerStore = create<ZaloMessengerState>((set, get) => ({
         );
         accounts = accounts.filter((account) => assignedIds.has(account.id));
       }
-      set({ accounts, accountsLoading: false });
+      // F5 / bootstrap: nick tin mới nhất lên đầu (pin trước)
+      set({
+        accounts: sortMessengerAccounts(accounts),
+        accountsLoading: false,
+      });
     } catch {
       set({ accountsLoading: false, accounts: [] });
     }
@@ -1174,10 +1185,38 @@ export const useZaloMessengerStore = create<ZaloMessengerState>((set, get) => ({
 
   mergeAccountBadge: (accountId, hasUnread) => {
     set((state) => ({
-      accounts: state.accounts.map((item) =>
-        item.id === accountId ? { ...item, new_message: hasUnread } : item,
+      accounts: sortMessengerAccounts(
+        state.accounts.map((item) =>
+          item.id === accountId ? { ...item, new_message: hasUnread } : item,
+        ),
       ),
     }));
+  },
+
+  mergeAccountActivity: (accountId, options) => {
+    const { ts, hasUnread } = options;
+    set((state) => {
+      const exists = state.accounts.some((item) => item.id === accountId);
+      if (!exists) return state;
+
+      const accounts = sortMessengerAccounts(
+        state.accounts.map((item) => {
+          if (item.id !== accountId) return item;
+          const next: MessengerAccount = {
+            ...item,
+            updated_time: maxMessengerAccountActivityTime(
+              item.updated_time,
+              ts ?? null,
+            ),
+          };
+          if (hasUnread !== undefined) {
+            next.new_message = hasUnread;
+          }
+          return next;
+        }),
+      );
+      return { accounts };
+    });
   },
 
   appendLiveMessages: (accountId, openConversation, accountUid, rawMessages) => {

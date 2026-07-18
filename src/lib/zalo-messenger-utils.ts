@@ -287,6 +287,11 @@ export function filterActiveMessengerAccounts(
   return accounts.filter((item) => item.checkpoint === false);
 }
 
+/**
+ * Sort nick messenger: pin → activity (updated_time) DESC → id DESC.
+ * Dùng chung F5 (`fetchAccounts`) và realtime WS (`mergeAccountActivity`).
+ * docs/fe_messenger_account_sort.md
+ */
 export function sortMessengerAccounts(
   accounts: MessengerAccount[],
 ): MessengerAccount[] {
@@ -295,8 +300,46 @@ export function sortMessengerAccounts(
     if (!a.pinning && b.pinning) return 1;
     const timeA = parseZaloUpdatedTimeMs(a.updated_time);
     const timeB = parseZaloUpdatedTimeMs(b.updated_time);
-    return timeB - timeA;
+    if (timeB !== timeA) return timeB - timeA;
+    return Number(b.id) - Number(a.id);
   });
+}
+
+/** Max ms từ updated_time hiện tại và activity mới (WS). */
+export function maxMessengerAccountActivityTime(
+  current?: string | number | null,
+  incoming?: string | number | null,
+): string | number | null {
+  const cur = parseZaloUpdatedTimeMs(current);
+  const next = parseZaloUpdatedTimeMs(incoming);
+  if (!cur && !next) return current ?? incoming ?? null;
+  if (next >= cur) {
+    if (incoming != null && incoming !== "") return incoming;
+    return next;
+  }
+  return current ?? null;
+}
+
+/**
+ * Lấy ts activity từ frame new_global_update.
+ * Ưu tiên message_details[].ts → conversations[].updated_time → null.
+ */
+export function resolveAccountActivityTsFromGlobalUpdate(payload: {
+  message_details?: Array<{ ts?: string | number | null }> | null;
+  conversations?: Array<{ updated_time?: string | number | null }> | null;
+}): number | null {
+  let maxTs = 0;
+
+  for (const msg of payload.message_details ?? []) {
+    const ts = normalizeTimestampMs(msg.ts);
+    if (ts > maxTs) maxTs = ts;
+  }
+  for (const conv of payload.conversations ?? []) {
+    const ts = parseZaloUpdatedTimeMs(conv.updated_time);
+    if (ts > maxTs) maxTs = ts;
+  }
+
+  return maxTs > 0 ? maxTs : null;
 }
 
 export function getConversationTitle(
