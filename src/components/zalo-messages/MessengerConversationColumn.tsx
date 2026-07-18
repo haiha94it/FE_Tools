@@ -219,7 +219,7 @@ function MessengerConversationColumn({
 
   const handleLabelsChanged = useStableHandler(() => {
     if (!selectedAccountId) return;
-    void fetchLabelCategories(selectedAccountId);
+    void fetchLabelCategories(selectedAccountId, { force: true });
     void fetchConversations(selectedAccountId, { page: 1 });
   });
 

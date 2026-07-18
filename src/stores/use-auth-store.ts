@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { clearTokens, getAccessToken } from "@/lib/axios";
 import { getApiErrorMessage } from "@/lib/errors";
+import { dedupeInflight } from "@/lib/inflight";
 import { authService } from "@/services/auth.service";
 import { runAsyncAction } from "@/stores/helpers/async-actions";
 import { useTeamCollaborationStore } from "@/stores/use-team-collaboration-store";
@@ -23,7 +24,7 @@ interface AuthState {
   login: (payload: LoginPayload) => Promise<void>;
   register: (payload: RegisterPayload) => Promise<void>;
   resetPassword: (payload: ResetPasswordPayload) => Promise<string>;
-  fetchProfile: () => Promise<void>;
+  fetchProfile: (options?: { force?: boolean }) => Promise<void>;
   ensureCareSession: () => Promise<boolean>;
   bootstrap: () => Promise<void>;
   activateEmail: (token: string) => Promise<void>;
@@ -35,6 +36,10 @@ interface AuthState {
   logout: () => Promise<void>;
   clearError: () => void;
 }
+
+/** Tránh Strict Mode / double mount gọi /me liên tiếp trong vài giây */
+let lastFetchProfileAt = 0;
+const PROFILE_FETCH_TTL_MS = 2500;
 
 export const useAuthStore = create<AuthState>()(
   persist(
@@ -90,22 +95,41 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
-      fetchProfile: async () => {
-        await runAsyncAction(
-          async () => {
-            const user = await authService.fetchMe();
-            set({ user, isAuthenticated: true });
-            await useTeamCollaborationStore.getState().bootstrapTeamContext();
-          },
-          set,
-          { silent: true },
-        ).catch(() => {
-          clearTokens();
-          set({
-            user: null,
-            isAuthenticated: false,
-            isCareReady: false,
-          });
+      fetchProfile: async (options = {}) => {
+        const force = options.force === true;
+        if (
+          !force &&
+          get().user &&
+          Date.now() - lastFetchProfileAt < PROFILE_FETCH_TTL_MS
+        ) {
+          return;
+        }
+
+        await dedupeInflight("auth:fetchProfile", async () => {
+          try {
+            await runAsyncAction(
+              async () => {
+                const user = await dedupeInflight("auth:fetchMe", () =>
+                  authService.fetchMe(),
+                );
+                set({ user, isAuthenticated: true });
+                // Team context (permissions + accounts) — 1 lần, có dedupe riêng
+                await useTeamCollaborationStore
+                  .getState()
+                  .bootstrapTeamContext();
+                lastFetchProfileAt = Date.now();
+              },
+              set,
+              { silent: true },
+            );
+          } catch {
+            clearTokens();
+            set({
+              user: null,
+              isAuthenticated: false,
+              isCareReady: false,
+            });
+          }
         });
       },
 
@@ -126,7 +150,10 @@ export const useAuthStore = create<AuthState>()(
               isCareReady: true,
               isBootstrapped: true,
             });
-            await useTeamCollaborationStore.getState().bootstrapTeamContext();
+            lastFetchProfileAt = Date.now();
+            await useTeamCollaborationStore.getState().bootstrapTeamContext({
+              force: true,
+            });
           },
           set,
           { silent: true },
@@ -134,26 +161,28 @@ export const useAuthStore = create<AuthState>()(
       },
 
       bootstrap: async () => {
-        const token = getAccessToken();
-        if (!token) {
-          set({
-            isBootstrapped: true,
-            isAuthenticated: false,
-            isCareReady: false,
-            user: null,
-          });
-          return;
-        }
+        return dedupeInflight("auth:bootstrap", async () => {
+          const token = getAccessToken();
+          if (!token) {
+            set({
+              isBootstrapped: true,
+              isAuthenticated: false,
+              isCareReady: false,
+              user: null,
+            });
+            return;
+          }
 
-        try {
-          await get().fetchProfile();
-          await useTeamCollaborationStore.getState().bootstrapTeamContext();
-          set({ isCareReady: true });
-        } catch (error) {
-          set({ error: getApiErrorMessage(error) });
-        } finally {
-          set({ isBootstrapped: true });
-        }
+          try {
+            // fetchProfile đã gọi bootstrapTeamContext — không gọi lại
+            await get().fetchProfile({ force: true });
+            set({ isCareReady: true });
+          } catch (error) {
+            set({ error: getApiErrorMessage(error) });
+          } finally {
+            set({ isBootstrapped: true });
+          }
+        });
       },
 
       acceptTerms: async (payload) => {

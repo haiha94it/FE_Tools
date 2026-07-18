@@ -1,4 +1,5 @@
 import { getApiErrorMessage } from "@/lib/errors";
+import { dedupeInflight } from "@/lib/inflight";
 import {
   filterZaloAccounts,
   formatMessageListenerError,
@@ -62,7 +63,7 @@ interface ZaloAccountState {
 
   deleteConfirm: { ids: number[] } | null;
 
-  fetchAccounts: () => Promise<void>;
+  fetchAccounts: (options?: { force?: boolean }) => Promise<void>;
   editAccountAction: (payload: EditZaloAccountPayload) => Promise<boolean>;
   deleteAccounts: (ids: number[]) => Promise<boolean>;
   checkAccounts: (ids: number[]) => Promise<boolean>;
@@ -135,13 +136,20 @@ export const useZaloAccountStore = create<ZaloAccountState>((set, get) => ({
 
   deleteConfirm: null,
 
-  fetchAccounts: async () => {
-    await runAsyncAction(
-      async () => {
-        const accounts = await fetchAccessibleAccounts();
-        set({ accounts });
-      },
-      set,
+  fetchAccounts: async (options = {}) => {
+    const force = options.force === true;
+    // Đã có list + không force → không gọi lại (Strict Mode / re-visit)
+    if (!force && get().accounts.length > 0 && !get().isLoading) {
+      return;
+    }
+    await dedupeInflight("zalo-account:fetchAccounts", () =>
+      runAsyncAction(
+        async () => {
+          const accounts = await fetchAccessibleAccounts();
+          set({ accounts });
+        },
+        set,
+      ),
     );
   },
 
@@ -153,7 +161,7 @@ export const useZaloAccountStore = create<ZaloAccountState>((set, get) => ({
     set({ editingAccountId: payload.id, error: null });
     try {
       await zaloAccountService.edit(payload);
-      await get().fetchAccounts();
+      await get().fetchAccounts({ force: true });
       set({ editingAccountId: null });
       toast.success("Đã cập nhật tài khoản.");
       return true;
@@ -216,7 +224,7 @@ export const useZaloAccountStore = create<ZaloAccountState>((set, get) => ({
       if (isZaloCheckTaskPending(taskStatus)) return;
 
       set({ checkingIds: [], checkTaskId: null });
-      await get().fetchAccounts();
+      await get().fetchAccounts({ force: true });
 
       if (taskStatus === "SUCCESS") {
         const failedCount =
@@ -241,7 +249,7 @@ export const useZaloAccountStore = create<ZaloAccountState>((set, get) => ({
       toast.warning(result.message || "Kiểm tra tài khoản có lỗi.");
     } catch {
       set({ checkingIds: [], checkTaskId: null });
-      await get().fetchAccounts();
+      await get().fetchAccounts({ force: true });
     }
   },
 
@@ -329,7 +337,7 @@ export const useZaloAccountStore = create<ZaloAccountState>((set, get) => ({
       if (status === "pending") return "pending";
 
       set({ cookieTaskId: null, cookieLoading: false });
-      await get().fetchAccounts();
+      await get().fetchAccounts({ force: true });
       return status;
     } catch {
       set({ cookieTaskId: null, cookieLoading: false });

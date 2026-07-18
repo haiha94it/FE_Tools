@@ -91,7 +91,12 @@ function MessengerChatColumn({ showMobileBack = false }: MessengerChatColumnProp
     ? isGroupConversation(activeConversation)
     : false;
   const groupId = activeConversation?.group?.id ?? null;
-  const { members: groupMembers } = useGroupMembers(
+  const {
+    members: groupMembers,
+    isLoading: groupMembersLoading,
+    isRefreshing: groupMembersRefreshing,
+    refreshMembers,
+  } = useGroupMembers(
     selectedAccountId,
     groupId,
     isGroup && Boolean(groupId),
@@ -200,6 +205,9 @@ function MessengerChatColumn({ showMobileBack = false }: MessengerChatColumnProp
       fastReplies={fastReplies}
       uploadingAttachment={uploadingAttachment}
       groupMembers={groupMembers}
+      groupMembersLoading={groupMembersLoading}
+      groupMembersRefreshing={groupMembersRefreshing}
+      onRefreshGroupMembers={refreshMembers}
       loading={messagesLoading}
       loadingMore={messagesLoadingMore}
       messageLinks={messageLinks}

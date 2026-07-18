@@ -33,7 +33,6 @@ import ChatFriendActions from "./ChatFriendActions";
 import ChatHeaderMenu from "./ChatHeaderMenu";
 import ChatScrollToBottom from "./ChatScrollToBottom";
 import GroupMembersPanel from "./GroupMembersPanel";
-import { useGroupMembers } from "@/hooks/use-group-members";
 import { MessageList } from "./MessageBubble";
 
 const SCROLL_TOP_THRESHOLD = 80;
@@ -49,6 +48,9 @@ interface ChatPanelProps {
   fastReplies?: MessengerFastReply[];
   uploadingAttachment?: boolean;
   groupMembers?: ZaloGroupMember[];
+  groupMembersLoading?: boolean;
+  groupMembersRefreshing?: boolean;
+  onRefreshGroupMembers?: () => void;
   loading?: boolean;
   loadingMore?: boolean;
   messageLinks: { next?: string | null } | null;
@@ -90,6 +92,9 @@ function ChatPanel({
   fastReplies = [],
   uploadingAttachment = false,
   groupMembers: groupMembersProp,
+  groupMembersLoading = false,
+  groupMembersRefreshing = false,
+  onRefreshGroupMembers,
   loading = false,
   loadingMore = false,
   messageLinks,
@@ -130,22 +135,9 @@ function ChatPanel({
   const isGroup = conversation ? isGroupConversation(conversation) : false;
   const groupId = conversation?.group?.id ?? null;
 
-  const hookMembers = useGroupMembers(
-    accountId,
-    groupId,
-    isGroup && Boolean(groupId) && !groupMembersProp,
-  );
-
-  const groupMembers = groupMembersProp ?? hookMembers.members;
-  const groupMembersLoading = groupMembersProp
-    ? false
-    : hookMembers.isLoading;
-  const groupMembersRefreshing = groupMembersProp
-    ? false
-    : hookMembers.isRefreshing;
-  const refreshMembers = groupMembersProp
-    ? () => undefined
-    : hookMembers.refreshMembers;
+  /** Members chỉ load 1 lần ở MessengerChatColumn — tránh double/triple get-member/show */
+  const groupMembers = groupMembersProp ?? [];
+  const refreshMembers = onRefreshGroupMembers ?? (() => undefined);
 
   const {
     newMessageCount,

@@ -1,4 +1,5 @@
 import { assertGuidesAndResourcesAdmin } from "@/lib/guide-resource-admin";
+import { dedupeInflight } from "@/lib/inflight";
 import { resolveGuideSystemFilter } from "@/lib/zalo-guide-utils";
 import { zaloGuideService } from "@/services/zalo-guide.service";
 import type { ZaloGuideFormPayload, ZaloGuideItem } from "@/types/zalo-guide";
@@ -26,18 +27,25 @@ export const useZaloGuideStore = create<ZaloGuideState>((set, get) => ({
 
   fetchGuides: async (options) => {
     const silent = options?.silent ?? false;
-    if (!silent) set({ loading: true, error: null });
-    try {
-      const system = resolveGuideSystemFilter();
-      const guides = await zaloGuideService.listGuides(system);
-      set({ guides, loading: false });
-    } catch {
-      set((state) => ({
-        guides: silent ? state.guides : [],
-        loading: false,
-        error: "Không tải được danh sách hướng dẫn.",
-      }));
-    }
+    const system = resolveGuideSystemFilter();
+    // Gộp Strict Mode / multi-mount; silent sau mutation vẫn force refresh
+    // (key khác full để không dính promise loading đang chạy).
+    return dedupeInflight(
+      `zalo-guide:fetchGuides:${system}:${silent ? "silent" : "full"}`,
+      async () => {
+        if (!silent) set({ loading: true, error: null });
+        try {
+          const guides = await zaloGuideService.listGuides(system);
+          set({ guides, loading: false });
+        } catch {
+          set((state) => ({
+            guides: silent ? state.guides : [],
+            loading: false,
+            error: "Không tải được danh sách hướng dẫn.",
+          }));
+        }
+      },
+    );
   },
 
   createOrEditGuide: async (payload) => {

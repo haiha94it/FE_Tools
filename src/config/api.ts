@@ -142,6 +142,14 @@ export const API_ZALO_SEND_MESS_MEMBER_GR_CAMPAIGN =
 export const SEND_MESS_MEMBER_GR_CAMPAIGN_BASE =
   "/zalo-campaigns/send-mess-member-gr";
 
+/** Media tin nhắn đã lưu — REST resource (BE bỏ path …/show). */
+export const API_MESSAGE_MEDIA = {
+  VIDEO: "/api/message/video",
+  videoDetail: (pk: number | string) => `/api/message/video/${pk}`,
+  ALBUM: "/api/message/album",
+  albumDetail: (pk: number | string) => `/api/message/album/${pk}`,
+} as const;
+
 /** Chúc mừng sinh nhật — /api/campaign/mess-birthday/ (results không có {id}) */
 const MESS_BIRTHDAY_PATHS = buildCampaignApiPaths("mess-birthday");
 export const API_ZALO_BIRTHDAY_CAMPAIGN = {
@@ -149,8 +157,9 @@ export const API_ZALO_BIRTHDAY_CAMPAIGN = {
   GET: MESS_BIRTHDAY_PATHS.LIST,
   RESULTS: "/api/campaign/mess-birthday/results/",
   RUN_NOW: "/api/campaign/mess-birthday/run-now/",
-  SHOW_VIDEOS: "/api/message/video/show",
-  SHOW_ALBUMS: "/api/message/album/show",
+  /** List media — alias `API_MESSAGE_MEDIA` (không còn `/show`) */
+  LIST_VIDEOS: API_MESSAGE_MEDIA.VIDEO,
+  LIST_ALBUMS: API_MESSAGE_MEDIA.ALBUM,
 } as const;
 
 export const MESSENGER_BIRTHDAY_BASE = "/zalo-campaigns/messenger-birthday";

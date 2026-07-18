@@ -1,3 +1,4 @@
+import { dedupeInflight } from "@/lib/inflight";
 import { toIsoDate } from "@/lib/zalo-user-admin-utils";
 import { zaloUserAdminService } from "@/services/zalo-user-admin.service";
 import type {
@@ -74,59 +75,70 @@ export const useZaloUserAdminStore = create<ZaloUserAdminState>((set, get) => ({
   fetchUsers: async (options) => {
     const silent = options?.silent ?? false;
     const state = get();
-    if (!silent) set({ loading: true, error: null });
-    try {
-      const response = await zaloUserAdminService.listUsers({
-        page: state.page,
-        pageSize: state.pageSize,
-        keyword: state.keyword,
-        permission: state.permissionFilter,
-        startDate:
-          state.dateFilterEnabled && state.startDate
-            ? toIsoDate(state.startDate)
-            : undefined,
-        endDate:
-          state.dateFilterEnabled && state.endDate
-            ? toIsoDate(state.endDate)
-            : undefined,
-      });
-      set({
-        users: response.results,
-        total: response.count,
-        loading: false,
-        error: null,
-      });
-    } catch {
-      set((prev) => ({
-        users: silent ? prev.users : [],
-        total: silent ? prev.total : 0,
-        loading: false,
-        error: "Không tải được danh sách người dùng.",
-      }));
-    }
+    const start =
+      state.dateFilterEnabled && state.startDate
+        ? toIsoDate(state.startDate)
+        : "";
+    const end =
+      state.dateFilterEnabled && state.endDate ? toIsoDate(state.endDate) : "";
+    // Strict Mode + cùng filter/page → 1 HTTP get-all-account
+    return dedupeInflight(
+      `user-admin:fetchUsers:${state.page}:${state.pageSize}:${state.keyword}:${state.permissionFilter}:${start}:${end}:${silent ? "silent" : "full"}`,
+      async () => {
+        if (!silent) set({ loading: true, error: null });
+        try {
+          const response = await zaloUserAdminService.listUsers({
+            page: state.page,
+            pageSize: state.pageSize,
+            keyword: state.keyword,
+            permission: state.permissionFilter,
+            startDate: start || undefined,
+            endDate: end || undefined,
+          });
+          set({
+            users: response.results,
+            total: response.count,
+            loading: false,
+            error: null,
+          });
+        } catch {
+          set((prev) => ({
+            users: silent ? prev.users : [],
+            total: silent ? prev.total : 0,
+            loading: false,
+            error: "Không tải được danh sách người dùng.",
+          }));
+        }
+      },
+    );
   },
 
   fetchActivityLogs: async (options) => {
     const silent = options?.silent ?? false;
     const state = get();
-    if (!silent) set({ logsLoading: true });
-    try {
-      const response = await zaloUserAdminService.listActivityLogs({
-        page: state.activityPage,
-        pageSize: state.activityPageSize,
-      });
-      set({
-        activityLogs: response.results,
-        activityTotal: response.count,
-        logsLoading: false,
-      });
-    } catch {
-      set((prev) => ({
-        activityLogs: silent ? prev.activityLogs : [],
-        activityTotal: silent ? prev.activityTotal : 0,
-        logsLoading: false,
-      }));
-    }
+    return dedupeInflight(
+      `user-admin:fetchActivityLogs:${state.activityPage}:${state.activityPageSize}:${silent ? "silent" : "full"}`,
+      async () => {
+        if (!silent) set({ logsLoading: true });
+        try {
+          const response = await zaloUserAdminService.listActivityLogs({
+            page: state.activityPage,
+            pageSize: state.activityPageSize,
+          });
+          set({
+            activityLogs: response.results,
+            activityTotal: response.count,
+            logsLoading: false,
+          });
+        } catch {
+          set((prev) => ({
+            activityLogs: silent ? prev.activityLogs : [],
+            activityTotal: silent ? prev.activityTotal : 0,
+            logsLoading: false,
+          }));
+        }
+      },
+    );
   },
 
   setPage: (page) => {

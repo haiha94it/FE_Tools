@@ -1,11 +1,25 @@
 "use client";
 
 import { useScanTaskPoll } from "@/hooks/use-scan-task-poll";
+import { dedupeInflight } from "@/lib/inflight";
 import { getScanTaskStatus, isScanTaskDone } from "@/lib/zalo-contacts-utils";
 import { toast } from "@/lib/toast";
 import { zaloGroupService } from "@/services/zalo-group.service";
 import type { ZaloGroupMember } from "@/types/zalo-contacts";
 import { useCallback, useEffect, useRef, useState } from "react";
+
+/** Cache theo groupId — đổi hội thoại rồi quay lại không fetch lại ngay */
+const membersCache = new Map<number, ZaloGroupMember[]>();
+const membersAbort = new Map<number, AbortController>();
+
+function abortMembersExcept(keepGroupId: number | null) {
+  for (const [id, ctrl] of membersAbort) {
+    if (keepGroupId == null || id !== keepGroupId) {
+      ctrl.abort();
+      membersAbort.delete(id);
+    }
+  }
+}
 
 export function useGroupMembers(
   accountId: number | null,
@@ -19,16 +33,44 @@ export function useGroupMembers(
   const activeGroupIdRef = useRef<number | null>(null);
 
   const loadMembers = useCallback(async (targetGroupId: number) => {
-    setIsLoading(true);
+    const cached = membersCache.get(targetGroupId);
+    if (cached) {
+      if (activeGroupIdRef.current === targetGroupId) {
+        setMembers(cached);
+        setIsLoading(false);
+      }
+      return;
+    }
+
+    abortMembersExcept(targetGroupId);
+    const controller = new AbortController();
+    membersAbort.set(targetGroupId, controller);
+
+    if (activeGroupIdRef.current === targetGroupId) {
+      setIsLoading(true);
+    }
+
     try {
-      const data = await zaloGroupService.showMembers(targetGroupId);
+      const data = await dedupeInflight(
+        `group:showMembers:${targetGroupId}`,
+        () =>
+          zaloGroupService.showMembers(targetGroupId, {
+            signal: controller.signal,
+          }),
+      );
+      if (controller.signal.aborted) return;
+      membersCache.set(targetGroupId, data);
       if (activeGroupIdRef.current !== targetGroupId) return;
       setMembers(data);
     } catch {
+      if (controller.signal.aborted) return;
       if (activeGroupIdRef.current !== targetGroupId) return;
       setMembers([]);
       toast.error("Không tải được danh sách thành viên nhóm.");
     } finally {
+      if (membersAbort.get(targetGroupId) === controller) {
+        membersAbort.delete(targetGroupId);
+      }
       if (activeGroupIdRef.current === targetGroupId) {
         setIsLoading(false);
       }
@@ -59,6 +101,10 @@ export function useGroupMembers(
       const status = getScanTaskStatus(result);
       if (status === "SUCCESS") {
         const next = Array.isArray(result.data) ? result.data : [];
+        const gid = activeGroupIdRef.current;
+        if (gid != null) {
+          membersCache.set(gid, next);
+        }
         setMembers(next);
         setIsRefreshing(false);
         setTaskId(null);
@@ -88,9 +134,17 @@ export function useGroupMembers(
     }
 
     activeGroupIdRef.current = groupId;
-    setMembers([]);
     setTaskId(null);
     setIsRefreshing(false);
+
+    const cached = membersCache.get(groupId);
+    if (cached) {
+      setMembers(cached);
+      setIsLoading(false);
+      return;
+    }
+
+    setMembers([]);
     void loadMembers(groupId);
   }, [enabled, groupId, loadMembers]);
 
@@ -100,7 +154,9 @@ export function useGroupMembers(
     isRefreshing,
     refreshMembers,
     reloadMembers: () => {
-      if (groupId) void loadMembers(groupId);
+      if (!groupId) return;
+      membersCache.delete(groupId);
+      void loadMembers(groupId);
     },
   };
 }

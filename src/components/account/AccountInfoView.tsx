@@ -119,13 +119,14 @@ export default function AccountInfoView() {
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
+    // Có user từ bootstrap rồi → skip /me lần 2 (Strict Mode / re-visit)
     void fetchProfile();
   }, [fetchProfile]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
-      await fetchProfile();
+      await fetchProfile({ force: true });
     } finally {
       setRefreshing(false);
     }

@@ -10,6 +10,7 @@ import TeamEmployeePermissionsModal from "@/components/team/TeamEmployeePermissi
 import TeamEmployeesTable from "@/components/team/TeamEmployeesTable";
 import { confirm } from "@/lib/confirm";
 import { getApiErrorMessage } from "@/lib/errors";
+import { dedupeInflight } from "@/lib/inflight";
 import { isSameTeamEmployeeList } from "@/lib/team-employee-utils";
 import { toast } from "@/lib/toast";
 import { teamPermissionsService } from "@/services/team-permissions.service";
@@ -36,7 +37,14 @@ export default function TeamEmployeesView() {
     }
 
     try {
-      const list = await teamPermissionsService.listEmployees();
+      // initial: key cố định → gộp Strict Mode double effect
+      // background: key riêng → luôn fetch mới sau create/delete
+      const list = await dedupeInflight(
+        options?.background
+          ? `team:listEmployees:refresh:${Date.now()}`
+          : "team:listEmployees",
+        () => teamPermissionsService.listEmployees(),
+      );
       setEmployees((current) =>
         isSameTeamEmployeeList(current, list) ? current : list,
       );

@@ -1,6 +1,7 @@
 import { API_POPUP, API_UPLOAD } from "@/config/api";
 import api from "@/lib/axios";
 import { unwrapApiBody } from "@/lib/api-response";
+import { dedupeInflight } from "@/lib/inflight";
 import type {
   PopupAlertItem,
   PopupContentItem,
@@ -39,9 +40,12 @@ export const adminSettingsService = {
     return image;
   },
 
+  /** GET popup — dedupe Strict Mode double mount trên mọi tab settings */
   async listAlerts(): Promise<PopupAlertItem[]> {
-    const response = await api.get(API_POPUP.ALERT);
-    return normalizeList<PopupAlertItem>(unwrapApiBody(response.data));
+    return dedupeInflight("admin-settings:listAlerts", async () => {
+      const response = await api.get(API_POPUP.ALERT);
+      return normalizeList<PopupAlertItem>(unwrapApiBody(response.data));
+    });
   },
 
   async saveAlert(payload: SavePopupAlertPayload): Promise<void> {
@@ -62,8 +66,10 @@ export const adminSettingsService = {
   },
 
   async getExpiration(): Promise<PopupContentItem | null> {
-    const response = await api.get(API_POPUP.EXPIRATION);
-    return normalizeItem<PopupContentItem>(unwrapApiBody(response.data));
+    return dedupeInflight("admin-settings:getExpiration", async () => {
+      const response = await api.get(API_POPUP.EXPIRATION);
+      return normalizeItem<PopupContentItem>(unwrapApiBody(response.data));
+    });
   },
 
   async saveExpiration(payload: SaveExpirationPopupPayload): Promise<void> {
@@ -71,8 +77,10 @@ export const adminSettingsService = {
   },
 
   async getLogo(): Promise<PopupLogoItem | null> {
-    const response = await api.get(API_POPUP.LOGO);
-    return normalizeItem<PopupLogoItem>(unwrapApiBody(response.data));
+    return dedupeInflight("admin-settings:getLogo", async () => {
+      const response = await api.get(API_POPUP.LOGO);
+      return normalizeItem<PopupLogoItem>(unwrapApiBody(response.data));
+    });
   },
 
   async saveLogo(payload: SaveLogoPayload): Promise<void> {
@@ -80,8 +88,10 @@ export const adminSettingsService = {
   },
 
   async getRegisterPopup(): Promise<PopupContentItem | null> {
-    const response = await api.get(API_POPUP.REGISTER);
-    return normalizeItem<PopupContentItem>(unwrapApiBody(response.data));
+    return dedupeInflight("admin-settings:getRegisterPopup", async () => {
+      const response = await api.get(API_POPUP.REGISTER);
+      return normalizeItem<PopupContentItem>(unwrapApiBody(response.data));
+    });
   },
 
   async saveRegisterPopup(payload: SaveRegisterPopupPayload): Promise<void> {
@@ -89,8 +99,10 @@ export const adminSettingsService = {
   },
 
   async getTermPopup(): Promise<PopupContentItem | null> {
-    const response = await api.get(API_POPUP.TERM);
-    return normalizeItem<PopupContentItem>(unwrapApiBody(response.data));
+    return dedupeInflight("admin-settings:getTermPopup", async () => {
+      const response = await api.get(API_POPUP.TERM);
+      return normalizeItem<PopupContentItem>(unwrapApiBody(response.data));
+    });
   },
 
   async saveTermPopup(payload: SaveHtmlPopupPayload): Promise<void> {
@@ -102,8 +114,10 @@ export const adminSettingsService = {
   },
 
   async getDecreePopup(): Promise<PopupContentItem | null> {
-    const response = await api.get(API_POPUP.DECREE);
-    return normalizeItem<PopupContentItem>(unwrapApiBody(response.data));
+    return dedupeInflight("admin-settings:getDecreePopup", async () => {
+      const response = await api.get(API_POPUP.DECREE);
+      return normalizeItem<PopupContentItem>(unwrapApiBody(response.data));
+    });
   },
 
   async saveDecreePopup(payload: SaveHtmlPopupPayload): Promise<void> {
@@ -115,8 +129,10 @@ export const adminSettingsService = {
   },
 
   async getCommunityPopup(): Promise<PopupContentItem | null> {
-    const response = await api.get(API_POPUP.COMMUNITY);
-    return normalizeItem<PopupContentItem>(unwrapApiBody(response.data));
+    return dedupeInflight("admin-settings:getCommunityPopup", async () => {
+      const response = await api.get(API_POPUP.COMMUNITY);
+      return normalizeItem<PopupContentItem>(unwrapApiBody(response.data));
+    });
   },
 
   async saveCommunityPopup(payload: SaveCommunityPopupPayload): Promise<void> {

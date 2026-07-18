@@ -1,4 +1,5 @@
 import { assertGuidesAndResourcesAdmin } from "@/lib/guide-resource-admin";
+import { dedupeInflight } from "@/lib/inflight";
 import { zaloResourceService } from "@/services/zalo-resource.service";
 import type {
   ZaloProductAppFormPayload,
@@ -34,21 +35,27 @@ export const useZaloResourceStore = create<ZaloResourceState>((set, get) => ({
 
   fetchAll: async (options) => {
     const silent = options?.silent ?? false;
-    if (!silent) set({ loading: true, error: null });
-    try {
-      const [resources, productApps] = await Promise.all([
-        zaloResourceService.listResources(),
-        zaloResourceService.listProductApps(),
-      ]);
-      set({ resources, productApps, loading: false });
-    } catch {
-      set((state) => ({
-        resources: silent ? state.resources : [],
-        productApps: silent ? state.productApps : [],
-        loading: false,
-        error: "Không tải được danh sách tài nguyên.",
-      }));
-    }
+    // Gộp Strict Mode / multi-mount; silent sau mutation vẫn force refresh.
+    return dedupeInflight(
+      `zalo-resource:fetchAll:${silent ? "silent" : "full"}`,
+      async () => {
+        if (!silent) set({ loading: true, error: null });
+        try {
+          const [resources, productApps] = await Promise.all([
+            zaloResourceService.listResources(),
+            zaloResourceService.listProductApps(),
+          ]);
+          set({ resources, productApps, loading: false });
+        } catch {
+          set((state) => ({
+            resources: silent ? state.resources : [],
+            productApps: silent ? state.productApps : [],
+            loading: false,
+            error: "Không tải được danh sách tài nguyên.",
+          }));
+        }
+      },
+    );
   },
 
   createOrEditResource: async (payload) => {

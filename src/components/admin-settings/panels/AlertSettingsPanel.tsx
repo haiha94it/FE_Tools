@@ -27,6 +27,7 @@ export default function AlertSettingsPanel() {
   const [imagePath, setImagePath] = useState("");
   const [active, setActive] = useState(true);
 
+  // Dedupe Strict Mode nằm ở adminSettingsService.listAlerts
   const load = useCallback(async () => {
     setLoading(true);
     try {

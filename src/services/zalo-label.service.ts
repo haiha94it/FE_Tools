@@ -16,9 +16,13 @@ function parseLabelList(body: unknown): ZaloLabelCategory[] {
 
 export const zaloLabelService = {
   /** GET /api/message/category/?id_account= */
-  async listCategories(accountId: number): Promise<ZaloLabelCategory[]> {
+  async listCategories(
+    accountId: number,
+    options?: { signal?: AbortSignal },
+  ): Promise<ZaloLabelCategory[]> {
     const response = await api.get(API_ZALO_LABEL.LIST, {
       params: { id_account: accountId },
+      signal: options?.signal,
     });
     return parseLabelList(unwrapApiBody<unknown>(response.data));
   },

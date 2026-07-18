@@ -1,4 +1,5 @@
 import { fetchAccessibleAccounts } from "@/lib/fetch-accessible-accounts";
+import { dedupeInflight } from "@/lib/inflight";
 import { canSkipZaloProxyRequirement } from "@/lib/map-auth-user";
 import { getScanTaskStatus, isScanTaskDone } from "@/lib/zalo-contacts-utils";
 import {
@@ -66,42 +67,45 @@ export const useZaloCampaignNotificationStore = create<CampaignNotificationState
     accountsLoading: false,
 
     fetchAll: async () => {
-      set({ loading: true, accountsLoading: true });
+      // Strict Mode / multi-mount: 1 HTTP account + campaign-notification
+      return dedupeInflight("campaign-notification:fetchAll", async () => {
+        set({ loading: true, accountsLoading: true });
 
-      let accounts: ZaloAccount[] = [];
-      let config: Awaited<
-        ReturnType<typeof zaloCampaignNotificationService.getConfig>
-      > = null;
+        let accounts: ZaloAccount[] = [];
+        let config: Awaited<
+          ReturnType<typeof zaloCampaignNotificationService.getConfig>
+        > = null;
 
-      try {
-        accounts = await fetchAccessibleAccounts();
-      } catch {
-        accounts = [];
-      }
+        try {
+          accounts = await fetchAccessibleAccounts();
+        } catch {
+          accounts = [];
+        }
 
-      try {
-        config = await zaloCampaignNotificationService.getConfig();
-      } catch {
-        config = null;
-      }
+        try {
+          config = await zaloCampaignNotificationService.getConfig();
+        } catch {
+          config = null;
+        }
 
-      const canSkipProxy = canSkipZaloProxyRequirement(
-        useAuthStore.getState().user,
-      );
-      const eligible = filterEligibleAccounts(accounts, canSkipProxy);
-      const accountId = config?.account ?? null;
-      const selected =
-        accountId != null && eligible.some((a) => a.id === accountId)
-          ? accountId
-          : (eligible[0]?.id ?? null);
+        const canSkipProxy = canSkipZaloProxyRequirement(
+          useAuthStore.getState().user,
+        );
+        const eligible = filterEligibleAccounts(accounts, canSkipProxy);
+        const accountId = config?.account ?? null;
+        const selected =
+          accountId != null && eligible.some((a) => a.id === accountId)
+            ? accountId
+            : (eligible[0]?.id ?? null);
 
-      set({
-        accounts: eligible,
-        selectedAccountId: selected,
-        phoneNumber: config?.phone_number?.trim() ?? "",
-        active: Boolean(config?.active),
-        loading: false,
-        accountsLoading: false,
+        set({
+          accounts: eligible,
+          selectedAccountId: selected,
+          phoneNumber: config?.phone_number?.trim() ?? "",
+          active: Boolean(config?.active),
+          loading: false,
+          accountsLoading: false,
+        });
       });
     },
 

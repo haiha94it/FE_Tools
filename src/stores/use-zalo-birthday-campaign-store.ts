@@ -1,4 +1,5 @@
 import { fetchAccessibleAccounts } from "@/lib/fetch-accessible-accounts";
+import { dedupeInflight } from "@/lib/inflight";
 import { zaloBirthdayCampaignService } from "@/services/zalo-birthday-campaign.service";
 import type {
   BirthdayCampaign,
@@ -68,40 +69,49 @@ export const useZaloBirthdayCampaignStore = create<BirthdayCampaignState>(
 
     fetchCampaign: async (options) => {
       const silent = options?.silent ?? false;
-      if (!silent) set({ loading: true, error: null });
-      try {
-        const campaign = await zaloBirthdayCampaignService.getCampaign();
-        set({ campaign, loading: false });
-      } catch {
-        set((state) => ({
-          campaign: silent ? state.campaign : null,
-          loading: false,
-          error: "Không tải được kịch bản sinh nhật.",
-        }));
-      }
+      return dedupeInflight(
+        `zalo-birthday-campaign:fetchCampaign:${silent ? "silent" : "full"}`,
+        async () => {
+          if (!silent) set({ loading: true, error: null });
+          try {
+            const campaign = await zaloBirthdayCampaignService.getCampaign();
+            set({ campaign, loading: false });
+          } catch {
+            set((state) => ({
+              campaign: silent ? state.campaign : null,
+              loading: false,
+              error: "Không tải được kịch bản sinh nhật.",
+            }));
+          }
+        },
+      );
     },
 
     fetchAccounts: async () => {
-      set({ accountsLoading: true });
-      try {
-        const accounts = await fetchAccessibleAccounts();
-        set({ accounts, accountsLoading: false });
-      } catch {
-        set({ accounts: [], accountsLoading: false });
-      }
+      return dedupeInflight(`zalo-birthday-campaign:fetchAccounts`, async () => {
+        set({ accountsLoading: true });
+        try {
+          const accounts = await fetchAccessibleAccounts();
+          set({ accounts, accountsLoading: false });
+        } catch {
+          set({ accounts: [], accountsLoading: false });
+        }
+      });
     },
 
     fetchMediaLibraries: async () => {
-      set({ mediaLoading: true });
-      try {
-        const [videos, albums] = await Promise.all([
-          zaloBirthdayCampaignService.listVideos(),
-          zaloBirthdayCampaignService.listAlbums(),
-        ]);
-        set({ videos, albums, mediaLoading: false });
-      } catch {
-        set({ videos: [], albums: [], mediaLoading: false });
-      }
+      return dedupeInflight("zalo-birthday-campaign:fetchMediaLibraries", async () => {
+        set({ mediaLoading: true });
+        try {
+          const [videos, albums] = await Promise.all([
+            zaloBirthdayCampaignService.listVideos(),
+            zaloBirthdayCampaignService.listAlbums(),
+          ]);
+          set({ videos, albums, mediaLoading: false });
+        } catch {
+          set({ videos: [], albums: [], mediaLoading: false });
+        }
+      });
     },
 
     createOrEditCampaign: async (payload) => {
@@ -211,24 +221,29 @@ export const useZaloBirthdayCampaignStore = create<BirthdayCampaignState>(
     refreshResults: async (options) => {
       const { resultsPage, resultsPerPage } = get();
       const silent = options?.silent ?? false;
-      if (!silent) set({ resultsLoading: true });
-      try {
-        const pageData = await zaloBirthdayCampaignService.fetchResults({
-          page: resultsPage,
-          perPage: resultsPerPage,
-        });
-        set({
-          results: pageData.results ?? [],
-          resultsTotal: pageData.count ?? pageData.results?.length ?? 0,
-          resultsLoading: false,
-        });
-      } catch {
-        set((state) => ({
-          results: silent ? state.results : [],
-          resultsTotal: silent ? state.resultsTotal : 0,
-          resultsLoading: false,
-        }));
-      }
+      return dedupeInflight(
+        `zalo-birthday-campaign:refreshResults:${resultsPage}:${resultsPerPage}:${silent ? "silent" : "full"}`,
+        async () => {
+          if (!silent) set({ resultsLoading: true });
+          try {
+            const pageData = await zaloBirthdayCampaignService.fetchResults({
+              page: resultsPage,
+              perPage: resultsPerPage,
+            });
+            set({
+              results: pageData.results ?? [],
+              resultsTotal: pageData.count ?? pageData.results?.length ?? 0,
+              resultsLoading: false,
+            });
+          } catch {
+            set((state) => ({
+              results: silent ? state.results : [],
+              resultsTotal: silent ? state.resultsTotal : 0,
+              resultsLoading: false,
+            }));
+          }
+        },
+      );
     },
   }),
 );

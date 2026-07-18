@@ -146,10 +146,14 @@ export const zaloGroupService = {
     });
   },
 
-  async showMembers(groupId: number): Promise<ZaloGroupMember[]> {
+  async showMembers(
+    groupId: number,
+    options?: { signal?: AbortSignal },
+  ): Promise<ZaloGroupMember[]> {
     const response = await api.post(
       API_ZALO_GROUP.GET_MEMBER_SHOW,
       { id_group: groupId, type: "basic" },
+      { signal: options?.signal },
     );
     // interceptor unwrap envelope — body có thể là list hoặc { data, group_name }
     return extractGroupMembers(response.data);

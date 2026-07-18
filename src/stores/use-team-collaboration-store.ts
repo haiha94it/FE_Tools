@@ -1,3 +1,5 @@
+import { dedupeInflight } from "@/lib/inflight";
+import { isEmployeeUser, isManagerUser } from "@/lib/team-collaboration-utils";
 import { teamPermissionsService, createFullPermissionsMap } from "@/services/team-permissions.service";
 import { zaloAccountService } from "@/services/zalo-account.service";
 import { runAsyncAction } from "@/stores/helpers/async-actions";
@@ -5,7 +7,6 @@ import { useAuthStore } from "@/stores/use-auth-store";
 import type { CampaignPermissionsMap } from "@/types/team-collaboration";
 import type { ZaloAccount } from "@/types/zalo-account";
 import { create } from "zustand";
-import { isEmployeeUser, isManagerUser } from "@/lib/team-collaboration-utils";
 
 interface TeamCollaborationState {
   campaignPermissions: CampaignPermissionsMap | null;
@@ -15,7 +16,7 @@ interface TeamCollaborationState {
   isLoading: boolean;
   error: string | null;
 
-  bootstrapTeamContext: () => Promise<void>;
+  bootstrapTeamContext: (options?: { force?: boolean }) => Promise<void>;
   refreshCampaignPermissions: () => Promise<void>;
   refreshAssignedAccounts: () => Promise<void>;
   fetchAccessibleAccounts: () => Promise<ZaloAccount[]>;
@@ -31,47 +32,68 @@ export const useTeamCollaborationStore = create<TeamCollaborationState>(
     isLoading: false,
     error: null,
 
-    bootstrapTeamContext: async () => {
-      const user = useAuthStore.getState().user;
-      if (!user) {
-        set({
-          campaignPermissions: null,
-          assignedAccounts: [],
-          permissionsLoaded: true,
-          accountsLoaded: true,
-        });
+    bootstrapTeamContext: async (options = {}) => {
+      const force = options.force === true;
+      const state = get();
+      if (
+        !force &&
+        state.permissionsLoaded &&
+        state.accountsLoaded &&
+        state.campaignPermissions != null
+      ) {
         return;
       }
 
-      await runAsyncAction(
-        async () => {
-          const [permissions, accounts] = await Promise.all([
-            teamPermissionsService.getMyCampaignPermissions(),
-            get().fetchAccessibleAccounts(),
-          ]);
+      return dedupeInflight("team:bootstrapTeamContext", async () => {
+        const user = useAuthStore.getState().user;
+        if (!user) {
           set({
-            campaignPermissions: permissions,
-            assignedAccounts: accounts,
+            campaignPermissions: null,
+            assignedAccounts: [],
             permissionsLoaded: true,
             accountsLoaded: true,
           });
-        },
-        set,
-        { silent: true },
-      ).catch(() => {
-        if (isManagerUser(user)) {
-          set({
-            campaignPermissions: createFullPermissionsMap(undefined, true),
-            permissionsLoaded: true,
-          });
-        } else {
-          set({ permissionsLoaded: true, accountsLoaded: true });
+          return;
+        }
+
+        try {
+          await runAsyncAction(
+            async () => {
+              const [permissions, accounts] = await Promise.all([
+                dedupeInflight("team:myCampaignPermissions", () =>
+                  teamPermissionsService.getMyCampaignPermissions(),
+                ),
+                get().fetchAccessibleAccounts(),
+              ]);
+              set({
+                campaignPermissions: permissions,
+                assignedAccounts: accounts,
+                permissionsLoaded: true,
+                accountsLoaded: true,
+              });
+            },
+            set,
+            { silent: true },
+          );
+        } catch {
+          if (isManagerUser(user)) {
+            set({
+              campaignPermissions: createFullPermissionsMap(undefined, true),
+              permissionsLoaded: true,
+              accountsLoaded: true,
+            });
+          } else {
+            set({ permissionsLoaded: true, accountsLoaded: true });
+          }
         }
       });
     },
 
     refreshCampaignPermissions: async () => {
-      const permissions = await teamPermissionsService.getMyCampaignPermissions();
+      const permissions = await dedupeInflight(
+        "team:myCampaignPermissions",
+        () => teamPermissionsService.getMyCampaignPermissions(),
+      );
       set({ campaignPermissions: permissions, permissionsLoaded: true });
     },
 
@@ -81,11 +103,13 @@ export const useTeamCollaborationStore = create<TeamCollaborationState>(
     },
 
     fetchAccessibleAccounts: async () => {
-      const user = useAuthStore.getState().user;
-      if (isEmployeeUser(user)) {
-        return teamPermissionsService.getMyAccountAssignments();
-      }
-      return zaloAccountService.list();
+      return dedupeInflight("team:fetchAccessibleAccounts", async () => {
+        const user = useAuthStore.getState().user;
+        if (isEmployeeUser(user)) {
+          return teamPermissionsService.getMyAccountAssignments();
+        }
+        return zaloAccountService.list();
+      });
     },
 
     setCampaignPermissions: (permissions) => {

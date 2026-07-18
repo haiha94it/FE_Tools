@@ -1,4 +1,5 @@
 import { resolveCampaignStartStopIds, resolveCampaignToggleSelectAll } from "@/lib/campaign-team-selection";
+import { dedupeInflight } from "@/lib/inflight";
 import { zaloSendMesFrCampaignService } from "@/services/zalo-send-mes-fr-campaign.service";
 import { fetchAccessibleAccounts } from "@/lib/fetch-accessible-accounts";
 import type {
@@ -74,30 +75,37 @@ export const useZaloSendMesFrCampaignStore = create<SendMesFrCampaignState>(
 
     fetchCampaigns: async (options) => {
       const silent = options?.silent ?? false;
-      if (!silent) set({ loading: true, error: null });
-      try {
-        const campaigns = await zaloSendMesFrCampaignService.listCampaigns();
-        set({
-          campaigns: campaigns.sort((a, b) => b.id - a.id),
-          loading: false,
-        });
-      } catch {
-        set((state) => ({
-          campaigns: silent ? state.campaigns : [],
-          loading: false,
-          error: "Không tải được danh sách kịch bản.",
-        }));
-      }
+      return dedupeInflight(
+        `zalo-send-mes-fr-campaign:fetchCampaigns:${silent ? "silent" : "full"}`,
+        async () => {
+        if (!silent) set({ loading: true, error: null });
+        try {
+          const campaigns = await zaloSendMesFrCampaignService.listCampaigns();
+          set({
+            campaigns: campaigns.sort((a, b) => b.id - a.id),
+            loading: false,
+          });
+        } catch {
+          set((state) => ({
+            campaigns: silent ? state.campaigns : [],
+            loading: false,
+            error: "Không tải được danh sách kịch bản.",
+          }));
+        }
+      },
+      );
     },
 
     fetchAccounts: async () => {
-      set({ accountsLoading: true });
-      try {
-        const accounts = await fetchAccessibleAccounts();
-        set({ accounts, accountsLoading: false });
-      } catch {
-        set({ accounts: [], accountsLoading: false });
-      }
+      return dedupeInflight(`zalo-send-mes-fr-campaign:fetchAccounts`, async () => {
+        set({ accountsLoading: true });
+        try {
+          const accounts = await fetchAccessibleAccounts();
+          set({ accounts, accountsLoading: false });
+        } catch {
+          set({ accounts: [], accountsLoading: false });
+        }
+      });
     },
 
     toggleSelected: (id) => {

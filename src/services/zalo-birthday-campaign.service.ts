@@ -76,15 +76,17 @@ export const zaloBirthdayCampaignService = {
   },
 
   async listVideos(): Promise<BirthdayMediaItem[]> {
+    // GET /api/message/video — envelope { data: [] } đã unwrap bởi axios interceptor
     const response = await api.get<BirthdayMediaItem[]>(
-      API_ZALO_BIRTHDAY_CAMPAIGN.SHOW_VIDEOS,
+      API_ZALO_BIRTHDAY_CAMPAIGN.LIST_VIDEOS,
     );
     return Array.isArray(response.data) ? response.data : [];
   },
 
   async listAlbums(): Promise<BirthdayMediaItem[]> {
+    // GET /api/message/album
     const response = await api.get<BirthdayMediaItem[]>(
-      API_ZALO_BIRTHDAY_CAMPAIGN.SHOW_ALBUMS,
+      API_ZALO_BIRTHDAY_CAMPAIGN.LIST_ALBUMS,
     );
     return Array.isArray(response.data) ? response.data : [];
   },

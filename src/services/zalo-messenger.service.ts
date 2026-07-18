@@ -164,9 +164,13 @@ export const zaloMessengerService = {
     });
   },
 
-  async fetchFastReplies(id_account: number): Promise<MessengerFastReply[]> {
+  async fetchFastReplies(
+    id_account: number,
+    options?: { signal?: AbortSignal },
+  ): Promise<MessengerFastReply[]> {
     const response = await api.get(API_ZALO_MESSENGER.FAST_REPLY, {
       params: { id_account },
+      signal: options?.signal,
     });
     const body = response.data;
     return Array.isArray(body) ? (body as MessengerFastReply[]) : [];

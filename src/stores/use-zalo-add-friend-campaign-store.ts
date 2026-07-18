@@ -1,4 +1,5 @@
 import type { CampaignAccountLimitItem } from "@/lib/campaign-service";
+import { dedupeInflight } from "@/lib/inflight";
 import { resolveCampaignStartStopIds, resolveCampaignToggleSelectAll } from "@/lib/campaign-team-selection";
 import { zaloAddFriendCampaignService } from "@/services/zalo-add-friend-campaign.service";
 import { fetchAccessibleAccounts } from "@/lib/fetch-accessible-accounts";
@@ -81,32 +82,39 @@ export const useZaloAddFriendCampaignStore = create<AddFriendCampaignState>(
 
     fetchCampaigns: async (options) => {
       const silent = options?.silent ?? false;
-      if (!silent) {
-        set({ loading: true, error: null });
-      }
-      try {
-        const campaigns = await zaloAddFriendCampaignService.listCampaigns();
-        set({
-          campaigns: campaigns.sort((a, b) => b.id - a.id),
-          loading: false,
-        });
-      } catch {
-        set((state) => ({
-          campaigns: silent ? state.campaigns : [],
-          loading: false,
-          error: "Không tải được danh sách kịch bản.",
-        }));
-      }
+      return dedupeInflight(
+        `zalo-add-friend-campaign:fetchCampaigns:${silent ? "silent" : "full"}`,
+        async () => {
+        if (!silent) {
+          set({ loading: true, error: null });
+        }
+        try {
+          const campaigns = await zaloAddFriendCampaignService.listCampaigns();
+          set({
+            campaigns: campaigns.sort((a, b) => b.id - a.id),
+            loading: false,
+          });
+        } catch {
+          set((state) => ({
+            campaigns: silent ? state.campaigns : [],
+            loading: false,
+            error: "Không tải được danh sách kịch bản.",
+          }));
+        }
+      },
+      );
     },
 
     fetchAccounts: async () => {
-      set({ accountsLoading: true });
-      try {
-        const accounts = await fetchAccessibleAccounts();
-        set({ accounts, accountsLoading: false });
-      } catch {
-        set({ accounts: [], accountsLoading: false });
-      }
+      return dedupeInflight(`zalo-add-friend-campaign:fetchAccounts`, async () => {
+        set({ accountsLoading: true });
+        try {
+          const accounts = await fetchAccessibleAccounts();
+          set({ accounts, accountsLoading: false });
+        } catch {
+          set({ accounts: [], accountsLoading: false });
+        }
+      });
     },
 
     setSelectedIds: (ids) => set({ selectedIds: ids }),

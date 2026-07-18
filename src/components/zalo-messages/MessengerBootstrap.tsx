@@ -9,6 +9,13 @@ interface MessengerBootstrapProps {
   routeConversationId?: number | null;
 }
 
+/**
+ * Generation: mỗi lần URL đổi tăng 1. Route sync cũ (25) sau await
+ * thấy gen lệch → dừng, không gọi API / switchAccount đè lên nick mới (21).
+ */
+let routeSyncGeneration = 0;
+let accountsBootstrapped = false;
+
 /** Route sync + WS — không render UI, không subscribe state chat */
 export default function MessengerBootstrap({
   routeAccountId,
@@ -22,26 +29,35 @@ export default function MessengerBootstrap({
   const resetChatState = useZaloMessengerStore((s) => s.resetChatState);
   const setMobilePanel = useZaloMessengerStore((s) => s.setMobilePanel);
 
-  const accountsBootstrappedRef = useRef(false);
   const routeSyncKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (accountsBootstrappedRef.current) return;
-    accountsBootstrappedRef.current = true;
+    if (accountsBootstrapped) return;
+    accountsBootstrapped = true;
     void fetchAccounts();
   }, [fetchAccounts]);
 
   useEffect(() => {
     const routeKey = `${routeAccountId ?? ""}|${routeConversationId ?? ""}`;
-    if (routeSyncKeyRef.current === routeKey) return;
+
+    // Strict Mode re-run cùng key trên cùng instance
+    if (routeSyncKeyRef.current === routeKey) {
+      return;
+    }
     routeSyncKeyRef.current = routeKey;
 
+    const gen = ++routeSyncGeneration;
+
     void (async () => {
+      if (gen !== routeSyncGeneration) return;
+
       if (routeAccountId) {
         const current = useZaloMessengerStore.getState().selectedAccountId;
         if (current !== routeAccountId) {
           await switchAccount(routeAccountId);
         }
+        if (gen !== routeSyncGeneration) return;
+
         if (routeConversationId) {
           await selectConversation(routeAccountId, routeConversationId);
         } else {
@@ -50,6 +66,7 @@ export default function MessengerBootstrap({
         return;
       }
 
+      if (gen !== routeSyncGeneration) return;
       useZaloMessengerStore.getState().setSelectedAccountId(null);
       resetChatState();
     })();
