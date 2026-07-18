@@ -235,14 +235,14 @@ function MessageContent({
               title: text || attachment.title,
             })
           }
-          className="block overflow-hidden rounded-xl transition hover:opacity-90"
+          className="block max-w-full overflow-hidden rounded-xl transition hover:opacity-90"
         >
           <Image
             src={thumb}
             alt="Ảnh"
             width={220}
             height={220}
-            className="max-h-56 min-h-[120px] w-auto cursor-zoom-in rounded-xl object-cover"
+            className="h-auto max-h-56 max-w-full min-h-0 cursor-zoom-in rounded-xl object-cover"
             unoptimized
           />
         </button>
@@ -407,7 +407,7 @@ export function MessageList({
               </div>
             ) : (
             <div
-              className={`group/row relative flex w-full min-w-0 items-end overflow-x-hidden overflow-y-visible ${
+              className={`group/row relative flex w-full min-w-0 items-end overflow-hidden ${
                 isGroupMedia ? "max-md:gap-0 md:gap-2" : "gap-2"
               } ${own ? "justify-end" : "justify-start"} ${
                 compact ? "mt-1" : "mt-3"

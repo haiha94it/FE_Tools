@@ -308,6 +308,14 @@
   scrollbar-gutter: stable;
 }
 
+/**
+ * Scroll khung chat — không dùng scrollbar-gutter: stable
+ * (tránh “2 thanh cuộn” cạnh bubble ảnh khi main + chat cùng gutter).
+ */
+@utility messenger-chat-scroll {
+  scrollbar-gutter: auto;
+}
+
 
 
 @layer utilities {

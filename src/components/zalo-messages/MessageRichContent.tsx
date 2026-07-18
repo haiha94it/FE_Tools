@@ -45,13 +45,13 @@ export function GifMessageContent({
       onClick={() =>
         onOpenPreview({ type: "image", src, title: "GIF" })
       }
-      className="group relative block max-w-[240px] overflow-hidden rounded-xl"
+      className="group relative block max-w-full overflow-hidden rounded-xl sm:max-w-[240px]"
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={src}
         alt="GIF"
-        className="max-h-56 w-auto cursor-zoom-in rounded-xl object-cover transition group-hover:brightness-95"
+        className="h-auto max-h-56 max-w-full cursor-zoom-in rounded-xl object-cover transition group-hover:brightness-95"
         onError={(event) => {
           if (thumb && event.currentTarget.src !== thumb) {
             event.currentTarget.src = thumb;
@@ -385,14 +385,14 @@ export function FileAttachmentContent({
             title,
           })
         }
-        className="block overflow-hidden rounded-xl transition hover:opacity-90"
+        className="block max-w-full overflow-hidden rounded-xl transition hover:opacity-90"
       >
         <Image
           src={thumb || href}
           alt={title || "Ảnh"}
           width={220}
           height={220}
-          className="max-h-56 min-h-[120px] w-auto cursor-zoom-in rounded-xl object-cover"
+          className="h-auto max-h-56 max-w-full min-h-0 cursor-zoom-in rounded-xl object-cover"
           unoptimized
         />
       </button>

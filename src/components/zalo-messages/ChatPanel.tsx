@@ -373,7 +373,7 @@ function ChatPanel({
       <div className="relative min-h-0 flex-1">
         <div
           ref={scrollRef}
-          className="custom-scrollbar absolute inset-0 overflow-x-hidden overflow-y-auto overscroll-contain bg-gradient-to-b from-gray-50/80 to-white px-2 py-4 max-md:px-3 dark:from-gray-900/50 dark:to-gray-900 lg:px-4"
+          className="messenger-chat-scroll absolute inset-0 overflow-x-hidden overflow-y-auto overscroll-contain bg-gradient-to-b from-gray-50/80 to-white px-2 py-4 max-md:px-3 dark:from-gray-900/50 dark:to-gray-900 lg:px-4"
         >
           {loadingMore ? (
             <div className="mb-3 flex justify-center">
