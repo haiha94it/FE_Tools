@@ -381,15 +381,38 @@ function ChatPanel({
             </div>
           ) : null}
 
-          {loading && messages.length > 0 ? (
+          {loading && displayMessageCount > 0 ? (
             <div className="pointer-events-none absolute inset-x-3 top-2 z-10 flex justify-center sm:inset-x-4">
               <div className="h-4 w-4 animate-spin rounded-full border-2 border-brand-500 border-t-transparent bg-white/80 p-3 dark:bg-gray-900/80" />
             </div>
           ) : null}
 
-          {loading && messages.length === 0 ? (
+          {loading && displayMessageCount === 0 ? (
             <div className="flex items-center justify-center py-16">
               <div className="h-8 w-8 animate-spin rounded-full border-2 border-brand-500 border-t-transparent" />
+            </div>
+          ) : displayMessageCount === 0 ? (
+            <div className="flex flex-col items-center justify-center gap-2 py-16 text-center">
+              {loadingMore ? (
+                <div className="h-8 w-8 animate-spin rounded-full border-2 border-brand-500 border-t-transparent" />
+              ) : (
+                <>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    {hasOlder
+                      ? "Tin gần đây chủ yếu là reaction — tải thêm để xem nội dung"
+                      : "Chưa có tin nhắn trong hội thoại này"}
+                  </p>
+                  {hasOlder ? (
+                    <button
+                      type="button"
+                      className="cursor-pointer text-sm font-medium text-brand-500 hover:text-brand-600"
+                      onClick={loadOlder}
+                    >
+                      Tải tin cũ hơn
+                    </button>
+                  ) : null}
+                </>
+              )}
             </div>
           ) : (
             <MessageList

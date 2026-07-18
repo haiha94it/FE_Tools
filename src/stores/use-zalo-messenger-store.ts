@@ -1,5 +1,8 @@
 import { fetchAccessibleAccounts } from "@/lib/fetch-accessible-accounts";
-import { normalizeIncomingMessages } from "@/lib/zalo-messenger-message-utils";
+import {
+  filterDisplayMessages,
+  normalizeIncomingMessages,
+} from "@/lib/zalo-messenger-message-utils";
 import { isEmployeeUser } from "@/lib/team-collaboration-utils";
 import {
   belongsToOpenChat,
@@ -864,34 +867,88 @@ export const useZaloMessengerStore = create<ZaloMessengerState>((set, get) => ({
 
     const loadingKey = append ? "messagesLoadingMore" : "messagesLoading";
 
+    /**
+     * Page 1 có thể gần 100% chat.reaction (nhóm hot).
+     * FE partition reaction khỏi bubble + auto fetch page 2… đến khi đủ bubble
+     * hoặc hết next / chạm maxPages (docs/fe_integration_notes.md).
+     */
+    const MIN_TIMELINE_BUBBLES = 15;
+    const MAX_REACTION_FILL_PAGES = 5;
+
     const run = async () => {
       set({ [loadingKey]: true, error: null });
 
       try {
-        const data = await zaloMessengerService.fetchMessages(
-          accountId,
-          conversationId,
-          page,
-        );
-        const incoming = normalizeIncomingMessages(data.results ?? []);
+        const existingMessages = append
+          ? get().activeConversationId === conversationId
+            ? get().messages
+            : []
+          : [];
+
+        let currentPage = page;
+        let pagesFetched = 0;
+        let rawBatch: RawZaloMessage[] = [];
+        let messageLinks: {
+          next: string | null;
+          previous: string | null;
+        } = { next: null, previous: null };
+        let lastPage = page;
+
+        while (pagesFetched < MAX_REACTION_FILL_PAGES) {
+          const data = await zaloMessengerService.fetchMessages(
+            accountId,
+            conversationId,
+            currentPage,
+          );
+          rawBatch = [...rawBatch, ...(data.results ?? [])];
+          messageLinks = {
+            next: data.links?.next ?? data.next ?? null,
+            previous: data.links?.previous ?? data.previous ?? null,
+          };
+          lastPage = currentPage;
+          pagesFetched += 1;
+
+          const batchMessages = normalizeIncomingMessages(rawBatch);
+          const combined = normalizeMessageList(
+            append ? [...batchMessages, ...existingMessages] : batchMessages,
+          );
+          const timelineCount = filterDisplayMessages(combined).length;
+          const nextPage = extractNextPage(messageLinks);
+
+          if (append) {
+            // Load older: dừng khi batch mới có ≥1 bubble timeline, hoặc hết page
+            const newTimelineCount = filterDisplayMessages(batchMessages).length;
+            if (newTimelineCount >= 1 || nextPage == null) break;
+          } else if (
+            timelineCount >= MIN_TIMELINE_BUBBLES ||
+            nextPage == null
+          ) {
+            break;
+          }
+
+          if (nextPage == null) break;
+          currentPage = nextPage;
+        }
+
+        const incoming = normalizeIncomingMessages(rawBatch);
 
         set((state) => {
           if (state.activeConversationId !== conversationId) return state;
           const messages = normalizeMessageList(
             append ? [...incoming, ...state.messages] : incoming,
           );
-          const messageLinks = {
-            next: data.links?.next ?? data.next ?? null,
-            previous: data.links?.previous ?? data.previous ?? null,
-          };
           const cacheKey = messageCacheKey(accountId, conversationId);
           return {
             messages,
             messageLinks,
-            messagePage: page,
+            messagePage: lastPage,
             messagesCache: {
               ...state.messagesCache,
-              [cacheKey]: { messages, messageLinks, messagePage: page },
+              [cacheKey]: {
+                messages,
+                messageLinks,
+                messagePage: lastPage,
+              },
             },
           };
         });

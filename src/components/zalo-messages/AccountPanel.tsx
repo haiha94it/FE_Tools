@@ -1,6 +1,7 @@
 "use client";
 
 import ContactAvatar from "@/components/zalo-contacts/shared/ContactAvatar";
+import { Tooltip } from "@/components/ui/tooltip/Tooltip";
 import { getAccountLabel } from "@/lib/zalo-messenger-utils";
 import type { MessengerAccount } from "@/types/zalo-messenger";
 import { memo } from "react";
@@ -46,17 +47,21 @@ function AccountPanel({
       {accounts.map((account) => {
         const active = selectedId === account.id;
         const label = getAccountLabel(account);
+        const pinLabel = account.pinning ? "Bỏ ghim" : "Ghim tài khoản";
 
         return (
-          <li key={account.id}>
+          <li
+            key={account.id}
+            className={`group flex w-full items-center border-b border-gray-100 dark:border-gray-800 ${
+              active
+                ? "bg-brand-50/80 dark:bg-brand-500/[0.08]"
+                : "hover:bg-gray-50 dark:hover:bg-white/[0.03]"
+            }`}
+          >
             <button
               type="button"
               onClick={() => onSelect(account.id)}
-              className={`group flex w-full items-center gap-3 border-b border-gray-100 px-3 py-3 text-left transition-colors dark:border-gray-800 ${
-                active
-                  ? "bg-brand-50/80 dark:bg-brand-500/[0.08]"
-                  : "hover:bg-gray-50 dark:hover:bg-white/[0.03]"
-              }`}
+              className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 px-3 py-3 text-left transition-colors"
             >
               <div className="relative shrink-0">
                 <ContactAvatar name={label} avatar={account.avatar} size="md" />
@@ -77,7 +82,9 @@ function AccountPanel({
                     {label}
                   </span>
                   {account.pinning ? (
-                    <span className="text-[10px] text-brand-500">📌</span>
+                    <span className="text-[10px] text-brand-500" aria-hidden>
+                      📌
+                    </span>
                   ) : null}
                 </div>
                 {account.user_name ? (
@@ -86,21 +93,20 @@ function AccountPanel({
                   </p>
                 ) : null}
               </div>
+            </button>
 
-              {onPin ? (
+            {onPin ? (
+              <Tooltip content={pinLabel} side="left">
                 <button
                   type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onPin(account);
-                  }}
-                  className="shrink-0 rounded-lg p-1.5 text-gray-400 opacity-0 transition group-hover:opacity-100 hover:bg-gray-100 hover:text-brand-500 dark:hover:bg-white/5"
-                  title={account.pinning ? "Bỏ ghim" : "Ghim tài khoản"}
+                  aria-label={pinLabel}
+                  onClick={() => onPin(account)}
+                  className="mr-2 shrink-0 cursor-pointer rounded-lg p-1.5 text-gray-400 opacity-0 transition group-hover:opacity-100 hover:bg-gray-100 hover:text-brand-500 focus-visible:opacity-100 dark:hover:bg-white/5"
                 >
                   📌
                 </button>
-              ) : null}
-            </button>
+              </Tooltip>
+            ) : null}
           </li>
         );
       })}
