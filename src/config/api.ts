@@ -195,8 +195,6 @@ export const API_ZALO_USER_ADMIN = {
   DELETE: "/api/users/delete-manager",
   LOCK: "/api/users/lock-account",
   UNBLOCK: "/api/users/unblock-account",
-  ADD_ACCOUNT_LIMIT: "/api/users/add-account-limit",
-  ADD_EMPLOYEE_LIMIT: "/api/users/add-employee-limit",
   ACTIVITY_LOGS: "/api/users/activity-logs",
   RESET_PASS_LIST: "/api/users/reset-password/get",
   RESET_PASS: "/api/users/reset-password/reset",

@@ -21,7 +21,7 @@ export const popupService = {
 
   resolvePopupContent(content?: string): string {
     if (!content) {
-      return "Đăng ký thành công! Vui lòng kiểm tra email hoặc liên hệ hỗ trợ.";
+      return "Đăng ký thành công! Vui lòng kiểm tra email hoặc liên hệ hỗ trợ.<br />Lưu ý: Nếu không thấy mail, hãy kiểm tra hộp thư rác.";
     }
     if (typeof window === "undefined") return content;
     return content.replace(/{{\s*domain\s*}}/g, window.location.origin);

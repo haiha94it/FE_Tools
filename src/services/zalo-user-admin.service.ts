@@ -126,20 +126,6 @@ export const zaloUserAdminService = {
     return normalizePaginated<ManagedUser>(response.data).results;
   },
 
-  async addAccountLimit(userId: number, accountLimit: number): Promise<void> {
-    await api.post(API_ZALO_USER_ADMIN.ADD_ACCOUNT_LIMIT, {
-      user_id: userId,
-      account_limit: accountLimit,
-    });
-  },
-
-  async addEmployeeLimit(userId: number, employeeLimit: number): Promise<void> {
-    await api.post(API_ZALO_USER_ADMIN.ADD_EMPLOYEE_LIMIT, {
-      user_id: userId,
-      employee_limit: employeeLimit,
-    });
-  },
-
   async listResetPasswordRequests(): Promise<ResetPasswordRequest[]> {
     const response = await api.get(API_ZALO_USER_ADMIN.RESET_PASS_LIST);
     return Array.isArray(response.data) ? response.data : [];

@@ -2,8 +2,6 @@
 
 import Input from "@/components/form/input/InputField";
 import Badge from "@/components/ui/badge/Badge";
-import { Dropdown } from "@/components/ui/dropdown/Dropdown";
-import { DropdownItem } from "@/components/ui/dropdown/DropdownItem";
 import MobileToolbarStrip, {
   mobileToolbarButtonClass,
 } from "@/components/ui/toolbar/MobileToolbarStrip";
@@ -13,19 +11,13 @@ import {
   toIsoDate,
 } from "@/lib/zalo-user-admin-utils";
 import type { UserPermissionFilter } from "@/types/zalo-user-admin";
-import { useState } from "react";
 import {
-  HiChevronDown,
   HiOutlineClock,
   HiOutlineDocumentDownload,
   HiOutlineFilter,
-  HiOutlineKey,
   HiOutlinePlus,
   HiOutlineRefresh,
   HiOutlineSearch,
-  HiOutlineShieldCheck,
-  HiOutlineUserAdd,
-  HiOutlineUserGroup,
   HiOutlineUsers,
 } from "react-icons/hi";
 
@@ -39,20 +31,14 @@ interface AdminUsersToolbarProps {
   startDate: Date | null;
   endDate: Date | null;
   showExport: boolean;
-  showCreateMenu: boolean;
-  showChangePassword: boolean;
+  showCreateUser: boolean;
   onKeywordChange: (value: string) => void;
   onSearch: () => void;
   onRefresh: () => void;
   onTabChange: (tab: "users" | "logs") => void;
   onCreateUser: () => void;
-  onAddAccountLimit: () => void;
-  onAddEmployeeLimit: () => void;
-  onResetPassword: () => void;
-  onCheckAccount: () => void;
   onExport: () => void;
   onFilter: () => void;
-  onChangePassword: () => void;
   onClearFilters: () => void;
 }
 
@@ -100,28 +86,21 @@ export default function AdminUsersToolbar({
   startDate,
   endDate,
   showExport,
-  showCreateMenu,
-  showChangePassword,
+  showCreateUser,
   onKeywordChange,
   onSearch,
   onRefresh,
   onTabChange,
   onCreateUser,
-  onAddAccountLimit,
-  onAddEmployeeLimit,
-  onResetPassword,
-  onCheckAccount,
   onExport,
   onFilter,
-  onChangePassword,
   onClearFilters,
 }: AdminUsersToolbarProps) {
-  const [createMenuOpen, setCreateMenuOpen] = useState(false);
   const hasActiveFilters =
     permissionFilter !== "all" || (dateFilterEnabled && (startDate || endDate));
 
   return (
-    <div className="shrink-0 overflow-hidden rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
+    <div className="relative z-10 shrink-0 overflow-hidden rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-4 py-3 dark:border-white/[0.05]">
         <ViewTabs activeTab={activeTab} onChange={onTabChange} />
         <div className="flex items-center gap-2">
@@ -155,75 +134,17 @@ export default function AdminUsersToolbar({
         </form>
 
         <MobileToolbarStrip className="sm:ml-auto">
-          {showCreateMenu ? (
-            <div className="relative shrink-0">
-              <div className="inline-flex items-stretch overflow-hidden rounded-lg shadow-theme-xs">
-                <button
-                  type="button"
-                  className={`${mobileToolbarButtonClass} inline-flex items-center gap-2 bg-brand-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-600`}
-                  onClick={onCreateUser}
-                >
-                  <HiOutlinePlus size={16} aria-hidden />
-                  <span className="hidden md:inline">Tạo người dùng</span>
-                  <span className="md:hidden">Tạo</span>
-                </button>
-                <AdminIconButton
-                  label="Thêm giới hạn nick / nhân viên"
-                  side="top"
-                  className="dropdown-toggle inline-flex items-center border-l border-white/20 bg-brand-500 px-2.5 py-2 text-white transition hover:bg-brand-600"
-                  onClick={() => setCreateMenuOpen((open) => !open)}
-                >
-                  <HiChevronDown size={16} />
-                </AdminIconButton>
-              </div>
-              <Dropdown
-                isOpen={createMenuOpen}
-                onClose={() => setCreateMenuOpen(false)}
-                className="min-w-[220px] py-1"
-              >
-                <DropdownItem
-                  onClick={() => {
-                    onAddAccountLimit();
-                    setCreateMenuOpen(false);
-                  }}
-                  baseClassName="flex w-full items-center gap-2 px-4 py-2.5 text-left text-theme-sm text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-white/5"
-                >
-                  <HiOutlineUserAdd size={16} />
-                  Thêm giới hạn nick
-                </DropdownItem>
-                <DropdownItem
-                  onClick={() => {
-                    onAddEmployeeLimit();
-                    setCreateMenuOpen(false);
-                  }}
-                  baseClassName="flex w-full items-center gap-2 px-4 py-2.5 text-left text-theme-sm text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-white/5"
-                >
-                  <HiOutlineUserGroup size={16} />
-                  Thêm giới hạn nhân viên
-                </DropdownItem>
-              </Dropdown>
-            </div>
+          {showCreateUser ? (
+            <button
+              type="button"
+              className={`${mobileToolbarButtonClass} inline-flex shrink-0 items-center gap-2 rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white shadow-theme-xs transition hover:bg-brand-600`}
+              onClick={onCreateUser}
+            >
+              <HiOutlinePlus size={16} aria-hidden />
+              <span className="hidden md:inline">Tạo người dùng</span>
+              <span className="md:hidden">Tạo</span>
+            </button>
           ) : null}
-
-          <AdminIconButton
-            label="Reset mật khẩu theo yêu cầu"
-            side="top"
-            className={`${mobileToolbarButtonClass} inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-medium text-gray-700 ring-1 ring-inset ring-gray-300 transition hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-400 dark:ring-gray-700 dark:hover:bg-white/[0.03]`}
-            onClick={onResetPassword}
-          >
-            <HiOutlineKey size={16} />
-            <span className="hidden lg:inline">Reset mật khẩu</span>
-            <span className="lg:hidden">Reset</span>
-          </AdminIconButton>
-
-          <AdminIconButton
-            label="Kiểm tra tài khoản Zalo trong hệ thống"
-            side="top"
-            className={`${mobileToolbarButtonClass} inline-flex items-center rounded-lg bg-white px-4 py-2 text-sm font-medium text-gray-700 ring-1 ring-inset ring-gray-300 transition hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-400 dark:ring-gray-700 dark:hover:bg-white/[0.03]`}
-            onClick={onCheckAccount}
-          >
-            Kiểm tra TK
-          </AdminIconButton>
 
           <AdminIconButton
             label="Làm mới danh sách"
@@ -246,17 +167,6 @@ export default function AdminUsersToolbar({
               onClick={onExport}
             >
               <HiOutlineDocumentDownload size={18} />
-            </AdminIconButton>
-          ) : null}
-
-          {showChangePassword ? (
-            <AdminIconButton
-              label="Đổi mật khẩu đăng nhập"
-              side="top"
-              className={`${mobileToolbarButtonClass} inline-flex size-[42px] items-center justify-center rounded-lg bg-white text-gray-700 ring-1 ring-inset ring-gray-300 transition hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-400 dark:ring-gray-700 dark:hover:bg-white/[0.03]`}
-              onClick={onChangePassword}
-            >
-              <HiOutlineShieldCheck size={18} />
             </AdminIconButton>
           ) : null}
 

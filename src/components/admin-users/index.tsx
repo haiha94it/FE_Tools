@@ -3,7 +3,6 @@
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import Alert from "@/components/ui/alert/Alert";
 import { adminDataPanelClass } from "@/components/ui/table/ScrollableTableContainer";
-import { API_BASE_URL } from "@/config/api";
 import { confirm } from "@/lib/confirm";
 import { getApiErrorMessage } from "@/lib/errors";
 import { canAccessUserAdmin } from "@/lib/map-auth-user";
@@ -14,16 +13,12 @@ import { useZaloUserAdminStore } from "@/stores/use-zalo-user-admin-store";
 import type { ManagedUser } from "@/types/zalo-user-admin";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import AddLimitModal from "./AddLimitModal";
 import AdminUsersTable from "./AdminUsersTable";
 import AdminUsersToolbar from "./AdminUsersToolbar";
-import ChangePasswordModal from "./ChangePasswordModal";
-import CheckAccountModal from "./CheckAccountModal";
 import CreateUserModal from "./CreateUserModal";
 import EditUserModal from "./EditUserModal";
 import ExportExcelModal from "./ExportExcelModal";
 import FilterUsersModal from "./FilterUsersModal";
-import ResetPasswordModal from "./ResetPasswordModal";
 
 export default function AdminUsersView() {
   const router = useRouter();
@@ -65,14 +60,7 @@ export default function AdminUsersView() {
   const [editOpen, setEditOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<ManagedUser | null>(null);
   const [filterOpen, setFilterOpen] = useState(false);
-  const [resetPassOpen, setResetPassOpen] = useState(false);
-  const [checkAccountOpen, setCheckAccountOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
-  const [changePassOpen, setChangePassOpen] = useState(false);
-  const [limitModal, setLimitModal] = useState<{
-    open: boolean;
-    type: "account" | "employee" | null;
-  }>({ open: false, type: null });
   const [activatingId, setActivatingId] = useState<number | null>(null);
 
   useEffect(() => {
@@ -87,7 +75,6 @@ export default function AdminUsersView() {
   const showPassword =
     permissionFilter === "no_active" || !isSalerOnly || isSaleManager;
   const showPhone = isAdmin || isSaleManager;
-  const showChangePassword = API_BASE_URL.includes("care.chotnhanh.vn");
 
   const isLogsTab = activeTab === "logs";
 
@@ -204,63 +191,53 @@ export default function AdminUsersView() {
       ) : null}
 
       <div className="flex min-h-0 flex-1 flex-col gap-3">
-          <AdminUsersToolbar
-            keyword={keyword}
-            loading={loading || logsLoading}
-            total={isLogsTab ? activityTotal : total}
-            activeTab={activeTab}
-            permissionFilter={permissionFilter}
-            dateFilterEnabled={dateFilterEnabled}
-            startDate={startDate}
-            endDate={endDate}
-            showExport={showExport}
-            showCreateMenu
-            showChangePassword={showChangePassword}
-            onKeywordChange={setKeyword}
-            onSearch={() => void fetchUsers()}
-            onRefresh={() => {
-              if (isLogsTab) void fetchActivityLogs();
-              else void fetchUsers();
-            }}
-            onTabChange={setActiveTab}
-            onCreateUser={() => setCreateOpen(true)}
-            onAddAccountLimit={() =>
-              setLimitModal({ open: true, type: "account" })
-            }
-            onAddEmployeeLimit={() =>
-              setLimitModal({ open: true, type: "employee" })
-            }
-            onResetPassword={() => setResetPassOpen(true)}
-            onCheckAccount={() => setCheckAccountOpen(true)}
-            onExport={() => setExportOpen(true)}
-            onFilter={() => setFilterOpen(true)}
-            onChangePassword={() => setChangePassOpen(true)}
-            onClearFilters={() =>
-              applyFilters({
-                permission: "all",
-                enabled: false,
-                startDate: null,
-                endDate: null,
-              })
-            }
-          />
+        <AdminUsersToolbar
+          keyword={keyword}
+          loading={loading || logsLoading}
+          total={isLogsTab ? activityTotal : total}
+          activeTab={activeTab}
+          permissionFilter={permissionFilter}
+          dateFilterEnabled={dateFilterEnabled}
+          startDate={startDate}
+          endDate={endDate}
+          showExport={showExport}
+          showCreateUser
+          onKeywordChange={setKeyword}
+          onSearch={() => void fetchUsers()}
+          onRefresh={() => {
+            if (isLogsTab) void fetchActivityLogs();
+            else void fetchUsers();
+          }}
+          onTabChange={setActiveTab}
+          onCreateUser={() => setCreateOpen(true)}
+          onExport={() => setExportOpen(true)}
+          onFilter={() => setFilterOpen(true)}
+          onClearFilters={() =>
+            applyFilters({
+              permission: "all",
+              enabled: false,
+              startDate: null,
+              endDate: null,
+            })
+          }
+        />
 
-          <AdminUsersTable
-            {...tableProps}
-            permissionFilter={permissionFilter}
-            showPhone={showPhone}
-            showPassword={showPassword}
-            activatingId={activatingId}
-            onPageChange={isLogsTab ? setActivityPage : setPage}
-            onPageSizeChange={isLogsTab ? setActivityPageSize : setPageSize}
-            onEdit={(row) => {
-              setEditingUser(row);
-              setEditOpen(true);
-            }}
-            onDelete={(row) => void handleDelete(row)}
-            onActivate={(row) => void handleActivate(row)}
-            onToggleLock={(row) => void handleToggleLock(row)}
-          />
+        <AdminUsersTable
+          {...tableProps}
+          permissionFilter={permissionFilter}
+          showPhone={showPhone}
+          showPassword={showPassword}
+          activatingId={activatingId}
+          onPageChange={isLogsTab ? setActivityPage : setPage}
+          onPageSizeChange={isLogsTab ? setActivityPageSize : setPageSize}
+          onEdit={(row) => {
+            setEditingUser(row);
+            setEditOpen(true);
+          }}
+          onDelete={(row) => void handleDelete(row)}
+          onActivate={(row) => void handleActivate(row)}
+          onToggleLock={(row) => void handleToggleLock(row)}
+        />
       </div>
 
       <CreateUserModal
@@ -286,25 +263,7 @@ export default function AdminUsersView() {
         onClose={() => setFilterOpen(false)}
         onApply={(payload) => applyFilters(payload)}
       />
-      <ResetPasswordModal
-        open={resetPassOpen}
-        onClose={() => setResetPassOpen(false)}
-      />
-      <CheckAccountModal
-        open={checkAccountOpen}
-        onClose={() => setCheckAccountOpen(false)}
-      />
       <ExportExcelModal open={exportOpen} onClose={() => setExportOpen(false)} />
-      <ChangePasswordModal
-        open={changePassOpen}
-        onClose={() => setChangePassOpen(false)}
-      />
-      <AddLimitModal
-        open={limitModal.open}
-        type={limitModal.type}
-        onClose={() => setLimitModal({ open: false, type: null })}
-        onSuccess={() => void fetchUsers({ silent: true })}
-      />
     </div>
   );
 }

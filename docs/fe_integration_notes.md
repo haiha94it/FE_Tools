@@ -4,251 +4,191 @@
 
 ---
 
+## Register — danh sách chờ kích hoạt mail + kích hoạt hộ
+
+### Hiện trạng (sau fix BE 2026-07-18)
+
+| Nhu cầu | API | Ghi chú |
+|---------|-----|---------|
+| List đăng ký **chưa** bấm mail | `GET /api/register/activations` | `Activation.user is null` |
+| Kích hoạt **hộ** KH | `POST /api/register/activations/activate` | **Mới** |
+| KH tự kích hoạt (link mail) | `GET /api/register/activate?token=<uuid>` | Public — không dùng màn sale |
+
+**Vì sao FE trước không thấy list:**
+
+1. Quyền cũ chỉ `IsDeveloper` — admin/sale thường **403**.
+2. Đã đổi → **`IsAdminOrSaler`** (admin / saler / sale_manager).
+3. Serializer list **không** trả `password` / `token`.
+
+Model: `register.Activation` — pending = `user` null; đã kích hoạt = `user` trỏ `UserAccount`.
+
+### 1. List chờ kích hoạt
+
+```http
+GET /api/register/activations?page=1&number_per_page=50&keyword=
+Authorization: Bearer <admin|saler JWT>
+```
+
+| Query | Mặc định | Ý nghĩa |
+|-------|----------|---------|
+| `page` | 1 | Phân trang DRF |
+| `number_per_page` | 50 | Page size |
+| `keyword` | — | Lọc `fullname` / `username` / `phone_number` / `mail` |
+| `excel` | — | truthy → full list (không page) trong `data.results` |
+
+**Response (paginated envelope):**
+
+```json
+{
+  "success": true,
+  "message": "OK",
+  "data": {
+    "count": 12,
+    "next": "...",
+    "previous": null,
+    "results": [
+      {
+        "id": 101,
+        "username": "khach01",
+        "mail": "a@gmail.com",
+        "fullname": "Nguyễn A",
+        "phone_number": null,
+        "facebook_link": "",
+        "created_at": "2026-07-18T08:00:00",
+        "system_domain": "care.chotnhanh.vn",
+        "is_zalovideo": false,
+        "is_pro": false
+      }
+    ]
+  }
+}
+```
+
+Rỗng: `count=0`, `results=[]` — **không** 404.
+
+### 2. Nút kích hoạt hộ
+
+```http
+POST /api/register/activations/activate
+Authorization: Bearer <admin|saler JWT>
+Content-Type: application/json
+
+{ "id": 101 }
+```
+
+Hoặc: `{ "username": "khach01" }` (chỉ bản pending).
+
+**Success:**
+
+```json
+{
+  "success": true,
+  "message": "Đã kích hoạt tài khoản giúp khách",
+  "data": {
+    "activation_id": 101,
+    "user_id": 55,
+    "username": "khach01",
+    "mail": "a@gmail.com",
+    "fullname": "Nguyễn A",
+    "expiration_date": "2031-07-18T..."
+  }
+}
+```
+
+| `error_code` | Khi |
+|--------------|-----|
+| `ACTIVATION_REQUIRED` | Thiếu `id` và `username` |
+| `ACTIVATION_NOT_FOUND` | 404 |
+| `ALREADY_ACTIVATED` | Đã có `user` |
+| `USERNAME_EXISTS` | User trùng username (lệch data) |
+
+**Không** trả JWT khách — KH đăng nhập bằng username/password đã đăng ký.
+
+Entitlement = cùng luồng click mail (CARE: 5 năm, manager, `employee_limit=999`, …).
+
+### 3. FE màn gợi ý
+
+```
+1. GET /api/register/activations → bảng chờ kích hoạt
+2. Hàng: username, mail, fullname, created_at
+3. Nút "Kích hoạt" → POST .../activations/activate { id }
+4. Success → toast + refetch list (row biến mất vì user đã gán)
+5. Role: admin / saler — JWT staff, không dùng JWT manager thường
+```
+
+### Checklist FE
+
+- [ ] Gọi đúng path `activations` (không nhầm `register/get` = `RegisterModel` mua gói)
+- [ ] Staff role đủ `IsAdminOrSaler`
+- [ ] Unwrap paginated `data.results`
+- [ ] Nút kích hoạt → `POST activations/activate`
+- [ ] Không expect `password` / `token` trên list
+
+---
+
 ## Chat — hội thoại “lạ” / leak thread nick khác (`Hội thoại #5339`)
 
-**Triệu chứng:** Sidebar/panel nick A hiện thread (title `Hội thoại #id`); app Zalo nick A không có. F5 list đôi khi hết; hoặc vẫn mở được tin nếu đã vào URL.
+**Triệu chứng:** Sidebar/panel nick A hiện thread (title `Hội thoại #id`); app Zalo nick A không có. F5 list đôi khi hết.
 
 ### Case xác nhận (testcare)
 
 | | |
 |--|--|
-| Conv 5339 | pair `a=399969820497032994` (nick **27**, `user_id=1`) ↔ `b=…` Nguyễn Long |
-| Nick 26 Thương | `user_id=6`, gid `44912428663357735` → **không** trong pair |
-| Friend trên 26 | có “Nguyễn Long” (`b`) — **không** nghĩa 26 là đầu thread 5339 |
-| Khác user | 26 = user 6 · 27 = user 1 → **không** multi-nick cùng manager |
+| Conv 5339 | pair nick **27** (user 1) ↔ Nguyễn Long |
+| Nick 26 | user 6 — **không** trong pair; chỉ **bạn** Long |
+| Khác user | 26 = user 6 · 27 = user 1 |
 
 ### Bug BE (đã fix)
 
-`account_has_access_to_global_conversation` **cũ**:
+`account_has_access_to_global_conversation` cũ: nick không thuộc pair nhưng `FriendModel` trỏ a/b → cho mở tin.  
+**Đúng:** `self_gid ∈ {a,b}` rồi mới check Friend peer.
 
-- Nick **không** thuộc pair → `peer_gid is None`
-- Fallback: `FriendModel` trỏ **bất kỳ** `a` hoặc `b` → **True**
-- → nick 26 (bạn Long) được coi là “có quyền” mở conv **Long↔nick 27** → `get-message` / detail **lọt**
+### FE
 
-**Đúng:** chỉ khi `self_gid ∈ {a, b}` **và** có Friend peer (khớp list scope).
-
-List REST `get_account_conversations_queryset` vốn đã đúng (self phải trong pair) → F5 list sạch; access detail/get-message trước đây **lỏng hơn list**.
-
-### FE vẫn nên
-
-1. WS `new_global_update`: chỉ merge khi `conversations[].account === selectedAccountId` (multi-nick **hoặc** user vừa manager vừa NV gán nick user khác).
-2. Không upsert sidebar từ `get-message` nếu conv không thuộc list nick đang chọn.
-3. Title: `name || friend?.name || …` — không chỉ `#id`.
-
-Cùng user nhiều nick **cũng không** được hiện thread nick B khi đang nick A — filter `account` bắt buộc.
+WS `new_global_update`: chỉ merge khi `conversations[].account === selectedAccountId`.
 
 ---
 
+## Chat — page 1 đầy `chat.reaction` → UI trống
 
-## Chat — page 1 đầy `chat.reaction` → UI trống (không bubble)
+**Nguyên nhân:** BE lưu reaction như message; page 1 sort `-ts` → full `chat.reaction`.
 
-**Triệu chứng**
+### Quy tắc FE
 
-- `GET /api/message/get-message?id_account=&id_conversation=&page=1` → `results[]` hầu hết `msgType: "chat.reaction"`.
-- Màn chat: sidebar có hội thoại, panel tin **trắng** (không bubble).
-- Nhóm hot (nhiều like/heart) hay gặp.
-
-**Nguyên nhân**
-
-- BE lưu **mọi** event Zalo (kể cả reaction) thành 1 row `GlobalMessageDetailsModel`, sort `-ts`.
-- Page 1 = tin **mới nhất** → nếu vừa có storm reaction thì page gần 100% reaction.
-- FE nếu chỉ render `webchat` / media **hoặc** không biết parse reaction → 0 bubble.
-- BE có workaround yếu: nếu ≥90% reaction trên page → tăng `page_size=50` — **vẫn có thể** toàn reaction.
-
-### Shape reaction (raw)
-
-```json
-{
-  "msgType": "chat.reaction",
-  "msgId": "8054989498784",
-  "uidFrom": "2418207312809750583",
-  "ts": "1784342974995",
-  "content": "{\"rType\":5,\"rIcon\":\"/-heart\",\"rMsg\":[{\"cMsgID\":1784331990507,\"gMsgID\":8054488264158,\"msgType\":32}],\"source\":0}"
-}
-```
-
-| Field | Ý nghĩa FE |
-|-------|------------|
-| `msgType === "chat.reaction"` | **Không** vẽ bubble timeline riêng |
-| `content` (string JSON) | Parse → `rIcon`, `rType`, `rMsg[]` |
-| `rMsg[].gMsgID` | `msgId` tin **gốc** bị react |
-| `rMsg[].cMsgID` | `cliMsgId` tin gốc (fallback) |
-| `rIcon` | Icon Zalo: `/-heart`, `/-strong`, … |
-| `uidFrom` | Ai react |
-
-### Quy tắc render (bắt buộc)
-
-1. **Timeline bubbles** = tin “có nội dung” — **loại** `chat.reaction` khỏi list bubble.
-2. **Reaction** = metadata gắn **lên tin gốc** (badge under bubble), không phải tin độc lập.
-3. `chat.undo` = ẩn/đánh dấu tin gốc — cũng không phải bubble text.
+1. **Không** vẽ bubble cho `msgType === "chat.reaction"`.
+2. Gắn badge lên tin gốc qua `content.rMsg[].gMsgID` = `msgId` gốc.
+3. Page reaction-heavy → fetch thêm page đến khi đủ bubble timeline.
+4. WS: reaction chỉ update badge, không `append` bubble.
 
 ```javascript
-/** Tin vẽ bubble (timeline) */
-const TIMELINE_MSG_TYPES = new Set([
-  "webchat",
-  "chat.photo",
-  "chat.video.msg",
-  "chat.sticker",
-  "chat.voice",
-  "share.file",
-  "share.file.", // nếu BE có biến thể
-  "chat.recommended",
-  "chat.ecard",
-  "sendBubbleMessage",
-  "group.poll",
-  // thêm type media khác khi gặp
-]);
-
 function isTimelineMessage(m) {
   if (!m?.msgType) return false;
-  if (m.msgType === "chat.reaction") return false;
-  if (m.msgType === "chat.undo") return false;
-  // Ưu tiên whitelist; fallback: không phải reaction/undo
-  return TIMELINE_MSG_TYPES.has(m.msgType) || !String(m.msgType).includes("reaction");
-}
-
-function parseContent(m) {
-  let c = m.content;
-  if (typeof c === "string") {
-    try { c = JSON.parse(c); } catch { /* webchat plain string */ }
-  }
-  return c;
+  if (m.msgType === "chat.reaction" || m.msgType === "chat.undo") return false;
+  return true;
 }
 
 function parseReaction(m) {
-  const c = parseContent(m);
-  if (!c || typeof c !== "object") return null;
-  const targets = Array.isArray(c.rMsg) ? c.rMsg : [];
+  let c = m.content;
+  if (typeof c === "string") {
+    try { c = JSON.parse(c); } catch { return null; }
+  }
+  const targets = Array.isArray(c?.rMsg) ? c.rMsg : [];
   return {
-    msgId: m.msgId,
-    uidFrom: m.uidFrom,
-    ts: m.ts,
-    rIcon: c.rIcon || "",
-    rType: c.rType,
-    // map sang tin gốc
-    targetMsgIds: targets.map((t) => String(t.gMsgID ?? t.gMsgId ?? "")).filter(Boolean),
-    targetCliMsgIds: targets.map((t) => String(t.cMsgID ?? t.cMsgId ?? "")).filter(Boolean),
+    rIcon: c?.rIcon || "",
+    targetMsgIds: targets.map((t) => String(t.gMsgID ?? "")).filter(Boolean),
   };
 }
 ```
 
-### Gắn reaction vào tin gốc
-
-```javascript
-function partitionMessages(results) {
-  const timeline = [];
-  const reactions = [];
-  for (const m of results || []) {
-    if (m.msgType === "chat.reaction") reactions.push(m);
-    else if (isTimelineMessage(m)) timeline.push(m);
-    // undo / type lạ: xử lý riêng hoặc skip bubble
-  }
-  return { timeline, reactions };
-}
-
-/** reactionsByMsgId: Map<msgId, { icon: count, users: [...] }> */
-function mergeReactionsOntoTimeline(timeline, reactions) {
-  const byMsgId = new Map(timeline.map((m) => [String(m.msgId), { ...m, reactions: {} }]));
-  const byCli = new Map(timeline.map((m) => [String(m.cliMsgId), byMsgId.get(String(m.msgId))]));
-
-  for (const raw of reactions) {
-    const r = parseReaction(raw);
-    if (!r) continue;
-    let target = null;
-    for (const id of r.targetMsgIds) {
-      if (byMsgId.has(id)) { target = byMsgId.get(id); break; }
-    }
-    if (!target) {
-      for (const id of r.targetCliMsgIds) {
-        if (byCli.has(id)) { target = byCli.get(id); break; }
-      }
-    }
-    if (!target) continue; // tin gốc không nằm page hiện tại — bỏ hoặc giữ buffer
-    const icon = r.rIcon || "reaction";
-    target.reactions[icon] = (target.reactions[icon] || 0) + 1;
-  }
-  return [...byMsgId.values()].sort((a, b) => Number(b.ts) - Number(a.ts));
-}
-```
-
-### Load chat — đủ bubble dù page reaction-heavy
-
-```javascript
-async function loadChatMessages({ id_account, id_conversation, minBubbles = 15, maxPages = 5 }) {
-  let page = 1;
-  let allRaw = [];
-  let next = true;
-
-  while (next && page <= maxPages) {
-    const res = await api.get("/api/message/get-message", {
-      params: { id_account, id_conversation, page /* page_size nếu BE hỗ trợ */ },
-    });
-    const data = unwrapPaginatedPayload(res.data); // { count, next, results }
-    allRaw = allRaw.concat(data.results || []);
-    const { timeline } = partitionMessages(allRaw);
-    if (timeline.length >= minBubbles || !data.next) {
-      next = false;
-    } else {
-      page += 1;
-    }
-  }
-
-  const { timeline, reactions } = partitionMessages(allRaw);
-  return mergeReactionsOntoTimeline(timeline, reactions);
-}
-```
-
-| Bước | Việc |
-|------|------|
-| 1 | `unwrap` → `data.results` |
-| 2 | Tách `chat.reaction` vs timeline |
-| 3 | Nếu `timeline.length` quá ít → **fetch page 2, 3…** (đến khi đủ bubble hoặc hết `next`) |
-| 4 | Gắn reaction theo `rMsg.gMsgID` === `msgId` tin gốc |
-| 5 | Render bubble từ timeline; badge reaction dưới bubble |
-| 6 | WS `new_global_update.message_details[]`: cùng rule — reaction không `append` bubble, chỉ update badge |
-
-### WS realtime
-
-```javascript
-ws.on("new_global_update", (data) => {
-  for (const m of data.message_details || []) {
-    if (m.msgType === "chat.reaction") {
-      applyOneReactionToState(m); // merge badge, không push bubble
-      continue;
-    }
-    if (isTimelineMessage(m)) appendBubble(m);
-  }
-});
-```
-
-### Map icon gợi ý (Zalo)
-
 | `rIcon` | UI |
 |---------|-----|
 | `/-heart` | ❤️ |
-| `/-strong` | 👍 / like |
-| `:>` | 😂 |
-| `:o` | 😮 |
-| `:-((` | 😢 |
-| `:-h` | 😡 |
-
-(Align bảng reaction WS gửi tin — contract §2.3.1.)
-
-### Checklist FE
-
-1. **Không** `results.map(renderBubble)` mù quáng.
-2. Filter / partition `msgType === "chat.reaction"`.
-3. Auto multi-page khi page 1 toàn reaction.
-4. Badge reaction trên tin gốc (`gMsgID` / `msgId`).
-5. Empty state chỉ khi **hết page** và timeline rỗng — không empty vì page 1 full reaction.
-
-### BE hiện tại (tham chiếu)
-
-- `get_message_api_view`: không exclude reaction mặc định; nếu ≥90% reaction → `page_size=50` (vẫn có thể full reaction).
-- Không phụ thuộc workaround BE — FE **phải** partition + multi-page.
+| `/-strong` | 👍 |
 
 ---
 
 | Ngày | Ghi chú |
 |------|---------|
-| 2026-07-18 | Chat: `chat.reaction` flood page 1 — FE partition + multi-page + badge |
+| 2026-07-18 | Reaction flood page 1 |
+| 2026-07-18 | Leak conv / access friend pair |
+| 2026-07-18 | Activation list + admin activate-for-user |
