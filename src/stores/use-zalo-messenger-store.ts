@@ -11,6 +11,7 @@ import {
   generateClientMsgId,
   mergeConversationRecords,
   normalizeMessageList,
+  scopeConversationsToAccount,
   sortMessengerAccounts,
 } from "@/lib/zalo-messenger-utils";
 import {
@@ -799,7 +800,10 @@ export const useZaloMessengerStore = create<ZaloMessengerState>((set, get) => ({
     const state = get();
     const existingConversation =
       state.conversations.find((c) => c.id === conversationId) ??
-      (state.activeConversationId === conversationId
+      (state.activeConversationId === conversationId &&
+      state.activeConversation?.id === conversationId &&
+      (state.activeConversation.account == null ||
+        Number(state.activeConversation.account) === Number(accountId))
         ? state.activeConversation
         : null);
 
@@ -827,27 +831,82 @@ export const useZaloMessengerStore = create<ZaloMessengerState>((set, get) => ({
       }
     }
 
+    /**
+     * Detail/get-message có thể lỏng hơn list (BE cũ leak access).
+     * - Không INSERT sidebar nếu conv chưa có trong list nick đang chọn
+     * - detail.account phải khớp nick (khi BE trả field này)
+     */
+    let detailOk = Boolean(existingConversation);
     try {
       const detail = await zaloMessengerService.fetchConversationDetail(
         accountId,
         conversationId,
       );
-      set((state) => ({
-        activeConversation: detail,
-        conversations: dedupeConversations(
-          state.conversations.some((item) => item.id === conversationId)
-            ? state.conversations.map((item) =>
-                item.id === conversationId ? { ...item, ...detail } : item,
-              )
-            : [...state.conversations, detail],
-        ),
-      }));
+      const detailAccount =
+        detail?.account != null ? Number(detail.account) : null;
+      if (
+        detailAccount != null &&
+        Number.isFinite(detailAccount) &&
+        detailAccount !== Number(accountId)
+      ) {
+        toast.error("Hội thoại không thuộc tài khoản Zalo đang chọn.");
+        set((s) => ({
+          activeConversation:
+            s.activeConversationId === conversationId
+              ? null
+              : s.activeConversation,
+          messages:
+            s.activeConversationId === conversationId ? [] : s.messages,
+        }));
+        detailOk = false;
+      } else {
+        const normalizedDetail: MessengerConversation = {
+          ...detail,
+          account:
+            detailAccount != null && Number.isFinite(detailAccount)
+              ? detailAccount
+              : accountId,
+        };
+        set((current) => {
+          const inSidebar = current.conversations.some(
+            (item) => item.id === conversationId,
+          );
+          return {
+            activeConversation: normalizedDetail,
+            // Chỉ patch tại chỗ — không upsert ghost vào sidebar
+            conversations: inSidebar
+              ? dedupeConversations(
+                  current.conversations.map((item) =>
+                    item.id === conversationId
+                      ? { ...item, ...normalizedDetail }
+                      : item,
+                  ),
+                )
+              : current.conversations,
+          };
+        });
+        detailOk = true;
+      }
     } catch {
-      // detail optional — messages still load
+      // detail optional khi đã có trong list; URL lạ / không quyền → chặn load tin
+      if (!existingConversation) {
+        toast.error("Không mở được hội thoại này.");
+        set((s) => ({
+          activeConversation:
+            s.activeConversationId === conversationId
+              ? null
+              : s.activeConversation,
+          messages:
+            s.activeConversationId === conversationId ? [] : s.messages,
+        }));
+        detailOk = false;
+      }
     }
 
     try {
-      await get().fetchMessages(accountId, conversationId, { page: 1 });
+      if (detailOk) {
+        await get().fetchMessages(accountId, conversationId, { page: 1 });
+      }
     } finally {
       if (selectConversationInflight === conversationId) {
         selectConversationInflight = null;
@@ -993,14 +1052,39 @@ export const useZaloMessengerStore = create<ZaloMessengerState>((set, get) => ({
         selectedAccountId,
         activeConversationId,
       );
-      set((state) => ({
-        activeConversation: detail,
-        conversations: dedupeConversations(
-          state.conversations.map((item) =>
-            item.id === activeConversationId ? { ...item, ...detail } : item,
-          ),
-        ),
-      }));
+      const detailAccount =
+        detail?.account != null ? Number(detail.account) : null;
+      if (
+        detailAccount != null &&
+        Number.isFinite(detailAccount) &&
+        detailAccount !== Number(selectedAccountId)
+      ) {
+        return;
+      }
+      const normalizedDetail: MessengerConversation = {
+        ...detail,
+        account:
+          detailAccount != null && Number.isFinite(detailAccount)
+            ? detailAccount
+            : selectedAccountId,
+      };
+      set((state) => {
+        const inSidebar = state.conversations.some(
+          (item) => item.id === activeConversationId,
+        );
+        return {
+          activeConversation: normalizedDetail,
+          conversations: inSidebar
+            ? dedupeConversations(
+                state.conversations.map((item) =>
+                  item.id === activeConversationId
+                    ? { ...item, ...normalizedDetail }
+                    : item,
+                ),
+              )
+            : state.conversations,
+        };
+      });
     } catch {
       // optional refresh — giữ state cũ
     }
@@ -1019,28 +1103,45 @@ export const useZaloMessengerStore = create<ZaloMessengerState>((set, get) => ({
 
   mergeConversations: (items, accountId) => {
     if (!items.length) return;
-    const wsAccountId =
-      accountId ?? items.find((item) => item.account != null)?.account ?? null;
+
+    /**
+     * Bắt buộc scope theo nick sở hữu.
+     * Không merge conv nick khác / thiếu account vào list nick đang xem
+     * (ghost “Hội thoại #id”, F5 mới hết).
+     */
+    const ownerAccountId =
+      accountId != null && Number.isFinite(Number(accountId))
+        ? Number(accountId)
+        : items.find((item) => item.account != null)?.account != null
+          ? Number(items.find((item) => item.account != null)!.account)
+          : null;
+
+    if (ownerAccountId == null) return;
+
+    const scopedItems = scopeConversationsToAccount(items, ownerAccountId);
+    if (!scopedItems.length) return;
 
     set((state) => {
       const mergeList = (current: MessengerConversation[]) =>
-        dedupeConversations([...current, ...items]);
+        dedupeConversations([...current, ...scopedItems]);
 
-      if (wsAccountId != null && state.selectedAccountId !== wsAccountId) {
-        const cached = state.conversationCache[wsAccountId];
+      // Nick khác nick đang chọn → chỉ cập nhật cache của nick đó
+      if (state.selectedAccountId !== ownerAccountId) {
+        const cached = state.conversationCache[ownerAccountId];
         if (!cached) return state;
         const conversations = mergeList(cached.conversations);
         return {
           conversationCache: saveConversationCache(
-            wsAccountId,
+            ownerAccountId,
             { ...cached, conversations },
             state.conversationCache,
           ),
         };
       }
 
+      // Nick đang chọn — scopedItems đã filter account === selected
       const conversations = mergeList(state.conversations);
-      const activePatch = items.find(
+      const activePatch = scopedItems.find(
         (item) => item.id === state.activeConversationId,
       );
       const patch = {
@@ -1055,22 +1156,18 @@ export const useZaloMessengerStore = create<ZaloMessengerState>((set, get) => ({
 
       return {
         ...patch,
-        ...(wsAccountId != null && state.selectedAccountId === wsAccountId
-          ? {
-              conversationCache: saveConversationCache(
-                wsAccountId,
-                {
-                  conversations,
-                  conversationLinks: state.conversationLinks,
-                  conversationPage: state.conversationPage,
-                  conversationSearch: state.conversationSearch,
-                  conversationFilter: state.conversationFilter,
-                  selectedCategoryId: state.selectedCategoryId,
-                },
-                state.conversationCache,
-              ),
-            }
-          : {}),
+        conversationCache: saveConversationCache(
+          ownerAccountId,
+          {
+            conversations,
+            conversationLinks: state.conversationLinks,
+            conversationPage: state.conversationPage,
+            conversationSearch: state.conversationSearch,
+            conversationFilter: state.conversationFilter,
+            selectedCategoryId: state.selectedCategoryId,
+          },
+          state.conversationCache,
+        ),
       };
     });
   },
@@ -1233,7 +1330,7 @@ export const useZaloMessengerStore = create<ZaloMessengerState>((set, get) => ({
 
   prepareConversationSwitch: (conversationId) => {
     const state = get();
-    let messagesCache = { ...state.messagesCache };
+    const messagesCache = { ...state.messagesCache };
 
     if (state.selectedAccountId && state.activeConversationId) {
       const prevKey = messageCacheKey(

@@ -163,6 +163,80 @@ export function dedupeConversations(
   return sortConversations(Array.from(byId.values()));
 }
 
+/**
+ * Gắn/lọc conversation theo nick sở hữu update.
+ * WS room = 1 user nhiều nick — không merge frame của nick B vào list nick A.
+ * (docs/fe_integration_notes.md — ghost “Hội thoại #id”)
+ */
+export function resolveConversationOwnerAccountId(
+  conversation: Pick<MessengerConversation, "account">,
+  fallbackAccountId?: number | null,
+): number | null {
+  if (conversation.account != null && Number.isFinite(Number(conversation.account))) {
+    return Number(conversation.account);
+  }
+  if (fallbackAccountId != null && Number.isFinite(Number(fallbackAccountId))) {
+    return Number(fallbackAccountId);
+  }
+  return null;
+}
+
+/** Chỉ giữ conv thuộc `accountId`; item thiếu account → gán fallback nếu có */
+export function scopeConversationsToAccount(
+  conversations: MessengerConversation[],
+  accountId: number | null | undefined,
+): MessengerConversation[] {
+  if (accountId == null || !Number.isFinite(Number(accountId))) {
+    return [];
+  }
+  const owner = Number(accountId);
+  return conversations
+    .filter((item) => {
+      if (item.account == null) return true;
+      return Number(item.account) === owner;
+    })
+    .map((item) => ({
+      ...item,
+      account: item.account != null ? Number(item.account) : owner,
+    }));
+}
+
+/** Nhóm WS conversations theo nick — bỏ item không xác định được account */
+export function groupConversationsByAccount(
+  conversations: MessengerConversation[],
+  fallbackAccountId?: number | null,
+): Map<number, MessengerConversation[]> {
+  const map = new Map<number, MessengerConversation[]>();
+  for (const item of conversations) {
+    const owner = resolveConversationOwnerAccountId(item, fallbackAccountId);
+    if (owner == null) continue;
+    const bucket = map.get(owner) ?? [];
+    bucket.push({ ...item, account: owner });
+    map.set(owner, bucket);
+  }
+  return map;
+}
+
+/**
+ * Tin WS theo nick:
+ * - có `id_account` → bắt buộc khớp
+ * - không có → giữ (caller đã scope theo badge account; open-chat filter ở store)
+ */
+export function filterMessageDetailsForAccount(
+  messages: RawZaloMessage[],
+  accountId: number | null | undefined,
+): RawZaloMessage[] {
+  if (accountId == null || !Number.isFinite(Number(accountId))) return [];
+  const owner = Number(accountId);
+  return messages.filter((msg) => {
+    const rawAccount = (msg as { id_account?: unknown }).id_account;
+    if (rawAccount != null && rawAccount !== "") {
+      return Number(rawAccount) === owner;
+    }
+    return true;
+  });
+}
+
 /** Chuẩn hóa conversations + message_details từ WS new_global_update */
 export function prepareConversationsFromGlobalUpdate(
   conversations: MessengerConversation[],
@@ -229,11 +303,16 @@ export function getConversationTitle(
   conversation: MessengerConversation | null | undefined,
 ): string {
   if (!conversation) return "Hội thoại";
-  if (conversation.name?.trim()) return conversation.name.trim();
-  if (conversation.group?.name) return conversation.group.name;
-  return (
-    conversation.friend?.name?.trim() || `Hội thoại #${conversation.id}`
-  );
+  // name || friend?.name || group?.name || friend?.uid — tránh chỉ #id khi payload thiếu enrich
+  const name = conversation.name?.trim();
+  if (name) return name;
+  const friendName = conversation.friend?.name?.trim();
+  if (friendName) return friendName;
+  const groupName = conversation.group?.name?.trim();
+  if (groupName) return groupName;
+  const friendUid = conversation.friend?.uid?.trim();
+  if (friendUid) return friendUid;
+  return `Hội thoại #${conversation.id}`;
 }
 
 export function getConversationAvatar(

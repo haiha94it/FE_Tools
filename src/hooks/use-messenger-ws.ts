@@ -1,7 +1,11 @@
 "use client";
 
 import { toast } from "@/lib/toast";
-import { prepareConversationsFromGlobalUpdate } from "@/lib/zalo-messenger-utils";
+import {
+  filterMessageDetailsForAccount,
+  groupConversationsByAccount,
+  prepareConversationsFromGlobalUpdate,
+} from "@/lib/zalo-messenger-utils";
 import { useZaloMessengerStore } from "@/stores/use-zalo-messenger-store";
 import { useWebSocketStore } from "@/stores/use-websocket-store";
 import type {
@@ -67,43 +71,76 @@ export function useMessengerWs() {
           []) as MessengerConversation[];
         const messageDetails = (payload.message_details ??
           []) as RawZaloMessage[];
-        const wsAccountId = payload.account?.id ?? null;
+        const wsAccountId =
+          payload.account?.id != null ? Number(payload.account.id) : null;
 
+        // 1 socket nhiều nick — merge từng bucket theo account, bỏ item thiếu owner
         if (conversations.length) {
           const prepared = prepareConversationsFromGlobalUpdate(
             conversations,
             messageDetails,
-            { activeConversationId: activeConversation?.id ?? null },
+            {
+              activeConversationId:
+                wsAccountId != null &&
+                selectedAccountId != null &&
+                wsAccountId === selectedAccountId
+                  ? (activeConversation?.id ?? null)
+                  : null,
+            },
           );
-          mergeConversations(prepared, wsAccountId);
+          const byAccount = groupConversationsByAccount(
+            prepared,
+            wsAccountId,
+          );
+          for (const [ownerId, list] of byAccount) {
+            mergeConversations(list, ownerId);
+          }
         }
 
+        // Chỉ append bubble khi frame thuộc nick đang xem + tin khớp open chat
         if (
           messageDetails.length &&
           wsAccountId != null &&
+          selectedAccountId != null &&
           wsAccountId === selectedAccountId
         ) {
           const account = accounts.find((a) => a.id === wsAccountId);
-          appendLiveMessages(
-            wsAccountId,
-            activeConversation,
-            account?.uid,
+          const openForAccount =
+            activeConversation != null &&
+            (activeConversation.account == null ||
+              Number(activeConversation.account) === wsAccountId)
+              ? activeConversation
+              : null;
+          const forAccount = filterMessageDetailsForAccount(
             messageDetails,
+            wsAccountId,
           );
+          if (forAccount.length && openForAccount) {
+            appendLiveMessages(
+              wsAccountId,
+              openForAccount,
+              account?.uid,
+              forAccount,
+            );
+          }
         }
 
-        if (payload.account?.id != null) {
-          mergeAccountBadge(payload.account.id, Boolean(payload.account.status));
+        if (wsAccountId != null) {
+          mergeAccountBadge(wsAccountId, Boolean(payload.account?.status));
         }
 
         if (
           wsAccountId != null &&
+          selectedAccountId != null &&
           wsAccountId === selectedAccountId &&
           activeConversationId
         ) {
-          const { conversations } = useZaloMessengerStore.getState();
-          const openConversation = conversations.find(
-            (item) => item.id === activeConversationId,
+          const { conversations: currentList } =
+            useZaloMessengerStore.getState();
+          const openConversation = currentList.find(
+            (item) =>
+              item.id === activeConversationId &&
+              Number(item.account) === wsAccountId,
           );
           if (openConversation?.new_message) {
             resetConversationUnread(wsAccountId, activeConversationId);

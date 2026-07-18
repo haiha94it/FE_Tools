@@ -4,6 +4,42 @@
 
 ---
 
+## Chat — hội thoại “lạ” / leak thread nick khác (`Hội thoại #5339`)
+
+**Triệu chứng:** Sidebar/panel nick A hiện thread (title `Hội thoại #id`); app Zalo nick A không có. F5 list đôi khi hết; hoặc vẫn mở được tin nếu đã vào URL.
+
+### Case xác nhận (testcare)
+
+| | |
+|--|--|
+| Conv 5339 | pair `a=399969820497032994` (nick **27**, `user_id=1`) ↔ `b=…` Nguyễn Long |
+| Nick 26 Thương | `user_id=6`, gid `44912428663357735` → **không** trong pair |
+| Friend trên 26 | có “Nguyễn Long” (`b`) — **không** nghĩa 26 là đầu thread 5339 |
+| Khác user | 26 = user 6 · 27 = user 1 → **không** multi-nick cùng manager |
+
+### Bug BE (đã fix)
+
+`account_has_access_to_global_conversation` **cũ**:
+
+- Nick **không** thuộc pair → `peer_gid is None`
+- Fallback: `FriendModel` trỏ **bất kỳ** `a` hoặc `b` → **True**
+- → nick 26 (bạn Long) được coi là “có quyền” mở conv **Long↔nick 27** → `get-message` / detail **lọt**
+
+**Đúng:** chỉ khi `self_gid ∈ {a, b}` **và** có Friend peer (khớp list scope).
+
+List REST `get_account_conversations_queryset` vốn đã đúng (self phải trong pair) → F5 list sạch; access detail/get-message trước đây **lỏng hơn list**.
+
+### FE vẫn nên
+
+1. WS `new_global_update`: chỉ merge khi `conversations[].account === selectedAccountId` (multi-nick **hoặc** user vừa manager vừa NV gán nick user khác).
+2. Không upsert sidebar từ `get-message` nếu conv không thuộc list nick đang chọn.
+3. Title: `name || friend?.name || …` — không chỉ `#id`.
+
+Cùng user nhiều nick **cũng không** được hiện thread nick B khi đang nick A — filter `account` bắt buộc.
+
+---
+
+
 ## Chat — page 1 đầy `chat.reaction` → UI trống (không bubble)
 
 **Triệu chứng**
