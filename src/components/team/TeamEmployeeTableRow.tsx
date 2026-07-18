@@ -47,7 +47,7 @@ function TeamEmployeeTableRow({
         <p className="font-medium text-gray-800 dark:text-white/90">
           {employee.fullname || employee.username}
         </p>
-        <p className="text-xs text-gray-500">@{employee.username}</p>
+        <p className="text-xs text-gray-500">{employee.username}</p>
       </td>
       <td className="px-3 py-3">
         <div className="flex min-w-[140px] items-center gap-1.5">

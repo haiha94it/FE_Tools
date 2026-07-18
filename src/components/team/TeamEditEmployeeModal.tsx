@@ -1,6 +1,7 @@
 "use client";
 
 import Input from "@/components/form/input/InputField";
+import PasswordInput from "@/components/form/input/PasswordInput";
 import Button from "@/components/ui/button/Button";
 import { Modal } from "@/components/ui/modal";
 import { validatePassword } from "@/lib/auth-validation";
@@ -127,13 +128,14 @@ export default function TeamEditEmployeeModal({
               ? `Mật khẩu mới (hiện tại: ${employee.raw_password || employee.password})`
               : "Mật khẩu mới (tùy chọn)"}
           </label>
-          <Input
-            type="password"
+          <PasswordInput
+            name="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Để trống nếu không đổi"
             error={Boolean(errors.password)}
             hint={errors.password}
+            autoComplete="new-password"
           />
         </div>
       </div>
