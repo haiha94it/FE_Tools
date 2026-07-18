@@ -28,6 +28,9 @@ export const MANAGER_ONLY_PATHS = new Set([
   "/zalo-campaigns/post-video",
 ]);
 
+/** Admin panel only — sidebar `roles: ["admin"]` + TeamRouteGuard */
+export const ADMIN_ONLY_PATHS = new Set(["/shop"]);
+
 export const TEAM_MANAGER_PATH_PREFIX = "/team/employees";
 
 /** Manager — CRUD nick, proxy, listener (CARE 2 §2) */
@@ -56,6 +59,12 @@ export function isManagerOnlyPath(pathname: string): boolean {
   );
 }
 
+export function isAdminOnlyPath(pathname: string): boolean {
+  return [...ADMIN_ONLY_PATHS].some(
+    (path) => pathname === path || pathname.startsWith(`${path}/`),
+  );
+}
+
 export function isCampaignPermissionPath(pathname: string): boolean {
   return Object.keys(CAMPAIGN_PATH_PERMISSION).some(
     (path) => pathname === path || pathname.startsWith(`${path}/`),
@@ -68,6 +77,10 @@ export function canAccessAdminRoute(
   permissions: CampaignPermissionsMap | null = null,
 ): boolean {
   if (!user) return false;
+
+  if (isAdminOnlyPath(pathname)) {
+    return Boolean(user.isAdmin);
+  }
 
   if (isManagerOnlyPath(pathname)) {
     return canManageNickCrud(user);

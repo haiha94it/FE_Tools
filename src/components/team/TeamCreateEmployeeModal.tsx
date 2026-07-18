@@ -75,7 +75,6 @@ export default function TeamCreateEmployeeModal({
         username: form.username.trim(),
         password: form.password,
         fullname: form.fullname.trim(),
-        listener_limit: 0,
       });
       toast.success("Đã tạo tài khoản nhân viên.");
       onCreated();

@@ -41,6 +41,8 @@ export type NavItemConfig = {
   managerOnly?: boolean;
   /** Ẩn với nhân viên (NV) */
   hideForEmployee?: boolean;
+  /** Tạm ẩn khỏi sidebar (route vẫn tồn tại nếu truy cập trực tiếp) */
+  hidden?: boolean;
 };
 
 /**
@@ -66,7 +68,8 @@ export const mainNavItems: NavItemConfig[] = [
     path: "/shop",
     icon: "box",
     iconTone: "warning",
-    hideForEmployee: true,
+    /** Chỉ admin (is_admin / is_superuser) thấy menu */
+    roles: ["admin"],
   },
   {
     name: "Tài nguyên",

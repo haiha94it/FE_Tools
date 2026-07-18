@@ -25,17 +25,14 @@ export default function TeamEditEmployeeModal({
   onSaved,
 }: TeamEditEmployeeModalProps) {
   const [fullname, setFullname] = useState("");
-  const [listenerLimit, setListenerLimit] = useState("");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [activating, setActivating] = useState(false);
 
   useEffect(() => {
     if (!open || !employee) return;
     setFullname(employee.fullname?.trim() ?? "");
-    setListenerLimit(String(employee.listener_limit ?? 0));
     setPassword("");
     setErrors({});
   }, [employee, open]);
@@ -43,9 +40,6 @@ export default function TeamEditEmployeeModal({
   const validate = (): boolean => {
     const next: Record<string, string> = {};
     if (!fullname.trim()) next.fullname = "Vui lòng nhập họ tên nhân viên";
-    if (!/^\d+$/.test(listenerLimit) || Number(listenerLimit) < 0) {
-      next.listener_limit = "Số listener phải là số nguyên không âm";
-    }
     if (password.trim()) {
       const passwordError = validatePassword(password);
       if (passwordError) next.password = passwordError;
@@ -61,7 +55,6 @@ export default function TeamEditEmployeeModal({
       await teamPermissionsService.editEmployee({
         id_employee: employee.id,
         fullname: fullname.trim(),
-        listener_limit: Number(listenerLimit),
         ...(password.trim() ? { password } : {}),
       });
       toast.success("Đã cập nhật nhân viên.");
@@ -98,21 +91,6 @@ export default function TeamEditEmployeeModal({
     }
   };
 
-  const handleActivate = async () => {
-    if (!employee) return;
-    setActivating(true);
-    try {
-      await teamPermissionsService.activeEmployee(employee.id);
-      toast.success("Đã gia hạn nhân viên.");
-      onSaved();
-      onClose();
-    } catch (error) {
-      toast.error(getApiErrorMessage(error));
-    } finally {
-      setActivating(false);
-    }
-  };
-
   const assignedCount =
     employee?.account_count ?? employee?.logged_account_count ?? 0;
   const packageLimit = employee?.account_limit ?? 0;
@@ -145,27 +123,7 @@ export default function TeamEditEmployeeModal({
 
         <div>
           <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
-            Giới hạn listener
-          </label>
-          <Input
-            value={listenerLimit}
-            onChange={(e) => {
-              const value = e.target.value;
-              if (/^\d*$/.test(value)) setListenerLimit(value);
-            }}
-            placeholder="0"
-            error={Boolean(errors.listener_limit)}
-            hint={errors.listener_limit}
-          />
-          <p className="mt-1 text-xs text-gray-500">
-            Phân bổ listener CarePro (không phải số nick được gán).
-          </p>
-        </div>
-
-        <div>
-          <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
-            {employee &&
-            (employee.raw_password || employee.password)
+            {employee && (employee.raw_password || employee.password)
               ? `Mật khẩu mới (hiện tại: ${employee.raw_password || employee.password})`
               : "Mật khẩu mới (tùy chọn)"}
           </label>
@@ -181,32 +139,23 @@ export default function TeamEditEmployeeModal({
       </div>
 
       <div className="mt-6 flex flex-wrap justify-between gap-3">
-        <div className="flex flex-wrap gap-2">
-          <Button
-            variant="outline"
-            onClick={() => void handleActivate()}
-            disabled={activating || submitting || deleting}
-          >
-            Gia hạn
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => void handleDelete()}
-            disabled={deleting || submitting || activating}
-            className="text-error-600 hover:text-error-700"
-          >
-            Xóa
-          </Button>
-        </div>
+        <Button
+          variant="outline"
+          onClick={() => void handleDelete()}
+          disabled={deleting || submitting}
+          className="text-error-600 hover:text-error-700"
+        >
+          {deleting ? "Đang xóa..." : "Xóa"}
+        </Button>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={onClose} disabled={submitting || deleting}>
             Hủy
           </Button>
           <Button
             onClick={() => void handleSave()}
-            disabled={submitting || deleting || activating}
+            disabled={submitting || deleting}
           >
-            Lưu
+            {submitting ? "Đang lưu..." : "Lưu"}
           </Button>
         </div>
       </div>

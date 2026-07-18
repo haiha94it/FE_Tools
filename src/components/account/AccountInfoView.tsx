@@ -26,7 +26,7 @@ import { useAuthStore } from "@/stores/use-auth-store";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 const SHORTCUTS = [
   {
@@ -46,6 +46,7 @@ const SHORTCUTS = [
     label: "Cửa hàng",
     desc: "Mini shop bán hàng",
     icon: BoxIcon,
+    adminOnly: true,
   },
   {
     href: "/guides",
@@ -140,6 +141,13 @@ export default function AccountInfoView() {
   const zaloUsage = user?.accountLimit
     ? Math.round(((user.accountCount ?? 0) / user.accountLimit) * 100)
     : 0;
+  const shortcuts = useMemo(
+    () =>
+      SHORTCUTS.filter(
+        (item) => !("adminOnly" in item && item.adminOnly) || Boolean(user?.isAdmin),
+      ),
+    [user?.isAdmin],
+  );
 
   return (
     <div className="space-y-4 md:space-y-5">
@@ -255,7 +263,7 @@ export default function AccountInfoView() {
           className="lg:col-span-5"
         >
           <div className="divide-y divide-gray-50 dark:divide-gray-800/80">
-            {SHORTCUTS.map((item) => {
+            {shortcuts.map((item) => {
               const Icon = item.icon;
               return (
                 <Link

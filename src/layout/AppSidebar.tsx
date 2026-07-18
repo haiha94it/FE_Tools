@@ -49,6 +49,7 @@ const AppSidebar: React.FC = () => {
 
   const navItems = React.useMemo(() => {
     const roleFiltered = mainNavItems.filter((item) => {
+      if (item.hidden) return false;
       if (!userHasNavRole(item.roles, user)) return false;
       if (item.managerOnly && !canManageTeam(user)) return false;
       if (item.hideForEmployee && user?.isEmployee) return false;
