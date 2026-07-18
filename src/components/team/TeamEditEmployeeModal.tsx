@@ -24,7 +24,6 @@ export default function TeamEditEmployeeModal({
   onSaved,
 }: TeamEditEmployeeModalProps) {
   const [fullname, setFullname] = useState("");
-  const [accountLimit, setAccountLimit] = useState("");
   const [listenerLimit, setListenerLimit] = useState("");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -35,7 +34,6 @@ export default function TeamEditEmployeeModal({
   useEffect(() => {
     if (!open || !employee) return;
     setFullname(employee.fullname?.trim() ?? "");
-    setAccountLimit(String(employee.account_limit ?? 0));
     setListenerLimit(String(employee.listener_limit ?? 0));
     setPassword("");
     setErrors({});
@@ -44,9 +42,6 @@ export default function TeamEditEmployeeModal({
   const validate = (): boolean => {
     const next: Record<string, string> = {};
     if (!fullname.trim()) next.fullname = "Vui lòng nhập họ tên nhân viên";
-    if (!/^\d+$/.test(accountLimit) || Number(accountLimit) < 0) {
-      next.account_limit = "Số lượng nick phải là số nguyên không âm";
-    }
     if (!/^\d+$/.test(listenerLimit) || Number(listenerLimit) < 0) {
       next.listener_limit = "Số listener phải là số nguyên không âm";
     }
@@ -65,7 +60,6 @@ export default function TeamEditEmployeeModal({
       await teamPermissionsService.editEmployee({
         id_employee: employee.id,
         fullname: fullname.trim(),
-        account_limit: Number(accountLimit),
         listener_limit: Number(listenerLimit),
         ...(password.trim() ? { password } : {}),
       });
@@ -114,6 +108,10 @@ export default function TeamEditEmployeeModal({
     }
   };
 
+  const assignedCount =
+    employee?.account_count ?? employee?.logged_account_count ?? 0;
+  const packageLimit = employee?.account_limit ?? 0;
+
   return (
     <Modal isOpen={open} onClose={onClose} layer="top" className="max-w-lg p-5 sm:p-6">
       <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
@@ -122,9 +120,7 @@ export default function TeamEditEmployeeModal({
       {employee ? (
         <p className="mt-1 text-sm text-gray-500">
           @{employee.username}
-          {employee.logged_account_count != null
-            ? ` · Đang đăng nhập ${employee.logged_account_count} nick`
-            : ""}
+          {` · Đã gán ${assignedCount} · Gói quản lý ${packageLimit}`}
         </p>
       ) : null}
 
@@ -144,22 +140,6 @@ export default function TeamEditEmployeeModal({
 
         <div>
           <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
-            Giới hạn nick Zalo
-          </label>
-          <Input
-            value={accountLimit}
-            onChange={(e) => {
-              const value = e.target.value;
-              if (/^\d*$/.test(value)) setAccountLimit(value);
-            }}
-            placeholder="0"
-            error={Boolean(errors.account_limit)}
-            hint={errors.account_limit}
-          />
-        </div>
-
-        <div>
-          <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
             Giới hạn listener
           </label>
           <Input
@@ -172,6 +152,9 @@ export default function TeamEditEmployeeModal({
             error={Boolean(errors.listener_limit)}
             hint={errors.listener_limit}
           />
+          <p className="mt-1 text-xs text-gray-500">
+            Phân bổ listener CarePro (không phải số nick được gán).
+          </p>
         </div>
 
         <div>

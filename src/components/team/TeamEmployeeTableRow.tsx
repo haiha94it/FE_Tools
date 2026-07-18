@@ -79,8 +79,14 @@ function TeamEmployeeTableRow({
         </div>
       </td>
       <td className="px-3 py-3 text-gray-600 dark:text-gray-400">
-        {employee.account_count ?? employee.logged_account_count ?? 0} /{" "}
-        {employee.account_limit ?? 0} nick
+        <span
+          className="tabular-nums"
+          title="Đã gán nick / gói quản lý (không phải quota riêng NV)"
+        >
+          {employee.account_count ?? employee.logged_account_count ?? 0}/
+          {employee.account_limit ?? 0}
+        </span>
+        <span className="ml-1 text-xs text-gray-500">nick gói</span>
       </td>
       <td className="px-3 py-3">
         <div className="flex justify-end gap-2">

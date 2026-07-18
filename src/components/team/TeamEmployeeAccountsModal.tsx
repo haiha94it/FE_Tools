@@ -93,7 +93,16 @@ export default function TeamEmployeeAccountsModal({
             <p className="font-medium text-gray-800 dark:text-white/90">
               {employeeName}
             </p>
-            <p className="text-xs text-gray-500">@{employee.username}</p>
+            <p className="text-xs text-gray-500">
+              @{employee.username}
+              {" · "}
+              Đã gán {employee.account_count ?? employee.logged_account_count ?? 0}
+              {" · "}
+              Gói quản lý {employee.account_limit ?? 0}
+            </p>
+            <p className="mt-0.5 text-xs text-gray-400">
+              Chọn nick thuộc quản lý để gán. Không giới hạn theo slot riêng NV.
+            </p>
           </div>
         </div>
       ) : null}

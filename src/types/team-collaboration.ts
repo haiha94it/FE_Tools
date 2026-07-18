@@ -64,7 +64,12 @@ export interface DeleteCampaignResultsBody {
   id_results: number[];
 }
 
-/** Nhân viên thuộc manager — GET /api/users/get-employees */
+/**
+ * Nhân viên thuộc manager — GET /api/users/get-employees
+ * - account_count: số nick manager đã gán
+ * - account_limit: = manager.account_limit (gói chủ team), KHÔNG phải quota riêng NV
+ * - logged_account_count: alias account_count trên get-employees
+ */
 export interface TeamEmployee {
   id: number;
   username: string;
@@ -78,22 +83,29 @@ export interface TeamEmployee {
   raw_password?: string | null;
 }
 
-/** POST /api/users/create-employee — đồng bộ ZaloCN ManageEmployee */
+/**
+ * POST /api/users/create-employee
+ * Không gửi account_limit — BE ignore; response.account_limit = gói manager
+ */
 export interface CreateEmployeePayload {
   username: string;
   password: string;
   fullname: string;
-  account_limit: number;
-  listener_limit: number;
+  phone_number?: string;
+  /** CarePro entitlement; default 0 — không = “NV bật listener bao nick” */
+  listener_limit?: number;
 }
 
-/** POST /api/users/edit-employee */
+/**
+ * POST /api/users/edit-employee
+ * Không gửi account_limit (đã bỏ quota nick riêng NV)
+ */
 export interface EditEmployeePayload {
   id_employee: number;
-  account_limit?: number;
   listener_limit?: number;
   password?: string;
   fullname?: string;
+  expiration_date?: string | null;
 }
 
 export type AccessibleAccount = ZaloAccount;

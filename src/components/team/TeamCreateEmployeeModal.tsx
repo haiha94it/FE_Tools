@@ -21,7 +21,6 @@ const EMPTY_FORM = {
   username: "",
   password: "",
   fullname: "",
-  account_limit: "",
 };
 
 export default function TeamCreateEmployeeModal({
@@ -61,11 +60,6 @@ export default function TeamCreateEmployeeModal({
     if (usernameError) next.username = usernameError;
     if (passwordError) next.password = passwordError;
     if (!form.fullname.trim()) next.fullname = "Vui lòng nhập họ tên nhân viên";
-    if (!form.account_limit.trim()) {
-      next.account_limit = "Vui lòng nhập số lượng tài khoản";
-    } else if (!/^\d+$/.test(form.account_limit) || Number(form.account_limit) < 0) {
-      next.account_limit = "Số lượng tài khoản phải là số nguyên không âm";
-    }
 
     setErrors(next);
     return Object.keys(next).length === 0;
@@ -81,7 +75,6 @@ export default function TeamCreateEmployeeModal({
         username: form.username.trim(),
         password: form.password,
         fullname: form.fullname.trim(),
-        account_limit: Number(form.account_limit),
         listener_limit: 0,
       });
       toast.success("Đã tạo tài khoản nhân viên.");
@@ -102,7 +95,8 @@ export default function TeamCreateEmployeeModal({
             Thêm tài khoản nhân viên
           </h3>
           <p className="mt-1 text-sm text-gray-500">
-            Tạo tài khoản đăng nhập cho nhân viên và cấp giới hạn nick Zalo.
+            Tạo tài khoản đăng nhập cho nhân viên. Nick Zalo do quản lý gán sau
+            khi tạo; hạn mức nick team theo gói quản lý.
           </p>
 
           <div className="mt-5 space-y-4">
@@ -143,23 +137,6 @@ export default function TeamCreateEmployeeModal({
                 placeholder="Họ tên nhân viên"
                 error={Boolean(errors.fullname)}
                 hint={errors.fullname}
-              />
-            </div>
-
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Cấp tài khoản (nick Zalo)
-              </label>
-              <Input
-                type="text"
-                value={form.account_limit}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  if (/^\d*$/.test(value)) updateField("account_limit", value);
-                }}
-                placeholder="Số lượng tài khoản"
-                error={Boolean(errors.account_limit)}
-                hint={errors.account_limit}
               />
             </div>
           </div>

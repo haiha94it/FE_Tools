@@ -107,7 +107,8 @@ export default function TeamEmployeesView() {
               Nhân viên trong team
             </h2>
             <p className="mt-1 text-sm text-gray-500">
-              Gán nick Zalo và bật từng loại chiến dịch cho từng nhân viên.
+              Gán nick Zalo và bật từng loại chiến dịch cho từng nhân viên. Nick
+              gán không giới hạn theo “slot NV” — hạn mức theo gói quản lý.
             </p>
             <p className="mt-2 text-xs text-gray-500">
               Số lượng nhân viên được phép tạo: {employeeLimit}

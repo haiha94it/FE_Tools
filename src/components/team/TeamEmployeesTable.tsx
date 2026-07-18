@@ -24,7 +24,12 @@ function TeamEmployeesTable({
           <tr className="border-b border-gray-200 text-xs uppercase text-gray-500 dark:border-gray-800">
             <th className="px-3 py-3 font-medium">Nhân viên</th>
             <th className="px-3 py-3 font-medium">Mật khẩu</th>
-            <th className="px-3 py-3 font-medium">Tài khoản</th>
+            <th
+              className="px-3 py-3 font-medium"
+              title="Số nick đã gán / hạn mức gói quản lý"
+            >
+              Đã gán / gói
+            </th>
             <th className="px-3 py-3 font-medium text-right">Thao tác</th>
           </tr>
         </thead>
