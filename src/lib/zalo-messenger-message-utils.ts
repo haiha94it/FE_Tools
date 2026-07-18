@@ -659,6 +659,7 @@ export function getMessagePreviewSummary(message: DisplayMessage): string {
 
 export function hasVisibleContent(message: DisplayMessage): boolean {
   if (message._optimistic) return true;
+  if (message.recalled) return true;
   if (getMessageText(message)) return true;
   if (
     message.attachments?.some(
@@ -687,39 +688,99 @@ export function hasVisibleContent(message: DisplayMessage): boolean {
   return false;
 }
 
-export function filterDisplayMessages(
-  messages: DisplayMessage[],
-): DisplayMessage[] {
-  const undoIds = new Set<string>();
-  for (const message of messages) {
-    if (message.msgType !== "chat.undo") continue;
-    const content = message.undo?.[0]?.content;
-    if (!content) continue;
+/**
+ * Parse content của event chat.undo.
+ * Target tin gốc = globalMsgId / cliMsgId — KHÔNG dùng msgId của frame undo.
+ */
+export function parseUndoTargets(content?: string | unknown): {
+  globalMsgId: string | null;
+  cliMsgId: string | null;
+} | null {
+  let raw: unknown = content;
+  if (raw == null || raw === "") return null;
+
+  if (typeof raw === "string") {
+    const trimmed = raw.trim();
+    if (!trimmed) return null;
     try {
-      const parsed = JSON.parse(String(content).replace(/'/g, '"')) as {
-        globalMsgId?: string | number;
-        cliMsgId?: string;
-      };
-      if (parsed.globalMsgId != null) undoIds.add(String(parsed.globalMsgId));
-      if (parsed.cliMsgId) undoIds.add(parsed.cliMsgId);
+      raw = JSON.parse(trimmed);
     } catch {
-      // ignore malformed undo
+      try {
+        raw = JSON.parse(trimmed.replace(/'/g, '"'));
+      } catch {
+        return null;
+      }
+    }
+    // content bị stringify 2 lần
+    if (typeof raw === "string") {
+      try {
+        raw = JSON.parse(raw);
+      } catch {
+        return null;
+      }
     }
   }
 
-  const filtered = messages.filter((message) => {
-    if (message.msgType === "chat.undo") return false;
-    if (isReactionOnlyMessage(message)) return false;
-    const text = getMessageText(message);
-    if (text && shouldHideMessageText(text)) return false;
-    const keys = [
-      message.msgId,
-      message.cliMsgId,
-      message.id != null ? String(message.id) : null,
-    ].filter(Boolean) as string[];
-    if (keys.some((key) => undoIds.has(key))) return false;
-    return hasVisibleContent(message);
-  });
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const record = raw as Record<string, unknown>;
+  const globalRaw = record.globalMsgId ?? record.globalMsgID;
+  const cliRaw = record.cliMsgId ?? record.cliMsgID;
+  return {
+    globalMsgId:
+      globalRaw != null && globalRaw !== "" ? String(globalRaw) : null,
+    cliMsgId: cliRaw != null && cliRaw !== "" ? String(cliRaw) : null,
+  };
+}
+
+function messageMatchesUndoTarget(
+  message: DisplayMessage,
+  targetMsgIds: Set<string>,
+  targetCliIds: Set<string>,
+): boolean {
+  if (message.msgId && targetMsgIds.has(String(message.msgId))) return true;
+  if (message.cliMsgId && targetCliIds.has(String(message.cliMsgId))) {
+    return true;
+  }
+  if (message.clientMsgId && targetCliIds.has(String(message.clientMsgId))) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Timeline bubbles: loại chat.undo / reaction.
+ * chat.undo → đánh dấu tin gốc `recalled` (giữ bubble), không xóa khỏi state.
+ * (docs/fe_integration_notes.md)
+ */
+export function filterDisplayMessages(
+  messages: DisplayMessage[],
+): DisplayMessage[] {
+  const targetMsgIds = new Set<string>();
+  const targetCliIds = new Set<string>();
+
+  for (const message of messages) {
+    if (message.msgType !== "chat.undo") continue;
+    const targets = parseUndoTargets(message.undo?.[0]?.content);
+    if (!targets) continue;
+    if (targets.globalMsgId) targetMsgIds.add(targets.globalMsgId);
+    if (targets.cliMsgId) targetCliIds.add(targets.cliMsgId);
+  }
+
+  const filtered = messages
+    .filter((message) => {
+      if (message.msgType === "chat.undo") return false;
+      if (isReactionOnlyMessage(message)) return false;
+      const text = getMessageText(message);
+      if (text && shouldHideMessageText(text)) return false;
+      return hasVisibleContent(message) || message.recalled;
+    })
+    .map((message) => {
+      if (message.recalled) return message;
+      if (!messageMatchesUndoTarget(message, targetMsgIds, targetCliIds)) {
+        return message;
+      }
+      return { ...message, recalled: true };
+    });
 
   return mergeGroupMediaMessages(filtered);
 }

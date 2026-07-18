@@ -32,7 +32,7 @@ import type { ZaloGroupMember } from "@/types/zalo-contacts";
 import type { DisplayMessage } from "@/types/zalo-messenger";
 import Image from "next/image";
 import dynamic from "next/dynamic";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import MessageDetailDialog from "./MessageDetailDialog";
 import MessageMetaFooter from "./MessageMetaFooter";
 import { MessageActionRail } from "./MessageActionRail";
@@ -85,6 +85,18 @@ function QuotePreview({
   );
 }
 
+function RecalledNote({ own }: { own: boolean }) {
+  return (
+    <p
+      className={`text-xs italic ${
+        own ? "text-white/80" : "text-gray-500 dark:text-gray-400"
+      }`}
+    >
+      Tin nhắn đã được thu hồi
+    </p>
+  );
+}
+
 function MessageContent({
   message,
   own,
@@ -100,57 +112,50 @@ function MessageContent({
   const attachment = message.attachments?.[0];
   const sticker = message.sticker?.[0];
 
+  let body: ReactNode;
+
   if (
     message.msgType === "group.media" ||
     attachment?.action === "group-media"
   ) {
     const group = message.groupMedia;
-    if (group?.items.length) {
-      return (
-        <GroupMediaGrid
-          items={group.items}
-          totalItems={group.totalItems}
-          onOpenPreview={onOpenPreview}
-        />
-      );
-    }
-  }
-
-  if (
+    body = group?.items.length ? (
+      <GroupMediaGrid
+        items={group.items}
+        totalItems={group.totalItems}
+        onOpenPreview={onOpenPreview}
+      />
+    ) : (
+      <span className="text-xs italic opacity-70">Nội dung không hỗ trợ</span>
+    );
+  } else if (
     attachment?.action === "system" ||
     (message.msgType === "webchat" && attachment?.action === "system")
   ) {
-    return (
+    body = (
       <SystemTipContent
         text={attachment?.title || text}
         iconUrl={attachment?.thumb}
         centered={centered}
       />
     );
-  }
-
-  if (
-    message.msgType === "chat.gif" ||
-    attachment?.action === "gif"
-  ) {
+  } else if (message.msgType === "chat.gif" || attachment?.action === "gif") {
     const src = attachment?.href || attachment?.thumb;
-    if (src) {
-      return (
-        <GifMessageContent
-          src={src}
-          thumb={attachment?.thumb}
-          onOpenPreview={onOpenPreview}
-        />
-      );
-    }
-  }
-
-  if (
+    body = src ? (
+      <GifMessageContent
+        src={src}
+        thumb={attachment?.thumb}
+        onOpenPreview={onOpenPreview}
+      />
+    ) : (
+      <span className="text-xs italic opacity-70">Nội dung không hỗ trợ</span>
+    );
+  } else if (
     message.msgType === "chat.location.new" ||
     attachment?.action === "location"
   ) {
     const coords = attachment?.description?.split(",");
-    return (
+    body = (
       <LocationMessageContent
         title={attachment?.title || text || "Vị trí"}
         lat={coords?.[0]?.trim()}
@@ -158,13 +163,11 @@ function MessageContent({
         own={own}
       />
     );
-  }
-
-  if (
+  } else if (
     message.msgType === "chat.ecard" ||
     attachment?.action === "ecard"
   ) {
-    return (
+    body = (
       <EcardMessageContent
         title={attachment?.title}
         description={attachment?.description}
@@ -172,13 +175,11 @@ function MessageContent({
         centered={centered}
       />
     );
-  }
-
-  if (
+  } else if (
     message.msgType === "chat.recommended" ||
     attachment?.action === "recommended"
   ) {
-    return (
+    body = (
       <RecommendedContactContent
         title={attachment?.title}
         thumb={attachment?.thumb}
@@ -187,25 +188,26 @@ function MessageContent({
         own={own}
       />
     );
-  }
-
-  if (attachment?.action === "voice" || message.msgType === "chat.voice") {
-    if (attachment?.href) {
-      return (
-        <VoiceMessageContent
-          src={attachment.href}
-          durationMs={attachment.durationMs}
-        />
-      );
-    }
-  }
-
-  if (attachment?.action === "video" || message.msgType === "chat.video.msg") {
+  } else if (
+    attachment?.action === "voice" ||
+    message.msgType === "chat.voice"
+  ) {
+    body = attachment?.href ? (
+      <VoiceMessageContent
+        src={attachment.href}
+        durationMs={attachment.durationMs}
+      />
+    ) : (
+      <span className="text-xs italic opacity-70">Nội dung không hỗ trợ</span>
+    );
+  } else if (
+    attachment?.action === "video" ||
+    message.msgType === "chat.video.msg"
+  ) {
     const videoSrc = attachment?.href || attachment?.thumb;
-    if (!videoSrc) {
-      return <span className="text-sm">Video</span>;
-    }
-    return (
+    body = !videoSrc ? (
+      <span className="text-sm">Video</span>
+    ) : (
       <div className="space-y-1">
         <VideoMessageContent
           src={videoSrc}
@@ -216,16 +218,13 @@ function MessageContent({
         {text ? <p className={messageTextClass}>{text}</p> : null}
       </div>
     );
-  }
-
-  if (
+  } else if (
     attachment?.href &&
     (message.msgType === "chat.photo" || attachment.thumb)
   ) {
     const thumb = attachment.thumb || attachment.href;
     const fullSrc = attachment.href || thumb;
-
-    return (
+    body = (
       <div className="space-y-1">
         <button
           type="button"
@@ -250,10 +249,8 @@ function MessageContent({
         {text ? <p className={messageTextClass}>{text}</p> : null}
       </div>
     );
-  }
-
-  if (attachment?.action === "file") {
-    return (
+  } else if (attachment?.action === "file") {
+    body = (
       <FileAttachmentContent
         href={attachment?.href}
         title={attachment?.title}
@@ -265,41 +262,42 @@ function MessageContent({
         onOpenPreview={onOpenPreview}
       />
     );
-  }
-
-  if (sticker?.id || message.msgType === "chat.sticker") {
+  } else if (sticker?.id || message.msgType === "chat.sticker") {
     const stickerSrc = resolveStickerImageUrl(message);
-    if (stickerSrc) {
-      return (
-        <Image
-          src={stickerSrc}
-          alt="Sticker"
-          width={120}
-          height={120}
-          unoptimized
-          className="h-28 w-28 object-contain"
-        />
-      );
-    }
-
-    return (
+    body = stickerSrc ? (
+      <Image
+        src={stickerSrc}
+        alt="Sticker"
+        width={120}
+        height={120}
+        unoptimized
+        className="h-28 w-28 object-contain"
+      />
+    ) : (
       <div className="flex h-24 w-24 items-center justify-center rounded-xl bg-white/50 text-xs text-gray-500 dark:bg-black/20">
         Sticker #{sticker?.id ?? "?"}
       </div>
     );
-  }
-
-  if (text) {
-    return (
-      <p
-        className={`${messageTextClass} ${own ? "text-right" : "text-left"}`}
-      >
+  } else if (text) {
+    body = (
+      <p className={`${messageTextClass} ${own ? "text-right" : "text-left"}`}>
         {text}
       </p>
     );
+  } else {
+    body = (
+      <span className="text-xs italic opacity-70">Nội dung không hỗ trợ</span>
+    );
   }
 
-  return <span className="text-xs italic opacity-70">Nội dung không hỗ trợ</span>;
+  if (!message.recalled) return body;
+
+  return (
+    <div className="space-y-1.5">
+      {body}
+      <RecalledNote own={own} />
+    </div>
+  );
 }
 
 export function MessageList({
@@ -497,16 +495,22 @@ export function MessageList({
 
                   <MessageActionRail
                     own={own}
-                    canReply={Boolean(onReply)}
-                    canShare={Boolean(onShare && canShareMessage(message))}
-                    onReply={onReply ? () => onReply(message) : undefined}
+                    canReply={Boolean(onReply) && !message.recalled}
+                    canShare={Boolean(
+                      onShare && !message.recalled && canShareMessage(message),
+                    )}
+                    onReply={
+                      onReply && !message.recalled
+                        ? () => onReply(message)
+                        : undefined
+                    }
                     onShare={
-                      onShare && canShareMessage(message)
+                      onShare && !message.recalled && canShareMessage(message)
                         ? () => onShare(message)
                         : undefined
                     }
                     onReaction={
-                      onReaction
+                      onReaction && !message.recalled
                         ? (reactionId) => onReaction(message, reactionId)
                         : undefined
                     }

@@ -166,6 +166,8 @@ export interface DisplayMessage {
   quote?: MessengerMessageQuote[];
   reaction?: Array<{ content?: string }>;
   undo?: Array<{ content?: string }>;
+  /** WS/API chat.undo — giữ bubble, UI “đã thu hồi” (không xóa tin gốc) */
+  recalled?: boolean;
   _optimistic?: boolean;
   _status?: "sending" | "sent" | "failed";
   _retryData?: SendMessagePayload;
