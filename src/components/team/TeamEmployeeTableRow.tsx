@@ -8,16 +8,20 @@ import { HiOutlineClipboard, HiOutlineEye, HiOutlineEyeOff } from "react-icons/h
 
 interface TeamEmployeeTableRowProps {
   employee: TeamEmployee;
+  deleting?: boolean;
   onAssignAccounts: (employee: TeamEmployee) => void;
   onEditPermissions: (employee: TeamEmployee) => void;
   onEditEmployee: (employee: TeamEmployee) => void;
+  onDeleteEmployee: (employee: TeamEmployee) => void;
 }
 
 function TeamEmployeeTableRow({
   employee,
+  deleting = false,
   onAssignAccounts,
   onEditPermissions,
   onEditEmployee,
+  onDeleteEmployee,
 }: TeamEmployeeTableRowProps) {
   const [showPassword, setShowPassword] = useState(false);
   const password = getTeamEmployeePassword(employee);
@@ -89,27 +93,38 @@ function TeamEmployeeTableRow({
         <span className="ml-1 text-xs text-gray-500">nick gói</span>
       </td>
       <td className="px-3 py-3">
-        <div className="flex justify-end gap-2">
+        <div className="flex flex-wrap justify-end gap-2">
           <button
             type="button"
             onClick={() => onEditEmployee(employee)}
-            className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300"
+            disabled={deleting}
+            className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:text-gray-300"
           >
             Sửa
           </button>
           <button
             type="button"
             onClick={() => onAssignAccounts(employee)}
-            className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300"
+            disabled={deleting}
+            className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:text-gray-300"
           >
             Gán nick
           </button>
           <button
             type="button"
             onClick={() => onEditPermissions(employee)}
-            className="rounded-lg bg-brand-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-600"
+            disabled={deleting}
+            className="rounded-lg bg-brand-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-600 disabled:opacity-50"
           >
             Quyền chiến dịch
+          </button>
+          <button
+            type="button"
+            onClick={() => onDeleteEmployee(employee)}
+            disabled={deleting}
+            className="rounded-lg border border-error-200 px-3 py-1.5 text-xs font-medium text-error-600 hover:bg-error-50 disabled:opacity-50 dark:border-error-500/30 dark:text-error-400 dark:hover:bg-error-500/10"
+          >
+            {deleting ? "Đang xóa..." : "Xóa"}
           </button>
         </div>
       </td>

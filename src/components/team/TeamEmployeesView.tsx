@@ -8,6 +8,7 @@ import TeamEditEmployeeModal from "@/components/team/TeamEditEmployeeModal";
 import TeamEmployeeAccountsModal from "@/components/team/TeamEmployeeAccountsModal";
 import TeamEmployeePermissionsModal from "@/components/team/TeamEmployeePermissionsModal";
 import TeamEmployeesTable from "@/components/team/TeamEmployeesTable";
+import { confirm } from "@/lib/confirm";
 import { getApiErrorMessage } from "@/lib/errors";
 import { isSameTeamEmployeeList } from "@/lib/team-employee-utils";
 import { toast } from "@/lib/toast";
@@ -24,6 +25,7 @@ export default function TeamEmployeesView() {
   const [accountsEmployee, setAccountsEmployee] = useState<TeamEmployee | null>(null);
   const [permissionsEmployee, setPermissionsEmployee] = useState<TeamEmployee | null>(null);
   const [editEmployee, setEditEmployee] = useState<TeamEmployee | null>(null);
+  const [deletingEmployeeId, setDeletingEmployeeId] = useState<number | null>(null);
   const hasLoadedRef = useRef(false);
 
   const load = useCallback(async (options?: { background?: boolean }) => {
@@ -96,6 +98,32 @@ export default function TeamEmployeesView() {
     void load({ background: true });
   }, [load]);
 
+  const handleDeleteEmployee = useCallback(async (employee: TeamEmployee) => {
+    const label = employee.fullname?.trim() || employee.username;
+    const ok = await confirm({
+      title: "Xóa nhân viên",
+      message: `Xóa nhân viên "${label}" (@${employee.username})? Nick gán và quyền chiến dịch sẽ bị gỡ. Hành động không thể hoàn tác.`,
+      confirmText: "Xóa",
+      variant: "danger",
+    });
+    if (!ok) return;
+
+    setDeletingEmployeeId(employee.id);
+    try {
+      await teamPermissionsService.deleteEmployee(employee.id);
+      // Patch local list — không full-screen loading
+      setEmployees((current) => current.filter((item) => item.id !== employee.id));
+      if (editEmployee?.id === employee.id) setEditEmployee(null);
+      if (accountsEmployee?.id === employee.id) setAccountsEmployee(null);
+      if (permissionsEmployee?.id === employee.id) setPermissionsEmployee(null);
+      toast.success("Đã xóa nhân viên.");
+    } catch (error) {
+      toast.error(getApiErrorMessage(error));
+    } finally {
+      setDeletingEmployeeId(null);
+    }
+  }, [editEmployee, accountsEmployee, permissionsEmployee]);
+
   return (
     <div className={`${adminDataPanelClass} flex min-h-0 flex-1 flex-col gap-4`}>
       <PageBreadcrumb pageTitle="Quản lý nhân viên" />
@@ -130,9 +158,11 @@ export default function TeamEmployeesView() {
         ) : (
           <TeamEmployeesTable
             employees={employees}
+            deletingEmployeeId={deletingEmployeeId}
             onAssignAccounts={handleAssignAccounts}
             onEditPermissions={handleEditPermissions}
             onEditEmployee={handleEditEmployee}
+            onDeleteEmployee={(employee) => void handleDeleteEmployee(employee)}
           />
         )}
       </div>

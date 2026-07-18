@@ -6,20 +6,24 @@ import TeamEmployeeTableRow from "./TeamEmployeeTableRow";
 
 interface TeamEmployeesTableProps {
   employees: TeamEmployee[];
+  deletingEmployeeId?: number | null;
   onAssignAccounts: (employee: TeamEmployee) => void;
   onEditPermissions: (employee: TeamEmployee) => void;
   onEditEmployee: (employee: TeamEmployee) => void;
+  onDeleteEmployee: (employee: TeamEmployee) => void;
 }
 
 function TeamEmployeesTable({
   employees,
+  deletingEmployeeId = null,
   onAssignAccounts,
   onEditPermissions,
   onEditEmployee,
+  onDeleteEmployee,
 }: TeamEmployeesTableProps) {
   return (
     <div className="custom-scrollbar overflow-x-auto overscroll-x-contain">
-      <table className="w-full min-w-[760px] text-left text-sm">
+      <table className="w-full min-w-[880px] text-left text-sm">
         <thead>
           <tr className="border-b border-gray-200 text-xs uppercase text-gray-500 dark:border-gray-800">
             <th className="px-3 py-3 font-medium">Nhân viên</th>
@@ -38,9 +42,11 @@ function TeamEmployeesTable({
             <TeamEmployeeTableRow
               key={employee.id}
               employee={employee}
+              deleting={deletingEmployeeId === employee.id}
               onAssignAccounts={onAssignAccounts}
               onEditPermissions={onEditPermissions}
               onEditEmployee={onEditEmployee}
+              onDeleteEmployee={onDeleteEmployee}
             />
           ))}
         </tbody>

@@ -4,6 +4,7 @@ import Input from "@/components/form/input/InputField";
 import Button from "@/components/ui/button/Button";
 import { Modal } from "@/components/ui/modal";
 import { validatePassword } from "@/lib/auth-validation";
+import { confirm } from "@/lib/confirm";
 import { getApiErrorMessage } from "@/lib/errors";
 import { toast } from "@/lib/toast";
 import { teamPermissionsService } from "@/services/team-permissions.service";
@@ -75,10 +76,14 @@ export default function TeamEditEmployeeModal({
 
   const handleDelete = async () => {
     if (!employee) return;
-    const confirmed = window.confirm(
-      `Xóa nhân viên "${employee.fullname || employee.username}"? Hành động không thể hoàn tác.`,
-    );
-    if (!confirmed) return;
+    const label = employee.fullname?.trim() || employee.username;
+    const ok = await confirm({
+      title: "Xóa nhân viên",
+      message: `Xóa nhân viên "${label}" (@${employee.username})? Nick gán và quyền chiến dịch sẽ bị gỡ. Hành động không thể hoàn tác.`,
+      confirmText: "Xóa",
+      variant: "danger",
+    });
+    if (!ok) return;
 
     setDeleting(true);
     try {
