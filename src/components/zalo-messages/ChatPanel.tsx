@@ -311,7 +311,7 @@ function ChatPanel({
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
-      <header className="flex shrink-0 items-center gap-3 border-b border-gray-100 px-3 py-3 dark:border-gray-800 sm:px-4">
+      <header className="relative z-20 flex shrink-0 items-center gap-3 border-b border-gray-100 bg-white px-3 py-3 dark:border-gray-800 dark:bg-gray-900 sm:px-4">
         {showBack && onBack ? (
           <button
             type="button"
