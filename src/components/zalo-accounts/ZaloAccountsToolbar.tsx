@@ -57,10 +57,12 @@ export default function ZaloAccountsToolbar({
     <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
       <div className="order-1 w-full sm:order-none sm:min-w-[150px] sm:max-w-[200px] sm:flex-1">
         <Input
-          type="text"
+          type="search"
+          name="zalo-accounts-quick-search"
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
           placeholder="Tìm kiếm nhanh"
+          autoComplete="off"
         />
       </div>
 

@@ -88,13 +88,33 @@ export default function EditAccountModal({
       </p>
 
       <div className="space-y-5">
+        {/*
+          Chặn browser autofill: khi mở modal có password, Chrome hay
+          nhét username vào ô tìm kiếm trang (vd. "admin") + password vào form.
+        */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute h-0 w-0 overflow-hidden opacity-0"
+        >
+          <input type="text" name="prevent-autofill-user" tabIndex={-1} autoComplete="username" />
+          <input
+            type="password"
+            name="prevent-autofill-pass"
+            tabIndex={-1}
+            autoComplete="current-password"
+          />
+        </div>
+
         <div>
           <Label>Tên tài khoản</Label>
           <Input
             type="text"
+            name="zalo-account-display-name"
             value={account.name || ""}
             disabled
+            readOnly
             placeholder="Chưa có tên"
+            autoComplete="off"
           />
         </div>
 
@@ -126,10 +146,12 @@ export default function EditAccountModal({
           <Label>Mật khẩu</Label>
           <Input
             type="password"
+            name="zalo-nick-password"
             value={password}
             onChange={(e) => onPasswordChange(e.target.value)}
             placeholder="Nhập mật khẩu nick Zalo này vào đây, sau đó bấm nút lưu dữ liệu"
             disabled={isSaving}
+            autoComplete="new-password"
           />
         </div>
 
@@ -137,10 +159,12 @@ export default function EditAccountModal({
           <Label>Ghi chú</Label>
           <Input
             type="text"
+            name="zalo-account-note"
             value={note}
             onChange={(e) => onNoteChange(e.target.value)}
             placeholder="Nhập ghi chú..."
             disabled={isSaving}
+            autoComplete="off"
           />
         </div>
 
