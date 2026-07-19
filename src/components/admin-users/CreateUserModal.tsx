@@ -21,8 +21,6 @@ const emptyForm = {
   username: "",
   password: "",
   fullname: "",
-  phone_number: "",
-  facebook_link: "",
   mail: "",
   permission: "" as UserPermissionValue | "",
   employee_limit: "1",
@@ -75,11 +73,6 @@ export default function CreateUserModal({
       toast.error("Email không hợp lệ.");
       return false;
     }
-    const phoneRe = /^(0[3|5|7|8|9])+([0-9]{8})$/;
-    if (!phoneRe.test(form.phone_number)) {
-      toast.error("Số điện thoại không hợp lệ.");
-      return false;
-    }
     return true;
   };
 
@@ -88,11 +81,9 @@ export default function CreateUserModal({
     setSaving(true);
     try {
       await zaloUserAdminService.createUser({
-        facebook_link: form.facebook_link,
         username: form.username.trim(),
         fullname: form.fullname.trim(),
         password: form.password,
-        phone_number: form.phone_number,
         employee_limit: Number(form.employee_limit) || 1,
         expiration_date: form.expiration_date || undefined,
         mail: form.mail.trim(),
@@ -132,18 +123,6 @@ export default function CreateUserModal({
         </Field>
         <Field label="Họ tên">
           <Input value={form.fullname} onChange={(e) => updateField("fullname", e.target.value)} />
-        </Field>
-        <Field label="Số điện thoại">
-          <Input
-            value={form.phone_number}
-            onChange={(e) => updateField("phone_number", e.target.value)}
-          />
-        </Field>
-        <Field label="Link Facebook">
-          <Input
-            value={form.facebook_link}
-            onChange={(e) => updateField("facebook_link", e.target.value)}
-          />
         </Field>
         <Field label="Email">
           <Input value={form.mail} onChange={(e) => updateField("mail", e.target.value)} />

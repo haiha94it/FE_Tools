@@ -81,7 +81,7 @@ export interface CreateManagedUserPayload {
   username: string;
   fullname: string;
   password: string;
-  phone_number: string;
+  phone_number?: string;
   employee_limit: number;
   expiration_date?: string;
   mail: string;

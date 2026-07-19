@@ -41,8 +41,6 @@ export default function EditUserModal({
     username: "",
     password: "",
     fullname: "",
-    phone_number: "",
-    facebook_link: "",
     mail: "",
     permission: "" as UserPermissionValue | "",
     employee_limit: "",
@@ -58,8 +56,6 @@ export default function EditUserModal({
       username: user.username ?? "",
       password: "",
       fullname: user.fullname ?? "",
-      phone_number: user.phone_number ?? "",
-      facebook_link: user.facebook_link ?? "",
       mail: user.mail ?? "",
       permission: (user.permission as UserPermissionValue) ?? "",
       employee_limit: String(user.employee_limit ?? ""),
@@ -94,13 +90,6 @@ export default function EditUserModal({
       toast.error("Email không được để trống.");
       return false;
     }
-    if (form.phone_number) {
-      const phoneRe = /^(0[3|5|7|8|9])+([0-9]{8})$/;
-      if (!phoneRe.test(form.phone_number)) {
-        toast.error("SĐT không hợp lệ.");
-        return false;
-      }
-    }
     return true;
   };
 
@@ -117,10 +106,8 @@ export default function EditUserModal({
 
       await zaloUserAdminService.editUser({
         id_manager: user.id,
-        facebook_link: form.facebook_link,
         username: form.username.trim(),
         fullname: form.fullname.trim(),
-        phone_number: form.phone_number,
         employee_limit: form.employee_limit,
         account_limit: form.account_limit,
         expiration_date: expirationDate,
@@ -171,20 +158,8 @@ export default function EditUserModal({
         <Field label="Họ tên">
           <Input value={form.fullname} onChange={(e) => updateField("fullname", e.target.value)} />
         </Field>
-        <Field label="Số điện thoại">
-          <Input
-            value={form.phone_number}
-            onChange={(e) => updateField("phone_number", e.target.value)}
-          />
-        </Field>
         <Field label="Email">
           <Input value={form.mail} onChange={(e) => updateField("mail", e.target.value)} />
-        </Field>
-        <Field label="Link Facebook">
-          <Input
-            value={form.facebook_link}
-            onChange={(e) => updateField("facebook_link", e.target.value)}
-          />
         </Field>
         {isAdmin ? (
           <Field label="Phân quyền">
