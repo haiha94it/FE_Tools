@@ -62,6 +62,8 @@ export default function AdminUsersView() {
   const [filterOpen, setFilterOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [activatingId, setActivatingId] = useState<number | null>(null);
+  /** Cột mật khẩu ẩn mặc định; bật bằng nút trên toolbar */
+  const [showPasswordColumn, setShowPasswordColumn] = useState(false);
 
   useEffect(() => {
     if (!canAccess) {
@@ -72,9 +74,9 @@ export default function AdminUsersView() {
   }, [canAccess, fetchUsers, router]);
 
   const showExport = !isSalerOnly;
-  const showPassword =
+  const canViewPassword =
     permissionFilter === "no_active" || !isSalerOnly || isSaleManager;
-  const showPhone = isAdmin || isSaleManager;
+  const showPassword = canViewPassword && showPasswordColumn;
 
   const isLogsTab = activeTab === "logs";
 
@@ -202,6 +204,9 @@ export default function AdminUsersView() {
           endDate={endDate}
           showExport={showExport}
           showCreateUser
+          canTogglePassword={!isLogsTab && canViewPassword}
+          showPasswordColumn={showPasswordColumn}
+          onTogglePasswordColumn={() => setShowPasswordColumn((v) => !v)}
           onKeywordChange={setKeyword}
           onSearch={() => void fetchUsers()}
           onRefresh={() => {
@@ -225,7 +230,6 @@ export default function AdminUsersView() {
         <AdminUsersTable
           {...tableProps}
           permissionFilter={permissionFilter}
-          showPhone={showPhone}
           showPassword={showPassword}
           activatingId={activatingId}
           onPageChange={isLogsTab ? setActivityPage : setPage}

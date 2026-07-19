@@ -7,7 +7,6 @@ import {
   formatManagedUserDate,
   getManagedUserPermissionBadgeColor,
   getManagedUserPermissionLabel,
-  getSystemDomainLabel,
 } from "@/lib/zalo-user-admin-utils";
 import type { ManagedUser } from "@/types/zalo-user-admin";
 import {
@@ -35,7 +34,6 @@ interface AdminUserTableRowProps {
   user: ManagedUser;
   index: number;
   permissionFilter: string;
-  showPhone: boolean;
   showPassword: boolean;
   isActivating: boolean;
   onEdit: (user: ManagedUser) => void;
@@ -48,7 +46,6 @@ export default function AdminUserTableRow({
   user,
   index,
   permissionFilter,
-  showPhone,
   showPassword,
   isActivating,
   onEdit,
@@ -59,7 +56,6 @@ export default function AdminUserTableRow({
   const displayName = user.fullname || user.username;
   const passwordValue =
     permissionFilter === "no_active" ? user.password : user.raw_password;
-  const systemLabel = getSystemDomainLabel(user.system_domain);
   const lockLabel = user.is_locked ? "Mở khóa tài khoản" : "Khóa tài khoản";
 
   return (
@@ -83,20 +79,6 @@ export default function AdminUserTableRow({
           {passwordValue ?? "—"}
         </TableCell>
       ) : null}
-      {showPhone ? (
-        <TableCell className={`${cellClass} whitespace-nowrap tabular-nums`}>
-          {user.phone_number ?? "—"}
-        </TableCell>
-      ) : null}
-      <TableCell className={cellClass}>
-        {systemLabel ? (
-          <Badge size="sm" color="info">
-            {systemLabel}
-          </Badge>
-        ) : (
-          "—"
-        )}
-      </TableCell>
       <TableCell className={`${cellClass} max-w-[200px]`}>
         <span className="block truncate">{user.mail ?? "—"}</span>
       </TableCell>
@@ -113,9 +95,6 @@ export default function AdminUserTableRow({
           {user.employee_count ?? 0} / {user.employee_limit ?? 0}
         </TableCell>
       ) : null}
-      <TableCell className={`${cellClass} whitespace-nowrap`}>
-        {formatManagedUserDate(user.employee_expiration_date)}
-      </TableCell>
       <TableCell className={`${cellClass} min-w-[4.5rem] whitespace-nowrap text-center tabular-nums`}>
         {user.account_count ?? 0} / {user.account_limit ?? 0}
       </TableCell>

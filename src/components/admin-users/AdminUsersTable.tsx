@@ -24,7 +24,6 @@ interface AdminUsersTableProps {
   pageSize: number;
   total: number;
   permissionFilter: string;
-  showPhone: boolean;
   showPassword: boolean;
   activatingId: number | null;
   onPageChange: (page: number) => void;
@@ -81,7 +80,6 @@ export default function AdminUsersTable({
   pageSize,
   total,
   permissionFilter,
-  showPhone,
   showPassword,
   activatingId,
   onPageChange,
@@ -175,7 +173,7 @@ export default function AdminUsersTable({
             description="Thử đổi bộ lọc hoặc tạo người dùng mới để bắt đầu."
           />
         ) : (
-          <div className="min-w-[1200px]">
+          <div className="min-w-[1000px]">
             {loading ? (
               <div className="flex justify-center py-2">
                 <div className="h-4 w-4 animate-spin rounded-full border-2 border-brand-500 border-t-transparent" />
@@ -195,14 +193,6 @@ export default function AdminUsersTable({
                       Mật khẩu
                     </TableCell>
                   ) : null}
-                  {showPhone ? (
-                    <TableCell isHeader className={headerClass}>
-                      SĐT
-                    </TableCell>
-                  ) : null}
-                  <TableCell isHeader className={headerClass}>
-                    Loại TK
-                  </TableCell>
                   <TableCell isHeader className={headerClass}>
                     Email
                   </TableCell>
@@ -217,9 +207,6 @@ export default function AdminUsersTable({
                       NV
                     </TableCell>
                   ) : null}
-                  <TableCell isHeader className={`${headerClass} whitespace-nowrap`}>
-                    HSD NV
-                  </TableCell>
                   <TableCell
                     isHeader
                     className={`${headerClass} min-w-[4.5rem] whitespace-nowrap text-center`}
@@ -250,7 +237,6 @@ export default function AdminUsersTable({
                     user={user}
                     index={(page - 1) * pageSize + index + 1}
                     permissionFilter={permissionFilter}
-                    showPhone={showPhone}
                     showPassword={showPassword}
                     isActivating={activatingId === user.id}
                     onEdit={onEdit}

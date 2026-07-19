@@ -14,6 +14,8 @@ import type { UserPermissionFilter } from "@/types/zalo-user-admin";
 import {
   HiOutlineClock,
   HiOutlineDocumentDownload,
+  HiOutlineEye,
+  HiOutlineEyeOff,
   HiOutlineFilter,
   HiOutlinePlus,
   HiOutlineRefresh,
@@ -32,6 +34,9 @@ interface AdminUsersToolbarProps {
   endDate: Date | null;
   showExport: boolean;
   showCreateUser: boolean;
+  canTogglePassword?: boolean;
+  showPasswordColumn?: boolean;
+  onTogglePasswordColumn?: () => void;
   onKeywordChange: (value: string) => void;
   onSearch: () => void;
   onRefresh: () => void;
@@ -87,6 +92,9 @@ export default function AdminUsersToolbar({
   endDate,
   showExport,
   showCreateUser,
+  canTogglePassword = false,
+  showPasswordColumn = false,
+  onTogglePasswordColumn,
   onKeywordChange,
   onSearch,
   onRefresh,
@@ -98,6 +106,9 @@ export default function AdminUsersToolbar({
 }: AdminUsersToolbarProps) {
   const hasActiveFilters =
     permissionFilter !== "all" || (dateFilterEnabled && (startDate || endDate));
+  const passwordToggleLabel = showPasswordColumn
+    ? "Ẩn cột mật khẩu"
+    : "Hiện cột mật khẩu";
 
   return (
     <div className="relative z-10 shrink-0 overflow-hidden rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
@@ -158,6 +169,25 @@ export default function AdminUsersToolbar({
               className={loading ? "animate-spin" : undefined}
             />
           </AdminIconButton>
+
+          {canTogglePassword && onTogglePasswordColumn ? (
+            <AdminIconButton
+              label={passwordToggleLabel}
+              side="top"
+              className={`${mobileToolbarButtonClass} inline-flex size-[42px] items-center justify-center rounded-lg bg-white text-gray-700 ring-1 ring-inset ring-gray-300 transition hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-400 dark:ring-gray-700 dark:hover:bg-white/[0.03] ${
+                showPasswordColumn
+                  ? "ring-brand-300 text-brand-600 dark:ring-brand-500/40 dark:text-brand-400"
+                  : ""
+              }`}
+              onClick={onTogglePasswordColumn}
+            >
+              {showPasswordColumn ? (
+                <HiOutlineEyeOff size={18} />
+              ) : (
+                <HiOutlineEye size={18} />
+              )}
+            </AdminIconButton>
+          ) : null}
 
           {showExport ? (
             <AdminIconButton
