@@ -257,10 +257,14 @@ interface MessageActionRailProps {
   own: boolean;
   canReply?: boolean;
   canShare?: boolean;
+  canSaveVideo?: boolean;
+  canSaveAlbum?: boolean;
   onReply?: () => void;
   onShare?: () => void;
   onReaction?: (reactionId: number) => void;
   onShowDetail?: () => void;
+  onSaveVideo?: () => void;
+  onSaveAlbum?: () => void;
 }
 
 const mobileMenuItemClass =
@@ -270,10 +274,14 @@ export function MessageActionRail({
   own,
   canReply = true,
   canShare = false,
+  canSaveVideo = false,
+  canSaveAlbum = false,
   onReply,
   onShare,
   onReaction,
   onShowDetail,
+  onSaveVideo,
+  onSaveAlbum,
 }: MessageActionRailProps) {
   const isMobileUI = useMessengerMobileUI();
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -282,7 +290,14 @@ export function MessageActionRail({
   const menuBtnRef = useRef<HTMLButtonElement>(null);
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const hasActions = Boolean(onReply || onShare || onReaction || onShowDetail);
+  const hasActions = Boolean(
+    onReply ||
+      onShare ||
+      onReaction ||
+      onShowDetail ||
+      (canSaveVideo && onSaveVideo) ||
+      (canSaveAlbum && onSaveAlbum),
+  );
   if (!hasActions) return null;
 
   const clearHoverTimer = () => {
@@ -356,6 +371,32 @@ export function MessageActionRail({
               className={mobileMenuItemClass}
             >
               Chia sẻ
+            </button>
+          ) : null}
+          {canSaveVideo && onSaveVideo ? (
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                onSaveVideo();
+                closeSheet();
+              }}
+              className={mobileMenuItemClass}
+            >
+              Lưu video
+            </button>
+          ) : null}
+          {canSaveAlbum && onSaveAlbum ? (
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                onSaveAlbum();
+                closeSheet();
+              }}
+              className={mobileMenuItemClass}
+            >
+              Lưu album
             </button>
           ) : null}
           {onShowDetail ? (
@@ -459,6 +500,43 @@ export function MessageActionRail({
               aria-hidden
             >
               <path d="M21 15a4 4 0 0 1-4 4H7l-4 4V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
+            </svg>
+          </RailButton>
+        ) : null}
+
+        {canSaveVideo && onSaveVideo ? (
+          <RailButton label="Lưu video" onClick={onSaveVideo}>
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              aria-hidden
+            >
+              <path d="M12 3v12" />
+              <path d="m7 10 5 5 5-5" />
+              <path d="M5 21h14" />
+            </svg>
+          </RailButton>
+        ) : null}
+
+        {canSaveAlbum && onSaveAlbum ? (
+          <RailButton label="Lưu album" onClick={onSaveAlbum}>
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              aria-hidden
+            >
+              <rect x="3" y="3" width="7" height="7" rx="1" />
+              <rect x="14" y="3" width="7" height="7" rx="1" />
+              <rect x="3" y="14" width="7" height="7" rx="1" />
+              <path d="M17 14v7M14 17h7" />
             </svg>
           </RailButton>
         ) : null}

@@ -14,6 +14,7 @@ import {
   campaignFormSidePaneClass,
 } from "@/components/zalo-campaigns/CampaignFormModalLayout";
 import ContactAvatar from "@/components/zalo-contacts/shared/ContactAvatar";
+import CampaignAttachmentFields from "@/components/zalo-campaigns/shared/CampaignAttachmentFields";
 import SendMesFrContentEditor from "@/components/zalo-campaigns/send-mes-fr/SendMesFrContentEditor";
 import SendMessMemberGrFirstMessageEditor from "./SendMessMemberGrFirstMessageEditor";
 import { GroupIcon, UserIcon } from "@/icons";
@@ -23,6 +24,7 @@ import { resolveZaloLabelColor } from "@/lib/zalo-label-utils";
 import {
   canEditSendMessMemberGrTargets,
   formatTimeForApi,
+  getSendMessMemberGrMediaUrl,
   parseTimeToDate,
 } from "@/lib/zalo-send-mess-member-gr-campaign-utils";
 import {
@@ -152,7 +154,8 @@ export default function SendMessMemberGrCampaignFormModal({
   const [contents, setContents] = useState<string[]>([]);
   const [firstMessages, setFirstMessages] = useState<string[]>([]);
   const [images, setImages] = useState<string[]>([]);
-  const [contentType] = useState<SendMessMemberGrContentType>("");
+  const [contentType, setContentType] = useState<SendMessMemberGrContentType>("");
+  const [selectedMediaId, setSelectedMediaId] = useState<number | null>(null);
   const [startTime, setStartTime] = useState(defaultStart);
   const [endTime, setEndTime] = useState(defaultEnd);
   const [selectedAccountId, setSelectedAccountId] = useState<number | null>(null);
@@ -219,6 +222,8 @@ export default function SendMessMemberGrCampaignFormModal({
     setContents([]);
     setFirstMessages([]);
     setImages([]);
+    setContentType("");
+    setSelectedMediaId(null);
     setStartTime(defaultStart());
     setEndTime(defaultEnd());
     setSelectedAccountId(null);
@@ -246,6 +251,15 @@ export default function SendMessMemberGrCampaignFormModal({
     setContents(editingCampaign.contents ?? []);
     setFirstMessages(editingCampaign.first_messages ?? []);
     setImages(editingCampaign.images ?? []);
+    const type = editingCampaign.type ?? "";
+    setContentType(type);
+    setSelectedMediaId(
+      type === "video"
+        ? (editingCampaign.video ?? null)
+        : type === "album"
+          ? (editingCampaign.album ?? null)
+          : null,
+    );
     setStartTime(parseTimeToDate(editingCampaign.from_time) ?? defaultStart());
     setEndTime(parseTimeToDate(editingCampaign.to_time) ?? defaultEnd());
     setSelectedAccountId(editingCampaign.account ?? null);
@@ -391,8 +405,26 @@ export default function SendMessMemberGrCampaignFormModal({
       toast.error("Chọn ít nhất một thành viên.");
       return;
     }
-    if (sendMessage && !contents.length && !images.length) {
-      toast.error("Nhập nội dung hoặc chọn ít nhất một hình ảnh.");
+    if (sendMessage && !contents.length && !contentType) {
+      toast.error("Nhập nội dung hoặc chọn đính kèm.");
+      return;
+    }
+    if (sendMessage && contentType === "image" && !images.length) {
+      toast.error("Vui lòng thêm ảnh.");
+      return;
+    }
+    if (sendMessage && contentType === "image" && images.length > 1) {
+      toast.error("Chỉ chấp nhận 1 ảnh. Từ 2 ảnh trở lên vui lòng gửi dạng album.");
+      return;
+    }
+    if (
+      sendMessage &&
+      (contentType === "video" || contentType === "album") &&
+      !selectedMediaId
+    ) {
+      toast.error(
+        contentType === "video" ? "Vui lòng chọn video." : "Vui lòng chọn album ảnh.",
+      );
       return;
     }
     if (addFriend && !firstMessages.length) {
@@ -413,9 +445,11 @@ export default function SendMessMemberGrCampaignFormModal({
     const payload = {
       id_category: editingCampaign?.id ?? null,
       name: trimmedName,
-      type: contentType,
+      type: contentType || null,
       contents,
-      images,
+      images: contentType === "image" ? images : [],
+      id_video: contentType === "video" ? selectedMediaId : null,
+      id_album: contentType === "album" ? selectedMediaId : null,
       delay_time: delay,
       number_count: count,
       id_account: selectedAccountId,
@@ -534,11 +568,33 @@ export default function SendMessMemberGrCampaignFormModal({
                   contentType={contentType}
                   uploadingImage={uploadingImage}
                   disabled={saving}
+                  showImages={false}
                   onContentsChange={setContents}
                   onImagesChange={setImages}
                   onUploadImage={handleUploadImage}
                 />
-                {images.length > 0 ? (
+                <div className="mt-4">
+                  <CampaignAttachmentFields
+                    contentType={contentType}
+                    images={images}
+                    selectedMediaId={selectedMediaId}
+                    uploadingImage={uploadingImage}
+                    disabled={saving}
+                    resolveImageUrl={getSendMessMemberGrMediaUrl}
+                    onContentTypeChange={setContentType}
+                    onImagesChange={setImages}
+                    onSelectedMediaIdChange={setSelectedMediaId}
+                    onUploadImage={async (file) => {
+                      try {
+                        return await handleUploadImage(file);
+                      } catch (error) {
+                        toast.error(getApiErrorMessage(error));
+                        return null;
+                      }
+                    }}
+                  />
+                </div>
+                {contentType ? (
                   <label className="mt-3 flex cursor-pointer items-start gap-2.5 text-sm text-gray-600 dark:text-gray-400">
                     <Checkbox
                       checked={splitAttachment}

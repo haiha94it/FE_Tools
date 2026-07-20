@@ -37,9 +37,9 @@ export interface SendMesFrCampaignDetail {
 export interface SendMesFrCampaignFormPayload {
   id_category: number | null;
   name: string;
-  type: SendMesFrContentType;
-  id_album?: number;
-  id_video?: number;
+  type: SendMesFrContentType | null;
+  id_album?: number | null;
+  id_video?: number | null;
   contents: string[];
   images: string[];
   delay_time: number;

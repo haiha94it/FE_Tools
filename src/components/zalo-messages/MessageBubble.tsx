@@ -2,6 +2,10 @@
 
 import ContactAvatar from "@/components/zalo-contacts/shared/ContactAvatar";
 import {
+  canSaveAlbumFromMessage,
+  canSaveVideoFromMessage,
+} from "@/lib/message-media-from-chat";
+import {
   filterDisplayMessages,
   isCenteredChatMessage,
   resolveStickerImageUrl,
@@ -36,6 +40,9 @@ import { useMemo, useState, type ReactNode } from "react";
 import MessageDetailDialog from "./MessageDetailDialog";
 import MessageMetaFooter from "./MessageMetaFooter";
 import { MessageActionRail } from "./MessageActionRail";
+import SaveMediaFromChatDialog, {
+  type SaveMediaKind,
+} from "./SaveMediaFromChatDialog";
 import {
   EcardMessageContent,
   FileAttachmentContent,
@@ -328,6 +335,10 @@ export function MessageList({
     message: DisplayMessage;
     own: boolean;
   } | null>(null);
+  const [saveMedia, setSaveMedia] = useState<{
+    kind: SaveMediaKind;
+    message: DisplayMessage;
+  } | null>(null);
 
   const openDetail = (message: DisplayMessage, own: boolean) => {
     setDetailTarget({ message, own });
@@ -335,6 +346,12 @@ export function MessageList({
 
   return (
     <>
+      <SaveMediaFromChatDialog
+        open={Boolean(saveMedia)}
+        kind={saveMedia?.kind ?? "video"}
+        message={saveMedia?.message ?? null}
+        onClose={() => setSaveMedia(null)}
+      />
       <MessageMediaLightbox
         item={previewItem}
         onClose={() => setPreviewItem(null)}
@@ -499,6 +516,8 @@ export function MessageList({
                     canShare={Boolean(
                       onShare && !message.recalled && canShareMessage(message),
                     )}
+                    canSaveVideo={canSaveVideoFromMessage(message)}
+                    canSaveAlbum={canSaveAlbumFromMessage(message)}
                     onReply={
                       onReply && !message.recalled
                         ? () => onReply(message)
@@ -515,6 +534,16 @@ export function MessageList({
                         : undefined
                     }
                     onShowDetail={() => openDetail(message, own)}
+                    onSaveVideo={
+                      canSaveVideoFromMessage(message)
+                        ? () => setSaveMedia({ kind: "video", message })
+                        : undefined
+                    }
+                    onSaveAlbum={
+                      canSaveAlbumFromMessage(message)
+                        ? () => setSaveMedia({ kind: "album", message })
+                        : undefined
+                    }
                   />
                 </div>
                 {isGroupMedia ? (

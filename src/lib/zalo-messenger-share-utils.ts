@@ -1,16 +1,37 @@
 import { getMessageText } from "@/lib/zalo-messenger-utils";
 import { resolveStickerImageUrl } from "@/lib/zalo-messenger-message-utils";
+import { buildForwardPayloadFromMessage } from "@/lib/zalo-messenger-forward-utils";
 import type { DisplayMessage } from "@/types/zalo-messenger";
 
+/**
+ * Build payload chia sẻ tin.
+ * Video/album ưu tiên **forward-video / forward-album** (§6 album-video guide).
+ * Fallback share-video nếu thiếu field.
+ */
 export function buildShareWsPayload(
   message: DisplayMessage,
   targetConversationId: number,
   accountUid?: string | null,
+  accountId?: number | null,
 ): Record<string, unknown> | null {
   const text = getMessageText(message);
   const attachment = message.attachments?.[0];
 
-  if (text && !attachment) {
+  // Album / video: forward media (đủ metadata Zalo)
+  if (
+    accountId &&
+    (message.groupMedia?.groupLayoutId ||
+      message.msgType === "chat.video.msg" ||
+      attachment?.action === "video")
+  ) {
+    const forward = buildForwardPayloadFromMessage(message, {
+      accountId,
+      conversationId: targetConversationId,
+    });
+    if (forward) return forward;
+  }
+
+  if (text && !attachment && !message.groupMedia) {
     return {
       id_conversation: targetConversationId,
       message: text,
@@ -52,6 +73,7 @@ export function buildShareWsPayload(
   if (message.msgType === "chat.video.msg" || attachment.action === "video") {
     const href = attachment.href || attachment.thumb;
     if (!href) return null;
+    // Fallback khi không có accountId để forward
     return {
       id_conversation: targetConversationId,
       message: "",
@@ -106,8 +128,10 @@ export function buildShareWsPayload(
 }
 
 export function canShareMessage(message: DisplayMessage): boolean {
+  if (message.recalled) return false;
   if (getMessageText(message)) return true;
   if (message.attachments?.some((item) => item.href || item.thumb)) return true;
   if (message.msgType === "chat.sticker") return true;
+  if (message.groupMedia?.items?.length) return true;
   return false;
 }

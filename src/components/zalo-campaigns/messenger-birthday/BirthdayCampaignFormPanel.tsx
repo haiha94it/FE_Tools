@@ -1,9 +1,8 @@
 "use client";
 
 import Button from "@/components/ui/button/Button";
-import Checkbox from "@/components/form/input/Checkbox";
-import Select from "@/components/form/Select";
 import ContactAvatar from "@/components/zalo-contacts/shared/ContactAvatar";
+import CampaignAttachmentFields from "@/components/zalo-campaigns/shared/CampaignAttachmentFields";
 import {
   BIRTHDAY_CAMPAIGN_NAME,
   BIRTHDAY_DEFAULT_TEMPLATE,
@@ -16,47 +15,31 @@ import { useZaloBirthdayCampaignStore } from "@/stores/use-zalo-birthday-campaig
 import type {
   BirthdayCampaign,
   BirthdayContentType,
-  BirthdayMediaItem,
 } from "@/types/zalo-birthday-campaign";
 import type { ZaloAccount } from "@/types/zalo-account";
-import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  HiOutlinePhotograph,
-  HiOutlinePlus,
-  HiOutlineTrash,
-} from "react-icons/hi";
+import { HiOutlinePlus, HiOutlineTrash } from "react-icons/hi";
 
 interface BirthdayCampaignFormPanelProps {
   campaign: BirthdayCampaign | null;
   accounts: ZaloAccount[];
   accountsLoading: boolean;
-  videos: BirthdayMediaItem[];
-  albums: BirthdayMediaItem[];
-  mediaLoading: boolean;
+  /** @deprecated picker tự load GET /message/video|album */
+  videos?: unknown[];
+  albums?: unknown[];
+  mediaLoading?: boolean;
   saving: boolean;
 }
 
-const MAX_IMAGES = 2;
 const MAX_CONTENT_LENGTH = 2000;
 
 const textareaClassName =
   "w-full resize-y rounded-lg border border-gray-300 bg-transparent px-4 py-3 text-sm text-gray-800 shadow-theme-xs outline-none placeholder:text-gray-400 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90";
 
-const CONTENT_TYPE_OPTIONS: { value: BirthdayContentType; label: string }[] = [
-  { value: "", label: "Chỉ văn bản" },
-  { value: "image", label: "Ảnh" },
-  { value: "video", label: "Video" },
-  { value: "album", label: "Album ảnh" },
-];
-
 export default function BirthdayCampaignFormPanel({
   campaign,
   accounts,
   accountsLoading,
-  videos,
-  albums,
-  mediaLoading,
   saving,
 }: BirthdayCampaignFormPanelProps) {
   const createOrEditCampaign = useZaloBirthdayCampaignStore(
@@ -72,20 +55,11 @@ export default function BirthdayCampaignFormPanel({
   const [uploadingImage, setUploadingImage] = useState(false);
 
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const activeAccounts = useMemo(
     () => accounts.filter((item) => item.checkpoint === false),
     [accounts],
   );
-
-  const mediaOptions = useMemo(() => {
-    const list = contentType === "video" ? videos : contentType === "album" ? albums : [];
-    return list.map((item) => ({
-      value: String(item.id),
-      label: item.name_video || item.name || `#${item.id}`,
-    }));
-  }, [contentType, videos, albums]);
 
   useEffect(() => {
     if (!campaign?.id) {
@@ -147,51 +121,26 @@ export default function BirthdayCampaignFormPanel({
     setDraft("");
   };
 
-  const handleContentTypeChange = (next: BirthdayContentType) => {
-    setContentType(next);
-    if (next !== "image") setImages([]);
-    if (next !== "video" && next !== "album") setSelectedMediaId(null);
-  };
-
-  const handleUploadImage = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(event.target.files ?? []);
-    if (!files.length) return;
-    if (images.length + files.length > MAX_IMAGES) {
-      toast.error(`Chỉ được chọn tối đa ${MAX_IMAGES} ảnh.`);
-      return;
-    }
-    setUploadingImage(true);
-    let nextImages = [...images];
-    try {
-      for (const file of files) {
-        const path = await zaloBirthdayCampaignService.uploadImage(file);
-        nextImages = [...nextImages, path];
-      }
-      setImages(nextImages);
-    } catch (error) {
-      toast.error(getApiErrorMessage(error));
-    } finally {
-      setUploadingImage(false);
-      event.target.value = "";
-    }
-  };
-
   const handleSave = async () => {
     if (!selectedAccountIds.length) {
       toast.error("Chọn ít nhất một tài khoản Zalo.");
       return;
     }
-    if (!contents.length) {
-      toast.error("Thêm ít nhất một nội dung tin nhắn.");
+    if (!contents.length && !contentType) {
+      toast.error("Thêm nội dung hoặc chọn đính kèm.");
       return;
     }
     if (contentType === "image" && !images.length) {
-      toast.error("Chọn ít nhất một ảnh đính kèm.");
+      toast.error("Vui lòng thêm ảnh.");
+      return;
+    }
+    if (contentType === "image" && images.length > 1) {
+      toast.error("Chỉ chấp nhận 1 ảnh. Từ 2 ảnh trở lên vui lòng gửi dạng album.");
       return;
     }
     if ((contentType === "video" || contentType === "album") && !selectedMediaId) {
       toast.error(
-        contentType === "video" ? "Chọn video đính kèm." : "Chọn album ảnh đính kèm.",
+        contentType === "video" ? "Vui lòng chọn video." : "Vui lòng chọn album ảnh.",
       );
       return;
     }
@@ -199,7 +148,7 @@ export default function BirthdayCampaignFormPanel({
     const payload = {
       id_category: campaign?.id ?? null,
       name: campaign?.name?.trim() || BIRTHDAY_CAMPAIGN_NAME,
-      type: contentType,
+      type: contentType || null,
       contents,
       images: contentType === "image" ? images : [],
       id_accounts: selectedAccountIds,
@@ -272,108 +221,30 @@ export default function BirthdayCampaignFormPanel({
         )}
       </div>
 
-      <div>
-        <p className="mb-2 text-sm font-semibold text-gray-800 dark:text-white/90">
-          Loại đính kèm
-        </p>
-        <div className="flex flex-wrap gap-3">
-          {CONTENT_TYPE_OPTIONS.map((item) => (
-            <label
-              key={item.value || "text"}
-              className="flex cursor-pointer items-center gap-2 text-sm text-gray-700 dark:text-gray-300"
-            >
-              <Checkbox
-                checked={contentType === item.value}
-                onChange={() =>
-                  handleContentTypeChange(
-                    contentType === item.value ? "" : item.value,
-                  )
-                }
-                disabled={saving}
-              />
-              {item.label}
-            </label>
-          ))}
-        </div>
+      <div className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
+        <CampaignAttachmentFields
+          contentType={contentType}
+          images={images}
+          selectedMediaId={selectedMediaId}
+          uploadingImage={uploadingImage}
+          disabled={saving}
+          resolveImageUrl={getBirthdayMediaUrl}
+          onContentTypeChange={setContentType}
+          onImagesChange={setImages}
+          onSelectedMediaIdChange={setSelectedMediaId}
+          onUploadImage={async (file) => {
+            setUploadingImage(true);
+            try {
+              return await zaloBirthdayCampaignService.uploadImage(file);
+            } catch (error) {
+              toast.error(getApiErrorMessage(error));
+              return null;
+            } finally {
+              setUploadingImage(false);
+            }
+          }}
+        />
       </div>
-
-      {contentType === "image" ? (
-        <div className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
-          <div className="mb-2 flex items-center justify-between gap-2">
-            <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
-              Ảnh đính kèm (tối đa {MAX_IMAGES})
-            </p>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={saving || uploadingImage || images.length >= MAX_IMAGES}
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <HiOutlinePhotograph className="mr-1" size={14} />
-              {uploadingImage ? "Đang tải..." : "Chọn ảnh"}
-            </Button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".png,.jpg,.jpeg,image/png,image/jpeg"
-              multiple
-              className="hidden"
-              onChange={(e) => void handleUploadImage(e)}
-            />
-          </div>
-          {images.length > 0 ? (
-            <div className="flex flex-wrap gap-2">
-              {images.map((path, index) => (
-                <div key={`${path}-${index}`} className="relative">
-                  <span className="relative block h-20 w-20 overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
-                    <Image
-                      src={getBirthdayMediaUrl(path)}
-                      alt={`upload-${index}`}
-                      fill
-                      unoptimized
-                      className="object-cover"
-                    />
-                  </span>
-                  <button
-                    type="button"
-                    disabled={saving}
-                    onClick={() => setImages(images.filter((_, i) => i !== index))}
-                    className="absolute -right-1 -top-1 rounded-full bg-error-500 p-0.5 text-white"
-                  >
-                    <HiOutlineTrash size={12} />
-                  </button>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-theme-xs text-gray-500">
-              Khuyến nghị 1 ảnh đầy đủ thông tin để tối ưu hiệu suất.
-            </p>
-          )}
-        </div>
-      ) : null}
-
-      {contentType === "video" || contentType === "album" ? (
-        <div>
-          <p className="mb-1.5 text-xs font-medium text-gray-600 dark:text-gray-400">
-            {contentType === "video" ? "Chọn video" : "Chọn album ảnh"}
-          </p>
-          {mediaLoading ? (
-            <p className="text-sm text-gray-500">Đang tải thư viện...</p>
-          ) : mediaOptions.length === 0 ? (
-            <p className="text-sm text-gray-500">Chưa có dữ liệu trong thư viện</p>
-          ) : (
-            <Select
-              options={mediaOptions}
-              defaultValue={selectedMediaId ? String(selectedMediaId) : ""}
-              placeholder={
-                contentType === "video" ? "Chọn video..." : "Chọn album..."
-              }
-              onChange={(value) => setSelectedMediaId(Number(value))}
-            />
-          )}
-        </div>
-      ) : null}
 
       <div className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
         <p className="mb-3 text-sm font-semibold text-gray-800 dark:text-white/90">

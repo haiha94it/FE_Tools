@@ -19,6 +19,7 @@ import CreateUserModal from "./CreateUserModal";
 import EditUserModal from "./EditUserModal";
 import ExportExcelModal from "./ExportExcelModal";
 import FilterUsersModal from "./FilterUsersModal";
+import UserConsentDetailDrawer from "./UserConsentDetailDrawer";
 
 export default function AdminUsersView() {
   const router = useRouter();
@@ -61,6 +62,8 @@ export default function AdminUsersView() {
   const [editingUser, setEditingUser] = useState<ManagedUser | null>(null);
   const [filterOpen, setFilterOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
+  const [consentUser, setConsentUser] = useState<ManagedUser | null>(null);
+  const [consentOpen, setConsentOpen] = useState(false);
   const [activatingId, setActivatingId] = useState<number | null>(null);
   /** Cột mật khẩu ẩn mặc định; bật bằng nút trên toolbar */
   const [showPasswordColumn, setShowPasswordColumn] = useState(false);
@@ -241,6 +244,10 @@ export default function AdminUsersView() {
           onDelete={(row) => void handleDelete(row)}
           onActivate={(row) => void handleActivate(row)}
           onToggleLock={(row) => void handleToggleLock(row)}
+          onViewConsent={(row) => {
+            setConsentUser(row);
+            setConsentOpen(true);
+          }}
         />
       </div>
 
@@ -268,6 +275,15 @@ export default function AdminUsersView() {
         onApply={(payload) => applyFilters(payload)}
       />
       <ExportExcelModal open={exportOpen} onClose={() => setExportOpen(false)} />
+      <UserConsentDetailDrawer
+        open={consentOpen}
+        user={consentUser}
+        onClose={() => {
+          setConsentOpen(false);
+          setConsentUser(null);
+        }}
+        onRevoked={() => void fetchUsers({ silent: true })}
+      />
     </div>
   );
 }

@@ -16,9 +16,11 @@ import {
 import ContactAvatar from "@/components/zalo-contacts/shared/ContactAvatar";
 import { UserIcon } from "@/icons";
 import { resolveZaloLabelColor } from "@/lib/zalo-label-utils";
+import CampaignAttachmentFields from "@/components/zalo-campaigns/shared/CampaignAttachmentFields";
 import {
   canEditSendMesFrFriends,
   formatTimeForApi,
+  getSendMesFrMediaUrl,
   parseTimeToDate,
 } from "@/lib/zalo-send-mes-fr-campaign-utils";
 import {
@@ -140,7 +142,8 @@ export default function SendMesFrCampaignFormModal({
   const [numberCount, setNumberCount] = useState("20");
   const [contents, setContents] = useState<string[]>([]);
   const [images, setImages] = useState<string[]>([]);
-  const [contentType] = useState<SendMesFrContentType>("");
+  const [contentType, setContentType] = useState<SendMesFrContentType>("");
+  const [selectedMediaId, setSelectedMediaId] = useState<number | null>(null);
   const [startTime, setStartTime] = useState(defaultStart);
   const [endTime, setEndTime] = useState(defaultEnd);
   const [selectedAccountId, setSelectedAccountId] = useState<number | null>(null);
@@ -177,6 +180,8 @@ export default function SendMesFrCampaignFormModal({
     setNumberCount("20");
     setContents([]);
     setImages([]);
+    setContentType("");
+    setSelectedMediaId(null);
     setStartTime(defaultStart());
     setEndTime(defaultEnd());
     setSelectedAccountId(null);
@@ -198,6 +203,15 @@ export default function SendMesFrCampaignFormModal({
     setNumberCount(String(editingCampaign.number_count ?? 20));
     setContents(editingCampaign.contents ?? []);
     setImages(editingCampaign.images ?? []);
+    const type = editingCampaign.type ?? "";
+    setContentType(type);
+    setSelectedMediaId(
+      type === "video"
+        ? (editingCampaign.video ?? null)
+        : type === "album"
+          ? (editingCampaign.album ?? null)
+          : null,
+    );
     setStartTime(parseTimeToDate(editingCampaign.from_time) ?? defaultStart());
     setEndTime(parseTimeToDate(editingCampaign.to_time) ?? defaultEnd());
     setSelectedAccountId(editingCampaign.account ?? null);
@@ -323,8 +337,22 @@ export default function SendMesFrCampaignFormModal({
       toast.error("Chọn tài khoản Zalo.");
       return;
     }
-    if (!contents.length && !images.length) {
-      toast.error("Nhập nội dung hoặc chọn ít nhất một hình ảnh.");
+    if (!contents.length && !contentType) {
+      toast.error("Nhập nội dung hoặc chọn đính kèm.");
+      return;
+    }
+    if (contentType === "image" && !images.length) {
+      toast.error("Vui lòng thêm ảnh.");
+      return;
+    }
+    if (contentType === "image" && images.length > 1) {
+      toast.error("Chỉ chấp nhận 1 ảnh. Từ 2 ảnh trở lên vui lòng gửi dạng album.");
+      return;
+    }
+    if ((contentType === "video" || contentType === "album") && !selectedMediaId) {
+      toast.error(
+        contentType === "video" ? "Vui lòng chọn video." : "Vui lòng chọn album ảnh.",
+      );
       return;
     }
     if (!selectedFriendIds.length) {
@@ -345,16 +373,18 @@ export default function SendMesFrCampaignFormModal({
     const payload = {
       id_category: editingCampaign?.id ?? null,
       name: trimmedName,
-      type: contentType,
+      type: contentType || null,
       contents,
-      images,
+      images: contentType === "image" ? images : [],
+      id_video: contentType === "video" ? selectedMediaId : null,
+      id_album: contentType === "album" ? selectedMediaId : null,
       delay_time: delay,
       number_count: count,
       id_friends: selectedFriendIds,
       id_account: selectedAccountId,
       from_time: formatTimeForApi(startTime),
       to_time: formatTimeForApi(endTime),
-    };
+    } as const;
 
     try {
       await createOrEditCampaign(payload);
@@ -448,10 +478,33 @@ export default function SendMesFrCampaignFormModal({
                 images={images}
                 contentType={contentType}
                 uploadingImage={uploadingImage}
-                disabled={saving}
+                disabled={saving || readOnly}
+                showImages={false}
                 onContentsChange={setContents}
                 onImagesChange={setImages}
                 onUploadImage={handleUploadImage}
+              />
+            </div>
+
+            <div className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
+              <CampaignAttachmentFields
+                contentType={contentType}
+                images={images}
+                selectedMediaId={selectedMediaId}
+                uploadingImage={uploadingImage}
+                disabled={saving || readOnly}
+                resolveImageUrl={getSendMesFrMediaUrl}
+                onContentTypeChange={setContentType}
+                onImagesChange={setImages}
+                onSelectedMediaIdChange={setSelectedMediaId}
+                onUploadImage={async (file) => {
+                  try {
+                    return await handleUploadImage(file);
+                  } catch (error) {
+                    toast.error(getApiErrorMessage(error));
+                    return null;
+                  }
+                }}
               />
             </div>
                 </div>

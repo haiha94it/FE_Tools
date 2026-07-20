@@ -40,9 +40,9 @@ export interface SendMessMemberGrCampaignDetail {
 export interface SendMessMemberGrCampaignFormPayload {
   id_category: number | null;
   name: string;
-  type: SendMessMemberGrContentType;
-  id_album?: number;
-  id_video?: number;
+  type: SendMessMemberGrContentType | null;
+  id_album?: number | null;
+  id_video?: number | null;
   contents: string[];
   images: string[];
   delay_time: number;

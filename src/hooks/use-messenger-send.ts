@@ -173,6 +173,7 @@ export function useMessengerSend(options?: {
           message,
           target.id,
           options?.accountUid,
+          selectedAccountId,
         );
         if (!payload) continue;
 
@@ -180,7 +181,11 @@ export function useMessengerSend(options?: {
           serializeWsChatCommand({
             ...payload,
             id_account: selectedAccountId,
-            clientMsgId: generateClientMsgId(),
+            // forward-* đã có requestId; send-message vẫn cần clientMsgId
+            clientMsgId:
+              (payload.clientMsgId as string | undefined) ??
+              (payload.requestId as string | undefined) ??
+              generateClientMsgId(),
           }),
         );
         if (sent) sentCount += 1;

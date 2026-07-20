@@ -32,6 +32,7 @@ interface AdminUsersTableProps {
   onDelete: (user: ManagedUser) => void;
   onActivate: (user: ManagedUser) => void;
   onToggleLock: (user: ManagedUser) => void;
+  onViewConsent: (user: ManagedUser) => void;
 }
 
 const PAGE_SIZE_OPTIONS = [50, 100, 200];
@@ -88,6 +89,7 @@ export default function AdminUsersTable({
   onDelete,
   onActivate,
   onToggleLock,
+  onViewConsent,
 }: AdminUsersTableProps) {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const isEmpty = mode === "users" ? users.length === 0 : logs.length === 0;
@@ -213,6 +215,12 @@ export default function AdminUsersTable({
                   >
                     TK
                   </TableCell>
+                  <TableCell isHeader className={`${headerClass} min-w-[7rem]`}>
+                    Đồng ý xử lý tin nhắn
+                  </TableCell>
+                  <TableCell isHeader className={`${headerClass} min-w-[8rem]`}>
+                    Thời điểm ký
+                  </TableCell>
                   <TableCell isHeader className={headerClass}>
                     Ngày tạo
                   </TableCell>
@@ -224,7 +232,7 @@ export default function AdminUsersTable({
                   </TableCell>
                   <TableCell
                     isHeader
-                    className={`${headerClass} sticky top-0 right-0 z-30 min-w-[148px] bg-gray-50 shadow-[-6px_0_12px_-6px_rgba(0,0,0,0.08)] dark:bg-gray-900 dark:shadow-[-6px_0_12px_-6px_rgba(0,0,0,0.35)]`}
+                    className={`${headerClass} sticky top-0 right-0 z-30 min-w-[180px] bg-gray-50 shadow-[-6px_0_12px_-6px_rgba(0,0,0,0.08)] dark:bg-gray-900 dark:shadow-[-6px_0_12px_-6px_rgba(0,0,0,0.35)]`}
                   >
                     Thao tác
                   </TableCell>
@@ -243,6 +251,7 @@ export default function AdminUsersTable({
                     onDelete={onDelete}
                     onActivate={onActivate}
                     onToggleLock={onToggleLock}
+                    onViewConsent={onViewConsent}
                   />
                 ))}
               </TableBody>

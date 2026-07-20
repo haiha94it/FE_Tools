@@ -19,7 +19,7 @@ export interface BirthdayCampaign extends TeamCategoryFields {
 export interface BirthdayCampaignFormPayload {
   id_category: number | null;
   name: string;
-  type: BirthdayContentType;
+  type: BirthdayContentType | null;
   id_album?: number | null;
   id_video?: number | null;
   contents: string[];

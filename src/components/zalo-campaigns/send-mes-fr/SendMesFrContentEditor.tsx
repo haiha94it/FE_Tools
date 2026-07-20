@@ -14,6 +14,8 @@ interface SendMesFrContentEditorProps {
   contentType: SendMesFrContentType;
   uploadingImage: boolean;
   disabled?: boolean;
+  /** false khi form dùng CampaignAttachmentFields riêng */
+  showImages?: boolean;
   onContentsChange: (contents: string[]) => void;
   onImagesChange: (images: string[]) => void;
   onUploadImage: (file: File) => Promise<string | null>;
@@ -37,6 +39,7 @@ export default function SendMesFrContentEditor({
   contentType,
   uploadingImage,
   disabled = false,
+  showImages = true,
   onContentsChange,
   onImagesChange,
   onUploadImage,
@@ -162,7 +165,7 @@ export default function SendMesFrContentEditor({
         </div>
       ) : null}
 
-      {contentType === "" ? (
+      {showImages && contentType === "" ? (
         <div>
           <div className="mb-2 flex items-center justify-between gap-2">
             <p className="text-xs font-medium text-gray-600 dark:text-gray-400">
