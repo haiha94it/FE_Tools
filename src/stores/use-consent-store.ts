@@ -11,6 +11,7 @@ type ConsentState = {
   forceModalOpen: boolean;
   fetchStatus: (options?: { force?: boolean }) => Promise<MessageProcessingConsentStatus | null>;
   applySignedStatus: (status: MessageProcessingConsentStatus) => void;
+  applyStatus: (status: MessageProcessingConsentStatus) => void;
   openConsentModal: () => void;
   closeConsentModal: () => void;
   reset: () => void;
@@ -51,6 +52,14 @@ export const useConsentStore = create<ConsentState>((set, get) => ({
     set({
       status,
       forceModalOpen: false,
+      statusError: null,
+    });
+  },
+
+  applyStatus: (status) => {
+    set({
+      status,
+      forceModalOpen: status.need_sign ? true : false,
       statusError: null,
     });
   },

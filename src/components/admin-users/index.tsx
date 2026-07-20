@@ -282,6 +282,7 @@ export default function AdminUsersView() {
           setConsentOpen(false);
           setConsentUser(null);
         }}
+        onRevoked={() => void fetchUsers({ silent: true })}
       />
     </div>
   );

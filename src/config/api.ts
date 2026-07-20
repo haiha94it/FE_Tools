@@ -321,6 +321,7 @@ export const API_CONSENT = {
   TERMS: "/api/consent/message-processing/terms/",
   SIGN: "/api/consent/message-processing/sign/",
   PDF: "/api/consent/message-processing/pdf/",
+  REVOKE: "/api/consent/message-processing/revoke/",
   ADMIN_SETUP: "/api/consent/admin/setup/",
   ADMIN_ACTIVATE: "/api/consent/admin/activate/",
   ADMIN_DEACTIVATE: "/api/consent/admin/deactivate/",
@@ -328,6 +329,8 @@ export const API_CONSENT = {
     `/api/consent/admin/users/${userId}/contract/`,
   adminUserPdf: (userId: number | string) =>
     `/api/consent/admin/users/${userId}/pdf/`,
+  adminUserRevoke: (userId: number | string) =>
+    `/api/consent/admin/users/${userId}/revoke/`,
 } as const;
 
 /** Mini Shop / cửa hàng — đồng bộ ZaloCN minishop, shoplinkhome, showproduct */

@@ -2,6 +2,7 @@ import { API_BASE_URL, API_CONSENT } from "@/config/api";
 import api, { getAccessToken } from "@/lib/axios";
 import { dedupeInflight } from "@/lib/inflight";
 import type {
+  AdminRevokeConsentPayload,
   ConsentAdminSetup,
   ConsentAdminSetupSavePayload,
   ConsentUserContract,
@@ -9,6 +10,7 @@ import type {
   MessageProcessingTerms,
   SignMessageProcessingPayload,
   SignMessageProcessingResult,
+  UserRevokeConsentResult,
 } from "@/types/consent";
 
 function downloadBlob(blob: Blob, filename: string) {
@@ -79,6 +81,14 @@ export const consentService = {
     downloadBlob(blob, filename ?? "consent_message_processing.pdf");
   },
 
+  async revoke(): Promise<UserRevokeConsentResult> {
+    const response = await api.post<UserRevokeConsentResult>(
+      API_CONSENT.REVOKE,
+      {},
+    );
+    return response.data;
+  },
+
   getAdminSetup(): Promise<ConsentAdminSetup> {
     return dedupeInflight("consent:admin-setup", async () => {
       const response = await api.get<ConsentAdminSetup>(API_CONSENT.ADMIN_SETUP);
@@ -139,5 +149,19 @@ export const consentService = {
       blob,
       filename ?? `consent_message_processing_${userId}.pdf`,
     );
+  },
+
+  async adminRevoke(
+    userId: number,
+    payload: AdminRevokeConsentPayload,
+  ): Promise<ConsentUserContract> {
+    const response = await api.post<ConsentUserContract>(
+      API_CONSENT.adminUserRevoke(userId),
+      {
+        reason_code: payload.reason_code,
+        reason_text: payload.reason_text ?? "",
+      },
+    );
+    return response.data;
   },
 };
