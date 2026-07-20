@@ -90,6 +90,61 @@ function abortOtherAccountFetches(keepAccountId: number) {
  */
 let accountSwitchGeneration = 0;
 
+/** Hủy inflight / abort khi logout hoặc đổi user — tránh data nick user cũ. */
+function clearMessengerRuntimeCaches() {
+  conversationsInflight.clear();
+  messagesInflight.clear();
+  selectConversationInflight.clear();
+  for (const ctrl of labelCategoriesAbort.values()) {
+    ctrl.abort();
+  }
+  for (const ctrl of fastRepliesAbort.values()) {
+    ctrl.abort();
+  }
+  labelCategoriesAbort.clear();
+  fastRepliesAbort.clear();
+  labelCategoriesInflight.clear();
+  fastRepliesInflight.clear();
+  labelCategoriesLoadedFor = null;
+  fastRepliesLoadedFor = null;
+  accountSwitchGeneration += 1;
+}
+
+const messengerSessionDefaults = {
+  accounts: [] as MessengerAccount[],
+  accountsLoading: false,
+  selectedAccountId: null as number | null,
+  conversations: [] as MessengerConversation[],
+  conversationLinks: null as { next?: string | null } | null,
+  conversationPage: 1,
+  conversationSearch: "",
+  conversationFilter: "all" as MessengerConversationFilter,
+  labelCategories: [] as MessengerCategoryLabel[],
+  labelCategoriesLoading: false,
+  selectedCategoryId: null as number | null,
+  conversationsLoading: false,
+  conversationsLoadingMore: false,
+  activeConversationId: null as number | null,
+  activeConversation: null as MessengerConversation | null,
+  messages: [] as DisplayMessage[],
+  messageLinks: null as {
+    next?: string | null;
+    previous?: string | null;
+  } | null,
+  messagePage: 1,
+  messagesLoading: false,
+  messagesLoadingMore: false,
+  composerText: "",
+  quoteMessage: null as DisplayMessage | null,
+  attachmentDrafts: [] as MessengerAttachmentDraft[],
+  fastReplies: [] as MessengerFastReply[],
+  uploadingAttachment: false,
+  mobilePanel: "accounts" as MessengerMobilePanel,
+  error: null as string | null,
+  conversationCache: {} as Record<number, ConversationCacheEntry>,
+  messagesCache: {} as Record<string, MessageCacheEntry>,
+};
+
 function buildConversationsRequestKey(
   accountId: number,
   page: number,
@@ -289,6 +344,8 @@ interface ZaloMessengerState {
   retryOptimisticMessage: (clientMsgId: string) => SendMessagePayload | null;
   prepareConversationSwitch: (conversationId: number) => void;
   resetChatState: () => void;
+  /** Xóa toàn bộ state + cache khi logout / đổi user (SPA không F5). */
+  resetSession: () => void;
 }
 
 export const useZaloMessengerStore = create<ZaloMessengerState>((set, get) => ({
@@ -845,11 +902,45 @@ export const useZaloMessengerStore = create<ZaloMessengerState>((set, get) => ({
           );
           accounts = accounts.filter((account) => assignedIds.has(account.id));
         }
+        const sorted = sortMessengerAccounts(accounts);
+        const selectedAccountId = get().selectedAccountId;
+        const selectedStillValid =
+          selectedAccountId == null ||
+          sorted.some((account) => account.id === selectedAccountId);
+
         // F5 / bootstrap: nick tin mới nhất lên đầu (pin trước)
-        set({
-          accounts: sortMessengerAccounts(accounts),
-          accountsLoading: false,
-        });
+        // Đổi user: bỏ selected/cache nếu nick không còn trong list
+        if (!selectedStillValid) {
+          set({
+            accounts: sorted,
+            accountsLoading: false,
+            selectedAccountId: null,
+            conversations: [],
+            conversationLinks: null,
+            conversationPage: 1,
+            conversationSearch: "",
+            conversationFilter: "all",
+            selectedCategoryId: null,
+            labelCategories: [],
+            activeConversationId: null,
+            activeConversation: null,
+            messages: [],
+            messageLinks: null,
+            messagePage: 1,
+            composerText: "",
+            quoteMessage: null,
+            attachmentDrafts: [],
+            fastReplies: [],
+            conversationCache: {},
+            messagesCache: {},
+            mobilePanel: "accounts",
+          });
+        } else {
+          set({
+            accounts: sorted,
+            accountsLoading: false,
+          });
+        }
       } catch {
         set({ accountsLoading: false, accounts: [] });
       }
@@ -1578,6 +1669,11 @@ export const useZaloMessengerStore = create<ZaloMessengerState>((set, get) => ({
       attachmentDrafts: [],
       mobilePanel: "conversations",
     });
+  },
+
+  resetSession: () => {
+    clearMessengerRuntimeCaches();
+    set({ ...messengerSessionDefaults });
   },
 }));
 

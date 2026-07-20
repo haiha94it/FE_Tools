@@ -5,6 +5,7 @@ import { getApiErrorMessage } from "@/lib/errors";
 import { dedupeInflight } from "@/lib/inflight";
 import { authService } from "@/services/auth.service";
 import { runAsyncAction } from "@/stores/helpers/async-actions";
+import { useConsentStore } from "@/stores/use-consent-store";
 import { useTeamCollaborationStore } from "@/stores/use-team-collaboration-store";
 import { useWebSocketStore } from "@/stores/use-websocket-store";
 import type {
@@ -211,12 +212,25 @@ export const useAuthStore = create<AuthState>()(
           useWebSocketStore.getState().disconnect();
           await authService.logout();
         } finally {
+          // SPA không F5: phải xóa state theo user (messenger/consent/team)
+          // nếu không user sau vẫn thấy nick Zalo của user trước.
+          // Dynamic import tránh circular: messenger store cũng import auth.
+          try {
+            const { useZaloMessengerStore } = await import(
+              "@/stores/use-zalo-messenger-store"
+            );
+            useZaloMessengerStore.getState().resetSession();
+          } catch {
+            // ignore — vẫn clear auth bên dưới
+          }
+          useConsentStore.getState().reset();
           useTeamCollaborationStore.setState({
             campaignPermissions: null,
             assignedAccounts: [],
             permissionsLoaded: false,
             accountsLoaded: false,
           });
+          lastFetchProfileAt = 0;
           set({
             user: null,
             isAuthenticated: false,
