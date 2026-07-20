@@ -27,7 +27,7 @@ description: Quy ước Tailwind CSS và UI tokens cho FE_ZALO_V2 (TailAdmin). D
 | warning-* | `text-warning-500` | Cảnh báo nhẹ |
 | orange-* | `bg-orange-500` | Accent phụ |
 
-Font: **Outfit** — set trong `layout.tsx`, class `font-outfit` qua body.
+Font: **Plus Jakarta Sans** — set trong `layout.tsx`, class `font-jakarta` qua body.
 
 ## Dark mode
 
@@ -90,7 +90,7 @@ Breakpoints custom: `2xsm:375px`, `xsm:425px`, `3xl:2000px`
 - Dynamic Tailwind: `` `text-${color}-500` ``
 - Bỏ `cursor-pointer` trên clickable
 - Phá layout shell sidebar/header
-- Override font ngoài Outfit trừ khi có lý do
+- Override font ngoài Plus Jakarta Sans trừ khi có lý do
 
 ## Reference
 

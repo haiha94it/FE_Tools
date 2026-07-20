@@ -3,14 +3,7 @@ import LandingPage from "@/components/landing/LandingPage";
 import { APP_NAME } from "@/constants/brand";
 import { createPublicMetadata } from "@/lib/seo/metadata";
 import type { Metadata } from "next";
-import { Plus_Jakarta_Sans } from "next/font/google";
 import "@/styles/landing-theme.css";
-
-const plusJakarta = Plus_Jakarta_Sans({
-  subsets: ["latin", "vietnamese"],
-  display: "swap",
-  variable: "--font-plus-jakarta",
-});
 
 export const metadata: Metadata = createPublicMetadata({
   title: `${APP_NAME} — Quản trị Zalo thông minh`,
@@ -32,7 +25,7 @@ export default function PublicHomePage() {
   return (
     <>
       <LandingJsonLd />
-      <div className={`${plusJakarta.className} landing-page min-h-dvh antialiased`}>
+      <div className="landing-page min-h-dvh antialiased">
         <LandingPage />
       </div>
     </>

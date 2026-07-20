@@ -4,7 +4,10 @@
 
 @theme {
   --font-*: initial;
-  --font-outfit: Outfit, sans-serif;
+  --font-jakarta: var(--font-plus-jakarta), "Plus Jakarta Sans", ui-sans-serif, system-ui,
+    sans-serif;
+  --font-sans: var(--font-plus-jakarta), "Plus Jakarta Sans", ui-sans-serif, system-ui,
+    sans-serif;
 
   --breakpoint-*: initial;
   --breakpoint-2xsm: 375px;
@@ -228,7 +231,7 @@
     cursor: pointer;
   }
   body {
-    @apply relative font-normal font-outfit z-1 bg-gray-50;
+    @apply relative z-1 bg-gray-50 font-normal font-jakarta;
   }
 }
 
@@ -813,7 +816,7 @@ span.flatpickr-weekday,
 /* Khôi phục shell TailAdmin nếu từng bị bootstrap/primereact override */
 @layer base {
   body {
-    font-family: var(--font-outfit), ui-sans-serif, system-ui, sans-serif;
+    font-family: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
   }
 }
 

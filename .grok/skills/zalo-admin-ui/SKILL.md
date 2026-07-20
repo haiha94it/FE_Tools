@@ -11,8 +11,9 @@ description: >
 
 ## Font
 
-- **Outfit** — `next/font/google` trong `src/app/layout.tsx`
-- Body: `className={outfit.className}`
+- **Plus Jakarta Sans** — `next/font/google` trong `src/app/layout.tsx` (latin + vietnamese)
+- Body: `className={plusJakarta.variable + " " + plusJakarta.className}`
+- Token: `--font-jakarta` / utility `font-jakarta`
 
 ## Color tokens (`globals.css` @theme)
 
@@ -282,7 +283,7 @@ import { ChatIcon, GridIcon } from "@/icons/index";
 - `max-h` table mà không `adminDataPageClass` + `fill` (gây **2 scroll** body + table)
 - Flex layout thiếu `min-h-0` trên vùng table
 - Hex random ngoài `@theme`
-- Font khác Outfit (trừ khi redesign)
+- Font khác Plus Jakarta Sans (trừ khi redesign)
 - Phá spacing shell (sidebar 290/90px)
 - Emoji thay icon SVG
 - `title` HTML cho tooltip UI

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Outfit } from "next/font/google";
+import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import "flatpickr/dist/flatpickr.css";
 import { AppProviders } from "@/components/providers/app-providers";
@@ -9,9 +9,10 @@ import { ThemeProvider } from "@/context/ThemeContext";
 
 export const metadata: Metadata = createRootMetadata();
 
-const outfit = Outfit({
-  subsets: ["latin"],
+const plusJakarta = Plus_Jakarta_Sans({
+  subsets: ["latin", "vietnamese"],
   display: "swap",
+  variable: "--font-plus-jakarta",
 });
 
 export default function RootLayout({
@@ -21,7 +22,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="vi">
-      <body className={`${outfit.className} dark:bg-gray-900`}>
+      <body
+        className={`${plusJakarta.variable} ${plusJakarta.className} antialiased dark:bg-gray-900`}
+      >
         <ThemeProvider>
           <SidebarProvider>
             <AppProviders>{children}</AppProviders>

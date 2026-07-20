@@ -22,7 +22,7 @@ Admin dashboard frontend cho hệ sinh thái Zalo CN, scaffold từ **TailAdmin 
 | Charts | ApexCharts (`react-apexcharts`) |
 | Calendar | FullCalendar + flatpickr |
 | Icons | SVG components trong `src/icons/` |
-| Font | Outfit (Google Fonts) |
+| Font | Plus Jakarta Sans (Google Fonts, hỗ trợ tiếng Việt) |
 | Toast | **Sonner** (`src/lib/toast.ts`) |
 | Tooltip | **Radix** (`src/components/ui/tooltip/Tooltip.tsx`) |
 
