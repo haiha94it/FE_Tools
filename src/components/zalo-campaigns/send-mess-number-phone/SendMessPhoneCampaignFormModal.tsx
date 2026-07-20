@@ -14,10 +14,12 @@ import {
   campaignFormSidePaneClass,
 } from "@/components/zalo-campaigns/CampaignFormModalLayout";
 import Checkbox from "@/components/form/input/Checkbox";
+import CampaignAttachmentFields from "@/components/zalo-campaigns/shared/CampaignAttachmentFields";
 import {
   MAX_PHONE_NUMBERS,
   canEditSendMessPhoneNumbers,
   formatTimeForApi,
+  getSendMessPhoneMediaUrl,
   isZaloAccountRunnable,
   normalizePhoneNumbers,
   parseTimeToDate,
@@ -81,7 +83,8 @@ export default function SendMessPhoneCampaignFormModal({
   const [splitAttachment, setSplitAttachment] = useState(false);
   const [contents, setContents] = useState<string[]>([]);
   const [images, setImages] = useState<string[]>([]);
-  const [contentType] = useState<SendMessPhoneContentType>("");
+  const [contentType, setContentType] = useState<SendMessPhoneContentType>("");
+  const [selectedMediaId, setSelectedMediaId] = useState<number | null>(null);
   const [startTime, setStartTime] = useState(defaultStart);
   const [endTime, setEndTime] = useState(defaultEnd);
   const [selectedAccountIds, setSelectedAccountIds] = useState<number[]>([]);
@@ -107,6 +110,8 @@ export default function SendMessPhoneCampaignFormModal({
     setSplitAttachment(false);
     setContents([]);
     setImages([]);
+    setContentType("");
+    setSelectedMediaId(null);
     setStartTime(defaultStart());
     setEndTime(defaultEnd());
     setSelectedAccountIds([]);
@@ -126,6 +131,15 @@ export default function SendMessPhoneCampaignFormModal({
     setSplitAttachment(editingCampaign.split_attachment ?? false);
     setContents(editingCampaign.contents ?? []);
     setImages(editingCampaign.images ?? []);
+    const type = editingCampaign.type ?? "";
+    setContentType(type);
+    setSelectedMediaId(
+      type === "video"
+        ? (editingCampaign.video ?? null)
+        : type === "album"
+          ? (editingCampaign.album ?? null)
+          : null,
+    );
     setStartTime(parseTimeToDate(editingCampaign.from_time) ?? defaultStart());
     setEndTime(parseTimeToDate(editingCampaign.to_time) ?? defaultEnd());
     setSelectedAccountIds(editingCampaign.accounts ?? []);
@@ -171,8 +185,22 @@ export default function SendMessPhoneCampaignFormModal({
       toast.error("Vui lòng nhập tên kịch bản.");
       return;
     }
-    if (!contents.length && !images.length) {
-      toast.error("Nhập nội dung hoặc chọn ít nhất một hình ảnh.");
+    if (!contents.length && !contentType) {
+      toast.error("Nhập nội dung hoặc chọn đính kèm.");
+      return;
+    }
+    if (contentType === "image" && !images.length) {
+      toast.error("Vui lòng thêm ảnh.");
+      return;
+    }
+    if (contentType === "image" && images.length > 1) {
+      toast.error("Chỉ chấp nhận 1 ảnh. Từ 2 ảnh trở lên vui lòng gửi dạng album.");
+      return;
+    }
+    if ((contentType === "video" || contentType === "album") && !selectedMediaId) {
+      toast.error(
+        contentType === "video" ? "Vui lòng chọn video." : "Vui lòng chọn album ảnh.",
+      );
       return;
     }
     const phones = splitLines(phoneNumbers);
@@ -199,9 +227,11 @@ export default function SendMessPhoneCampaignFormModal({
       id_category: editingCampaign?.id ?? null,
       name: trimmedName,
       phone_numbers: phones,
-      type: contentType,
+      type: contentType || null,
       contents,
-      images,
+      images: contentType === "image" ? images : [],
+      id_video: contentType === "video" ? selectedMediaId : null,
+      id_album: contentType === "album" ? selectedMediaId : null,
       delay_time: delay,
       number_count: count,
       divide,
@@ -345,6 +375,28 @@ export default function SendMessPhoneCampaignFormModal({
                 onImagesChange={setImages}
                 onSplitAttachmentChange={setSplitAttachment}
                 onUploadImage={handleUploadImage}
+              />
+            </div>
+
+            <div className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
+              <CampaignAttachmentFields
+                contentType={contentType}
+                images={images}
+                selectedMediaId={selectedMediaId}
+                uploadingImage={uploadingImage}
+                disabled={saving || readOnly}
+                resolveImageUrl={getSendMessPhoneMediaUrl}
+                onContentTypeChange={setContentType}
+                onImagesChange={setImages}
+                onSelectedMediaIdChange={setSelectedMediaId}
+                onUploadImage={async (file) => {
+                  try {
+                    return await handleUploadImage(file);
+                  } catch (error) {
+                    toast.error(getApiErrorMessage(error));
+                    return null;
+                  }
+                }}
               />
             </div>
                 </div>

@@ -177,7 +177,8 @@ export default function SendMessPhoneContentEditor({
         </div>
       ) : null}
 
-      {contentType === "" ? (
+      {/* Ảnh/video/album: dùng CampaignAttachmentFields ở form cha */}
+      {false && contentType === "" ? (
         <div className="space-y-3">
           <div>
             <div className="mb-2 flex items-center justify-between gap-2">

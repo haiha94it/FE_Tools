@@ -38,9 +38,9 @@ export interface SendMessPhoneCampaignFormPayload {
   id_category: number | null;
   name: string;
   phone_numbers: string[];
-  type: SendMessPhoneContentType;
-  id_album?: number;
-  id_video?: number;
+  type: SendMessPhoneContentType | null;
+  id_album?: number | null;
+  id_video?: number | null;
   contents: string[];
   images: string[];
   delay_time: number;
