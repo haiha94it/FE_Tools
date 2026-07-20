@@ -31,6 +31,7 @@ import { zaloMessengerService } from "@/services/zalo-messenger.service";
 import { useAuthStore } from "@/stores/use-auth-store";
 import { useWebSocketStore } from "@/stores/use-websocket-store";
 import type { PaginatedResponse, ZaloFriendItem } from "@/types/zalo-contacts";
+import { handleConsentChatRequired } from "@/lib/consent-utils";
 import { getApiErrorMessage } from "@/lib/errors";
 import { toast } from "@/lib/toast";
 import {
@@ -350,6 +351,10 @@ export const useZaloMessengerStore = create<ZaloMessengerState>((set, get) => ({
           ],
         }));
       } catch (error) {
+        if (handleConsentChatRequired(error)) {
+          set({ error: getApiErrorMessage(error) });
+          continue;
+        }
         const message =
           getApiErrorMessage(error) ||
           `Không tải được file "${file.name}".`;

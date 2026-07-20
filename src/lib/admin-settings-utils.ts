@@ -2,7 +2,13 @@ import { API_BASE_URL } from "@/config/api";
 
 export function resolveAdminSettingsImage(path?: string | null): string | null {
   if (!path) return null;
-  if (path.startsWith("http")) return path;
+  if (
+    path.startsWith("http") ||
+    path.startsWith("blob:") ||
+    path.startsWith("data:")
+  ) {
+    return path;
+  }
   return `${API_BASE_URL}/${path.replace(/^\//, "")}`;
 }
 

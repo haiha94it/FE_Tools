@@ -1,5 +1,6 @@
 "use client";
 
+import MessageConsentGate from "@/components/consent/MessageConsentGate";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import { adminDataPageClass } from "@/components/ui/table/ScrollableTableContainer";
 import MessengerBootstrap from "./MessengerBootstrap";
@@ -15,7 +16,7 @@ export default function ZaloMessagesView({
   conversationId: routeConversationId,
 }: ZaloMessagesViewProps) {
   return (
-    <div className={adminDataPageClass}>
+    <div className={`${adminDataPageClass} relative`}>
       <MessengerBootstrap
         routeAccountId={routeAccountId}
         routeConversationId={routeConversationId}
@@ -28,7 +29,10 @@ export default function ZaloMessagesView({
         parents={[{ label: "Quản lý tài khoản Zalo", href: "/zalo-accounts" }]}
       />
 
-      <MessengerLayout />
+      <div className="relative flex min-h-0 flex-1 flex-col">
+        <MessengerLayout />
+        <MessageConsentGate />
+      </div>
     </div>
   );
 }

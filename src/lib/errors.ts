@@ -7,6 +7,7 @@ import {
   API_ERROR_REQUEST_FAILED,
 } from "@/constants/api-errors";
 import { isCareTokenRefreshFailure } from "@/lib/care-axios";
+import { handleConsentChatRequired } from "@/lib/consent-utils";
 import { isTokenRefreshFailure } from "@/lib/axios";
 import { toast } from "@/lib/toast";
 import type { ApiErrorBody, ParsedApiError } from "@/types/api";
@@ -219,6 +220,12 @@ export function handleApiError(
   error: unknown,
   options?: HandleApiErrorOptions,
 ): string[] {
+  // Gate chat đồng thuận — mở modal ký (toast trong handleConsentChatRequired)
+  if (handleConsentChatRequired(error)) {
+    const parsed = parseApiError(error);
+    return parsed.messages.length > 0 ? parsed.messages : [API_ERROR_FALLBACK];
+  }
+
   const parsed = parseApiError(error);
 
   if (parsed.skipped) return [];

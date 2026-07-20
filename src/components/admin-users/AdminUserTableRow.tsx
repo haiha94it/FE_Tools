@@ -3,6 +3,7 @@
 import AvatarText from "@/components/ui/avatar/AvatarText";
 import Badge from "@/components/ui/badge/Badge";
 import { TableCell, TableRow } from "@/components/ui/table";
+import { formatConsentDateTime } from "@/lib/consent-utils";
 import {
   formatManagedUserDate,
   getManagedUserPermissionBadgeColor,
@@ -11,6 +12,7 @@ import {
 import type { ManagedUser } from "@/types/zalo-user-admin";
 import {
   HiOutlineCheckCircle,
+  HiOutlineDocumentText,
   HiOutlineLockClosed,
   HiOutlineLockOpen,
   HiOutlinePencil,
@@ -40,6 +42,7 @@ interface AdminUserTableRowProps {
   onDelete: (user: ManagedUser) => void;
   onActivate: (user: ManagedUser) => void;
   onToggleLock: (user: ManagedUser) => void;
+  onViewConsent: (user: ManagedUser) => void;
 }
 
 export default function AdminUserTableRow({
@@ -52,11 +55,13 @@ export default function AdminUserTableRow({
   onDelete,
   onActivate,
   onToggleLock,
+  onViewConsent,
 }: AdminUserTableRowProps) {
   const displayName = user.fullname || user.username;
   const passwordValue =
     permissionFilter === "no_active" ? user.password : user.raw_password;
   const lockLabel = user.is_locked ? "Mở khóa tài khoản" : "Khóa tài khoản";
+  const hasSignedConsent = Boolean(user.message_processing_signed);
 
   return (
     <TableRow className="group transition hover:bg-gray-50/80 dark:hover:bg-white/[0.02]">
@@ -98,6 +103,20 @@ export default function AdminUserTableRow({
       <TableCell className={`${cellClass} min-w-[4.5rem] whitespace-nowrap text-center tabular-nums`}>
         {user.account_count ?? 0} / {user.account_limit ?? 0}
       </TableCell>
+      <TableCell className={cellClass}>
+        {hasSignedConsent ? (
+          <Badge size="sm" color="success">
+            Đã ký
+          </Badge>
+        ) : (
+          <Badge size="sm" color="light">
+            Chưa ký
+          </Badge>
+        )}
+      </TableCell>
+      <TableCell className={`${cellClass} whitespace-nowrap`}>
+        {formatConsentDateTime(user.message_processing_signed_at)}
+      </TableCell>
       <TableCell className={`${cellClass} whitespace-nowrap`}>
         {formatManagedUserDate(user.created_at)}
       </TableCell>
@@ -117,6 +136,14 @@ export default function AdminUserTableRow({
       </TableCell>
       <TableCell className="sticky right-0 z-[1] bg-white px-4 py-3 shadow-[-6px_0_12px_-6px_rgba(0,0,0,0.06)] group-hover:bg-gray-50/80 dark:bg-gray-900 dark:shadow-[-6px_0_12px_-6px_rgba(0,0,0,0.3)] dark:group-hover:bg-white/[0.02]">
         <div className="flex items-center gap-1.5">
+          <AdminIconButton
+            label="Chi tiết đồng thuận"
+            side="left"
+            className={iconBtnClass}
+            onClick={() => onViewConsent(user)}
+          >
+            <HiOutlineDocumentText size={15} />
+          </AdminIconButton>
           <AdminIconButton
             label="Sửa thông tin"
             side="left"
