@@ -8,19 +8,16 @@ export function canAccessAdminSettings(
 }
 
 /**
- * CRUD hướng dẫn & tài nguyên — chỉ quản trị viên hệ thống (is_admin / is_superuser).
- * Manager KH, nhân viên, CSKH chỉ xem nội dung, không thấy Thêm/Sửa/Xóa.
+ * CRUD hướng dẫn & tài nguyên — quản trị viên hệ thống (is_admin / is_superuser).
+ * Đồng bộ ZaloCN: chỉ cần is_admin; user thường chỉ xem, không thấy Thêm/Sửa/Xóa.
+ *
+ * Không loại trừ theo is_manager / is_saler / is_employee: nhiều tài khoản admin
+ * vẫn mang các cờ đó trên API — loại theo cờ phụ sẽ ẩn nút dù đang là admin.
  */
 export function canManageGuidesAndResources(
-  user: Pick<
-    AuthUser,
-    "isAdmin" | "isEmployee" | "isManager" | "isSaler" | "isSaleManager"
-  > | null | undefined,
+  user: Pick<AuthUser, "isAdmin"> | null | undefined,
 ): boolean {
-  if (!user?.isAdmin) return false;
-  if (user.isEmployee || user.isManager) return false;
-  if (user.isSaler || user.isSaleManager) return false;
-  return true;
+  return Boolean(user?.isAdmin);
 }
 
 /** Admin / saler / sale manager — truy cập Quản lý người dùng (/admin/users) */
@@ -53,7 +50,8 @@ export function mapApiUser(profile: ApiUserProfile): AuthUser {
     accountCount: profile.account_count,
     accountLimit: profile.account_limit,
     employeeLimit: profile.employee_limit,
-    isAdmin: profile.is_admin ?? profile.is_superuser,
+    // `??` sai khi is_admin=false nhưng is_superuser=true
+    isAdmin: Boolean(profile.is_admin || profile.is_superuser),
     isSaler: profile.is_saler,
     isSaleManager: profile.is_sale_manager,
     isAgencyAdmin: profile.is_agency_admin,
