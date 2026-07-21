@@ -42,25 +42,27 @@ const PER_PAGE_OPTIONS = [
   { value: "1000", label: "1000 / trang" },
 ];
 
-function buildResultStats(
-  statistics: SendMessPhoneCampaignStatistics,
-  resultsTotal: number,
-) {
+function buildResultStats(statistics: SendMessPhoneCampaignStatistics) {
   return [
     {
-      label: "Thành công",
+      label: "KB thành công",
+      value: statistics.add_friend_success ?? 0,
+      valueClass: "text-success-600 dark:text-success-400",
+    },
+    {
+      label: "KB thất bại",
+      value: statistics.add_friend_failure ?? 0,
+      valueClass: "text-error-600 dark:text-error-400",
+    },
+    {
+      label: "Tin thành công",
       value: statistics.mess_phone_number_success ?? statistics.success ?? 0,
       valueClass: "text-success-600 dark:text-success-400",
     },
     {
-      label: "Thất bại",
+      label: "Tin thất bại",
       value: statistics.mess_phone_number_failure ?? statistics.failed ?? 0,
       valueClass: "text-error-600 dark:text-error-400",
-    },
-    {
-      label: "Tổng",
-      value: statistics.total ?? resultsTotal,
-      valueClass: "text-gray-800 dark:text-white/90",
     },
   ];
 }
@@ -95,7 +97,7 @@ export default function SendMessPhoneResultsModal({
   const allSelected =
     results.length > 0 && results.every((item) => selectedSet.has(item.id));
   const totalPages = Math.max(1, Math.ceil(resultsTotal / resultsPerPage));
-  const resultStats = buildResultStats(statistics, resultsTotal);
+  const resultStats = buildResultStats(statistics);
 
   const handleCopyList = async (items: string[], emptyMsg: string, okMsg: string) => {
     if (!items.length) {
@@ -148,7 +150,7 @@ export default function SendMessPhoneResultsModal({
         </div>
 
         <div className="mb-4 shrink-0 overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
-          <div className="grid grid-cols-3 divide-x divide-gray-100 dark:divide-gray-800">
+          <div className="grid grid-cols-2 divide-x divide-y divide-gray-100 sm:grid-cols-4 dark:divide-gray-800">
             {resultStats.map((item) => (
               <div key={item.label} className="px-4 py-3">
                 <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
@@ -252,7 +254,7 @@ export default function SendMessPhoneResultsModal({
               Chưa có kết quả cho kịch bản này.
             </p>
           ) : (
-            <div className="min-w-[960px]">
+            <div className="min-w-[1100px]">
               {resultsLoading ? (
                 <div className="flex justify-center py-2">
                   <div className="h-4 w-4 animate-spin rounded-full border-2 border-brand-500 border-t-transparent" />
@@ -268,16 +270,19 @@ export default function SendMessPhoneResultsModal({
                       Thời gian
                     </TableCell>
                     <TableCell isHeader className={headerClass}>
-                      Tài khoản gửi
+                      Nick
                     </TableCell>
                     <TableCell isHeader className={headerClass}>
-                      Người nhận
+                      SĐT / Tên
+                    </TableCell>
+                    <TableCell isHeader className={headerClass}>
+                      TT KB
+                    </TableCell>
+                    <TableCell isHeader className={headerClass}>
+                      TT tin
                     </TableCell>
                     <TableCell isHeader className={headerClass}>
                       Nội dung
-                    </TableCell>
-                    <TableCell isHeader className={headerClass}>
-                      Trạng thái
                     </TableCell>
                   </TableRow>
                 </TableHeader>
@@ -288,6 +293,8 @@ export default function SendMessPhoneResultsModal({
                     const recipient = row.phone_number
                       ? `${row.name || ""}${row.name ? " - " : ""}${row.phone_number}`
                       : row.name || "—";
+                    const kb = formatSendMessPhoneResultStatus(row.status_add_friend);
+                    const mess = formatSendMessPhoneResultStatus(row.status);
                     return (
                       <TableRow key={row.id}>
                         <TableCell className="px-4 py-3">
@@ -307,7 +314,30 @@ export default function SendMessPhoneResultsModal({
                         <TableCell className="px-4 py-3 text-theme-sm text-gray-700 dark:text-gray-300">
                           {recipient}
                         </TableCell>
-                        <TableCell className="max-w-[240px] px-4 py-3 text-theme-sm">
+                        <TableCell className="px-4 py-3 text-theme-sm">
+                          <span className={`font-medium ${kb.className}`}>{kb.label}</span>
+                          {row.status_add_friend_message ? (
+                            <span className="mt-0.5 block text-theme-xs text-gray-500">
+                              {row.status_add_friend_message}
+                            </span>
+                          ) : null}
+                          {row.first_message ? (
+                            <span className="mt-0.5 block line-clamp-2 text-theme-xs text-gray-500">
+                              {row.first_message}
+                            </span>
+                          ) : null}
+                        </TableCell>
+                        <TableCell className="px-4 py-3 text-theme-sm">
+                          <span className={`font-medium ${mess.className}`}>
+                            {mess.label}
+                          </span>
+                          {row.status_message ? (
+                            <span className="mt-0.5 block text-theme-xs text-gray-500">
+                              {row.status_message}
+                            </span>
+                          ) : null}
+                        </TableCell>
+                        <TableCell className="max-w-[220px] px-4 py-3 text-theme-sm">
                           <div className="flex items-start gap-2">
                             {thumb ? (
                               <span className="relative block h-10 w-10 shrink-0 overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
@@ -324,23 +354,6 @@ export default function SendMessPhoneResultsModal({
                               {row.content || "—"}
                             </span>
                           </div>
-                        </TableCell>
-                        <TableCell className="px-4 py-3 text-theme-sm">
-                          {(() => {
-                            const status = formatSendMessPhoneResultStatus(
-                              row.status,
-                            );
-                            return (
-                              <span className={`font-medium ${status.className}`}>
-                                {status.label}
-                              </span>
-                            );
-                          })()}
-                          {row.status_message ? (
-                            <span className="mt-0.5 block text-theme-xs text-gray-500">
-                              {row.status_message}
-                            </span>
-                          ) : null}
                         </TableCell>
                       </TableRow>
                     );

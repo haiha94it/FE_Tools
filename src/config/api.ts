@@ -93,9 +93,10 @@ export const API_ZALO_FRIEND = {
   ADD_FRIEND: "/api/friend/add-friend",
 } as const;
 
-/** Chiến dịch kết bạn — /api/campaign/add-friend/category/ */
-export const API_ZALO_ADD_FRIEND_CAMPAIGN = buildCampaignApiPaths("add-friend");
-
+/**
+ * @deprecated Campaign add-friend đã gộp vào mess-phone-number (BE xóa route).
+ * Giữ hằng số path FE cũ để grep; không gọi API.
+ */
 export const ADD_FRIEND_CAMPAIGN_BASE = "/zalo-campaigns/add-friend";
 
 /** Chiến dịch tham gia nhóm — /api/campaign/join-group/category/ */

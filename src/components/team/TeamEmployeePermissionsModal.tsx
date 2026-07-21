@@ -10,24 +10,26 @@ import type { CampaignPermissionsMap, CampaignTypeKey, TeamEmployee } from "@/ty
 import { useEffect, useMemo, useState } from "react";
 
 const PERMISSION_LABELS: Record<CampaignTypeKey, string> = {
-  add_friend: "Kết bạn",
+  add_friend: "Kết bạn SĐT (legacy)",
   join_group: "Tham gia nhóm",
   invite_group: "Mời vào nhóm",
   invite_phone_group: "Mời SĐT vào nhóm",
   mess_friend: "Nhắn bạn bè",
   mess_group: "Nhắn nhóm",
   mess_member_group: "Nhắn thành viên nhóm",
-  mess_phone: "Nhắn SĐT",
+  mess_phone: "Nhắn tin / Kết bạn SĐT",
   mess_birthday: "Sinh nhật",
   spam_link_group: "Spam link nhóm",
   auto_inbox: "Auto inbox",
 };
 
-/** Keys hiển thị trên UI (ẩn spam link khi flag tắt) */
+/** Keys hiển thị: ẩn spam + ẩn add_friend (đã gộp mess_phone) */
 const VISIBLE_PERMISSION_KEYS = (
   Object.keys(PERMISSION_LABELS) as CampaignTypeKey[]
 ).filter(
-  (key) => SHOW_SPAM_LINK_GROUP_FEATURES || key !== "spam_link_group",
+  (key) =>
+    key !== "add_friend" &&
+    (SHOW_SPAM_LINK_GROUP_FEATURES || key !== "spam_link_group"),
 );
 
 interface TeamEmployeePermissionsModalProps {

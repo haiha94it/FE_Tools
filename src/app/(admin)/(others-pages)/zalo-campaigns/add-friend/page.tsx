@@ -1,11 +1,6 @@
-import AddFriendCampaignView from "@/components/zalo-campaigns/add-friend";
-import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = {
-  title: "Kết bạn | Chiến dịch Zalo",
-  description: "Quản lý chiến dịch kết bạn Zalo theo danh sách số điện thoại",
-};
-
-export default function AddFriendCampaignPage() {
-  return <AddFriendCampaignView />;
+/** Campaign kết bạn SĐT đã gộp vào mess-phone-number */
+export default function AddFriendCampaignRedirectPage() {
+  redirect("/zalo-campaigns/send-mess-number-phone");
 }

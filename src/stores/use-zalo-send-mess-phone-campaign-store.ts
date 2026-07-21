@@ -5,9 +5,9 @@ import { zaloSendMessPhoneCampaignService } from "@/services/zalo-send-mess-phon
 import { fetchAccessibleAccounts } from "@/lib/fetch-accessible-accounts";
 import type {
   SendMessPhoneCampaign,
-  SendMessPhoneCampaignFormPayload,
   SendMessPhoneCampaignResult,
   SendMessPhoneCampaignStatistics,
+  SendMessPhoneSavePayload,
 } from "@/types/zalo-send-mess-phone-campaign";
 import type { ZaloAccount } from "@/types/zalo-account";
 import { create } from "zustand";
@@ -40,7 +40,7 @@ interface SendMessPhoneCampaignState {
   toggleSelected: (id: number) => void;
   toggleSelectAll: () => void;
 
-  createOrEditCampaign: (payload: SendMessPhoneCampaignFormPayload) => Promise<void>;
+  createOrEditCampaign: (payload: SendMessPhoneSavePayload) => Promise<void>;
   deleteCampaign: (id: number) => Promise<void>;
   copyCampaign: (id: number, name: string) => Promise<void>;
   startCampaigns: (type: "new" | "continue") => Promise<void>;

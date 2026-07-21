@@ -98,7 +98,6 @@ export const mainNavItems: NavItemConfig[] = [
     iconTone: "purple",
     subItems: [
       { name: "Đăng video", path: "/zalo-campaigns/post-video" },
-      { name: "Kết bạn", path: "/zalo-campaigns/add-friend" },
       { name: "Tham gia nhóm", path: "/zalo-campaigns/join-group" },
       { name: "Mời bạn bè tham gia nhóm", path: "/zalo-campaigns/invite-join-group" },
       {
@@ -107,7 +106,7 @@ export const mainNavItems: NavItemConfig[] = [
       },
       { name: "Nhắn tin bạn bè", path: "/zalo-campaigns/send-mes-fr" },
       {
-        name: "Nhắn tin đến SĐT",
+        name: "Nhắn tin / Kết bạn SĐT",
         path: "/zalo-campaigns/send-mess-number-phone",
       },
       { name: "Nhắn tin vào nhóm", path: "/zalo-campaigns/send-mes-group" },

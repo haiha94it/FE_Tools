@@ -8,6 +8,7 @@ import type {
   SendMessPhoneCampaignFormPayload,
   SendMessPhoneCampaignResult,
   SendMessPhoneCampaignStatistics,
+  SendMessPhoneSavePayload,
 } from "@/types/zalo-send-mess-phone-campaign";
 
 const base = createCampaignService<
@@ -23,6 +24,19 @@ export const zaloSendMessPhoneCampaignService = {
   fetchFailedPhones: base.fetchFailedPhones,
   fetchPhoneNumbersError: base.fetchPhoneNumbersError,
   fetchAccountLimit: base.fetchAccountLimit,
+
+  async createOrEditCampaign(payload: SendMessPhoneSavePayload): Promise<void> {
+    const { id_category, ...rest } = payload;
+    if (id_category) {
+      await api.patch(
+        API_ZALO_SEND_MESS_PHONE_CAMPAIGN.detail(id_category),
+        rest,
+      );
+    } else {
+      await api.post(API_ZALO_SEND_MESS_PHONE_CAMPAIGN.LIST, rest);
+    }
+  },
+
   async uploadImage(file: File): Promise<string> {
     const formData = new FormData();
     formData.append("file", file);

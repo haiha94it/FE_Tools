@@ -10,7 +10,8 @@ interface SendMessMemberGrFirstMessageEditorProps {
   onContentsChange: (contents: string[]) => void;
 }
 
-const MAX_LENGTH = 75;
+/** Guide mess-phone: first_messages ≤ 135 ký tự */
+const MAX_LENGTH = 135;
 const DEFAULT_TEMPLATE = "Xin chào [gender] [name] kết bạn với mình nha!";
 
 const textareaClassName =
