@@ -4,6 +4,7 @@ import Button from "@/components/ui/button/Button";
 import MobileToolbarStrip, {
   mobileToolbarButtonClass,
 } from "@/components/ui/toolbar/MobileToolbarStrip";
+import { SHOW_GROUP_LINK_FEATURES } from "@/config/feature-flags";
 import type { GroupModal } from "@/types/zalo-contacts";
 
 interface GroupsToolbarProps {
@@ -19,7 +20,11 @@ const views: {
 }[] = [
   { id: "scan", label: "Quét danh sách nhóm", shortLabel: "Quét DS" },
   { id: "label", label: "Gán nhãn", shortLabel: "Gán nhãn" },
-  { id: "get-link", label: "Lấy link nhóm", shortLabel: "Lấy link" },
+  ...(SHOW_GROUP_LINK_FEATURES
+    ? ([
+        { id: "get-link", label: "Lấy link nhóm", shortLabel: "Lấy link" },
+      ] as const)
+    : []),
 ];
 
 export default function GroupsToolbar({

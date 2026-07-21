@@ -1,5 +1,6 @@
 import { API_ZALO_PROXY } from "@/config/api";
 import { unwrapApiBody } from "@/lib/api-response";
+import { dedupeInflight } from "@/lib/inflight";
 import { extractZaloProxies } from "@/lib/zalo-proxy-utils";
 import api from "@/lib/axios";
 import type {
@@ -10,9 +11,12 @@ import type {
 } from "@/types/zalo-proxy";
 
 export const zaloProxyService = {
-  async list(): Promise<ZaloProxyItem[]> {
-    const response = await api.get(API_ZALO_PROXY.LIST);
-    return extractZaloProxies(response.data);
+  /** List proxy — dedupe Strict Mode / multi-store gọi cùng lúc */
+  list(): Promise<ZaloProxyItem[]> {
+    return dedupeInflight("zalo-proxy:list", async () => {
+      const response = await api.get(API_ZALO_PROXY.LIST);
+      return extractZaloProxies(response.data);
+    });
   },
 
   async create(payload: CreateZaloProxyPayload): Promise<void> {

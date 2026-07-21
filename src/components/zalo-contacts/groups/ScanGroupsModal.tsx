@@ -14,6 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { SHOW_GROUP_LINK_FEATURES } from "@/config/feature-flags";
 import { useScanTaskPoll } from "@/hooks/use-scan-task-poll";
 import { countGroupsInScanTaskPayload } from "@/lib/celery-poll";
 import { getScanTaskStatus, isScanTaskDone } from "@/lib/zalo-contacts-utils";
@@ -174,9 +175,11 @@ export default function ScanGroupsPanel({
               <TableCell isHeader className={headerClass}>
                 Thành viên
               </TableCell>
-              <TableCell isHeader className={headerClass}>
-                Link nhóm
-              </TableCell>
+              {SHOW_GROUP_LINK_FEATURES ? (
+                <TableCell isHeader className={headerClass}>
+                  Link nhóm
+                </TableCell>
+              ) : null}
             </TableRow>
           </TableHeader>
           <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
@@ -185,7 +188,9 @@ export default function ScanGroupsPanel({
                 <TableCell className={cellClass}>Đang tải...</TableCell>
                 <TableCell className={cellClass}>{" "}</TableCell>
                 <TableCell className={cellClass}>{" "}</TableCell>
-                <TableCell className={cellClass}>{" "}</TableCell>
+                {SHOW_GROUP_LINK_FEATURES ? (
+                  <TableCell className={cellClass}>{" "}</TableCell>
+                ) : null}
               </TableRow>
             ) : groups.length === 0 ? (
               <TableRow>
@@ -194,7 +199,9 @@ export default function ScanGroupsPanel({
                 </TableCell>
                 <TableCell className={cellClass}>{" "}</TableCell>
                 <TableCell className={cellClass}>{" "}</TableCell>
-                <TableCell className={cellClass}>{" "}</TableCell>
+                {SHOW_GROUP_LINK_FEATURES ? (
+                  <TableCell className={cellClass}>{" "}</TableCell>
+                ) : null}
               </TableRow>
             ) : (
               groups.map((group, index) => (
@@ -211,11 +218,13 @@ export default function ScanGroupsPanel({
                   <TableCell className={cellClass}>
                     {group.total_member ?? "—"}
                   </TableCell>
-                  <TableCell className={cellClass}>
-                    <span className="block max-w-[280px] truncate">
-                      {group.link_group || "—"}
-                    </span>
-                  </TableCell>
+                  {SHOW_GROUP_LINK_FEATURES ? (
+                    <TableCell className={cellClass}>
+                      <span className="block max-w-[280px] truncate">
+                        {group.link_group || "—"}
+                      </span>
+                    </TableCell>
+                  ) : null}
                 </TableRow>
               ))
             )}

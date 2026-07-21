@@ -180,7 +180,7 @@ export default function ScanFriendsPanel({
               <TableRow>
                 <TableCell className={cellClass}>
                   {isEmployee
-                    ? "Danh sách có thể trống với tài khoản nhân viên cho đến khi BE cập nhật phân quyền danh bạ (§2.1)."
+                    ? 'Chưa có bạn bè trên nick này. Bấm "Quét danh sách" để đồng bộ (NV dùng chung list với quản lý khi nick được gán).'
                     : 'Chưa có dữ liệu. Bấm "Quét danh sách" để đồng bộ.'}
                 </TableCell>
                 <TableCell className={cellClass}>{" "}</TableCell>

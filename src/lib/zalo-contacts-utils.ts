@@ -176,6 +176,81 @@ export function normalizeZaloFriendList(items: unknown[]): ZaloFriendItem[] {
     .filter((item): item is ZaloFriendItem => item != null);
 }
 
+/** List gợi ý kết bạn / lời mời recommend (raw Zalo) */
+export function normalizeZaloFriendRecommendItem(
+  raw: unknown,
+): import("@/types/zalo-contacts").ZaloFriendRecommendItem | null {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const record = raw as Record<string, unknown>;
+  const userIdRaw =
+    record.userId ?? record.user_id ?? record.uid ?? record.fid;
+  const userId =
+    typeof userIdRaw === "string"
+      ? userIdRaw.trim()
+      : typeof userIdRaw === "number" && Number.isFinite(userIdRaw)
+        ? String(userIdRaw)
+        : null;
+  const name =
+    typeof record.zaloName === "string"
+      ? record.zaloName
+      : typeof record.name === "string"
+        ? record.name
+        : typeof record.displayName === "string"
+          ? record.displayName
+          : null;
+  const avatar =
+    typeof record.avatar === "string"
+      ? record.avatar
+      : typeof record.avt === "string"
+        ? record.avt
+        : null;
+  const type =
+    typeof record.type === "string"
+      ? record.type
+      : typeof record.recomType === "string"
+        ? record.recomType
+        : undefined;
+  const id =
+    typeof record.id === "number" && Number.isFinite(record.id)
+      ? record.id
+      : undefined;
+
+  if (!userId && !name) return null;
+
+  return {
+    id,
+    userId: userId || undefined,
+    uid: userId || undefined,
+    name,
+    zaloName: name,
+    avatar,
+    type,
+  };
+}
+
+export function normalizeZaloFriendRecommendList(
+  items: unknown[],
+): import("@/types/zalo-contacts").ZaloFriendRecommendItem[] {
+  return items
+    .map((item) => normalizeZaloFriendRecommendItem(item))
+    .filter(
+      (
+        item,
+      ): item is import("@/types/zalo-contacts").ZaloFriendRecommendItem =>
+        item != null,
+    );
+}
+
+export function getRecommendFriendFid(
+  item: Pick<
+    import("@/types/zalo-contacts").ZaloFriendRecommendItem,
+    "userId" | "uid"
+  >,
+): string | null {
+  const fid = (item.userId || item.uid || "").trim();
+  return fid || null;
+}
+
 /** List lời mời đã gửi — show endpoint có gender 0/1 */
 export function normalizeZaloSentFriendRequestItem(
   raw: unknown,

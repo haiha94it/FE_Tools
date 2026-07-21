@@ -12,6 +12,7 @@ import {
   formatConsentDateTime,
 } from "@/lib/consent-utils";
 import { getApiErrorMessage } from "@/lib/errors";
+import { isEmployeeUser } from "@/lib/team-collaboration-utils";
 import { toast } from "@/lib/toast";
 import { consentService } from "@/services/consent.service";
 import { useAuthStore } from "@/stores/use-auth-store";
@@ -50,17 +51,23 @@ function useMessageConsentStatus(options?: { fetchOnMount?: boolean }) {
 }
 
 /**
- * Nút Tải PDF — chỉ self đã approved (NV không có HĐ riêng).
+ * Nút Tải PDF — chỉ **quản lý** (đã approved).
+ * Nhân viên: không hiển thị (HĐ thuộc QL, NV không tải PDF).
  */
 export function MessageConsentToolbar() {
   const { ready, status } = useMessageConsentStatus({ fetchOnMount: false });
+  const authUser = useAuthStore((s) => s.user);
   const [pdfLoading, setPdfLoading] = useState(false);
+
+  // Ưu tiên role auth + flag consent BE (phòng status chưa load / thiếu is_employee)
+  const isEmployee =
+    isEmployeeUser(authUser) || consentIsEmployee(status);
 
   const canDownload =
     ready &&
+    !isEmployee &&
+    Boolean(status?.system_activated) &&
     consentCanUseChat(status) &&
-    status?.system_activated &&
-    !consentIsEmployee(status) &&
     status?.status === "approved";
 
   const handleDownloadPdf = useCallback(async () => {

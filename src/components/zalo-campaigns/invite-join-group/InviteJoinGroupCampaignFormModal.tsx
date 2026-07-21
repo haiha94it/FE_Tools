@@ -27,6 +27,10 @@ import {
   getZaloGroupAvatar,
   getZaloGroupDisplayName,
 } from "@/lib/zalo-contacts-utils";
+import {
+  SHOW_GROUP_LINK_FEATURES,
+  SHOW_INVITE_JOIN_GROUP_PHONE_TYPE,
+} from "@/config/feature-flags";
 import { getApiErrorMessage } from "@/lib/errors";
 import { toast } from "@/lib/toast";
 import { zaloFriendService } from "@/services/zalo-friend.service";
@@ -61,8 +65,12 @@ const textareaClassName =
 
 const INVITE_TYPES: { value: InviteJoinGroupType; label: string }[] = [
   { value: "friend", label: "Bạn bè" },
-  { value: "phone_number", label: "Số điện thoại" },
-  { value: "uids", label: "Thành viên link" },
+  ...(SHOW_INVITE_JOIN_GROUP_PHONE_TYPE
+    ? ([{ value: "phone_number" as const, label: "Số điện thoại" }] as const)
+    : []),
+  ...(SHOW_GROUP_LINK_FEATURES
+    ? ([{ value: "uids" as const, label: "Thành viên link" }] as const)
+    : []),
 ];
 
 const defaultStart = () => {
@@ -267,9 +275,19 @@ export default function InviteJoinGroupCampaignFormModal({
     setName(editingCampaign.name ?? "");
     setDelayTime(String(editingCampaign.delay_time ?? 350));
     setNumberCount(String(editingCampaign.number_count ?? 10));
-    setInviteType(editingCampaign.type ?? "friend");
+    {
+      let nextType = editingCampaign.type ?? "friend";
+      // Ẩn type không còn trên UI → fallback bạn bè
+      if (!SHOW_GROUP_LINK_FEATURES && nextType === "uids") nextType = "friend";
+      if (!SHOW_INVITE_JOIN_GROUP_PHONE_TYPE && nextType === "phone_number") {
+        nextType = "friend";
+      }
+      setInviteType(nextType);
+    }
     setSelectedAccountId(editingCampaign.account ?? null);
-    setGroupLink(editingCampaign.group_link ?? "");
+    setGroupLink(
+      SHOW_GROUP_LINK_FEATURES ? (editingCampaign.group_link ?? "") : "",
+    );
     setSelectedGroupId(editingCampaign.group ?? null);
     setPhoneNumbers(normalizePhoneNumbers(editingCampaign.phone_numbers));
     setSelectedFriendIds(editingCampaign.friend ?? []);
@@ -475,8 +493,13 @@ export default function InviteJoinGroupCampaignFormModal({
       toast.error("Chọn tài khoản Zalo để chạy kịch bản.");
       return;
     }
-    if (!selectedGroupId && !groupLink.trim()) {
-      toast.error("Chọn nhóm hoặc nhập link nhóm.");
+    if (SHOW_GROUP_LINK_FEATURES) {
+      if (!selectedGroupId && !groupLink.trim()) {
+        toast.error("Chọn nhóm hoặc nhập link nhóm.");
+        return;
+      }
+    } else if (!selectedGroupId) {
+      toast.error("Chọn nhóm Zalo để mời.");
       return;
     }
     const delay = Number(delayTime);
@@ -498,7 +521,11 @@ export default function InviteJoinGroupCampaignFormModal({
       toast.error("Nhập ít nhất một số điện thoại.");
       return;
     }
-    if (inviteType === "uids" && !selectedUids.length) {
+    if (
+      SHOW_GROUP_LINK_FEATURES &&
+      inviteType === "uids" &&
+      !selectedUids.length
+    ) {
       toast.error("Chọn ít nhất một thành viên từ link nhóm.");
       return;
     }
@@ -507,14 +534,17 @@ export default function InviteJoinGroupCampaignFormModal({
       id_category: editingCampaign?.id ?? null,
       name: trimmedName,
       id_account: selectedAccountId,
-      group_link: groupLink.trim() || undefined,
+      ...(SHOW_GROUP_LINK_FEATURES
+        ? { group_link: groupLink.trim() || undefined }
+        : {}),
       id_group: selectedGroupId,
-      type: inviteType,
+      type: inviteType === "uids" && !SHOW_GROUP_LINK_FEATURES ? "friend" : inviteType,
       delay_time: delay,
       number_count: count,
       from_time: formatTimeForApi(startTime),
       to_time: formatTimeForApi(endTime),
-      ...(inviteType === "friend"
+      ...(inviteType === "friend" ||
+      (inviteType === "uids" && !SHOW_GROUP_LINK_FEATURES)
         ? { id_friends: selectedFriendIds }
         : inviteType === "phone_number"
           ? { phone_numbers: splitLines(phoneNumbers) }
@@ -614,52 +644,56 @@ export default function InviteJoinGroupCampaignFormModal({
               </div>
             </div>
 
-            <div>
-              <p className="mb-2 text-xs font-medium text-gray-600 dark:text-gray-400">
-                Đối tượng mời
-              </p>
-              <div className="inline-flex w-full rounded-xl border border-gray-200 bg-gray-50/80 p-1 dark:border-gray-700 dark:bg-white/[0.03]">
-                {INVITE_TYPES.map((item) => (
-                  <button
-                    key={item.value}
-                    type="button"
-                    disabled={saving}
-                    onClick={() => setInviteType(item.value)}
-                    className={`flex-1 rounded-lg px-3 py-2 text-center text-xs font-medium transition ${
-                      inviteType === item.value
-                        ? "bg-white text-brand-600 shadow-theme-xs dark:bg-gray-900 dark:text-brand-400"
-                        : "text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200"
-                    }`}
-                  >
-                    {item.label}
-                  </button>
-                ))}
+            {INVITE_TYPES.length > 1 ? (
+              <div>
+                <p className="mb-2 text-xs font-medium text-gray-600 dark:text-gray-400">
+                  Đối tượng mời
+                </p>
+                <div className="inline-flex w-full rounded-xl border border-gray-200 bg-gray-50/80 p-1 dark:border-gray-700 dark:bg-white/[0.03]">
+                  {INVITE_TYPES.map((item) => (
+                    <button
+                      key={item.value}
+                      type="button"
+                      disabled={saving}
+                      onClick={() => setInviteType(item.value)}
+                      className={`flex-1 rounded-lg px-3 py-2 text-center text-xs font-medium transition ${
+                        inviteType === item.value
+                          ? "bg-white text-brand-600 shadow-theme-xs dark:bg-gray-900 dark:text-brand-400"
+                          : "text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200"
+                      }`}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+            ) : null}
 
-            <div>
-              <label className="mb-1.5 block text-xs font-medium text-gray-600 dark:text-gray-400">
-                Link nhóm Zalo
-              </label>
-              <div className="flex gap-2">
-                <Input
-                  value={groupLink}
-                  onChange={(e) => setGroupLink(e.target.value)}
-                  placeholder="https://zalo.me/g/..."
-                  disabled={saving}
-                />
-                {inviteType === "uids" ? (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={membersLoading || saving}
-                    onClick={() => void handleLoadLinkMembers()}
-                  >
-                    {membersLoading ? "Đang tải..." : "Tải TV"}
-                  </Button>
-                ) : null}
+            {SHOW_GROUP_LINK_FEATURES ? (
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                  Link nhóm Zalo
+                </label>
+                <div className="flex gap-2">
+                  <Input
+                    value={groupLink}
+                    onChange={(e) => setGroupLink(e.target.value)}
+                    placeholder="https://zalo.me/g/..."
+                    disabled={saving}
+                  />
+                  {inviteType === "uids" ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={membersLoading || saving}
+                      onClick={() => void handleLoadLinkMembers()}
+                    >
+                      {membersLoading ? "Đang tải..." : "Tải TV"}
+                    </Button>
+                  ) : null}
+                </div>
               </div>
-            </div>
+            ) : null}
 
             {inviteType === "phone_number" ? (
               <div>

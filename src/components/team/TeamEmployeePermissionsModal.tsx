@@ -2,6 +2,7 @@
 
 import Button from "@/components/ui/button/Button";
 import { Modal } from "@/components/ui/modal";
+import { SHOW_SPAM_LINK_GROUP_FEATURES } from "@/config/feature-flags";
 import { getApiErrorMessage } from "@/lib/errors";
 import { toast } from "@/lib/toast";
 import { teamPermissionsService } from "@/services/team-permissions.service";
@@ -22,6 +23,13 @@ const PERMISSION_LABELS: Record<CampaignTypeKey, string> = {
   auto_inbox: "Auto inbox",
 };
 
+/** Keys hiển thị trên UI (ẩn spam link khi flag tắt) */
+const VISIBLE_PERMISSION_KEYS = (
+  Object.keys(PERMISSION_LABELS) as CampaignTypeKey[]
+).filter(
+  (key) => SHOW_SPAM_LINK_GROUP_FEATURES || key !== "spam_link_group",
+);
+
 interface TeamEmployeePermissionsModalProps {
   employee: TeamEmployee | null;
   open: boolean;
@@ -37,7 +45,7 @@ export default function TeamEmployeePermissionsModal({
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const keys = useMemo(() => Object.keys(PERMISSION_LABELS) as CampaignTypeKey[], []);
+  const keys = useMemo(() => VISIBLE_PERMISSION_KEYS, []);
 
   useEffect(() => {
     if (!open || !employee) return;
@@ -46,7 +54,14 @@ export default function TeamEmployeePermissionsModal({
       setLoading(true);
       try {
         const data = await teamPermissionsService.getEmployeeCampaignPermissions(employee.id);
-        if (!cancelled) setPermissions(data.permissions);
+        if (!cancelled) {
+          const next = { ...data.permissions };
+          // Tạm tắt spam link — không bật lại qua UI khi flag off
+          if (!SHOW_SPAM_LINK_GROUP_FEATURES) {
+            next.spam_link_group = false;
+          }
+          setPermissions(next);
+        }
       } catch (error) {
         toast.error(getApiErrorMessage(error));
       } finally {
@@ -60,6 +75,7 @@ export default function TeamEmployeePermissionsModal({
 
   const toggle = (key: CampaignTypeKey) => {
     if (!permissions) return;
+    if (!SHOW_SPAM_LINK_GROUP_FEATURES && key === "spam_link_group") return;
     setPermissions({ ...permissions, [key]: !permissions[key] });
   };
 
@@ -67,9 +83,13 @@ export default function TeamEmployeePermissionsModal({
     if (!employee || !permissions) return;
     setSaving(true);
     try {
+      const payload = { ...permissions };
+      if (!SHOW_SPAM_LINK_GROUP_FEATURES) {
+        payload.spam_link_group = false;
+      }
       await teamPermissionsService.setEmployeeCampaignPermissions({
         employee_id: employee.id,
-        permissions,
+        permissions: payload,
       });
       toast.success("Đã lưu quyền chiến dịch.");
       onClose();

@@ -18,6 +18,7 @@ import {
   resolveConsentMediaUrl,
 } from "@/lib/consent-utils";
 import { getApiErrorMessage } from "@/lib/errors";
+import { dedupeInflight } from "@/lib/inflight";
 import { toast } from "@/lib/toast";
 import {
   getScanTaskStatus,
@@ -131,50 +132,60 @@ export default function ConsentSettingsPanel() {
   }, []);
 
   const loadGroups = useCallback(async (accountId: number) => {
-    setGroupsLoading(true);
-    try {
-      // detail: true → không gửi type=simple → đủ name/avatar/total_member
-      // (type=simple chỉ trả id + name tối thiểu)
-      const page = await zaloGroupService.list({
-        accountId,
-        page: 1,
-        pageSize: 200,
-        detail: true,
-      });
-      setGroups(page.results ?? []);
-    } catch (error) {
-      setGroups([]);
-      toast.error(getApiErrorMessage(error));
-    } finally {
-      setGroupsLoading(false);
-    }
+    // Dedupe: Strict Mode mount 2 lần / load + select cùng nick
+    return dedupeInflight(
+      `consent-settings:groups:${accountId}`,
+      async () => {
+        setGroupsLoading(true);
+        try {
+          // detail: true → không gửi type=simple → đủ name/avatar/total_member
+          const page = await zaloGroupService.list({
+            accountId,
+            page: 1,
+            pageSize: 200,
+            detail: true,
+          });
+          setGroups(page.results ?? []);
+        } catch (error) {
+          setGroups([]);
+          toast.error(getApiErrorMessage(error));
+        } finally {
+          setGroupsLoading(false);
+        }
+      },
+    );
   }, []);
 
   const load = useCallback(async () => {
-    setLoading(true);
-    setAccountsLoading(true);
-    try {
-      const [data, accounts] = await Promise.all([
-        consentService.getAdminSetup(),
-        zaloAccountService.list().catch(() => [] as ZaloAccount[]),
-      ]);
-      applySetup(data);
-      const activeAccounts = accounts.filter((a) => a.checkpoint !== true);
-      setZaloAccounts(activeAccounts);
+    // Dedupe bootstrap panel — React Strict Mode (dev) chạy effect 2 lần
+    return dedupeInflight("consent-settings:bootstrap", async () => {
+      setLoading(true);
+      setAccountsLoading(true);
+      try {
+        const [data, accounts] = await Promise.all([
+          consentService.getAdminSetup(),
+          dedupeInflight("consent-settings:accounts", () =>
+            zaloAccountService.list().catch(() => [] as ZaloAccount[]),
+          ),
+        ]);
+        applySetup(data);
+        const activeAccounts = accounts.filter((a) => a.checkpoint !== true);
+        setZaloAccounts(activeAccounts);
 
-      const accountId =
-        data.notify_zalo_account_id ?? data.notify_zalo_account?.id ?? null;
-      if (accountId) {
-        await loadGroups(accountId);
-      } else {
-        setGroups([]);
+        const accountId =
+          data.notify_zalo_account_id ?? data.notify_zalo_account?.id ?? null;
+        if (accountId) {
+          await loadGroups(accountId);
+        } else {
+          setGroups([]);
+        }
+      } catch (error) {
+        toast.error(getApiErrorMessage(error));
+      } finally {
+        setLoading(false);
+        setAccountsLoading(false);
       }
-    } catch (error) {
-      toast.error(getApiErrorMessage(error));
-    } finally {
-      setLoading(false);
-      setAccountsLoading(false);
-    }
+    });
   }, [applySetup, loadGroups]);
 
   useEffect(() => {
@@ -587,7 +598,7 @@ export default function ConsentSettingsPanel() {
         </div>
 
         <div>
-          <Label>1. Nick Zalo gửi tin nhóm</Label>
+          <Label>1. Nick Zalo gửi thông báo</Label>
           {accountsLoading ? (
             <p className="py-4 text-center text-sm text-gray-500">
               Đang tải danh sách nick...
@@ -645,7 +656,7 @@ export default function ConsentSettingsPanel() {
 
         <div>
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <Label>2. Nhóm nhận @All</Label>
+            <Label>2. Nhóm nhận thông báo</Label>
             <Button
               type="button"
               size="sm"

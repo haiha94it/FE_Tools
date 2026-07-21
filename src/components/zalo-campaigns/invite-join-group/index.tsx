@@ -170,7 +170,7 @@ export default function InviteJoinGroupCampaignView() {
 
       <ComponentCard
         title="Chiến dịch mời bạn bè tham gia nhóm"
-        desc="Chọn tài khoản, nhóm Zalo và mời bạn bè / SĐT / thành viên link vào nhóm"
+        desc="Chọn tài khoản, nhóm Zalo và mời bạn bè vào nhóm"
         fill
       >
         <div className="mb-4 flex min-h-0 flex-1 flex-col gap-4">

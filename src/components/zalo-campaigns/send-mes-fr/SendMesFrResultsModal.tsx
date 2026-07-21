@@ -196,6 +196,9 @@ export default function SendMesFrResultsModal({
                     <TableCell isHeader className={headerClass}>
                       Nội dung
                     </TableCell>
+                    <TableCell isHeader className={`${headerClass} w-16`}>
+                      Media
+                    </TableCell>
                     <TableCell isHeader className={headerClass}>
                       Trạng thái
                     </TableCell>
@@ -204,7 +207,10 @@ export default function SendMesFrResultsModal({
                 <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
                   {results.map((row) => {
                     const account = accountMap.get(row.account);
-                    const thumb = row.thumb_url || row.images?.[0];
+                    const thumbRaw = row.thumb_url || row.images?.[0] || "";
+                    const thumbSrc = thumbRaw
+                      ? getSendMesFrMediaUrl(thumbRaw)
+                      : "";
                     return (
                       <TableRow key={row.id}>
                         <TableCell className="px-4 py-3">
@@ -223,22 +229,29 @@ export default function SendMesFrResultsModal({
                           {row.name || "—"}
                         </TableCell>
                         <TableCell className="max-w-[240px] px-4 py-3 text-theme-sm">
-                          <div className="flex items-start gap-2">
-                            {thumb ? (
-                              <span className="relative block h-10 w-10 shrink-0 overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
-                                <Image
-                                  src={getSendMesFrMediaUrl(thumb)}
-                                  alt=""
-                                  fill
-                                  unoptimized
-                                  className="object-cover"
-                                />
-                              </span>
-                            ) : null}
-                            <span className="line-clamp-3 break-words text-gray-700 dark:text-gray-300">
-                              {row.content || "—"}
-                            </span>
-                          </div>
+                          <span className="line-clamp-3 break-words text-gray-700 dark:text-gray-300">
+                            {row.content || "—"}
+                          </span>
+                        </TableCell>
+                        <TableCell className="px-4 py-3">
+                          {thumbSrc ? (
+                            <a
+                              href={thumbSrc}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="relative block h-12 w-12 shrink-0 overflow-hidden rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800"
+                              title="Xem media"
+                            >
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={thumbSrc}
+                                alt=""
+                                className="size-full object-cover"
+                              />
+                            </a>
+                          ) : (
+                            <span className="text-theme-xs text-gray-400">—</span>
+                          )}
                         </TableCell>
                         <TableCell className="px-4 py-3 text-theme-sm">
                           {(() => {
