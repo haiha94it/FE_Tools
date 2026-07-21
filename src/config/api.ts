@@ -116,6 +116,13 @@ export const API_ZALO_PHONE_INVITE_GROUP_CAMPAIGN =
 export const PHONE_INVITE_GROUP_CAMPAIGN_BASE =
   "/zalo-campaigns/phone-number-invite-group";
 
+/**
+ * Picker nhóm chung multi-nick (dùng chung spam/invite/mess-member).
+ * POST body: { id_accounts, keyword? } — không gắn prefix campaign con.
+ * Path cũ .../spam-link-group|invite-phone-group/.../all-group/ đã bị BE xóa.
+ */
+export const API_CAMPAIGN_ALL_GROUP = "/api/campaign/all-group/";
+
 /** Chiến dịch nhắn tin bạn bè — /api/campaign/mess-friend/category/ */
 export const API_ZALO_SEND_MES_FR_CAMPAIGN =
   buildCampaignApiPaths("mess-friend");

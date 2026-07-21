@@ -1,489 +1,612 @@
-# FE — Friend: gợi ý kết bạn + lời mời đã gửi
+# Hướng dẫn FE — Multi-nick Mess Member Group + All-group chung + Excel
 
-**Cập nhật:** 2026-07-21  
-**Base:** `/api/friend/` · JWT · envelope `{ success, message, data }`  
-**Pattern Celery:** mô hình A — **cùng URL** start + poll `id_task` (**không** invent `/result`).  
-Phần 1–10: **gợi ý kết bạn**. Phần 11+: **lời mời đã gửi** (show + thu hồi).
+**Trạng thái:** Guide theo design **đã chốt** (BE implement sau APPROVED).  
+**Ngày:** 2026-07-21  
+**Design BE:** `campaign-mess-member-group-multi-nick-design.md`  
+**Logic runtime cũ (sẽ thay):** `campaign-mess-member-group-logic.md`
 
----
-
-## 1. API có trên BE / test?
-
-| Path | Code | `testcare` (OPTIONS) |
-|------|------|----------------------|
-| `POST /api/friend/friend-recommend/get` | Có | 403 (cần JWT — **không** 404) |
-| `POST /api/friend/friend-recommend/accept` | Có | 403 (cần JWT — **không** 404) |
-| `POST /api/friend/friend-recommend/remove` | Có | 403 (cần JWT — **không** 404) |
-
-Register: `Zalo/urls.py` → `api/friend/` → `friends/urls.py`.
+Envelope API chung Care: `success` / `message` / `data` / `error_code` (xem skill `api-envelope` / pattern project).  
+Mọi request dưới đây cần **auth** (token như các API campaign khác).
 
 ---
 
-## 2. Tóm tắt UX
+## 0. Tóm tắt thay đổi FE phải làm
 
-| Nút UI | API | Ý |
-|--------|-----|---|
-| Tải / làm mới gợi ý | `friend-recommend/get` | Lấy list gợi ý + lời mời từ Zalo |
-| **Kết bạn** / chấp nhận gợi ý | `friend-recommend/accept` | Accept lời mời (reqsrc=41) |
-| **Bỏ qua** / xóa gợi ý | `friend-recommend/remove` | Gỡ item khỏi recommend |
+| # | Việc | Ảnh hưởng màn |
+|---|------|----------------|
+| 1 | **Gom all-group** → 1 URL mới; **xóa** gọi path spam/invite cũ | Spam link, Invite SĐT nhóm, Mess TV nhóm, mọi picker “nhóm chung multi-nick” |
+| 2 | **Mess-member** multi-nick + globalId (breaking form create/edit) | Màn Nhắn TV nhóm |
+| 3 | API **members** mới (list TV theo global) | Màn Nhắn TV nhóm — bước chọn TV |
+| 4 | `assign_mode` chia / all | Form mess-member |
+| 5 | Edit khi **đang chạy**: chỉ tin/media | Form mess-member |
+| 6 | Results: filter nick + thời gian; **Excel client** | Kết quả / thống kê mess-member |
+
+**Không** còn:
+
+- `id_account` (1 nick) → dùng `id_accounts[]`
+- `id_group` + `uids[]` → `group_global_id` + `member_global_ids[]`
+- `list_uid` trên detail
 
 ---
 
-## 3. Poll Celery (chung 3 API)
+## 1. All-group dùng chung (bắt buộc đổi mọi màn liên quan)
 
-```text
-1) POST body start → HTTP 202, data.id_task
-2) Lặp POST cùng URL + { "id_task": "<id>" }
-3) task_status PENDING|PROGRESS → chờ
-4) task_status SUCCESS → data.result
-5) success=false / CELERY_TASK_FAILED → toast lỗi
-```
+### 1.1 URL
 
-**Cấm:** `GET /api/friend/friend-recommend/result` → 404.
+| Trước (XÓA — BE dọn code, không alias) | Sau (DÙNG) |
+|----------------------------------------|------------|
+| `POST /api/campaign/spam-link-group/category/all-group/` | **`POST /api/campaign/all-group/`** |
+| `POST /api/campaign/invite-phone-group/category/all-group/` | **cùng URL trên** |
+| (mess-member không có / hoặc path riêng) | **cùng URL trên** |
 
-### Envelope
+### 1.2 Request
 
-**Start (202):**
+```http
+POST /api/campaign/all-group/
+Authorization: Bearer <token>
+Content-Type: application/json
 
-```json
 {
-  "success": true,
-  "message": "Đã nhận",
-  "data": { "id_task": "celery-uuid..." }
+  "id_accounts": [101, 102, 103],
+  "keyword": ""
 }
 ```
 
-**Poll đang chạy (202):**
-
-```json
-{
-  "success": true,
-  "message": "Đang xử lý",
-  "data": { "task_status": "PENDING" }
-}
-```
-
-**Poll xong (200):**
-
-```json
-{
-  "success": true,
-  "message": "Thành công",
-  "data": {
-    "task_status": "SUCCESS",
-    "result": { }
-  }
-}
-```
-
----
-
-## 4. `POST /api/friend/friend-recommend/get`
-
-Lấy danh sách gợi ý kết bạn / lời mời liên quan recommend.
-
-### Start body
-
-```json
-{ "id_account": 28 }
-```
-
-| Field | Bắt buộc | |
-|-------|----------|--|
-| `id_account` | Có | PK ZaloAccount (owner hoặc NV được gán nick) |
-
-### Poll body
-
-```json
-{ "id_task": "..." }
-```
-
-### `data.result` khi SUCCESS
-
-**Mảng** item Zalo (raw). FE map hiển thị list.
-
-Gợi ý field hay gặp (tùy Zalo, defensive parse):
-
-| Field | Dùng cho |
-|-------|----------|
-| `userId` | UID Zalo người kia → **accept** truyền `fid` = giá trị này |
-| `zaloName` / tên | Label |
-| `avatar` | Avatar |
-| `type` | BE filter nội bộ: `friend_request` = lời mời; item khác = gợi ý |
-
-Ví dụ (minh họa):
-
-```json
-{
-  "task_status": "SUCCESS",
-  "result": [
-    {
-      "userId": "123456789",
-      "zaloName": "Nguyen Van A",
-      "avatar": "https://...",
-      "type": "friend_request"
-    }
-  ]
-}
-```
-
-Sau get: BE có thể sync incoming request DB nền — FE **không** cần gọi thêm.
-
----
-
-## 5. `POST /api/friend/friend-recommend/accept`
-
-Chấp nhận kết bạn từ gợi ý / lời mời recommend.
-
-### Start body
-
-```json
-{
-  "id_account": 28,
-  "fid": "123456789"
-}
-```
-
-| Field | Bắt buộc | |
-|-------|----------|--|
-| `id_account` | Có | Nick thao tác |
-| `fid` | Có | **UID Zalo** người accept (`userId` từ list get) |
-
-### Poll
-
-```json
-{ "id_task": "..." }
-```
-
-### SUCCESS
-
-`data.result` dạng envelope Zalo OK, message kiểu *Đã chấp nhận kết bạn thành công*.  
-BE cập nhật `FriendModel.relation_status = FRIEND` nếu có row.
-
-FE: toast success → **remove item** khỏi UI list hoặc **get lại** list.
-
-### Lỗi hay gặp
-
-- Limit add friend → message từ Zalo / task fail  
-- Nick checkpoint / proxy → resolve fail  
-
----
-
-## 6. `POST /api/friend/friend-recommend/remove`
-
-Bỏ gợi ý / xóa lời mời phía recommend.
-
-### Start body
-
-```json
-{
-  "id_account": 28,
-  "fid": "123456789"
-}
-```
-
-| Field | Bắt buộc | |
-|-------|----------|--|
-| `id_account` | Có | |
-| `fid` | Có* | ID Zalo dùng remove request (cùng `userId` / fid item — **string**) |
-
-\*View: `fid` có thể null nhưng task Zalo cần id hợp lệ — FE **luôn gửi** `fid`.
-
-### Poll
-
-```json
-{ "id_task": "..." }
-```
-
-### SUCCESS
-
-`data.result` Zalo OK. FE: gỡ card khỏi list local.
-
----
-
-## 7. Flow UI gợi ý kết bạn
-
-```
-[Mở màn gợi ý]
-  → POST get { id_account }
-  → poll get
-  → render data.result[]
-
-[Kết bạn / Chấp nhận]
-  → POST accept { id_account, fid: item.userId }
-  → poll accept
-  → success: remove card + toast
-
-[Bỏ qua / Xóa]
-  → POST remove { id_account, fid: item.userId }
-  → poll remove
-  → success: remove card
-```
-
-### Pseudo poll helper
-
-```ts
-async function runFriendRecommend(
-  path: "get" | "accept" | "remove",
-  body: Record<string, unknown>,
-) {
-  const start = await api.post(`/api/friend/friend-recommend/${path}`, body);
-  const id_task = start.data?.id_task;
-  if (!id_task) throw new Error(start.message || "Không có id_task");
-
-  for (;;) {
-    await sleep(800);
-    const poll = await api.post(`/api/friend/friend-recommend/${path}`, { id_task });
-    if (!poll.success) throw new Error(poll.message);
-    const st = poll.data?.task_status;
-    if (st === "SUCCESS") return poll.data.result;
-    if (st === "PENDING" || st === "PROGRESS") continue;
-    // 202 không task_status hiếm — retry
-  }
-}
-```
-
----
-
-## 8. Quyền nick
-
-- `get_account_for_user` — manager owner **hoặc** NV được gán nick.  
-- JWT bắt buộc.
-
----
-
-## 9. Checklist FE
-
-| # | Pass |
-|---|------|
-| R1 | 3 path đúng prefix `/api/friend/friend-recommend/...` |
-| R2 | Poll **cùng URL**, body `id_task` — không `/result` |
-| R3 | accept/remove: `fid` = `userId` string từ get |
-| R4 | get SUCCESS: `result` là **array** |
-| R5 | Disable nút khi poll; toast lỗi task |
-| R6 | Sau accept/remove: cập nhật UI list |
-
----
-
-## 10. Lưu ý (recommend)
-
-- Accept = `add_friend_by_uid(..., reqsrc=41)` — khác `add-friend` thường.  
-- Remove recommend = Zalo `recommendsv2/remove`.  
-- Chi tiết poll vs campaign: `backend_logic_guide.md` §15.16.
-
----
-
-## 11. Lời mời đã gửi — có thu hồi không?
-
-| Path | Method | Có? | Ý |
-|------|--------|-----|---|
-| `/api/friend/sent-request/show` | **GET** | Có | **List** lời mời đã gửi (DB) — **không** thu hồi |
-| `/api/friend/sent-request/get` | **POST** | Có | Sync list từ Zalo (Celery) |
-| `/api/friend/sent-request/remove` | **POST** | **Có** | **Thu hồi** lời mời đã gửi (Celery) |
-
-**Kết luận:** `show` chỉ đọc. Thu hồi = **`POST sent-request/remove`** với `fids` (mảng **uid** Zalo).
-
----
-
-## 12. `GET /api/friend/sent-request/show`
-
-### Query
-
-| Param | Bắt buộc | Mặc định | |
-|-------|----------|----------|--|
-| `id_account` | **Có** | — | PK ZaloAccount |
-| `page` | Không | 1 | DRF page |
-| `number_per_page` | Không | 300 | page size |
-
-Ví dụ: `GET /api/friend/sent-request/show?id_account=25&page=1&number_per_page=50`
-
-### Response (paginated envelope)
+| Field | Bắt buộc | Mô tả |
+|-------|----------|--------|
+| `id_accounts` | Có | Mảng id nick Zalo user được phép dùng |
+| `keyword` | Không | Lọc tên nhóm (icontains), `""` hoặc omit = full |
+
+**Quyền:** user login + nick thuộc team/accessible.  
+**Không** cần permission từng loại campaign (spam / invite / mess) để gọi picker này.
+
+### 1.3 Response (chuẩn mới)
 
 ```json
 {
   "success": true,
   "message": "OK",
-  "data": {
-    "count": 2,
-    "next": null,
-    "previous": null,
-    "results": [
-      {
-        "id": 101,
-        "uid": "123456789",
-        "name": "Nguyen Van A",
-        "alias_name": "",
-        "avatar": "https://...",
-        "gender": null,
-        "sdob": null,
-        "relation_status": 2,
-        "isBlocked": false,
-        "created_at": "2026-07-20T...",
-        "category_messages": []
-      }
-    ]
-  }
+  "data": [
+    {
+      "id": 55,
+      "uid": "group_uid_cua_nick_dau",
+      "name": "Nhóm bán hàng",
+      "avt": "https://...",
+      "total_member": 320,
+      "link_group": "https://zalo.me/g/xxxx",
+      "is_joined": true,
+      "is_blocked_chat": false,
+      "globalId": "GROUP_GLOBAL_XXX"
+    }
+  ]
 }
 ```
 
-| Field | Ý FE |
-|-------|------|
-| `id` | PK `FriendModel` (DB) — **không** dùng cho remove Zalo |
-| `uid` | **UID Zalo** — dùng trong `fids` khi thu hồi |
-| `name` / `avatar` | Hiển thị |
-| `relation_status` | `2` = OUTGOING (đã gửi) |
+| Field | Dùng cho |
+|-------|----------|
+| `globalId` | **Mess-member:** lưu `group_global_id` khi tạo kịch bản |
+| `id` | Instance `GroupModel` của **nick đầu** trong `id_accounts` (tiện UI); **không** dùng làm identity multi-nick |
+| `name`, `avt`, `total_member` | Render list |
+| `link_group` | Invite/spam nếu cần link; mess-member **không bắt** link |
 
-Không có bản ghi → `count: 0`, `results: []` (**không** 404).
+### 1.4 Hành vi match (BE)
 
-Quyền: `get_account_for_user` (owner hoặc NV gán nick).
+- Gộp nhóm theo **`globalId`**, **không** còn so tên + avatar.  
+- 1 nick → mọi nhóm joined (đã có global).  
+- ≥2 nick → chỉ nhóm **mọi nick đều join** (cùng globalId).  
+- Nhóm chưa gắn global → **không hiện** (user cần sync/quét nhóm).
+
+### 1.5 Checklist FE all-group
+
+- [ ] Thay base URL / function API chung `fetchCommonGroups(id_accounts, keyword)`  
+- [ ] Xóa call path `spam-link-group/.../all-group/` và `invite-phone-group/.../all-group/`  
+- [ ] Spam link form: dùng `name`/`avt`/`link_group` như product hiện tại (từ response mới)  
+- [ ] Invite phone: tương tự  
+- [ ] Mess-member: **bắt buộc** lấy `globalId` → state `group_global_id`  
+- [ ] Empty state: “Không có nhóm chung / chưa sync global”  
 
 ---
 
-## 13. `POST /api/friend/sent-request/remove` — thu hồi lời mời
+## 2. Luồng UI Mess-member (multi-nick) — end to end
 
-Celery poll **cùng URL**.
+```text
+1. Chọn nhiều nick (id_accounts)
+2. POST /api/campaign/all-group/ → list nhóm chung
+3. User chọn 1 nhóm → lưu group_global_id (= data[i].globalId)
+4. POST .../mess-member-group/category/members/
+      { id_accounts, group_global_id }
+   → list TV (member_global_id, name, avatar, accounts_ready…)
+5. User chọn TV → member_global_ids[]
+6. Chọn assign_mode: "distribute" | "all"
+7. Bật send_message / add_friend + nội dung + media + khung giờ
+8. POST category/ (tạo) hoặc PUT category/<id>/
+9. POST category/start/ { id_categories, type: "new" }
+10. WS status + GET results / statistics + Excel client
+```
 
-### Start body
+### 2.1 `assign_mode` (giải thích UI)
 
-```json
+| Value | Label UI gợi ý | Ý nghĩa |
+|-------|----------------|---------|
+| `distribute` | **Chia thành viên cho các nick** | Mỗi TV chỉ **1 nick** xử lý; mỗi nhịp BE gán động cho nick đang “đạt” |
+| `all` | **Mọi nick gửi tất cả thành viên** | Mỗi TV bị **mọi nick** tương tác (nhiều lượt hơn) |
+
+**Không nhầm** với API `all-group` (chỉ là picker nhóm).
+
+### 2.2 Gợi ý copy UI
+
+- Chia: *“Hệ thống chia TV cho các nick còn hoạt động mỗi phiên; nick lỗi không ‘ôm’ TV.”*  
+- All: *“Mỗi nick sẽ lần lượt nhắn/kết bạn toàn bộ TV đã chọn (số lượt ≈ nick × TV).”*  
+- Cảnh báo mode all khi `id_accounts.length * member_global_ids.length` lớn (vd > 2000) — optional toast.
+
+---
+
+## 3. API Mess-member chi tiết
+
+Base: `/api/campaign/mess-member-group/`
+
+### 3.1 List kịch bản
+
+```http
+GET /api/campaign/mess-member-group/category/
+```
+
+**Response item (basic) — field quan trọng:**
+
+| Field | Ghi chú |
+|-------|---------|
+| `id`, `name`, `status`, `start_time` | Như cũ |
+| `member_count` | `len(list_member_global)` — **không** còn `list_uid_count` |
+| `is_mine`, `created_by`, `status_label` | Team collab |
+| (detail) `assign_mode`, `accounts`, `group_global_id` | Lấy ở GET detail |
+
+**Status category (giữ):**
+
+| status | UI |
+|--------|-----|
+| 4 | Chưa chạy |
+| 1 | Đang chạy |
+| 0 | Tạm dừng |
+| 2 | Hoàn thành |
+| 3 | Dừng do limit/chặn |
+
+WS (như cũ): event `status_category_mess_mem_group` trên group `campaign_{userId}` — payload `{ id, status }`.
+
+### 3.2 List thành viên nhóm (API mới)
+
+```http
+POST /api/campaign/mess-member-group/category/members/
+Content-Type: application/json
+
 {
-  "id_account": 25,
-  "fids": ["123456789", "987654321"]
+  "id_accounts": [101, 102],
+  "group_global_id": "GROUP_GLOBAL_XXX"
 }
 ```
 
-| Field | Bắt buộc | |
-|-------|----------|--|
-| `id_account` | Có | Nick |
-| `fids` | Có (mảng, không rỗng) | **UID Zalo** — lấy từ `results[].uid` của show (hoặc sync get) |
-
-Thiếu list → `error_code: MISSING_LIST`.
-
-### Poll body
-
-```json
-{ "id_task": "..." }
-```
-
-### SUCCESS
-
-`data.result` = mảng per-uid:
+**Response `data`:** mảng
 
 ```json
 [
-  { "uid": "123456789", "success": true, "message": "..." },
-  { "uid": "987654321", "success": false, "message": "..." }
+  {
+    "member_global_id": "MEM_G1",
+    "name": "Nguyễn Văn A",
+    "avatar": "https://...",
+    "is_admin": false,
+    "is_creator": false,
+    "accounts_ready": [101, 102],
+    "accounts_missing_friend": []
+  }
 ]
 ```
 
-(Field exact theo envelope Zalo + `uid` gộp; FE check từng phần tử.)
+| Field | FE dùng |
+|-------|---------|
+| `member_global_id` | Checkbox value → `member_global_ids` lúc save |
+| `name`, `avatar` | Render list |
+| `accounts_ready` | Nick đã quét/có Friend với TV này (chỉ gợi ý UI) |
+| `accounts_missing_friend` | Nick chưa có Friend — **không chặn chọn/lưu** |
 
-FE: toast → **remove** row khỏi list local (hoặc gọi lại `show`).
+**UI gợi ý (chốt product):**
 
-### Một người
+- Hiện badge “X/Y nick sẵn sàng” = `accounts_ready.length / id_accounts.length`  
+- **Cho chọn & lưu** kể cả `0/Y` hoặc `k/Y` (k &lt; Y) — **không** disable, **không** chặn submit vì “chưa quét”  
+- Tooltip gợi ý: *“Nick chưa quét TV này sẽ tự bỏ qua khi chạy; không bắt quét lại mới lưu.”*  
+- Optional filter UI “chỉ hiện TV ≥1 nick sẵn sàng” — **không** bắt buộc  
+- Disable / ẩn chính các nick (self) — BE đã exclude  
+
+**Runtime BE:**
+
+- Chỉ gán TV cho nick **có Friend** với TV đó  
+- TV **0 nick** quét được → **bỏ khỏi queue** (skip), kịch bản chạy TV còn lại  
+- Nick thiếu Friend với 1 TV → **không gán** cặp đó; mode chia: nick khác (có Friend) vẫn có thể nhận TV; mode all: cặp nick×TV đó skip  
+
+**Lưu ý:** Không dùng `friend.uid` từ API group cũ làm identity lưu. Chỉ **`member_global_id`**.
+
+### 3.3 Tạo kịch bản
+
+```http
+POST /api/campaign/mess-member-group/category/
+```
 
 ```json
-{ "id_account": 25, "fids": ["123456789"] }
+{
+  "name": "Chào TV nhóm VIP",
+  "id_accounts": [101, 102],
+  "group_global_id": "GROUP_GLOBAL_XXX",
+  "member_global_ids": ["MEM_G1", "MEM_G2", "MEM_G3"],
+  "assign_mode": "distribute",
+  "send_message": true,
+  "add_friend": true,
+  "contents": ["Chào [name]! [r]"],
+  "first_messages": ["Xin chào [name], cho mình kết bạn nhé"],
+  "type": null,
+  "images": [],
+  "id_video": null,
+  "id_album": null,
+  "delay_time": 90,
+  "number_count": 30,
+  "from_time": "08:00:00",
+  "to_time": "21:00:00"
+}
 ```
 
----
+#### Field bắt buộc / rule
 
-## 14. `POST /api/friend/sent-request/get` (optional sync)
+| Field | Rule |
+|-------|------|
+| `name` | Có, unique theo user |
+| `id_accounts` | ≥1, nick hợp lệ team |
+| `group_global_id` | Có — từ all-group |
+| `member_global_ids` | ≥1 — từ members/ |
+| `assign_mode` | `distribute` \| `all` (default BE: `distribute` nếu omit) |
+| `send_message` / `add_friend` | Ít nhất **1** true |
+| `first_messages` | Bắt buộc non-empty nếu `add_friend` |
+| `contents` / media | Nếu `send_message`: có text hoặc `type` image/video/album |
+| `delay_time`, `number_count` | Số nguyên > 0 |
+| `from_time`, `to_time` | **`HH:MM:SS`** (vd `08:00:00`) |
 
-Kéo list lời mời đã gửi **từ Zalo** (Celery), cập nhật DB nền. UI list chính nên dùng **`show`** (nhanh, DB).
+#### Media (giống campaign mess khác)
+
+| `type` | Field |
+|--------|--------|
+| omit / null | Chỉ text `contents` |
+| `"image"` | `images: ["media/..."]` — tối đa 1 ảnh jpg/jpeg/png |
+| `"video"` | `id_video` |
+| `"album"` | `id_album` |
+
+Placeholder: `[name]`, `[r]`, `[gender]`.
+
+#### Lỗi hay gặp (handle UI)
+
+| error / message | Hành động FE |
+|-----------------|--------------|
+| Nick chưa join / chưa global group | Bỏ nick hoặc sync nhóm |
+| (đã bỏ) ACCOUNTS_NOT_SCANNED | **Không còn** reject vì nick chưa quét Friend — cho lưu, runtime skip |
+| Phải chọn nhắn tin hoặc kết bạn | Bật 1 flag |
+| TIME_WINDOW_* | Nới khung giờ hoặc giảm `number_count`/`delay_time` |
+
+### 3.4 Chi tiết / Sửa
+
+```http
+GET /api/campaign/mess-member-group/category/<id>/
+PUT|PATCH /api/campaign/mess-member-group/category/<id>/
+```
+
+**GET detail:** full fields gồm `accounts` (ids), `group_global_id`, `list_member_global`, `assign_mode`, media, times, `status`…
+
+**Khi `status === 1` (đang chạy):**
+
+| Cho sửa | Không cho sửa (disable UI + BE reject) |
+|---------|----------------------------------------|
+| `contents`, `first_messages` | `id_accounts` |
+| `type`, `images`, `id_video`, `id_album` | `group_global_id` |
+| | `member_global_ids` / list TV |
+| | `assign_mode` |
+| | (không đổi cấu trúc queue) |
+
+Nhịp **sau** dùng nội dung/media mới.
+
+**Khi `status` ∈ {0, 2, 3, 4}:** cho sửa full (rồi start lại `type: "new"` nếu cần rebuild queue).
+
+### 3.5 Copy
+
+```http
+POST /api/campaign/mess-member-group/category/<id>/copy/
+{ "name": "Tên mới" }
+```
+
+Copy accounts, group, members, mode, media… — status chưa chạy.
+
+### 3.6 Start / Stop
+
+```http
+POST /api/campaign/mess-member-group/category/start/
+{
+  "id_categories": [10],
+  "type": "new"
+}
+```
+
+| `type` | Ý nghĩa |
+|--------|---------|
+| `"new"` | Chạy lại từ đầu: pool TV = full `member_global_ids` đã lưu |
+| omit / khác | Tiếp tục queue còn lại (nếu đã hết → lỗi hoàn thành) |
+
+```http
+POST /api/campaign/mess-member-group/category/stop/
+{ "id_categories": [10] }
+```
+
+### 3.7 Xóa kịch bản
+
+```http
+DELETE /api/campaign/mess-member-group/category/<id>/
+```
+
+### 3.8 Kết quả (results)
+
+```http
+GET /api/campaign/mess-member-group/category/<id>/results/?page=1&number_per_page=100&id_account=101&start_time=...&end_time=...
+```
+
+| Query | Mô tả |
+|-------|--------|
+| `page`, `number_per_page` | Phân trang (default ~100) |
+| `id_account` | Optional — lọc log theo **1 nick** |
+| `start_time`, `end_time` | Optional — lọc theo thời gian tạo log (BE: format thống nhất; FE pad full ngày nếu chỉ chọn 1 ngày — vd 20/07 00:00–23:59:59) |
+
+**Item log (giữ UX cũ):**
+
+| Field | Ý nghĩa UI |
+|-------|------------|
+| `created_at` | Thời điểm |
+| `account` | Nick gửi (id) — map tên/avatar nick từ store nick |
+| `name` | Tên người nhận (snapshot) |
+| `content` / `first_message` | Nội dung đã gửi / lời KB |
+| `images`, `thumb_url` | Media |
+| `status_send_message` | 1 OK · 0 lỗi · 3 limit · 2 N/A |
+| `status_send_message_message` | Lý do fail tin |
+| `status_add_friend` | tương tự |
+| `status_add_friend_message` | Lý do fail KB / “Đã là bạn bè” |
+
+**Xóa log:**
+
+```http
+DELETE /api/campaign/mess-member-group/category/<id>/results/
+{ "id_results": [1, 2, 3] }
+```
+
+### 3.9 Statistics
+
+```http
+GET /api/campaign/mess-member-group/statistics/?id_category=10&start_time=20-07-2026&end_time=20-07-2026
+```
+
+Format ngày thống kê (BE hiện tại): **`%d-%m-%Y`**.
+
+**Response `data`:**
 
 ```json
-// start
-{ "id_account": 25 }
-// poll
-{ "id_task": "..." }
+{
+  "add_friend_success": 10,
+  "add_friend_failure": 2,
+  "send_message_success": 12,
+  "send_message_failure": 1
+}
 ```
 
-Sau SUCCESS: refresh `GET show`.
+(FE có thể thêm card theo nick bằng cách aggregate client từ results `?id_account=` nếu cần.)
 
 ---
 
-## 15. Flow UI — tab “Đã gửi lời mời”
+## 4. Xuất Excel (client-side — không API file BE)
 
+### 4.1 Nguyên tắc
+
+- BE **không** trả file `.xlsx`.  
+- FE gọi **results** (và/hoặc statistics) → build sheet → download (SheetJS / ExcelJS / CSV).  
+- Giống hướng “lấy data statistics/results rồi FE tự xuất” trước đây.
+
+### 4.2 Excel theo khung thời gian (use case)
+
+User chạy 3 ngày nhưng chỉ muốn **ngày 20/7**:
+
+1. Date range picker: start = `20/07/2026 00:00:00`, end = `20/07/2026 23:59:59` (hoặc map sang query BE).  
+2. Optional: filter `id_account` nếu chỉ 1 nick.  
+3. Fetch results (có thể multi-page):
+
+```text
+page=1..N, number_per_page=200
+id_account?
+start_time / end_time = range đã chọn
 ```
-[Mở tab]
-  → GET show?id_account=
-  → render results[] (name, avatar, uid)
 
-[Thu hồi 1 người]
-  → POST remove { id_account, fids: [row.uid] }
-  → poll remove
-  → success: gỡ row
+4. Gộp `data.results` (hoặc field paginated envelope project) thành 1 mảng.  
+5. Map cột Excel → download.
 
-[Thu hồi nhiều]
-  → fids: selectedUids
-  → poll → refresh list
+### 4.3 Cột Excel gợi ý (1 sheet “Kết quả”)
 
-[Làm mới từ Zalo] (optional)
-  → POST get { id_account } → poll
-  → GET show lại
+| Cột | Nguồn field |
+|-----|-------------|
+| Thời gian | `created_at` (format `DD/MM/YYYY HH:mm:ss`) |
+| Nick (id) | `account` |
+| Nick (tên) | map từ cache ZaloAccount FE |
+| Người nhận | `name` |
+| Nội dung tin | `content` |
+| Lời kết bạn | `first_message` |
+| TT gửi tin | map status_send_message → text |
+| Lý do tin | `status_send_message_message` |
+| TT kết bạn | map status_add_friend |
+| Lý do KB | `status_add_friend_message` |
+| Ảnh/Video | có/không hoặc URL |
+
+**Map status → text:**
+
+| Code | Text |
+|------|------|
+| 1 | Thành công |
+| 0 | Thất bại |
+| 3 | Hạn chế / limit |
+| 2 | Không chạy |
+
+### 4.4 Sheet “Tóm tắt” (optional)
+
+Gọi `statistics` cùng range (nếu stats filter theo ngày) hoặc đếm client từ rows:
+
+| Metric | |
+|--------|--|
+| Gửi tin OK / fail | count status |
+| Kết bạn OK / fail | count status |
+| Tổng dòng | length |
+| Theo nick | groupBy `account` |
+
+### 4.5 Pseudo-code FE
+
+```javascript
+async function exportMessMemberResultsExcel({
+  categoryId,
+  idAccount,      // optional
+  startTime,      // Date
+  endTime,        // Date
+}) {
+  const rows = [];
+  let page = 1;
+  let hasMore = true;
+  while (hasMore) {
+    const res = await api.get(
+      `/api/campaign/mess-member-group/category/${categoryId}/results/`,
+      {
+        params: {
+          page,
+          number_per_page: 200,
+          id_account: idAccount || undefined,
+          start_time: formatForApi(startTime),
+          end_time: formatForApi(endTime),
+        },
+      }
+    );
+    const chunk = unwrapPaginated(res); // theo envelope project
+    rows.push(...chunk.items);
+    hasMore = chunk.hasNext;
+    page += 1;
+  }
+  const sheetData = rows.map((r) => ({
+    "Thời gian": formatDt(r.created_at),
+    "Nick ID": r.account,
+    "Người nhận": r.name,
+    "Nội dung": r.content || "",
+    "Lời KB": r.first_message || "",
+    "TT tin": statusLabel(r.status_send_message),
+    "Lý do tin": r.status_send_message_message || "",
+    "TT KB": statusLabel(r.status_add_friend),
+    "Lý do KB": r.status_add_friend_message || "",
+  }));
+  downloadXlsx(sheetData, `mess-member-${categoryId}-${dateStamp()}.xlsx`);
+}
 ```
 
-**Lưu ý:**  
-- Thu hồi dùng **`uid`**, không dùng `id` (PK DB).  
-- Khác `friend-recommend/remove` (gỡ gợi ý) và `unfriend` (hủy bạn đã là bạn).
+### 4.6 UX nút Excel
+
+- Đặt cạnh bảng results: **Xuất Excel**  
+- Modal: từ ngày-giờ → đến ngày-giờ (+ optional nick)  
+- Loading khi fetch multi-page  
+- Empty: “Không có kết quả trong khoảng thời gian”  
 
 ---
 
-## 16. Checklist — lời mời đã gửi
+## 5. Mapping breaking: form cũ → form mới
 
-| # | Pass |
-|---|------|
-| S1 | List = `GET sent-request/show?id_account=` |
-| S2 | Thu hồi = `POST sent-request/remove` + `fids: string[]` uid |
-| S3 | Poll remove cùng URL + `id_task` |
-| S4 | Không nhầm `fid` (recommend) vs `fids` (sent-request) |
-| S5 | Empty list không lỗi UI |
+| Form / state cũ | Form mới |
+|-----------------|----------|
+| `id_account: number` | `id_accounts: number[]` |
+| `id_group: number` | `group_global_id: string` (từ all-group `globalId`) |
+| `uids: string[]` | `member_global_ids: string[]` |
+| — | `assign_mode: "distribute" \| "all"` |
+| List TV từ `show_group_member` + friend.uid | `POST .../members/` + `member_global_id` |
+| all-group spam/invite path riêng | `POST /api/campaign/all-group/` |
 
----
-
-## 17. List bạn bè — QL vs NV (cùng `id_account`)
-
-`GET /api/friend/?id_account=<nick>&page=1&number_per_page=100`
-
-| Actor | Hành vi **trước** | Hành vi **sau fix** |
-|-------|-------------------|---------------------|
-| Quản lý (owner nick) | Có list friend | Có list friend |
-| Nhân viên (nick **được gán**) | **Rỗng** (bug `account__user=request.user`) | **Cùng list friend** như QL |
-| NV nick **không** gán | — | 404 `ACCOUNT_NOT_FOUND` |
-
-FE NV tạo nhóm: dùng **cùng** API + `id_account` nick assignment — không API riêng.
+**Kịch bản cũ trên server:** coi như test — user **tạo lại** sau deploy BE. FE có thể ẩn/xóa cache local category mess-member cũ.
 
 ---
 
-## 18. Campaign results — NV rỗng dù Zalo đã chạy
+## 6. Checklist FE theo màn
 
-### Nguyên nhân chung
+### 6.1 Shared
 
-| | |
-|--|--|
-| Task ghi log | Một số loại: `Campaign*.user = account.user` (**owner nick** = QL) |
-| List results (cũ) | NV filter `log.user_id = NV` → **rỗng** dù Zalo OK |
-| Fix SSOT | `campaign_log_queryset` / statistics: list theo **`category_id`** (quyền xem kịch bản), **không** filter log.user = NV |
-| Ghi log mới | add-friend / join-group / mess-member-group → `user = category.user` (chủ kịch bản) |
+- [ ] `api.campaignAllGroup({ id_accounts, keyword })` → `/api/campaign/all-group/`  
+- [ ] Xóa constant URL all-group spam & invite  
+- [ ] Parse `data[].globalId`  
 
-### Audit từng loại campaign
+### 6.2 Spam-link & Invite-phone
 
-| Campaign | Results API | Task ghi `log.user` | Dùng `campaign_log_queryset`? | NV results sau fix |
-|----------|-------------|---------------------|-------------------------------|--------------------|
-| **add-friend** | `.../add-friend/category/<id>/results/` | Trước: `account.user`; **sau: category.user** | Có | OK (cả log cũ theo category) |
-| **join-group** | `.../join-group/category/<id>/results/` | Trước: `account.user`; **sau: category.user** | Có | OK |
-| **mess-member-group** | `.../mess-member-group/category/<id>/results/` | Trước: `account.user`; **sau: category.user** | Có | OK |
-| **mess-friend** | `.../mess-friend/category/<id>/results/` | `category.user` | Có | OK (trước cũng OK nếu filter user) |
-| **mess-group** | `.../mess-group/category/<id>/results/` | `category.user_id` | Có | OK |
-| **mess-phone-number** | `.../mess-phone-number/category/<id>/results/` | `category.user` | Có | OK |
-| **invite-group** | `.../invite-group/category/<id>/results/` | `category.user` | Có | OK |
-| **invite-phone-group** | `.../invite-phone-group/category/<id>/results/` | `category.user` | Có | OK |
-| **spam-link-group** | `.../spam-link-group/category/<id>/results/` | `category.user` | Có | OK |
-| **mess-birthday** | `.../mess-birthday/results/` (no id in path) | `category.user` | `campaign_statistics_queryset` (theo `category__user`) | OK |
+- [ ] Picker nhóm trỏ URL mới  
+- [ ] Vẫn save field product riêng (group_invite name\|avt, group_link, …) từ item response — **không** đổi contract save spam/invite trừ khi product yêu cầu  
+- [ ] Smoke: 2 nick → chỉ nhóm chung global  
 
-Failed-phones / failed-links: đa số `get_failed_distinct_field` theo `category_id` hoặc `campaign_log_queryset` → cùng fix.
+### 6.3 Mess-member
 
-### FE
+- [ ] Multi-select nick  
+- [ ] All-group → chọn nhóm → `group_global_id`  
+- [ ] Members API → multi-select TV → `member_global_ids`  
+- [ ] Radio/toggle `assign_mode`  
+- [ ] Create/update body mới  
+- [ ] Disable fields cấu trúc khi `status===1`  
+- [ ] Start/stop/copy/delete  
+- [ ] WS status  
+- [ ] Results: filter nick + date range  
+- [ ] Excel client §4  
+- [ ] Statistics cards  
 
-Không đổi path. NV xem results kịch bản **mình tạo** sau deploy BE. Manager vẫn xem log kịch bản team (can_view).
+### 6.4 Regression
+
+- [ ] 1 nick only vẫn chạy (distribute ≈ all về số lượt)  
+- [ ] Empty nhóm chung  
+- [ ] TV `0/N` hoặc `k/N` nick sẵn sàng: **vẫn chọn + lưu được**  
+- [ ] Không bắt user quét lại mới lưu (badge chỉ cảnh báo)  
+
+---
+
+## 7. Timeline phối hợp BE/FE
+
+| Phase | BE | FE |
+|-------|----|----|
+| Doc | Design + guide này | Review guide |
+| Code BE | all-group 1 path + **xóa** path cũ; mess-member multi-nick; members; results filter | — |
+| FE | — | Đổi all-group **trước** (spam/invite/mess) để không 404 khi BE xóa path cũ |
+| | Deploy BE + FE **cùng cửa sổ** hoặc FE feature-flag URL mới trước cutover | |
+
+**Cảnh báo deploy:** BE xóa `.../spam-link-group/.../all-group/` và `.../invite-phone-group/.../all-group/` → FE **phải** ship URL mới cùng lúc (hoặc trước với dual-call tạm — không khuyến nghị nếu BE đã dọn).
+
+---
+
+## 8. FAQ nhanh
+
+**Q: all-group và assign_mode all có giống nhau không?**  
+A: Không. all-group = chọn nhóm. assign_mode all = mọi nick × mọi TV khi chạy.
+
+**Q: Cần link nhóm mess-member không?**  
+A: Không. Chỉ `group_global_id`.
+
+**Q: UID TV lấy ở đâu?**  
+A: FE **không** lưu UID. BE lúc chạy lấy UID theo từng nick qua Friend + globalId.
+
+**Q: Excel BE?**  
+A: Không. FE fetch results theo filter → xuất file.
+
+**Q: Path all-group cũ còn không?**  
+A: **Không** — BE dọn; FE chỉ còn `/api/campaign/all-group/`.
+
+---
+
+## 9. Tham chiếu
+
+| Doc | Nội dung |
+|------|----------|
+| `campaign-mess-member-group-multi-nick-design.md` | Spec BE đầy đủ |
+| `campaign-mess-member-group-logic.md` | Runtime **cũ** 1 nick (tham chiếu đến khi BE xong) |
+| `campaign-spam-link-group-logic.md` | Spam (đổi URL all-group) |
+
+---
+
+*Guide FE — cập nhật khi BE ship field/format thực tế nếu lệch (ghi changelog dưới).*

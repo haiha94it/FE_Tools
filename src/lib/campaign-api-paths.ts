@@ -13,12 +13,12 @@ export interface CampaignApiPaths {
   ACCOUNT_LIMIT: string;
   PHONE_NUMBERS_ERROR: string;
   /**
-   * POST body `{ id_accounts, keyword }`.
-   * - spam-link-group (legacy)
-   * - invite-phone-group: nhóm chung theo multi-nick (1 nick = all groups; ≥2 = intersection)
-   * - invite-group: **không** có route này (404) — dùng GET /api/group/
+   * @deprecated Dùng `API_CAMPAIGN_ALL_GROUP` (`/api/campaign/all-group/`).
+   * Path theo prefix (spam/invite) đã bị BE xóa — giữ field để type ổn định.
    */
   ALL_GROUPS: string;
+  /** POST members multi-nick — chỉ mess-member-group */
+  MEMBERS: string;
 }
 
 export function buildCampaignApiPaths(prefix: string): CampaignApiPaths {
@@ -36,7 +36,8 @@ export function buildCampaignApiPaths(prefix: string): CampaignApiPaths {
     FAILED_LINKS: `${base}/failed-campaigns-link-group/`,
     ACCOUNT_LIMIT: `${base}/account-limit/`,
     PHONE_NUMBERS_ERROR: `${base}/phone-numbers-error/`,
-    // spam-link-group + invite-phone-group (intersection multi-nick)
+    // Deprecated: dùng API_CAMPAIGN_ALL_GROUP
     ALL_GROUPS: `${base}/category/all-group/`,
+    MEMBERS: `${base}/category/members/`,
   };
 }

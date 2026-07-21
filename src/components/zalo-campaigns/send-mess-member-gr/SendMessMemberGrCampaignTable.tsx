@@ -12,6 +12,7 @@ import {
 import {
   formatCampaignStartTime,
   formatSendMessMemberGrCampaignRunStatus,
+  getSendMessMemberGrMemberCount,
 } from "@/lib/zalo-send-mess-member-gr-campaign-utils";
 import { resolveCampaignStatusDisplay } from "@/lib/team-collaboration-utils";
 import CampaignTeamActionBar from "@/components/zalo-campaigns/shared/CampaignTeamActionBar";
@@ -88,7 +89,7 @@ export default function SendMessMemberGrCampaignTable({
                 Tên kịch bản / Người tạo
               </TableCell>
               <TableCell isHeader className={headerClass}>
-                UID được gán
+                Thành viên
               </TableCell>
               <TableCell isHeader className={headerClass}>
                 Thời gian bắt đầu
@@ -104,7 +105,7 @@ export default function SendMessMemberGrCampaignTable({
           <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
             {campaigns.map((campaign, index) => {
               const status = resolveCampaignStatusDisplay(campaign, formatSendMessMemberGrCampaignRunStatus);
-              const uidCount = campaign.list_uid_count ?? 0;
+              const memberCount = getSendMessMemberGrMemberCount(campaign);
               return (
                 <TableRow
                   key={campaign.id}
@@ -125,9 +126,9 @@ export default function SendMessMemberGrCampaignTable({
                     <CampaignTeamCreatedByCell campaign={campaign} />
                   </TableCell>
                   <TableCell className="px-4 py-3 text-theme-sm text-gray-600 dark:text-gray-300">
-                    {uidCount === 0
-                      ? "Chưa có UID nào được gán"
-                      : `Có ${uidCount} UID được gán`}
+                    {memberCount === 0
+                      ? "Chưa chọn thành viên"
+                      : `${memberCount} thành viên`}
                   </TableCell>
                   <TableCell className="px-4 py-3 text-theme-sm text-gray-600 dark:text-gray-300">
                     {formatCampaignStartTime(campaign.start_time)}
