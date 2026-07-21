@@ -12,6 +12,8 @@ import type {
 } from "@/types/consent";
 import {
   CONSENT_CHAT_REQUIRED,
+  CONSENT_EMPLOYEE_WAIT_MANAGER_DEFAULT,
+  CONSENT_MANAGER_REQUIRED,
   CONSENT_PDF_MAX_BYTES,
   CONSENT_PENDING_APPROVAL,
   CONSENT_REJECTED,
@@ -315,19 +317,57 @@ export function normalizeConsentStatus(
   return status;
 }
 
+/** NV — không ký, theo HĐ quản lý */
+export function consentIsEmployee(
+  status: MessageProcessingConsentStatus | null | undefined,
+): boolean {
+  return Boolean(status?.is_employee);
+}
+
 /**
  * FE ưu tiên flag BE; fallback theo status machine.
- * BE có thể set need_wizard=true cả pending — gate dùng showPending để không auto mở form.
+ * NV: luôn false. Non-NV: need_wizard / none|rejected.
  */
 export function consentNeedsWizard(
   status: MessageProcessingConsentStatus | null | undefined,
 ): boolean {
   if (!status) return false;
   if (!status.system_activated) return false;
+  if (consentIsEmployee(status)) return false;
   if (typeof status.need_wizard === "boolean") return status.need_wizard;
   if (typeof status.need_sign === "boolean") return status.need_sign;
   const s = normalizeConsentStatus(status.status);
   return s === "none" || s === "rejected" || s === "";
+}
+
+/** NV: QL chưa có HĐ / chưa đủ điều kiện chat */
+export function consentShowWaitManager(
+  status: MessageProcessingConsentStatus | null | undefined,
+): boolean {
+  if (!status?.system_activated) return false;
+  if (!consentIsEmployee(status)) return false;
+  if (typeof status.show_wait_manager === "boolean") {
+    return status.show_wait_manager;
+  }
+  if (consentCanUseChat(status)) return false;
+  return (
+    !consentShowPending(status) &&
+    !consentShowRejected(status)
+  );
+}
+
+/** Copy NV — ưu tiên employee_message / manager_message */
+export function consentEmployeeMessage(
+  status: MessageProcessingConsentStatus | null | undefined,
+): string {
+  const msg =
+    status?.employee_message?.trim() ||
+    status?.manager_message?.trim() ||
+    status?.pending_message?.trim() ||
+    status?.rejected_message?.trim() ||
+    "";
+  if (msg) return msg;
+  return CONSENT_EMPLOYEE_WAIT_MANAGER_DEFAULT;
 }
 
 /** Prefill form từ GET status */
@@ -538,14 +578,23 @@ function readConsentErrorMessage(error: unknown, fallback: string): string {
 
 /**
  * Gate chat / API consent:
- * - CONSENT_CHAT_REQUIRED → wizard
- * - CONSENT_PENDING_APPROVAL → refresh status (UI chờ duyệt)
- * - CONSENT_REJECTED → refresh + CTA ký lại
- * Trả true nếu đã xử lý (caller skip toast trùng).
+ * - CONSENT_MANAGER_REQUIRED → NV: banner nhờ QL (không wizard)
+ * - CONSENT_CHAT_REQUIRED → wizard (non-NV)
+ * - CONSENT_PENDING_APPROVAL → refresh status
+ * - CONSENT_REJECTED → refresh + CTA ký lại (non-NV)
  */
 export function handleConsentChatRequired(error: unknown): boolean {
   const code = getApiErrorCode(error);
   const store = useConsentStore.getState();
+
+  if (code === CONSENT_MANAGER_REQUIRED) {
+    toast.error(
+      readConsentErrorMessage(error, CONSENT_EMPLOYEE_WAIT_MANAGER_DEFAULT),
+    );
+    void store.fetchStatus({ force: true });
+    store.closeConsentWizard();
+    return true;
+  }
 
   if (code === CONSENT_PENDING_APPROVAL) {
     toast.error(

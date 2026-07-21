@@ -21,25 +21,38 @@ export interface ConsentFormDefaults {
   phone?: string;
 }
 
+export type ConsentSubject = "manager" | "self" | string;
+
 export interface MessageProcessingConsentStatus {
   system_activated: boolean;
-  /** none | pending_approval | approved | rejected */
+  /** Status HĐ **subject** (QL nếu NV) — none | pending_approval | approved | rejected */
   status: ConsentAgreementStatus;
   can_use_chat: boolean;
-  /** true → wizard (checkbox → HĐ → form → ký) */
+  /** true → wizard (chỉ non-NV) */
   need_wizard?: boolean;
   /** tương thích BE (need_wizard) */
   need_sign?: boolean;
+  /** NV theo HĐ quản lý */
+  is_employee?: boolean;
+  consent_subject?: ConsentSubject;
+  consent_subject_user_id?: number | null;
   show_pending_status?: boolean;
   show_rejected_status?: boolean;
+  /** NV: QL chưa có hồ sơ (none) */
+  show_wait_manager?: boolean;
   pending_message?: string | null;
   rejected_message?: string | null;
+  /** Copy NV — báo quản lý ký */
+  employee_message?: string | null;
+  /** Alias employee_message */
+  manager_message?: string | null;
   submitted_at?: string | null;
   reviewed_at?: string | null;
   reject_reason?: string | null;
   signed_at?: string | null;
   has_signature_record?: boolean;
-  /** Prefill form wizard */
+  user_signed?: boolean;
+  /** Prefill form wizard (non-NV) */
   form_defaults?: ConsentFormDefaults | null;
   default_email?: string | null;
   default_full_name?: string | null;
@@ -200,5 +213,10 @@ export interface AdminRejectConsentPayload {
 export const CONSENT_CHAT_REQUIRED = "CONSENT_CHAT_REQUIRED" as const;
 export const CONSENT_PENDING_APPROVAL = "CONSENT_PENDING_APPROVAL" as const;
 export const CONSENT_REJECTED = "CONSENT_REJECTED" as const;
+/** NV: quản lý chưa đủ HĐ */
+export const CONSENT_MANAGER_REQUIRED = "CONSENT_MANAGER_REQUIRED" as const;
 
 export const CONSENT_PDF_MAX_BYTES = 20 * 1024 * 1024;
+
+export const CONSENT_EMPLOYEE_WAIT_MANAGER_DEFAULT =
+  "Tài khoản quản lý chưa hoàn tất thỏa thuận xử lý tin nhắn Zalo. Vui lòng báo quản lý ký và được duyệt thỏa thuận để bạn được sử dụng tin nhắn.";

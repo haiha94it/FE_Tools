@@ -8,6 +8,8 @@ function statusKeepsWizardOpen(
   status: MessageProcessingConsentStatus,
 ): boolean {
   if (!status.system_activated) return false;
+  // NV không bao giờ wizard
+  if (status.is_employee) return false;
   const s = status.status || "none";
   // pending/approved: đóng wizard; rejected/none: giữ force nếu đang mở ký lại
   if (s === "pending_approval" || s === "approved") return false;

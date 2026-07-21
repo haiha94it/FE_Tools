@@ -3,9 +3,12 @@
 import Button from "@/components/ui/button/Button";
 import {
   consentCanUseChat,
+  consentEmployeeMessage,
+  consentIsEmployee,
   consentNeedsWizard,
   consentShowPending,
   consentShowRejected,
+  consentShowWaitManager,
   formatConsentDateTime,
 } from "@/lib/consent-utils";
 import { getApiErrorMessage } from "@/lib/errors";
@@ -47,7 +50,7 @@ function useMessageConsentStatus(options?: { fetchOnMount?: boolean }) {
 }
 
 /**
- * Nút Tải PDF — chỉ khi đã approved (có hồ sơ). Không thu hồi.
+ * Nút Tải PDF — chỉ self đã approved (NV không có HĐ riêng).
  */
 export function MessageConsentToolbar() {
   const { ready, status } = useMessageConsentStatus({ fetchOnMount: false });
@@ -57,6 +60,7 @@ export function MessageConsentToolbar() {
     ready &&
     consentCanUseChat(status) &&
     status?.system_activated &&
+    !consentIsEmployee(status) &&
     status?.status === "approved";
 
   const handleDownloadPdf = useCallback(async () => {
@@ -90,7 +94,7 @@ export function MessageConsentToolbar() {
 }
 
 /**
- * Banner trạng thái chờ duyệt / bị từ chối (không banner 24h, không revoke).
+ * Banner: NV (nhờ QL) / pending / rejected (non-NV CTA ký lại).
  */
 export function MessageConsentBanner() {
   const { ready, status, openConsentWizard } = useMessageConsentStatus({
@@ -98,6 +102,23 @@ export function MessageConsentBanner() {
   });
 
   if (!ready || !status?.system_activated) return null;
+  if (consentCanUseChat(status)) return null;
+
+  const isEmployee = consentIsEmployee(status);
+
+  // NV: luôn banner employee_message khi chặn — không CTA ký
+  if (isEmployee) {
+    return (
+      <div
+        className="shrink-0 rounded-xl border border-warning-200 bg-warning-50 px-3 py-2.5 text-sm text-warning-900 dark:border-warning-500/40 dark:bg-warning-500/15 dark:text-warning-100"
+        role="status"
+      >
+        <p className="font-medium leading-relaxed whitespace-pre-line">
+          {consentEmployeeMessage(status)}
+        </p>
+      </div>
+    );
+  }
 
   if (consentShowPending(status)) {
     return (
@@ -151,7 +172,9 @@ export function MessageConsentBanner() {
 }
 
 /**
- * Gate trong khung chat: loading + pending overlay + wizard.
+ * Gate trong khung chat:
+ * - NV: chặn + message nhờ QL (không wizard / không sign)
+ * - Non-NV: pending / rejected / wizard
  */
 function MessageConsentGate() {
   const {
@@ -164,19 +187,23 @@ function MessageConsentGate() {
     openConsentWizard,
   } = useMessageConsentStatus({ fetchOnMount: true });
 
+  const isEmployee = consentIsEmployee(status);
   const showPending = consentShowPending(status);
   const showRejected = consentShowRejected(status);
+  const showWaitManager = consentShowWaitManager(status);
   const canChat = consentCanUseChat(status);
 
-  // Auto wizard chỉ khi chưa có hồ sơ (none) — rejected chỉ mở khi bấm “Tạo / ký lại”
+  // NV: never wizard. Non-NV: auto wizard khi need_wizard và chưa pending/reject UI
   const autoWizard =
+    !isEmployee &&
     Boolean(status?.system_activated) &&
     !canChat &&
     !showPending &&
     !showRejected &&
     consentNeedsWizard(status);
 
-  const wizardOpen = forceWizardOpen || autoWizard;
+  const wizardOpen =
+    !isEmployee && (forceWizardOpen || autoWizard);
   const mandatoryWizard = autoWizard;
 
   const handleSubmitted = useCallback(() => {
@@ -185,6 +212,8 @@ function MessageConsentGate() {
   }, [closeConsentWizard, fetchStatus]);
 
   if (!ready) return null;
+
+  const blockChat = Boolean(status?.system_activated && !canChat && !wizardOpen);
 
   return (
     <>
@@ -197,14 +226,27 @@ function MessageConsentGate() {
         </div>
       ) : null}
 
-      {/* Chặn chat khi pending / chưa approved (không che wizard) */}
-      {!canChat && status && !wizardOpen ? (
+      {blockChat && status ? (
         <div
           className="absolute inset-0 z-20 flex items-center justify-center rounded-2xl bg-white/75 p-4 backdrop-blur-[1px] dark:bg-gray-900/70"
-          aria-hidden={showPending || showRejected}
         >
           <div className="max-w-md rounded-2xl border border-gray-200 bg-white p-5 text-center shadow-theme-lg dark:border-gray-700 dark:bg-gray-900">
-            {showPending ? (
+            {isEmployee ? (
+              <>
+                <p className="text-base font-semibold text-gray-900 dark:text-white">
+                  {showPending
+                    ? "Quản lý đang chờ duyệt"
+                    : showRejected
+                      ? "Thỏa thuận quản lý chưa được duyệt"
+                      : showWaitManager
+                        ? "Cần quản lý ký thỏa thuận"
+                        : "Chưa thể dùng tin nhắn"}
+                </p>
+                <p className="mt-2 text-sm leading-relaxed text-gray-600 dark:text-gray-300 whitespace-pre-line">
+                  {consentEmployeeMessage(status)}
+                </p>
+              </>
+            ) : showPending ? (
               <>
                 <p className="text-base font-semibold text-gray-900 dark:text-white">
                   Đang chờ duyệt
@@ -259,14 +301,16 @@ function MessageConsentGate() {
         </div>
       ) : null}
 
-      <MessageConsentModal
-        open={wizardOpen}
-        mandatory={mandatoryWizard}
-        onClose={
-          mandatoryWizard ? undefined : () => closeConsentWizard()
-        }
-        onSubmitted={handleSubmitted}
-      />
+      {!isEmployee ? (
+        <MessageConsentModal
+          open={wizardOpen}
+          mandatory={mandatoryWizard}
+          onClose={
+            mandatoryWizard ? undefined : () => closeConsentWizard()
+          }
+          onSubmitted={handleSubmitted}
+        />
+      ) : null}
     </>
   );
 }

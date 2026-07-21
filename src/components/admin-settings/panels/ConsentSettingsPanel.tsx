@@ -494,10 +494,7 @@ export default function ConsentSettingsPanel() {
           <h3 className="text-sm font-semibold text-gray-800 dark:text-white/90">
             Soạn nội dung điều khoản
           </h3>
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-            Soạn như văn bản. Hệ thống tự lưu định dạng.
-          </p>
-        </div>
+                  </div>
         <ConsentRichTextEditor
           value={bodyHtml}
           onChange={setBodyHtml}
