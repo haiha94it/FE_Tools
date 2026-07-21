@@ -36,6 +36,12 @@ import type { ScanTaskResponse, ZaloGroupItem } from "@/types/zalo-contacts";
 import axios from "axios";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+/**
+ * Tạm ẩn UI upload PDF hợp đồng.
+ * Đổi thành `true` khi cần hiện lại block upload.
+ */
+const SHOW_CONSENT_CONTRACT_PDF_UPLOAD = false;
+
 function extractSetupFromError(error: unknown): ConsentAdminSetup | null {
   if (!axios.isAxiosError(error)) return null;
   const data = error.response?.data;
@@ -502,23 +508,25 @@ export default function ConsentSettingsPanel() {
         />
       </section>
 
-      <section className="space-y-3 rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
-        <ConsentPdfUploadField
-          existingUrl={contractPdfUrl}
-          file={contractPdfFile}
-          clearExisting={clearContractPdf}
-          disabled={saving}
-          onSelect={(file) => {
-            setContractPdfFile(file);
-            setClearContractPdf(false);
-          }}
-          onClear={() => {
-            setContractPdfFile(null);
-            if (contractPdfUrl) setClearContractPdf(true);
-          }}
-          onError={(message) => toast.error(message)}
-        />
-      </section>
+      {SHOW_CONSENT_CONTRACT_PDF_UPLOAD ? (
+        <section className="space-y-3 rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
+          <ConsentPdfUploadField
+            existingUrl={contractPdfUrl}
+            file={contractPdfFile}
+            clearExisting={clearContractPdf}
+            disabled={saving}
+            onSelect={(file) => {
+              setContractPdfFile(file);
+              setClearContractPdf(false);
+            }}
+            onClear={() => {
+              setContractPdfFile(null);
+              if (contractPdfUrl) setClearContractPdf(true);
+            }}
+            onError={(message) => toast.error(message)}
+          />
+        </section>
+      ) : null}
 
       <section className="space-y-4 rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
         <h3 className="text-sm font-semibold text-gray-800 dark:text-white/90">
