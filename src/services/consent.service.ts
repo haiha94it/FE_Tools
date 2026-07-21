@@ -2,15 +2,14 @@ import { API_BASE_URL, API_CONSENT } from "@/config/api";
 import api, { getAccessToken } from "@/lib/axios";
 import { dedupeInflight } from "@/lib/inflight";
 import type {
-  AdminRevokeConsentPayload,
+  AdminRejectConsentPayload,
   ConsentAdminSetup,
   ConsentAdminSetupSavePayload,
+  ConsentAgreementPayload,
+  ConsentSubmitResult,
   ConsentUserContract,
   MessageProcessingConsentStatus,
   MessageProcessingTerms,
-  SignMessageProcessingPayload,
-  SignMessageProcessingResult,
-  UserRevokeConsentResult,
 } from "@/types/consent";
 
 function downloadBlob(blob: Blob, filename: string) {
@@ -59,17 +58,15 @@ export const consentService = {
   },
 
   getTerms(): Promise<MessageProcessingTerms> {
-    // Không dedupe lâu — mỗi lần mở modal lấy bản mới
     return dedupeInflight("consent:terms", async () => {
       const response = await api.get<MessageProcessingTerms>(API_CONSENT.TERMS);
       return response.data;
     });
   },
 
-  async sign(
-    payload: SignMessageProcessingPayload,
-  ): Promise<SignMessageProcessingResult> {
-    const response = await api.post<SignMessageProcessingResult>(
+  /** Ký và xác nhận — 1 lần POST, không OTP */
+  async sign(payload: ConsentAgreementPayload): Promise<ConsentSubmitResult> {
+    const response = await api.post<ConsentSubmitResult>(
       API_CONSENT.SIGN,
       payload,
     );
@@ -79,14 +76,6 @@ export const consentService = {
   async downloadUserPdf(filename?: string): Promise<void> {
     const blob = await fetchPdfBlob(API_CONSENT.PDF);
     downloadBlob(blob, filename ?? "consent_message_processing.pdf");
-  },
-
-  async revoke(): Promise<UserRevokeConsentResult> {
-    const response = await api.post<UserRevokeConsentResult>(
-      API_CONSENT.REVOKE,
-      {},
-    );
-    return response.data;
   },
 
   getAdminSetup(): Promise<ConsentAdminSetup> {
@@ -114,6 +103,16 @@ export const consentService = {
     if (payload.clear_contract_pdf) {
       form.append("clear_contract_pdf", "1");
     }
+    // Luôn gửi notify fields để BE cập nhật (kể cả clear)
+    form.append(
+      "notify_zalo_account_id",
+      payload.notify_zalo_account_id != null
+        ? String(payload.notify_zalo_account_id)
+        : "",
+    );
+    form.append("notify_group_id", payload.notify_group_id ?? "");
+    form.append("notify_group_name", payload.notify_group_name ?? "");
+
     const response = await api.post<ConsentAdminSetup>(
       API_CONSENT.ADMIN_SETUP,
       form,
@@ -151,16 +150,21 @@ export const consentService = {
     );
   },
 
-  async adminRevoke(
+  async adminApprove(userId: number): Promise<ConsentUserContract> {
+    const response = await api.post<ConsentUserContract>(
+      API_CONSENT.adminUserApprove(userId),
+      {},
+    );
+    return response.data;
+  },
+
+  async adminReject(
     userId: number,
-    payload: AdminRevokeConsentPayload,
+    payload?: AdminRejectConsentPayload,
   ): Promise<ConsentUserContract> {
     const response = await api.post<ConsentUserContract>(
-      API_CONSENT.adminUserRevoke(userId),
-      {
-        reason_code: payload.reason_code,
-        reason_text: payload.reason_text ?? "",
-      },
+      API_CONSENT.adminUserReject(userId),
+      { reason: payload?.reason ?? "" },
     );
     return response.data;
   },

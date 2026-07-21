@@ -22,7 +22,8 @@ interface CreateGroupDialogProps {
   open: boolean;
   accountId: number;
   onClose: () => void;
-  onCreated: (conversationId: number) => void;
+  /** conversationId có thể thiếu nếu BE chỉ trả groupId Zalo (số quá lớn) */
+  onCreated: (conversationId?: number) => void;
 }
 
 function CreateGroupDialog({
@@ -188,8 +189,8 @@ function CreateGroupDialog({
         toast.error(result.message || "Tạo nhóm thất bại.");
         return;
       }
-      toast.success("Tạo nhóm thành công.");
-      if (result.conversationId) onCreated(result.conversationId);
+      toast.success(result.message || "Tạo nhóm thành công.");
+      onCreated(result.conversationId);
       handleClose();
     } finally {
       setCreating(false);
@@ -257,7 +258,11 @@ function CreateGroupDialog({
                           selected ? "bg-brand-50/70 dark:bg-brand-500/10" : ""
                         }`}
                       >
-                        <ContactAvatar name={name} avatar={friend.avatar} size="sm" />
+                        <ContactAvatar
+                          name={name}
+                          avatar={friend.avatar || friend.avt}
+                          size="sm"
+                        />
                         <span className="min-w-0 flex-1 truncate">{name}</span>
                         {selected ? (
                           <span className="text-brand-600">✓</span>

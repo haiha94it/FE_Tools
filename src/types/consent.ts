@@ -1,41 +1,49 @@
-/** Đồng thuận xử lý tin nhắn Zalo — /api/consent/* */
+/** Đồng thuận xử lý tin nhắn Zalo — /api/consent/* (ký submit → pending → admin duyệt) */
 
 export type ConsentClientPlatform = "web_desktop" | "web_mobile" | "unknown";
 
 /** FE hiển thị terms: empty | html | pdf | pdf_and_html */
 export type ConsentDisplayMode = "empty" | "html" | "pdf" | "pdf_and_html";
 
-export type ConsentRevokeSource = "user" | "admin" | string;
-
-export type ConsentRevokeReasonCode =
-  | "wrong_name"
-  | "wrong_phone"
-  | "bad_signature"
-  | "other"
+/** Trạng thái hồ sơ thỏa thuận (status machine) */
+export type ConsentAgreementStatus =
+  | "none"
+  | "pending_approval"
+  | "approved"
+  | "rejected"
   | string;
 
-export interface ConsentRevokeReasonOption {
-  code: string;
-  label: string;
+export type ConsentEntityType = "personal" | "business";
+
+export interface ConsentFormDefaults {
+  full_name?: string;
+  email?: string;
+  phone?: string;
 }
 
 export interface MessageProcessingConsentStatus {
   system_activated: boolean;
-  /** true chỉ khi thỏa thuận đang hiệu lực (is_active) */
-  user_signed: boolean;
-  need_sign: boolean;
+  /** none | pending_approval | approved | rejected */
+  status: ConsentAgreementStatus;
   can_use_chat: boolean;
-  signed_at: string | null;
+  /** true → wizard (checkbox → HĐ → form → ký) */
+  need_wizard?: boolean;
+  /** tương thích BE (need_wizard) */
+  need_sign?: boolean;
+  show_pending_status?: boolean;
+  show_rejected_status?: boolean;
+  pending_message?: string | null;
+  rejected_message?: string | null;
+  submitted_at?: string | null;
+  reviewed_at?: string | null;
+  reject_reason?: string | null;
+  signed_at?: string | null;
   has_signature_record?: boolean;
-  revoked?: boolean;
-  revoke_source?: ConsentRevokeSource | null;
-  revoke_reason_code?: ConsentRevokeReasonCode | null;
-  revoke_reason_label?: string | null;
-  revoke_reason_text?: string | null;
-  revoked_at?: string | null;
-  notice_code?: string | null;
-  /** Banner ưu tiên trên Tin nhắn khi bị thu hồi */
-  notice_message?: string | null;
+  /** Prefill form wizard */
+  form_defaults?: ConsentFormDefaults | null;
+  default_email?: string | null;
+  default_full_name?: string | null;
+  default_phone?: string | null;
 }
 
 export interface MessageProcessingTerms {
@@ -55,37 +63,69 @@ export interface MessageProcessingTerms {
 }
 
 export interface ConsentSignaturePayload {
-  format: "png";
   image_base64: string;
   width: number;
   height: number;
   stroke_count: number;
+  format?: "png";
 }
 
-export interface SignMessageProcessingPayload {
+/** Form + chữ ký — POST message-processing/sign/ */
+export interface ConsentAgreementPayload {
   full_name: string;
+  email: string;
   phone: string;
+  address: string;
+  entity_type: ConsentEntityType;
+  company_name?: string;
+  tax_code?: string;
+  representative_name?: string;
+  representative_title?: string;
+  company_address?: string;
+  company_phone?: string;
+  company_email?: string;
   signature: ConsentSignaturePayload;
   client_platform: ConsentClientPlatform;
 }
 
-export interface SignMessageProcessingResult {
-  signed_at: string | null;
-  signer_full_name?: string;
-  signer_phone?: string;
+export interface ConsentSubmitResult {
   status: MessageProcessingConsentStatus;
+  submitted_at?: string | null;
+  message?: string | null;
+  signed_at?: string | null;
 }
 
-export interface UserRevokeConsentResult {
-  revoked_at: string | null;
-  status: MessageProcessingConsentStatus;
+export interface ConsentNotifyAccountSnippet {
+  id: number;
+  uid?: string | null;
+  name?: string | null;
+  phone_number?: string | null;
+  avatar?: string | null;
+}
+
+export interface ConsentActivateChecklistItem {
+  key: string;
+  ok: boolean;
+  message: string;
 }
 
 export interface ConsentAdminSetup extends MessageProcessingTerms {
   is_activated: boolean;
   activated_at: string | null;
   activated_by_id: number | null;
+  /** Nick Zalo bắn @All vào nhóm khi user submit HĐ */
+  notify_zalo_account_id?: number | null;
+  notify_zalo_account?: ConsentNotifyAccountSnippet | null;
+  notify_group_id?: string | null;
+  notify_group_name?: string | null;
+  /** BE: đủ setup để kích hoạt */
+  can_activate?: boolean;
+  activate_block_reason?: string | null;
+  activate_missing?: string[];
+  activate_checklist?: ConsentActivateChecklistItem[];
 }
+
+export const CONSENT_SETUP_INCOMPLETE = "CONSENT_SETUP_INCOMPLETE" as const;
 
 export interface ConsentAdminSetupSavePayload {
   title: string;
@@ -96,6 +136,9 @@ export interface ConsentAdminSetupSavePayload {
   company_signature?: File | null;
   contract_pdf?: File | null;
   clear_contract_pdf?: boolean;
+  notify_zalo_account_id?: number | null;
+  notify_group_id?: string | null;
+  notify_group_name?: string | null;
 }
 
 export interface ConsentContractUser {
@@ -118,10 +161,24 @@ export interface ConsentTermsSnippet {
 
 export interface ConsentUserContract {
   user: ConsentContractUser;
-  signed: boolean;
+  status?: ConsentAgreementStatus;
+  signed?: boolean;
   signed_at?: string | null;
+  submitted_at?: string | null;
+  reviewed_at?: string | null;
+  reject_reason?: string | null;
   signer_full_name?: string;
   signer_phone?: string;
+  signer_email?: string;
+  signer_address?: string;
+  entity_type?: ConsentEntityType | string;
+  company_name_user?: string;
+  tax_code?: string;
+  representative_name?: string;
+  representative_title?: string;
+  company_address_user?: string;
+  company_phone?: string;
+  company_email?: string;
   signature_url?: string | null;
   ip?: string | null;
   user_agent?: string;
@@ -132,34 +189,16 @@ export interface ConsentUserContract {
   company_tax_code?: string;
   company_address?: string;
   company_signature_url?: string | null;
-  /** Thu hồi */
-  is_active?: boolean;
-  status?: "active" | "revoked" | string;
-  can_admin_revoke?: boolean;
-  revoked?: boolean;
-  revoke_reason_code?: ConsentRevokeReasonCode | null;
-  revoke_reason_label?: string | null;
-  revoke_reason_text?: string | null;
-  revoked_at?: string | null;
-  revoke_source?: ConsentRevokeSource | null;
-  revoke_reason_options?: ConsentRevokeReasonOption[];
+  can_admin_approve?: boolean;
+  can_admin_reject?: boolean;
 }
 
-export interface AdminRevokeConsentPayload {
-  reason_code: ConsentRevokeReasonCode;
-  reason_text?: string;
+export interface AdminRejectConsentPayload {
+  reason?: string;
 }
 
 export const CONSENT_CHAT_REQUIRED = "CONSENT_CHAT_REQUIRED" as const;
-export const CONSENT_REVOKED_NOTICE = "CONSENT_REVOKED" as const;
+export const CONSENT_PENDING_APPROVAL = "CONSENT_PENDING_APPROVAL" as const;
+export const CONSENT_REJECTED = "CONSENT_REJECTED" as const;
 
 export const CONSENT_PDF_MAX_BYTES = 20 * 1024 * 1024;
-
-/** Fallback options nếu BE chưa trả revoke_reason_options */
-export const DEFAULT_CONSENT_REVOKE_REASON_OPTIONS: ConsentRevokeReasonOption[] =
-  [
-    { code: "wrong_name", label: "Họ tên không đúng" },
-    { code: "wrong_phone", label: "Số điện thoại không đúng" },
-    { code: "bad_signature", label: "Chữ ký không đạt yêu cầu" },
-    { code: "other", label: "Lý do khác" },
-  ];

@@ -115,14 +115,44 @@ export function normalizeZaloFriendItem(raw: unknown): ZaloFriendItem | null {
 
   if (raw && typeof raw === "object" && !Array.isArray(raw)) {
     const record = raw as Record<string, unknown>;
+    const profile =
+      record.global_profile &&
+      typeof record.global_profile === "object" &&
+      !Array.isArray(record.global_profile)
+        ? (record.global_profile as Record<string, unknown>)
+        : null;
+
+    const nameFromProfile =
+      typeof profile?.name === "string" ? profile.name : null;
+    const avatarFromProfile =
+      typeof profile?.avatar === "string"
+        ? profile.avatar
+        : typeof profile?.avt === "string"
+          ? profile.avt
+          : null;
+    const uidRaw = record.uid ?? record.userId ?? record.user_id ?? profile?.uid;
+    const uid =
+      typeof uidRaw === "string"
+        ? uidRaw
+        : typeof uidRaw === "number" && Number.isFinite(uidRaw)
+          ? String(uidRaw)
+          : null;
+
     return {
       id,
-      name: typeof record.name === "string" ? record.name : null,
+      name:
+        (typeof record.name === "string" ? record.name : null) ||
+        (typeof record.alias_name === "string" ? record.alias_name : null) ||
+        nameFromProfile,
       alias_name:
         typeof record.alias_name === "string" ? record.alias_name : null,
-      uid: typeof record.uid === "string" ? record.uid : null,
-      avatar: typeof record.avatar === "string" ? record.avatar : null,
-      avt: typeof record.avt === "string" ? record.avt : null,
+      uid,
+      avatar:
+        (typeof record.avatar === "string" ? record.avatar : null) ||
+        avatarFromProfile,
+      avt:
+        (typeof record.avt === "string" ? record.avt : null) ||
+        avatarFromProfile,
       gender: normalizeZaloFriendGender(record.gender),
       sdob:
         typeof record.sdob === "string" && record.sdob.trim()

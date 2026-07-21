@@ -1,127 +1,143 @@
-# Hướng dẫn FE — Đồng thuận xử lý tin nhắn Zalo (ký + popup + PDF)
+# Hướng dẫn FE — Hợp đồng xử lý tin nhắn Zalo
 
-**Dành cho:** team Frontend ChotCare (`FE_ZALO_V2` hoặc FE đang dùng).  
-**SSOT logic product:** `BE/docs/CONSENT-FE-BE-SIGNATURE.md`  
-**BE phase 1:** **đã code** — path khớp `BE/consent/urls.py`.
+**SSOT logic:** `BE/docs/CONSENT-FE-BE-SIGNATURE.md`  
+**Cập nhật:** 2026-07-20 — **không OTP**; user **Ký và xác nhận** → `pending_approval`; admin **duyệt**; notify **nhóm Zalo** cho admin.
 
-**Không** gọi “chữ ký số”. Dùng: **đồng ý / ký xác nhận / chữ ký điện tử**.
-
-**Cập nhật:** Admin soạn điều khoản theo **2 cách (dùng cùng lúc được)**:
-
-| | Tên | Admin làm gì | Lưu BE |
-|---|-----|--------------|--------|
-| **A** | Rich text | Soạn trong trình soạn thảo (in đậm, list…) — **không gõ HTML tay** | `body_html` (editor sinh HTML) |
-| **B** | Upload PDF | Upload file PDF hợp đồng đã soạn (Word → Export PDF) | `contract_pdf` |
+Doc **thay** guide cũ (OTP / revoke / ký-xong-dùng-ngay). Path exact: `BE/consent/urls.py` khi BE merge.
 
 ---
 
-## 1. FE cần làm gì (tóm tắt)
+## 1. Tóm tắt product
 
-| # | Việc |
-|---|------|
-| 1 | Vào **Tin nhắn** → `GET status` → `need_sign` → modal ký |
-| 2 | Modal: xem điều khoản (**rich text và/hoặc PDF**) + **họ tên + SĐT** + vẽ chữ ký + phóng to + xác nhận |
-| 3 | Sau ký: toast, chat; nút tải PDF chứng từ (BE generate / kèm PDF gốc) |
-| 4 | Admin setup: **rich text editor** + **upload PDF** + **1 ảnh** chữ ký+dấu CT + Kích hoạt |
-| 5 | Admin list user: cột Đã ký/Chưa + Chi tiết + PDF |
-
-**Chưa làm phase 1:** thu hồi, DocuSeal, convert Word→PDF server-side.
-
----
-
-## 2. Quy tắc nghiệp vụ
-
-1. **Chưa kích hoạt** → không popup, chat bình thường.  
-2. **Đã kích hoạt + chưa ký** → modal + chặn chat; BE gate `CONSENT_CHAT_REQUIRED`.  
-3. **Khi ký bắt buộc** — họ tên đầy đủ + SĐT + chữ ký tay (pad không trống). Thiếu một → không submit.  
-4. **Bên A:** **một ảnh** chữ ký kèm con dấu (admin ghép sẵn). **Bên B:** form họ tên/SĐT + canvas user.  
-5. Nội dung **luôn bản mới** (GET terms mỗi lần mở) — không cache lâu.  
-6. Ký một chiều — không thu hồi phase 1.  
-7. **Nội dung điều khoản:** đủ **A hoặc B** (hoặc cả hai) mới cho admin kích hoạt. FE validate tương tự trước khi bật.
+| | |
+|--|--|
+| Quét tin / chat | Chỉ `status === approved` **và** hệ thống đã kích hoạt |
+| User submit | Form + chữ ký + **Ký và xác nhận** → `pending_approval` (**không OTP**) |
+| Sau submit | Chỉ **trạng thái chờ duyệt** (không banner 24h) |
+| Thu hồi | **Không** UI; admin **không** hủy sau đã duyệt |
+| Không đồng ý | **Home**; không chat |
+| Quay lại HĐ | Bỏ tick; **không** lưu BE |
+| Admin biết hồ sơ mới | BE bắn tin **@All vào nhóm** (nick + group setup) — FE user **không** làm gì thêm |
 
 ---
 
-## 3. Envelope API
-
-```json
-{ "success": true, "message": "...", "data": { } }
-{ "success": false, "message": "...", "error_code": "CODE" }
-```
-
-- OK: `unwrapApiData`  
-- Lỗi: `getApiErrorMessage(err)`  
-- List user: `unwrapPaginatedPayload` nếu có page  
-
----
-
-## 4. API contract
-
-Base: **`/api/consent/`** — JWT. Admin: `is_admin` / staff.
-
-### 4.1. Status (vào Tin nhắn)
-
-`GET /api/consent/message-processing/status/`
+## 2. Status machine (`GET status`)
 
 ```json
 {
-  "system_activated": false,
-  "user_signed": false,
-  "need_sign": false,
-  "signed_at": null,
-  "can_use_chat": true
+  "system_activated": true,
+  "status": "none|pending_approval|approved|rejected",
+  "can_use_chat": false,
+  "need_wizard": true,
+  "show_pending_status": true,
+  "show_rejected_status": false,
+  "pending_message": "Hồ sơ đang chờ duyệt.",
+  "rejected_message": "Thỏa thuận không được duyệt. Vui lòng tạo / ký lại để dùng tin nhắn.",
+  "submitted_at": null,
+  "reviewed_at": null,
+  "reject_reason": null,
+  "form_defaults": {
+    "full_name": "Nguyễn Văn A",
+    "email": "user@mail.com",
+    "phone": "09..."
+  },
+  "default_email": "user@mail.com",
+  "default_full_name": "Nguyễn Văn A",
+  "default_phone": "09..."
 }
 ```
 
-`need_sign = system_activated && !user_signed`
+**Prefill form:** `form_defaults.email` / `default_email` = `UserAccount.mail`. FE **điền sẵn** ô email; user **sửa được**; **không** bắt nhập lại nếu đã có. Submit gửi giá trị trong ô (để nguyên hoặc đã sửa).
 
-### 4.2. Terms (mở modal / preview)
+| `status` | Vào chat |
+|----------|----------|
+| `none` | Wizard: Đồng ý → HĐ → form → ký |
+| `pending_approval` | **Chờ duyệt**; chặn chat/quét |
+| `approved` | Chat OK |
+| `rejected` | Không duyệt + **Tạo / ký lại** |
 
-`GET /api/consent/message-processing/terms/`
+Ưu tiên `can_use_chat` / `need_wizard` từ BE.
+
+---
+
+## 3. Wizard user (thứ tự bắt buộc)
+
+### Bước 0 — Đồng ý / Không đồng ý
+
+- **Không** mở HĐ trước.  
+- **Không đồng ý** → home.  
+- **Đồng ý** → local `agreed=true` → Bước 1.  
+- **Không** POST BE chỉ vì tick.
+
+### Bước 1 — Đọc HĐ
+
+- `GET .../terms/` — sanitize HTML +/hoặc PDF.  
+- **Quay lại** → `agreed=false`, clear form/chữ ký local, về Bước 0.
+
+### Bước 2 — Form + chữ ký + submit
+
+```text
+entity_type: personal | business
+
+Luôn có:
+  full_name, email, phone, address
+  signature pad (bắt buộc nét)
+
+Nếu business:
+  company_name, tax_code, representative_name, representative_title,
+  company_address, company_phone, company_email
+```
+
+- **Email:** init từ `status.form_defaults.email` (`UserAccount.mail`). Input editable. User có mail sẵn → **không bắt gõ lại**. Chỉ bắt nhập khi default rỗng.  
+- full_name / phone: có thể prefill `form_defaults` tương tự.  
+- Validate FE + BE.  
+- Sửa form/chữ ký **đến khi submit thành công**.  
+- Nút **Ký và xác nhận** → **một** `POST sign/` với full form + signature.  
+- **Không** OTP / màn mã / “Người lạ”.
+
+### Bước 3 — Chờ duyệt (sau submit OK)
+
+- Toast / badge: **“Hồ sơ đang chờ duyệt.”**  
+- Khóa form.  
+- Poll `status` hoặc refetch khi vào lại chat.  
+- **Không** quét tin / chat data.
+
+### Bước 4 — Kết quả admin
+
+- **Duyệt** → chat.  
+- **Từ chối** → message + CTA **Tạo / ký lại** (reset wizard).  
+- Admin FE: hồ sơ **approved** **không** nút Từ chối.
+
+---
+
+## 4. API user
+
+Base: `/api/consent/` — JWT. Envelope `success` / `message` / `data`.
+
+| Method | Path | Khi |
+|--------|------|-----|
+| GET | `message-processing/status/` | Vào chat / shell |
+| GET | `message-processing/terms/` | Mở HĐ |
+| POST | `message-processing/sign/` | Ký và xác nhận (submit) |
+| GET | `message-processing/pdf/` | Có hồ sơ |
+
+**Payload submit (gợi ý):**
 
 ```json
 {
-  "title": "Đồng thuận xử lý tin nhắn Zalo",
-  "body_html": "<p>...</p>",
-  "has_body_html": true,
-  "contract_pdf_url": "https://.../media/consent/company/contract_1_xxx.pdf",
-  "has_contract_pdf": true,
-  "display_mode": "pdf_and_html",
-  "company_name": "...",
-  "company_tax_code": "...",
-  "company_address": "...",
-  "company_signature_url": "...",
-  "updated_at": "...",
-  "system_activated": false
-}
-```
-
-| Field | FE |
-|-------|-----|
-| `display_mode` | `empty` \| `html` \| `pdf` \| `pdf_and_html` |
-| `body_html` | Render **an toàn** (DOMPurify) khi `has_body_html` |
-| `contract_pdf_url` | Viewer PDF / iframe / `embed` / nút mở tab khi `has_contract_pdf` |
-
-**Cách hiển thị modal user (khuyến nghị):**
-
-```
-if display_mode === 'empty' → báo “Chưa cấu hình điều khoản” (edge; không nên xảy ra khi đã activate)
-if has_contract_pdf → khối xem PDF (ưu tiên cao nếu legal coi PDF là bản chính)
-if has_body_html → khối nội dung rich text (cuộn)
-luôn: Bên A (1 ảnh chữ ký+dấu) + Bên B (canvas ký)
-```
-
-### 4.3. Sign
-
-`POST /api/consent/message-processing/sign/`
-
-JSON:
-
-```json
-{
-  "full_name": "Nguyễn Văn A",
-  "phone": "0912345678",
+  "full_name": "...",
+  "email": "...",
+  "phone": "09...",
+  "address": "...",
+  "entity_type": "personal",
+  "company_name": "",
+  "tax_code": "",
+  "representative_name": "",
+  "representative_title": "",
+  "company_address": "",
+  "company_phone": "",
+  "company_email": "",
   "signature": {
-    "format": "png",
     "image_base64": "data:image/png;base64,...",
     "width": 600,
     "height": 200,
@@ -131,288 +147,228 @@ JSON:
 }
 ```
 
-Hoặc multipart: `full_name`, `phone`, `signature` file + `stroke_count`, `width`, `height`, `client_platform`.
+**Cấm FE gọi:** `otp/*`, `revoke/*` (đã gỡ / không dùng).
 
-| Field | Bắt buộc | Rule |
-|-------|----------|------|
-| `full_name` | **Có** | ≥ 2 ký tự sau trim |
-| `phone` | **Có** | 9–11 chữ số (cho phép `+`, khoảng, `-`) |
-| chữ ký | **Có** | `stroke_count >= 1`, PNG &lt; 500KB |
+### Lỗi chat
 
-**Success `data`:** `signed_at`, `signer_full_name`, `signer_phone`, `status`.
+| `error_code` | FE |
+|--------------|-----|
+| `CONSENT_PENDING_APPROVAL` | UI chờ duyệt |
+| `CONSENT_REJECTED` | Không duyệt + ký lại |
+| `CONSENT_CHAT_REQUIRED` | Wizard / chưa approved |
 
-**Lỗi 400:** message từ BE (vd. “Vui lòng nhập họ tên đầy đủ”, “Số điện thoại không hợp lệ”, thiếu chữ ký).
+---
 
-### 4.4. PDF chứng từ user (sau khi ký)
+## 5. Admin FE
 
-`GET /api/consent/message-processing/pdf/`  
-→ `application/pdf` attachment (BE generate: terms hiện hành + chữ ký).
+### 5.1. Setup điều khoản + bên A
 
-Ngoài ra user có thể **mở `contract_pdf_url`** (PDF gốc admin upload) nếu có — đó là bản form CT.
+- GET/POST `admin/setup/` — title, body_html, PDF, company_*, company_signature.  
+- Giữ như trước.
 
-### 4.5. Admin setup
+### 5.2. Setup nick + nhóm thông báo (bắt buộc)
 
-`GET /api/consent/admin/setup/` — giống terms + `is_activated`, `activated_at`, `activated_by_id`.
+Mục đích: mỗi khi **user submit HĐ**, BE gửi tin **@All vào nhóm** từ nick này (admin theo dõi hồ sơ chờ duyệt). **Không** gửi OTP cho user.
 
-`POST /api/consent/admin/setup/` — **multipart/form-data** khi có file.
+**UI flow (bắt buộc thứ tự):**
 
-| Field | Kiểu | Mô tả |
-|-------|------|--------|
-| `title` | text | Tiêu đề |
-| `body_html` | text | HTML **do rich-text editor xuất** (không bắt admin gõ HTML) |
-| `company_name`, `company_tax_code`, `company_address` | text | Bên A |
-| `company_signature` | file ảnh | **1 ảnh** chữ ký + con dấu ghép sẵn |
-| `contract_pdf` | file PDF | **Phương án B** — max 20MB, `.pdf` |
-| `clear_contract_pdf` | `1` / `true` | Xóa PDF đã upload (không gửi file mới) |
+```text
+[1] Chọn nick Zalo (list account admin / hệ thống, nick login được)
+        ↓
+[2] Load danh sách nhóm của nick
+        ↓
+[3] Admin chọn 1 nhóm nhận thông báo
+        ↓
+[4] Lưu setup (account_id + group_id [+ group_name])
+```
 
-`POST /api/consent/admin/activate/` — cần: (body_html **hoặc** contract_pdf) + **1 ảnh** bên A (`company_signature`).  
-`POST /api/consent/admin/deactivate/`
+**Nếu list nhóm trống / thiếu nhóm:**
 
-### 4.6. List user
+- Hiện empty state: “Chưa có nhóm — bấm Quét lại danh sách nhóm”.  
+- Nút **Quét lại danh sách nhóm** → gọi reload/sync group của nick → refresh list.  
+- Loading + toast lỗi nếu quét fail (nick checkpoint, limit, …).
 
-`GET /api/users/get-all-account?number_per_page=50&page=1`
+**API gợi ý (hoặc reuse API group sẵn có — đối chiếu BE):**
+
+| Method | Path | Mô tả |
+|--------|------|--------|
+| GET | `admin/notify/groups/?account_id=` | List nhóm nick |
+| POST | `admin/notify/groups/reload/` | `{ "account_id" }` quét lại |
+| GET/POST | `admin/setup/` | Lưu `notify_zalo_account_id`, `notify_group_id`, … |
+
+Field setup response gợi ý:
 
 ```json
 {
+  "notify_zalo_account_id": 123,
+  "notify_zalo_account": { "id": 123, "uid": "...", "name": "..." },
+  "notify_group_id": "g123...",
+  "notify_group_name": "Nhóm nội bộ Care",
+  "is_activated": false
+}
+```
+
+**Activate — chặn nếu setup chưa đủ**
+
+`POST admin/activate/` **chỉ OK** khi đủ **tất cả**:
+
+| Bắt buộc | Field |
+|----------|--------|
+| Nội dung HĐ | `body_html` **hoặc** `contract_pdf` |
+| Thông tin CT bên A | `company_name`, `company_tax_code`, `company_address` |
+| Ảnh chữ ký + dấu | `company_signature` |
+| Nick notify | `notify_zalo_account_id` (nick không checkpoint) |
+| Nhóm notify | `notify_group_id` |
+
+Thiếu bất kỳ mục → **HTTP 400**, `success: false`, `error_code: CONSENT_SETUP_INCOMPLETE`, `message` liệt kê thiếu, `data` = setup (có checklist).
+
+**FE bắt buộc:**
+
+1. `GET admin/setup/` → đọc `can_activate`.  
+2. `can_activate === false` → **disable** nút Kích hoạt; show `activate_missing` / `activate_checklist` (hoặc `activate_block_reason`).  
+3. **Không** gọi `activate/` khi disable (tránh spam 400).  
+4. Vẫn handle 400 nếu race: toast `message`, refresh checklist từ `data`.
+
+Field setup (bổ sung):
+
+```json
+{
+  "can_activate": false,
+  "activate_block_reason": "Chưa đủ cấu hình để kích hoạt: ...",
+  "activate_missing": [
+    "Chưa có nội dung hợp đồng (soạn rich text hoặc upload PDF)",
+    "Chưa nhập tên công ty (bên A)",
+    "Chưa chọn nhóm nhận thông báo (sau khi chọn nick)"
+  ],
+  "activate_checklist": [
+    { "key": "terms", "ok": false, "message": "..." },
+    { "key": "company_name", "ok": true, "message": "..." },
+    { "key": "company_tax_code", "ok": false, "message": "..." },
+    { "key": "company_address", "ok": false, "message": "..." },
+    { "key": "company_signature", "ok": false, "message": "..." },
+    { "key": "notify_zalo_account", "ok": false, "message": "..." },
+    { "key": "notify_group", "ok": false, "message": "..." }
+  ]
+}
+```
+
+### 5.3. Duyệt HĐ
+
+| Method | Path |
+|--------|------|
+| GET | `admin/users/<id>/contract/` |
+| POST | `admin/users/<id>/approve/` | Chỉ `pending_approval` |
+| POST | `admin/users/<id>/reject/` | Body optional `{ "reason": "..." }` — **ẩn** khi approved |
+| GET | `admin/users/<id>/pdf/` | |
+
+### 5.3b. List user `GET /api/users/get-all-account`
+
+Response mỗi user (kèm field cũ) có:
+
+```json
+{
+  "id": 1,
+  "username": "...",
+  "is_admin": true,
+  "message_processing_status": "none|pending_approval|approved|rejected",
+  "message_processing_submitted_at": "2026-07-20T...",
+  "message_processing_reviewed_at": null,
+  "message_processing_reject_reason": null,
   "message_processing_signed": false,
   "message_processing_signed_at": null
 }
 ```
 
-### 4.7. Admin contract + PDF user
+| `message_processing_status` | FE |
+|-----------------------------|-----|
+| `none` | Chưa ký |
+| `pending_approval` | **Duyệt** / **Từ chối** → consent admin approve/reject API |
+| `approved` | Đã duyệt; **không** nút từ chối |
+| `rejected` | Hiện lý do; user ký lại |
 
-`GET /api/consent/admin/users/<user_id>/contract/`  
-`GET /api/consent/admin/users/<user_id>/pdf/`
+User **admin** vẫn nằm trong list (trừ chính mình + developer) — duyệt HĐ cho admin khác được.
 
-Contract có `terms.body_html`, `terms.contract_pdf_url`, `terms.has_contract_pdf`, …
+### 5.3c. Notify sau submit (BE)
 
-### 4.8. Gate chat
+User `POST sign/` OK → Celery bắn @All vào nhóm setup. FE **không** gọi thêm API.  
+Cần: setup đã lưu nick + nhóm; Celery worker chạy; nick login/proxy OK.
 
-```json
-{
-  "success": false,
-  "message": "Bạn cần ký đồng ý xử lý tin nhắn Zalo trước khi sử dụng chat.",
-  "error_code": "CONSENT_CHAT_REQUIRED"
-}
-```
+### 5.4. Nội dung tin nhóm (tham chiếu — BE gửi, FE không soạn)
 
-→ mở modal ký, toast `message`.
-
----
-
-## 5. Admin UI — soạn điều khoản (A + B)
-
-**Không** dùng placeholder “Nhập HTML điều khoản…”.
-
-### 5.1. Layout form setup (gợi ý)
-
-```
-[ Tiêu đề hợp đồng ]
-
-── Nội dung điều khoản ──────────────────────
-Tab hoặc 2 block:
-
-[A] Soạn thảo văn bản
-  ┌─────────────────────────────────────────┐
-  │ [B] [I] [H2] [List] [Link] …            │  ← toolbar rich text
-  │                                         │
-  │  (vùng soạn như Word nhẹ)               │
-  │                                         │
-  └─────────────────────────────────────────┘
-  Ghi chú: “Soạn như văn bản thường. Hệ thống tự lưu định dạng.”
-
-[B] File PDF hợp đồng (bản chính / form đẹp)
-  [ Chọn file PDF ]  hoặc kéo-thả
-  Preview: tên file + dung lượng + [Xóa PDF]
-  Ghi chú: “Có thể soạn Word rồi File → Save as PDF rồi upload.”
-
-── Thông tin / chữ ký bên A ─────────────────
-  Tên CT | MST | Địa chỉ
-  Upload 1 ảnh: chữ ký + con dấu (ghép sẵn)
-
-[ Lưu cấu hình ]
-
-Trạng thái: Đang tắt / Đang bật
-[ Kích hoạt ]  [ Tắt kích hoạt ]
-```
-
-### 5.2. Rich text (A) — library gợi ý
-
-| Lib | Ghi chú |
-|-----|---------|
-| TipTap | Hiện đại, headless, React/Next tốt |
-| Quill | Nhanh, API đơn giản |
-| Lexical | Meta, linh hoạt |
-| CKEditor 5 | Giống Word hơn, nặng hơn |
-
-**Bắt buộc:**
-
-- Export HTML vào field `body_html` khi **Lưu**.  
-- **Không** hiện raw HTML cho admin (trừ “Nâng cao” optional).  
-- Sanitize khi **hiển thị user** (DOMPurify).  
-- Cho phép: heading, bold/italic, list, paragraph, link; **cấm** script/iframe lạ.
-
-```ts
-// pseudo lưu
-const html = editor.getHTML(); // hoặc getSemanticHTML()
-formData.append('body_html', html);
-```
-
-### 5.3. Upload PDF (B)
-
-```ts
-formData.append('contract_pdf', file); // File type application/pdf
-// Xóa:
-formData.append('clear_contract_pdf', '1');
-```
-
-Validate FE: extension `.pdf`, size ≤ 20MB, MIME `application/pdf`.
-
-Preview admin: link mở tab / object embed nhỏ.
-
-### 5.4. Khi nào bắt buộc A / B
-
-| Tình huống | FE |
-|------------|-----|
-| Lưu setup | Cho phép lưu nháp (BE chấp nhận) |
-| Bấm **Kích hoạt** | Cần `has_body_html || has_contract_pdf` + đã có ảnh bên A `company_signature` |
-| Chỉ PDF, không soạn text | OK |
-| Chỉ rich text, không PDF | OK |
-| Cả hai | OK — modal user hiện cả hai (PDF ưu tiên visual) |
-
----
-
-## 6. User modal — xem nội dung + ký
-
-```
-┌──────────────────────────────────────────┐
-│ Đồng thuận xử lý tin nhắn Zalo        ✕  │
-├──────────────────────────────────────────┤
-│ (scroll)                                 │
-│ [Nếu PDF]  Viewer PDF / “Mở PDF full”    │
-│ [Nếu HTML]  Nội dung đã sanitize         │
-│                                          │
-│ Bên A — Công ty                          │
-│ [1 ảnh chữ ký+dấu]  Tên / MST / Địa chỉ │
-├──────────────────────────────────────────┤
-│ Bên B — Thông tin người ký *             │
-│ Họ tên đầy đủ  [________________]        │
-│ Số điện thoại  [________________]        │
-│ (gợi ý prefill từ profile user nếu có)   │
-│                                          │
-│ Chữ ký tay *                             │
-│ [ canvas ]  [Phóng to] [Xóa]             │
-│ ☑ Tôi đã đọc và đồng ý...                │
-│ [ Ký và đồng ý ]                         │
-└──────────────────────────────────────────┘
-```
-
-**Submit disabled khi:** `!full_name.trim()` \|\| `!phoneValid` \|\| pad trống \|\| !checkbox.
-
-Prefill gợi ý: `user.fullname` / `user.phone_number` từ session profile — user **vẫn sửa được**; BE lưu đúng giá trị gửi lúc ký (snapshot).
-
-### 6.1. PDF viewer gợi ý
-
-- Desktop: `<iframe src={contract_pdf_url}>` hoặc `react-pdf`  
-- Mobile: nút **Mở PDF** (tab mới / full screen) + vẫn bắt ký bên dưới  
-- Auth: URL media cần cookie/token theo cách app đang serve `/media/` (nếu media public theo path có chữ ký path — OK; nếu private thì BE phải stream có auth)
-
-### 6.2. Pad chữ ký
-
-- pointer events, `touch-action: none`  
-- Phóng to full màn (mobile + desktop)  
-- `signature_pad` npm hoặc canvas tự viết  
-
----
-
-## 7. Flow tin nhắn + admin list
-
-Giữ như trước:
-
-- Mount chat → status → modal nếu `need_sign`  
-- List user: cột Đã ký / Chưa + Chi tiết (họ tên/SĐT lúc ký + HTML/PDF + chữ ký + tải PDF BE)  
-
----
-
-## 8. Service / component gợi ý
+Sau user submit, admin thấy trên Zalo nhóm (mẫu):
 
 ```text
-src/services/consent.service.ts
+@All Chốt Nhanh
+📋 THÔNG BÁO THỎA THUẬN XỬ LÝ TIN NHẮN ZALO
+━━━━━━━━━━━━━━━━━━
+👤 Tài khoản: {username}
+📞 SĐT: {phone}
+📧 Email: {email}
+⭐ Hệ thống: {host}
+━━━━━━━━━━━━━━━━━━
+🔄 Loại: Ký thỏa thuận xử lý tin nhắn (mới / ký lại)
+━━━━━━━━━━━━━━━━━━
+⏰ Thời gian: {time}
+⚠️ Trạng thái: Chờ duyệt
+```
 
-components/consent/
-  MessageConsentModal.tsx
-  SignaturePad.tsx
-  SignaturePadFullscreen.tsx
-  ConsentTermsViewer.tsx      # HTML sanitize + PDF viewer theo display_mode
-admin:
-  ConsentSetupPage.tsx
-  ConsentRichTextEditor.tsx   # TipTap/Quill wrap
-  ConsentPdfUploadField.tsx
-  UserConsentDetailDrawer.tsx
+Style giống thông báo đăng ký AI Video (`@All` + card field). FE admin **không** cần UI soạn tin này.
+
+---
+
+## 6. Wireframe
+
+```
+USER
+[Chat] need_wizard?
+  → [ ] Đồng ý   [ ] Không đồng ý → Home
+  → Đồng ý
+      → [HĐ] [Quay lại]
+      → Form CN/CTY + SignaturePad
+      → [Ký và xác nhận] → pending (không OTP)
+  → pending → Status "Chờ duyệt"
+  → approved → Chat
+  → rejected → Status + Ký lại
+
+ADMIN SETUP
+  Điều khoản + ảnh A
+  → Chọn nick
+  → List nhóm  [Quét lại danh sách nhóm]
+  → Chọn nhóm → Lưu
+  → [Kích hoạt policy] (cần đủ nick+nhóm)
+
+ADMIN DUYỆT
+  List status → Chi tiết → Duyệt | Từ chối (pending only)
 ```
 
 ---
 
-## 9. Copy VI
+## 7. Checklist FE
 
-| Chỗ | Text |
-|-----|------|
-| Label A | Soạn nội dung điều khoản |
-| Hint A | Soạn như văn bản. Không cần biết HTML. |
-| Label B | Upload file PDF hợp đồng |
-| Hint B | Soạn trên Word rồi “Lưu thành PDF” và chọn file tại đây. |
-| Bỏ | “Nhập HTML điều khoản…” |
-| Kích hoạt confirm | User chưa ký sẽ bị chặn quét tin / chat. Tiếp tục? |
-| Label họ tên | Họ tên đầy đủ |
-| Label SĐT | Số điện thoại |
-| Nút submit | Ký và đồng ý |
-| Lỗi họ tên | Vui lòng nhập họ tên đầy đủ |
-| Lỗi SĐT | Vui lòng nhập số điện thoại hợp lệ |
-| Lỗi chữ ký trống | Vui lòng ký tên trước khi xác nhận |
-
----
-
-## 10. Checklist FE
-
-| # | Kịch bản | Pass |
-|---|----------|------|
-| F1 | Admin soạn rich text, không đụng HTML raw | |
-| F2 | Admin upload PDF ≤20MB | |
-| F3 | Chỉ A hoặc chỉ B vẫn Kích hoạt được (đủ 1 ảnh bên A) | |
-| F4 | Modal user: PDF và/hoặc HTML + ký | |
-| F5 | Thiếu họ tên / SĐT / pad trống → không submit; BE 400 nếu lách | |
-| F6 | Phóng to ký mobile/desktop | |
-| F7 | Gate `CONSENT_CHAT_REQUIRED` → modal | |
-| F8 | List user cột ký + chi tiết + PDF | |
-| F9 | Chưa activate → không popup chat | |
+| # | Pass |
+|---|------|
+| F1 | Không đồng ý → home, không chat |
+| F2 | Quay lại HĐ → clear tick, không submit |
+| F3 | business hiện field CTY; personal ẩn |
+| F3b | Email prefill `user.mail`; sửa được; không force retype nếu đã có |
+| F4 | Submit một nút; **không** màn/API OTP |
+| F5 | Pending: chờ duyệt, khóa form |
+| F6 | Rejected: message + ký lại |
+| F7 | Approved: chat OK |
+| F8 | Không UI thu hồi; approved không nút từ chối |
+| F9 | Admin: chọn nick → list nhóm → chọn nhóm |
+| F10 | Admin: **Quét lại danh sách nhóm** khi thiếu/rỗng |
+| F11 | Activate: disable khi `can_activate=false` (HĐ + CT + stamp + nick + nhóm); handle 400 `CONSENT_SETUP_INCOMPLETE` |
+| F12 | Không copy “kiểm tra Người lạ” (không còn OTP 1-1) |
 
 ---
 
-## 11. BE liên quan (FE biết để gọi đúng)
+## 8. Ghi chú kỹ thuật
 
-| Việc | Ghi chú |
-|------|---------|
-| Field `contract_pdf` | Migration `0002_consentsetup_contract_pdf` |
-| `signer_full_name`, `signer_phone` | Migration `0003_messageprocessingsignature_signer_info` |
-| Activate | Cần HTML **hoặc** PDF + 1 ảnh bên A (`company_signature`) |
-| Sign body | `full_name` + `phone` + signature |
-| PDF download user | Generate; PDF gốc = `contract_pdf_url` |
-
-Deploy server:
-
-```bash
-docker compose exec web python manage.py migrate consent
-# gồm 0002 PDF, 0003 họ tên/SĐT, 0004 bỏ company_stamp (1 ảnh bên A)
-```
-
----
-
-## 12. Liên hệ file
-
-| File | Vai trò |
-|------|---------|
-| `BE/docs/CONSENT-FE-BE-SIGNATURE.md` | Logic product |
-| `BE/docs/CONSENT-FE-INTEGRATION-GUIDE.md` | Guide FE (file này) |
-| `BE/consent/` | API + model |
-
-**Không** dùng `popup/decree` cho flow ký này.
+- Sanitize `body_html` (DOMPurify).  
+- Signature pad: pointer + phóng to.  
+- Sau deploy BE: đối chiếu path/field `urls.py`.  
+- List account nick: có thể reuse pattern campaign-notification / list ZaloAccount admin.  
+- List/reload group: ưu tiên reuse API group của product; nếu BE expose `admin/notify/groups*` thì dùng path đó.  
+- Notify group: **side-effect BE** sau submit (`consent.notify_group_after_submit`) — FE user chỉ toast chờ duyệt; fail notify **không** chặn pending.  
+- List user admin: dùng `message_processing_status` (không chỉ `message_processing_signed`) để hiện nút duyệt.

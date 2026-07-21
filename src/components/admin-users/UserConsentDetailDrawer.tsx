@@ -1,89 +1,88 @@
 "use client";
 
 import ConsentTermsViewer from "@/components/consent/ConsentTermsViewer";
-import Select from "@/components/form/Select";
 import Label from "@/components/form/Label";
 import Badge from "@/components/ui/badge/Badge";
 import Button from "@/components/ui/button/Button";
 import { Modal } from "@/components/ui/modal";
 import {
+  consentStatusLabel,
   formatConsentDateTime,
+  normalizeConsentStatus,
   resolveConsentMediaUrl,
 } from "@/lib/consent-utils";
 import { getApiErrorMessage } from "@/lib/errors";
 import { toast } from "@/lib/toast";
 import { consentService } from "@/services/consent.service";
-import {
-  DEFAULT_CONSENT_REVOKE_REASON_OPTIONS,
-  type ConsentUserContract,
-} from "@/types/consent";
+import type { ConsentUserContract } from "@/types/consent";
 import type { ManagedUser } from "@/types/zalo-user-admin";
-import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useState } from "react";
 
 interface UserConsentDetailDrawerProps {
   open: boolean;
   user: ManagedUser | null;
   onClose: () => void;
-  /** Sau admin revoke — refresh list user */
+  /** Sau approve / reject — refresh list user */
+  onUpdated?: () => void;
+  /** @deprecated dùng onUpdated */
   onRevoked?: () => void;
 }
 
 function statusBadge(contract: ConsentUserContract | null) {
   if (!contract) return null;
-  if (contract.is_active || (contract.signed && !contract.revoked)) {
+  const s = normalizeConsentStatus(
+    contract.status ??
+      (contract.signed ? "approved" : "none"),
+  );
+  if (s === "approved") {
     return (
       <Badge size="sm" color="success">
-        Đang hiệu lực
+        {consentStatusLabel(s)}
       </Badge>
     );
   }
-  if (contract.revoked || contract.status === "revoked") {
-    if (contract.revoke_source === "user") {
-      return (
-        <Badge size="sm" color="warning">
-          Đã thu hồi (user)
-        </Badge>
-      );
-    }
-    if (contract.revoke_source === "admin") {
-      return (
-        <Badge size="sm" color="error">
-          Đã thu hồi (admin)
-        </Badge>
-      );
-    }
+  if (s === "pending_approval") {
     return (
       <Badge size="sm" color="warning">
-        Đã thu hồi
+        {consentStatusLabel(s)}
       </Badge>
     );
   }
-  if (!contract.signed) {
+  if (s === "rejected") {
     return (
-      <Badge size="sm" color="light">
-        Chưa ký
+      <Badge size="sm" color="error">
+        {consentStatusLabel(s)}
       </Badge>
     );
   }
-  return null;
+  return (
+    <Badge size="sm" color="light">
+      {consentStatusLabel(s)}
+    </Badge>
+  );
 }
 
 function UserConsentDetailDrawer({
   open,
   user,
   onClose,
+  onUpdated,
   onRevoked,
 }: UserConsentDetailDrawerProps) {
   const [loading, setLoading] = useState(false);
   const [downloading, setDownloading] = useState(false);
-  const [revoking, setRevoking] = useState(false);
+  const [acting, setActing] = useState(false);
   const [contract, setContract] = useState<ConsentUserContract | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const [revokeDialogOpen, setRevokeDialogOpen] = useState(false);
-  const [reasonCode, setReasonCode] = useState("wrong_name");
-  const [reasonText, setReasonText] = useState("");
-  const [revokeError, setRevokeError] = useState<string | null>(null);
+  const [rejectOpen, setRejectOpen] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
+  const [rejectError, setRejectError] = useState<string | null>(null);
+
+  const notifyUpdated = useCallback(() => {
+    onUpdated?.();
+    onRevoked?.();
+  }, [onUpdated, onRevoked]);
 
   const load = useCallback(async (userId: number) => {
     setLoading(true);
@@ -103,22 +102,13 @@ function UserConsentDetailDrawer({
     if (!open || !user) {
       setContract(null);
       setError(null);
-      setRevokeDialogOpen(false);
-      setReasonCode("wrong_name");
-      setReasonText("");
-      setRevokeError(null);
+      setRejectOpen(false);
+      setRejectReason("");
+      setRejectError(null);
       return;
     }
     void load(user.id);
   }, [open, user, load]);
-
-  const reasonOptions = useMemo(() => {
-    const opts =
-      contract?.revoke_reason_options?.length
-        ? contract.revoke_reason_options
-        : DEFAULT_CONSENT_REVOKE_REASON_OPTIONS;
-    return opts.map((o) => ({ value: o.code, label: o.label }));
-  }, [contract?.revoke_reason_options]);
 
   const handleDownloadPdf = async () => {
     if (!user) return;
@@ -128,7 +118,7 @@ function UserConsentDetailDrawer({
         user.id,
         `consent_message_processing_${user.id}.pdf`,
       );
-      toast.success("Đã tải PDF chứng từ đồng thuận");
+      toast.success("Đã tải PDF chứng từ thỏa thuận");
     } catch (err) {
       toast.error(getApiErrorMessage(err));
     } finally {
@@ -136,47 +126,66 @@ function UserConsentDetailDrawer({
     }
   };
 
-  const handleAdminRevoke = async () => {
+  const handleApprove = async () => {
     if (!user) return;
-    if (!reasonCode) {
-      setRevokeError("Vui lòng chọn lý do thu hồi");
-      return;
-    }
-    if (reasonCode === "other" && !reasonText.trim()) {
-      setRevokeError("Vui lòng nhập ghi chú khi chọn Lý do khác");
-      return;
-    }
-
-    setRevoking(true);
-    setRevokeError(null);
+    setActing(true);
     try {
-      const data = await consentService.adminRevoke(user.id, {
-        reason_code: reasonCode,
-        reason_text: reasonText.trim(),
-      });
+      const data = await consentService.adminApprove(user.id);
       setContract(data);
-      setRevokeDialogOpen(false);
-      toast.success("Đã thu hồi thỏa thuận của người dùng");
-      onRevoked?.();
+      toast.success("Đã duyệt thỏa thuận");
+      notifyUpdated();
     } catch (err) {
-      setRevokeError(getApiErrorMessage(err));
+      toast.error(getApiErrorMessage(err));
     } finally {
-      setRevoking(false);
+      setActing(false);
     }
   };
 
+  const handleReject = async () => {
+    if (!user) return;
+    setActing(true);
+    setRejectError(null);
+    try {
+      const data = await consentService.adminReject(user.id, {
+        reason: rejectReason.trim(),
+      });
+      setContract(data);
+      setRejectOpen(false);
+      setRejectReason("");
+      toast.success("Đã từ chối hồ sơ (hủy pending)");
+      notifyUpdated();
+    } catch (err) {
+      setRejectError(getApiErrorMessage(err));
+    } finally {
+      setActing(false);
+    }
+  };
+
+  const status = normalizeConsentStatus(
+    contract?.status ?? (contract?.signed ? "approved" : "none"),
+  );
+  const isPending = status === "pending_approval";
+  const isApproved = status === "approved";
+  const isRejected = status === "rejected";
   const hasRecord =
-    Boolean(contract?.signed) ||
-    Boolean(contract?.revoked) ||
+    status !== "none" ||
     Boolean(contract?.signature_url) ||
     Boolean(contract?.signer_full_name);
   const canShowDetail = hasRecord && Boolean(contract);
   const originPdfUrl = resolveConsentMediaUrl(
     contract?.terms?.contract_pdf_url,
   );
-  const canAdminRevoke = Boolean(contract?.can_admin_revoke);
+  const canApprove =
+    isPending ||
+    contract?.can_admin_approve === true;
+  const canReject =
+    isPending ||
+    (contract?.can_admin_reject === true && !isApproved);
   const showPdfActions =
-    Boolean(contract?.signed) || Boolean(contract?.signature_url);
+    Boolean(contract?.signature_url) ||
+    isApproved ||
+    isPending ||
+    isRejected;
 
   return (
     <>
@@ -191,7 +200,7 @@ function UserConsentDetailDrawer({
           <div className="shrink-0 border-b border-gray-100 px-5 py-4 dark:border-gray-800 sm:px-6">
             <div className="flex flex-wrap items-center gap-2">
               <h2 className="text-base font-semibold text-gray-900 dark:text-white">
-                Chi tiết đồng thuận xử lý tin nhắn
+                Chi tiết thỏa thuận xử lý tin nhắn
               </h2>
               {statusBadge(contract)}
             </div>
@@ -212,29 +221,27 @@ function UserConsentDetailDrawer({
               </p>
             ) : !canShowDetail ? (
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                Người dùng chưa ký đồng thuận xử lý tin nhắn.
+                Người dùng chưa gửi hồ sơ thỏa thuận.
               </p>
             ) : (
               <div className="space-y-4">
-                {contract?.revoked ? (
+                {isRejected ? (
                   <div className="rounded-xl border border-error-200 bg-error-50/80 p-4 text-sm text-error-800 dark:border-error-500/30 dark:bg-error-500/10 dark:text-error-200">
-                    <p className="font-medium">
-                      {contract.revoke_source === "admin"
-                        ? "Admin đã thu hồi thỏa thuận"
-                        : contract.revoke_source === "user"
-                          ? "User đã tự thu hồi thỏa thuận"
-                          : "Thỏa thuận đã bị thu hồi"}
-                    </p>
-                    {contract.revoke_reason_label ? (
-                      <p className="mt-1">
-                        Lý do: {contract.revoke_reason_label}
-                      </p>
-                    ) : null}
-                    {contract.revoke_reason_text ? (
-                      <p className="mt-1">Ghi chú: {contract.revoke_reason_text}</p>
+                    <p className="font-medium">Hồ sơ bị từ chối</p>
+                    {contract?.reject_reason ? (
+                      <p className="mt-1">Lý do: {contract.reject_reason}</p>
                     ) : null}
                     <p className="mt-1 text-xs opacity-90">
-                      Thời điểm: {formatConsentDateTime(contract.revoked_at)}
+                      Thời điểm: {formatConsentDateTime(contract?.reviewed_at)}
+                    </p>
+                  </div>
+                ) : null}
+
+                {isPending ? (
+                  <div className="rounded-xl border border-warning-200 bg-warning-50/80 p-4 text-sm text-warning-900 dark:border-warning-500/30 dark:bg-warning-500/10 dark:text-warning-100">
+                    <p className="font-medium">Đang chờ duyệt</p>
+                    <p className="mt-1 text-xs opacity-90">
+                      Gửi lúc: {formatConsentDateTime(contract?.submitted_at || contract?.signed_at)}
                     </p>
                   </div>
                 ) : null}
@@ -258,24 +265,52 @@ function UserConsentDetailDrawer({
                     </span>
                     {contract?.signer_phone || "—"}
                   </p>
+                  {contract?.signer_email ? (
+                    <p className="mt-1">
+                      <span className="text-gray-500 dark:text-gray-400">
+                        Email lúc ký:{" "}
+                      </span>
+                      {contract.signer_email}
+                    </p>
+                  ) : null}
+                  {contract?.signer_address ? (
+                    <p className="mt-1">
+                      <span className="text-gray-500 dark:text-gray-400">
+                        Địa chỉ:{" "}
+                      </span>
+                      {contract.signer_address}
+                    </p>
+                  ) : null}
+                  {contract?.entity_type ? (
+                    <p className="mt-1">
+                      <span className="text-gray-500 dark:text-gray-400">
+                        Loại:{" "}
+                      </span>
+                      {contract.entity_type === "business"
+                        ? "HKD / Công ty"
+                        : "Cá nhân"}
+                    </p>
+                  ) : null}
                   <p className="mt-1">
                     <span className="text-gray-500 dark:text-gray-400">
-                      Thời điểm ký:{" "}
+                      Thời điểm gửi:{" "}
                     </span>
-                    {formatConsentDateTime(contract?.signed_at)}
+                    {formatConsentDateTime(
+                      contract?.submitted_at || contract?.signed_at,
+                    )}
                   </p>
+                  {contract?.reviewed_at ? (
+                    <p className="mt-1">
+                      <span className="text-gray-500 dark:text-gray-400">
+                        Duyệt lúc:{" "}
+                      </span>
+                      {formatConsentDateTime(contract.reviewed_at)}
+                    </p>
+                  ) : null}
                   <p className="mt-1">
                     <span className="text-gray-500 dark:text-gray-400">IP: </span>
                     {contract?.ip || "—"}
                   </p>
-                  {contract?.client_platform ? (
-                    <p className="mt-1">
-                      <span className="text-gray-500 dark:text-gray-400">
-                        Nền tảng:{" "}
-                      </span>
-                      {contract.client_platform}
-                    </p>
-                  ) : null}
                 </div>
 
                 <ConsentTermsViewer
@@ -299,20 +334,31 @@ function UserConsentDetailDrawer({
             <Button type="button" variant="outline" size="sm" onClick={onClose}>
               Đóng
             </Button>
-            {canAdminRevoke ? (
+            {canReject && !isApproved ? (
               <Button
                 type="button"
                 size="sm"
                 variant="outline"
                 className="!border-error-200 !text-error-600 dark:!border-error-500/40 dark:!text-error-400"
+                disabled={acting}
                 onClick={() => {
-                  setRevokeError(null);
-                  setReasonCode(reasonOptions[0]?.value || "wrong_name");
-                  setReasonText("");
-                  setRevokeDialogOpen(true);
+                  setRejectError(null);
+                  setRejectReason("");
+                  setRejectOpen(true);
                 }}
               >
-                Thu hồi thỏa thuận
+                Từ chối
+              </Button>
+            ) : null}
+            {canApprove && isPending ? (
+              <Button
+                type="button"
+                size="sm"
+                disabled={acting}
+                className="!bg-success-500 hover:!bg-success-600"
+                onClick={() => void handleApprove()}
+              >
+                {acting ? "Đang duyệt..." : "Duyệt"}
               </Button>
             ) : null}
             {showPdfActions && originPdfUrl ? (
@@ -342,56 +388,36 @@ function UserConsentDetailDrawer({
       </Modal>
 
       <Modal
-        isOpen={revokeDialogOpen}
-        onClose={() => !revoking && setRevokeDialogOpen(false)}
-        showCloseButton={!revoking}
+        isOpen={rejectOpen}
+        onClose={() => !acting && setRejectOpen(false)}
+        showCloseButton={!acting}
         className="w-full max-w-md"
         layer="top"
       >
         <div className="p-5 sm:p-6">
           <h3 className="text-base font-semibold text-gray-900 dark:text-white">
-            Thu hồi thỏa thuận
+            Từ chối hồ sơ
           </h3>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            User sẽ phải ký lại để dùng tin nhắn. Tin cũ vẫn giữ.
+            Hủy pending — user có thể tạo / ký lại.
           </p>
 
           <div className="mt-4 space-y-3">
             <div>
-              <Label>
-                Lý do thu hồi <span className="text-error-500">*</span>
-              </Label>
-              <Select
-                options={reasonOptions}
-                value={reasonCode}
-                onChange={setReasonCode}
-                placeholder="Chọn lý do"
-              />
-            </div>
-            <div>
-              <Label htmlFor="admin-revoke-note">
-                Ghi chú
-                {reasonCode === "other" ? (
-                  <span className="text-error-500"> *</span>
-                ) : null}
-              </Label>
+              <Label htmlFor="admin-reject-reason">Lý do</Label>
               <textarea
-                id="admin-revoke-note"
-                value={reasonText}
-                onChange={(e) => setReasonText(e.target.value)}
+                id="admin-reject-reason"
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
                 rows={3}
-                disabled={revoking}
-                placeholder={
-                  reasonCode === "other"
-                    ? "Bắt buộc khi chọn Lý do khác"
-                    : "Tùy chọn"
-                }
+                disabled={acting}
+                placeholder="Ghi chú gửi user"
                 className="mt-1.5 w-full resize-y rounded-xl border border-gray-300 bg-transparent px-3 py-2 text-sm text-gray-800 outline-none focus:border-brand-300 focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
               />
             </div>
-            {revokeError ? (
+            {rejectError ? (
               <p className="text-sm text-error-600 dark:text-error-400">
-                {revokeError}
+                {rejectError}
               </p>
             ) : null}
           </div>
@@ -401,19 +427,19 @@ function UserConsentDetailDrawer({
               type="button"
               variant="outline"
               size="sm"
-              disabled={revoking}
-              onClick={() => setRevokeDialogOpen(false)}
+              disabled={acting}
+              onClick={() => setRejectOpen(false)}
             >
               Hủy
             </Button>
             <Button
               type="button"
               size="sm"
-              disabled={revoking}
+              disabled={acting}
               className="!bg-error-500 hover:!bg-error-600"
-              onClick={() => void handleAdminRevoke()}
+              onClick={() => void handleReject()}
             >
-              {revoking ? "Đang thu hồi..." : "Xác nhận thu hồi"}
+              {acting ? "Đang xử lý..." : "Xác nhận từ chối"}
             </Button>
           </div>
         </div>

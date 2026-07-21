@@ -315,13 +315,13 @@ export const VIDEO_CREATOR_BASE = "/zalo-campaigns/post-video";
 /**
  * Đồng thuận xử lý tin nhắn Zalo — Carev2_BE consent.urls
  * Base: /api/consent/
+ * Flow: ký submit → pending → admin duyệt (không OTP / không revoke).
  */
 export const API_CONSENT = {
   STATUS: "/api/consent/message-processing/status/",
   TERMS: "/api/consent/message-processing/terms/",
   SIGN: "/api/consent/message-processing/sign/",
   PDF: "/api/consent/message-processing/pdf/",
-  REVOKE: "/api/consent/message-processing/revoke/",
   ADMIN_SETUP: "/api/consent/admin/setup/",
   ADMIN_ACTIVATE: "/api/consent/admin/activate/",
   ADMIN_DEACTIVATE: "/api/consent/admin/deactivate/",
@@ -329,8 +329,10 @@ export const API_CONSENT = {
     `/api/consent/admin/users/${userId}/contract/`,
   adminUserPdf: (userId: number | string) =>
     `/api/consent/admin/users/${userId}/pdf/`,
-  adminUserRevoke: (userId: number | string) =>
-    `/api/consent/admin/users/${userId}/revoke/`,
+  adminUserApprove: (userId: number | string) =>
+    `/api/consent/admin/users/${userId}/approve/`,
+  adminUserReject: (userId: number | string) =>
+    `/api/consent/admin/users/${userId}/reject/`,
 } as const;
 
 /** Mini Shop / cửa hàng — đồng bộ ZaloCN minishop, shoplinkhome, showproduct */
