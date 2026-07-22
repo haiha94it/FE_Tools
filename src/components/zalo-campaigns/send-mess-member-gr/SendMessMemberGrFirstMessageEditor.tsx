@@ -12,7 +12,7 @@ interface SendMessMemberGrFirstMessageEditorProps {
 
 /** Guide mess-phone: first_messages ≤ 135 ký tự */
 const MAX_LENGTH = 135;
-const DEFAULT_TEMPLATE = "Xin chào [gender] [name] kết bạn với mình nha!";
+const DEFAULT_TEMPLATE = "Xin chào [gender] [name] ! ...... Kết bạn nhé!";
 
 const textareaClassName =
   "w-full resize-y rounded-lg border border-gray-300 bg-transparent px-4 py-3 text-sm text-gray-800 shadow-theme-xs outline-none placeholder:text-gray-400 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90";
