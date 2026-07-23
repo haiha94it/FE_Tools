@@ -243,14 +243,12 @@ export default function TrainingPanel({ chatbotId }: TrainingPanelProps) {
             placeholder="Tìm kiếm câu hỏi..."
             value={trainingSearch}
             onChange={(e) => setTrainingSearch(e.target.value)}
-            className="!py-2 !text-xs"
           />
           <CustomSelect
             value={categoryFilter != null ? String(categoryFilter) : ""}
             onChange={(v) => setCategoryFilter(v ? Number(v) : null)}
             options={categoryOptions}
             placeholder="Lọc danh mục"
-            className="!py-2 !text-xs"
           />
         </div>
       )}

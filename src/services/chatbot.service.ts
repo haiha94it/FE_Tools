@@ -350,10 +350,13 @@ export const chatbotService = {
     chatbotId: number,
     message: string,
   ): Promise<TestMessageResult> {
-    const response = await api.post(API_CHATBOT.TEST_MESSAGE, {
-      chatbot_id: chatbotId,
-      message,
-    });
-    return response.data as TestMessageResult;
+    const response = await api.post<{ success: boolean; result: TestMessageResult }>(
+      API_CHATBOT.TEST_MESSAGE,
+      {
+        chatbot_id: chatbotId,
+        message,
+      },
+    );
+    return response.data.result;
   },
 };
