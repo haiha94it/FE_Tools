@@ -2,7 +2,7 @@ import SendMessPhoneCampaignView from "@/components/zalo-campaigns/send-mess-num
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Nhắn tin đến SĐT | Zalo Admin",
+  title: "Nhắn tin / Kết bạn SĐT | Zalo Admin",
   description: "Chiến dịch nhắn tin tự động đến số điện thoại Zalo",
 };
 

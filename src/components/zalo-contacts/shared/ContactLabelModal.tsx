@@ -125,18 +125,23 @@ export default function ContactLabelPanel({
       const labelList = await loadLabels();
       setLabels(labelList);
 
+      // detail: true — NV/QL cùng API id_account (fe_integration_notes §17)
       const page =
         scope === "friend"
-          ? await zaloFriendService.list({ accountId, page: 1, pageSize: 200 })
-          : await zaloGroupService.list({ accountId, page: 1, pageSize: 200 });
+          ? await zaloFriendService.list({
+              accountId,
+              page: 1,
+              pageSize: 200,
+              detail: true,
+            })
+          : await zaloGroupService.list({
+              accountId,
+              page: 1,
+              pageSize: 200,
+              detail: true,
+            });
 
-      let results = page.results ?? [];
-      if (results.length) {
-        results =
-          scope === "friend"
-            ? await zaloFriendService.fetchDetails(results)
-            : await zaloGroupService.fetchDetails(results);
-      }
+      const results = page.results ?? [];
 
       setContacts(
         results.map((item) => ({

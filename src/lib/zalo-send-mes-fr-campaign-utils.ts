@@ -84,7 +84,22 @@ export function canEditSendMesFrFriends(status: SendMesFrCampaignRunStatus): boo
   return status === null || status === 2 || status === 4;
 }
 
+/**
+ * Resolve media path / URL cho kết quả mess-friend.
+ * - `thumb_url` từ BE thường là URL tuyệt đối (CDN Zalo) → giữ nguyên.
+ * - path tương đối (upload) → ghép CARE_API_BASE_URL.
+ */
 export function getSendMesFrMediaUrl(path: string): string {
+  const raw = (path || "").trim();
+  if (!raw) return "";
+  if (
+    raw.startsWith("http://") ||
+    raw.startsWith("https://") ||
+    raw.startsWith("data:") ||
+    raw.startsWith("blob:")
+  ) {
+    return raw;
+  }
   const base = CARE_API_BASE_URL.replace(/\/$/, "");
-  return `${base}/${path.replace(/^\//, "")}`;
+  return `${base}/${raw.replace(/^\//, "")}`;
 }

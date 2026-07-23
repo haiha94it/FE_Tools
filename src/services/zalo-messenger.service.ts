@@ -6,6 +6,12 @@ import {
 import api from "@/lib/axios";
 import { getApiSuccessMessage, unwrapApiBody } from "@/lib/api-response";
 import {
+  getCeleryTaskStatus,
+  isCeleryTaskDone,
+  normalizeCeleryPollResponse,
+} from "@/lib/celery-poll";
+import { getApiErrorMessage } from "@/lib/errors";
+import {
   buildFastReplyCreateBody,
   buildFastReplyUpdateBody,
 } from "@/lib/zalo-messenger-fast-reply";
@@ -16,11 +22,36 @@ import type {
   MessengerConversationPage,
   MessengerConversationPosition,
   MessengerCreateGroupResult,
+  MessengerCreateGroupTaskResult,
   FastReplyUpdateBody,
   MessengerFastReply,
   MessengerMessagePage,
   MessengerStickerItem,
 } from "@/types/zalo-messenger";
+
+function parseCreateGroupConversationId(
+  payload: MessengerCreateGroupTaskResult | Record<string, unknown> | null | undefined,
+): number | undefined {
+  if (!payload || typeof payload !== "object") return undefined;
+  const record = payload as Record<string, unknown>;
+  const candidates = [
+    record.id_conversation,
+    record.conversation_id,
+    record.groupId,
+    record.group_id,
+    record.id,
+  ];
+  for (const value of candidates) {
+    if (typeof value === "number" && Number.isFinite(value)) return value;
+    if (typeof value === "string" && value.trim()) {
+      // Zalo groupId có thể vượt Number.MAX_SAFE_INTEGER — chỉ dùng khi safe
+      if (!/^\d+$/.test(value.trim())) continue;
+      const n = Number(value);
+      if (Number.isSafeInteger(n)) return n;
+    }
+  }
+  return undefined;
+}
 
 function normalizeStickerList(body: unknown): MessengerStickerItem[] {
   const list = Array.isArray(body)
@@ -285,21 +316,59 @@ export const zaloMessengerService = {
           API_ZALO_GROUP.CREATE_RESULT,
           { id_task: idTask },
         );
-        const body = unwrapApiBody<MessengerCreateGroupResult>(result.data);
-        if (body?.status === "SUCCESS") {
+        // BE: { task_status: "SUCCESS", result: { success, groupId, message, ... } }
+        // (không phải status + data như code cũ)
+        const raw = unwrapApiBody<MessengerCreateGroupResult>(result.data);
+        const body = normalizeCeleryPollResponse<MessengerCreateGroupTaskResult>(
+          raw,
+        );
+        const status = getCeleryTaskStatus(body);
+
+        if (!isCeleryTaskDone(status)) {
+          continue;
+        }
+
+        if (status === "SUCCESS") {
+          const taskResult =
+            (body.result as MessengerCreateGroupTaskResult | undefined) ??
+            (body.data as MessengerCreateGroupTaskResult | undefined);
+
+          if (taskResult && taskResult.success === false) {
+            return {
+              ok: false,
+              message:
+                taskResult.message || body.message || "Tạo nhóm thất bại.",
+            };
+          }
+
           return {
             ok: true,
-            conversationId: body.data?.id_conversation,
+            conversationId: parseCreateGroupConversationId(taskResult),
+            message:
+              taskResult?.message || body.message || "Tạo nhóm thành công",
           };
         }
-        if (body?.status === "FAILURE" || body?.status === "ERROR") {
-          return { ok: false, message: body.message || "Tạo nhóm thất bại." };
-        }
+
+        // FAILURE / FAILED / REVOKED
+        const failPayload =
+          (body.result as MessengerCreateGroupTaskResult | undefined) ??
+          (body.data as MessengerCreateGroupTaskResult | undefined);
+        return {
+          ok: false,
+          message:
+            failPayload?.message ||
+            body.message ||
+            body.error ||
+            "Tạo nhóm thất bại.",
+        };
       }
 
       return { ok: false, message: "Tạo nhóm quá thời gian chờ." };
-    } catch {
-      return { ok: false, message: "Đã xảy ra lỗi khi tạo nhóm." };
+    } catch (error) {
+      return {
+        ok: false,
+        message: getApiErrorMessage(error) || "Đã xảy ra lỗi khi tạo nhóm.",
+      };
     }
   },
 

@@ -67,7 +67,7 @@ export interface PhoneInviteGroupCampaignStatistics {
 }
 
 /**
- * Item từ POST .../category/all-group/ — GroupDetail (sau fix BE).
+ * Item từ POST /api/campaign/all-group/ — GroupDetail.
  * `group_invite` = `${name}|${avt}`
  */
 export interface PhoneInviteGroupItem {
@@ -82,4 +82,6 @@ export interface PhoneInviteGroupItem {
   total_member?: number;
   is_joined?: boolean;
   is_blocked_chat?: boolean;
+  /** Identity multi-nick (all-group chung) */
+  globalId?: string;
 }

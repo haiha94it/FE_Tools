@@ -1,5 +1,6 @@
 import { CARE_API_BASE_URL } from "@/config/api";
 import type {
+  SendMessPhoneAssignMode,
   SendMessPhoneCampaignRunStatus,
   SendMessPhoneResultStatus,
 } from "@/types/zalo-send-mess-phone-campaign";
@@ -15,6 +16,9 @@ export {
 import { getCampaignLogResultColor } from "@/lib/zalo-add-friend-campaign-utils";
 
 export const MAX_PHONE_NUMBERS = 1000;
+
+/** Lời chào kết bạn — BE ≤ 135 ký tự */
+export const MAX_FIRST_MESSAGE_LENGTH = 135;
 
 export function formatSendMessPhoneCampaignRunStatus(
   status: SendMessPhoneCampaignRunStatus,
@@ -54,7 +58,7 @@ export function formatSendMessPhoneCampaignRunStatus(
 }
 
 export function formatSendMessPhoneResultStatus(
-  status: SendMessPhoneResultStatus,
+  status: SendMessPhoneResultStatus | undefined,
 ): { label: string; className: string } {
   let label: string;
   switch (status) {
@@ -65,10 +69,10 @@ export function formatSendMessPhoneResultStatus(
       label = "Thành công";
       break;
     case 2:
-      label = "Không xác định";
+      label = "Không chạy";
       break;
     case 3:
-      label = "Hạn chế";
+      label = "Hạn chế / limit";
       break;
     case 4:
       label = "Nhóm chặn chat";
@@ -77,7 +81,7 @@ export function formatSendMessPhoneResultStatus(
       label = "Đang chờ duyệt";
       break;
     default:
-      label = "Không xác định";
+      label = "—";
   }
   return {
     label,
@@ -85,10 +89,32 @@ export function formatSendMessPhoneResultStatus(
   };
 }
 
+/**
+ * Cấu trúc (nick / SĐT / mode / flag) — khóa khi đang chạy.
+ * Guide: status !== 1 cho sửa full; status===1 chỉ tin/media.
+ */
+export function canEditSendMessPhoneStructure(
+  status: SendMessPhoneCampaignRunStatus,
+): boolean {
+  return status !== 1;
+}
+
+/** @deprecated alias — dùng canEditSendMessPhoneStructure */
 export function canEditSendMessPhoneNumbers(
   status: SendMessPhoneCampaignRunStatus,
 ): boolean {
-  return status === null || status === 2 || status === 4;
+  return canEditSendMessPhoneStructure(status);
+}
+
+export function resolveAssignMode(
+  detail: { assign_mode?: SendMessPhoneAssignMode; divide?: boolean } | null,
+): SendMessPhoneAssignMode {
+  if (detail?.assign_mode === "all" || detail?.assign_mode === "distribute") {
+    return detail.assign_mode;
+  }
+  // Legacy: divide true = chia (distribute)
+  if (detail?.divide === false) return "all";
+  return "distribute";
 }
 
 export function normalizePhoneNumbers(
@@ -104,6 +130,16 @@ export function isZaloAccountRunnable(account: ZaloAccount): boolean {
 }
 
 export function getSendMessPhoneMediaUrl(path: string): string {
+  const raw = (path || "").trim();
+  if (!raw) return "";
+  if (
+    raw.startsWith("http://") ||
+    raw.startsWith("https://") ||
+    raw.startsWith("data:") ||
+    raw.startsWith("blob:")
+  ) {
+    return raw;
+  }
   const base = CARE_API_BASE_URL.replace(/\/$/, "");
-  return `${base}/${path.replace(/^\//, "")}`;
+  return `${base}/${raw.replace(/^\//, "")}`;
 }

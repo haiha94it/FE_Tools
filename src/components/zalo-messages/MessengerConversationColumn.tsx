@@ -101,13 +101,15 @@ function MessengerConversationColumn({
   );
 
   const handleGroupCreated = useCallback(
-    (conversationId: number) => {
+    (conversationId?: number) => {
       if (!selectedAccountId) return;
       // Chờ list refresh trước khi mở chat — tránh selectConversation
       // không thấy conv trong sidebar (không còn upsert ghost từ detail)
       void (async () => {
         await fetchConversations(selectedAccountId, { page: 1 });
-        router.push(`/zalo-messages/${selectedAccountId}/${conversationId}`);
+        if (conversationId != null) {
+          router.push(`/zalo-messages/${selectedAccountId}/${conversationId}`);
+        }
       })();
     },
     [fetchConversations, router, selectedAccountId],

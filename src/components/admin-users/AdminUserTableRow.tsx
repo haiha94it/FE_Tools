@@ -3,7 +3,11 @@
 import AvatarText from "@/components/ui/avatar/AvatarText";
 import Badge from "@/components/ui/badge/Badge";
 import { TableCell, TableRow } from "@/components/ui/table";
-import { formatConsentDateTime } from "@/lib/consent-utils";
+import {
+  consentStatusLabel,
+  formatConsentDateTime,
+  normalizeConsentStatus,
+} from "@/lib/consent-utils";
 import {
   formatManagedUserDate,
   getManagedUserPermissionBadgeColor,
@@ -11,12 +15,14 @@ import {
 } from "@/lib/zalo-user-admin-utils";
 import type { ManagedUser } from "@/types/zalo-user-admin";
 import {
+  HiOutlineCheck,
   HiOutlineCheckCircle,
   HiOutlineDocumentText,
   HiOutlineLockClosed,
   HiOutlineLockOpen,
   HiOutlinePencil,
   HiOutlineTrash,
+  HiOutlineX,
 } from "react-icons/hi";
 import AdminIconButton from "./AdminIconButton";
 
@@ -38,11 +44,15 @@ interface AdminUserTableRowProps {
   permissionFilter: string;
   showPassword: boolean;
   isActivating: boolean;
+  consentActing?: boolean;
   onEdit: (user: ManagedUser) => void;
   onDelete: (user: ManagedUser) => void;
   onActivate: (user: ManagedUser) => void;
   onToggleLock: (user: ManagedUser) => void;
   onViewConsent: (user: ManagedUser) => void;
+  /** §5.3b — chỉ pending_approval */
+  onApproveConsent?: (user: ManagedUser) => void;
+  onRejectConsent?: (user: ManagedUser) => void;
 }
 
 export default function AdminUserTableRow({
@@ -51,17 +61,33 @@ export default function AdminUserTableRow({
   permissionFilter,
   showPassword,
   isActivating,
+  consentActing = false,
   onEdit,
   onDelete,
   onActivate,
   onToggleLock,
   onViewConsent,
+  onApproveConsent,
+  onRejectConsent,
 }: AdminUserTableRowProps) {
   const displayName = user.fullname || user.username;
   const passwordValue =
     permissionFilter === "no_active" ? user.password : user.raw_password;
   const lockLabel = user.is_locked ? "Mở khóa tài khoản" : "Khóa tài khoản";
-  const hasSignedConsent = Boolean(user.message_processing_signed);
+  const consentStatus = normalizeConsentStatus(
+    user.message_processing_status ??
+      (user.message_processing_signed ? "approved" : "none"),
+  );
+  const consentBadgeColor =
+    consentStatus === "approved"
+      ? "success"
+      : consentStatus === "pending_approval"
+        ? "warning"
+        : consentStatus === "rejected"
+          ? "error"
+          : "light";
+  const isPendingConsent = consentStatus === "pending_approval";
+  const rejectReason = user.message_processing_reject_reason?.trim() || null;
 
   return (
     <TableRow className="group transition hover:bg-gray-50/80 dark:hover:bg-white/[0.02]">
@@ -104,18 +130,25 @@ export default function AdminUserTableRow({
         {user.account_count ?? 0} / {user.account_limit ?? 0}
       </TableCell>
       <TableCell className={cellClass}>
-        {hasSignedConsent ? (
-          <Badge size="sm" color="success">
-            Đã ký
+        <div className="flex min-w-[7rem] flex-col gap-0.5">
+          <Badge size="sm" color={consentBadgeColor}>
+            {consentStatusLabel(consentStatus)}
           </Badge>
-        ) : (
-          <Badge size="sm" color="light">
-            Chưa ký
-          </Badge>
-        )}
+          {consentStatus === "rejected" && rejectReason ? (
+            <span
+              className="line-clamp-2 max-w-[12rem] text-theme-xs text-error-600 dark:text-error-400"
+              title={rejectReason}
+            >
+              {rejectReason}
+            </span>
+          ) : null}
+        </div>
       </TableCell>
       <TableCell className={`${cellClass} whitespace-nowrap`}>
-        {formatConsentDateTime(user.message_processing_signed_at)}
+        {formatConsentDateTime(
+          user.message_processing_submitted_at ||
+            user.message_processing_signed_at,
+        )}
       </TableCell>
       <TableCell className={`${cellClass} whitespace-nowrap`}>
         {formatManagedUserDate(user.created_at)}
@@ -144,6 +177,28 @@ export default function AdminUserTableRow({
           >
             <HiOutlineDocumentText size={15} />
           </AdminIconButton>
+          {isPendingConsent && onApproveConsent ? (
+            <AdminIconButton
+              label={consentActing ? "Đang duyệt..." : "Duyệt HĐ"}
+              side="left"
+              className={iconBtnSuccessClass}
+              disabled={consentActing}
+              onClick={() => onApproveConsent(user)}
+            >
+              <HiOutlineCheck size={15} />
+            </AdminIconButton>
+          ) : null}
+          {isPendingConsent && onRejectConsent ? (
+            <AdminIconButton
+              label={consentActing ? "Đang xử lý..." : "Từ chối HĐ"}
+              side="left"
+              className={iconBtnDangerClass}
+              disabled={consentActing}
+              onClick={() => onRejectConsent(user)}
+            >
+              <HiOutlineX size={15} />
+            </AdminIconButton>
+          ) : null}
           <AdminIconButton
             label="Sửa thông tin"
             side="left"

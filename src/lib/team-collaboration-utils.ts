@@ -11,13 +11,13 @@ import type {
 
 /** Map path sidebar → key quyền chiến dịch (§4.7) */
 export const CAMPAIGN_PATH_PERMISSION: Record<string, CampaignTypeKey> = {
-  "/zalo-campaigns/add-friend": "add_friend",
   "/zalo-campaigns/join-group": "join_group",
   "/zalo-campaigns/invite-join-group": "invite_group",
   "/zalo-campaigns/phone-number-invite-group": "invite_phone_group",
   "/zalo-campaigns/send-mes-fr": "mess_friend",
   "/zalo-campaigns/send-mes-group": "mess_group",
   "/zalo-campaigns/send-mess-member-gr": "mess_member_group",
+  /** Gộp KB SĐT + nhắn SĐT — quyền mess_phone | add_friend (OR) */
   "/zalo-campaigns/send-mess-number-phone": "mess_phone",
   "/zalo-campaigns/messenger-birthday": "mess_birthday",
 };
@@ -130,6 +130,10 @@ export function hasCampaignPermission(
 ): boolean {
   if (isManagerUser(user)) return true;
   if (!permissions) return false;
+  // Cutover: màn mess-phone gộp — đủ mess_phone hoặc add_friend (legacy)
+  if (key === "mess_phone" || key === "add_friend") {
+    return Boolean(permissions.mess_phone || permissions.add_friend);
+  }
   return Boolean(permissions[key]);
 }
 

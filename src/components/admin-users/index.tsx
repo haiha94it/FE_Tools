@@ -7,6 +7,7 @@ import { confirm } from "@/lib/confirm";
 import { getApiErrorMessage } from "@/lib/errors";
 import { canAccessUserAdmin } from "@/lib/map-auth-user";
 import { toast } from "@/lib/toast";
+import { consentService } from "@/services/consent.service";
 import { zaloUserAdminService } from "@/services/zalo-user-admin.service";
 import { useAuthStore } from "@/stores/use-auth-store";
 import { useZaloUserAdminStore } from "@/stores/use-zalo-user-admin-store";
@@ -65,6 +66,8 @@ export default function AdminUsersView() {
   const [consentUser, setConsentUser] = useState<ManagedUser | null>(null);
   const [consentOpen, setConsentOpen] = useState(false);
   const [activatingId, setActivatingId] = useState<number | null>(null);
+  /** Đang approve/reject HĐ từ list */
+  const [consentActingId, setConsentActingId] = useState<number | null>(null);
   /** Cột mật khẩu ẩn mặc định; bật bằng nút trên toolbar */
   const [showPasswordColumn, setShowPasswordColumn] = useState(false);
 
@@ -180,6 +183,53 @@ export default function AdminUsersView() {
     }
   };
 
+  /** §5.3b — Duyệt HĐ pending từ list */
+  const handleApproveConsent = async (row: ManagedUser) => {
+    if (
+      !(await confirm({
+        title: "Duyệt thỏa thuận?",
+        message: `Duyệt HĐ xử lý tin nhắn cho "${row.username}"? User sẽ dùng được chat.`,
+        confirmText: "Duyệt",
+      }))
+    ) {
+      return;
+    }
+    setConsentActingId(row.id);
+    try {
+      await consentService.adminApprove(row.id);
+      toast.success(`Đã duyệt thỏa thuận của "${row.username}".`);
+      void fetchUsers({ silent: true });
+    } catch (error) {
+      toast.error(getApiErrorMessage(error));
+    } finally {
+      setConsentActingId(null);
+    }
+  };
+
+  /** §5.3b — Từ chối HĐ pending từ list (reason optional) */
+  const handleRejectConsent = async (row: ManagedUser) => {
+    if (
+      !(await confirm({
+        title: "Từ chối thỏa thuận?",
+        message: `Từ chối hồ sơ của "${row.username}"? User có thể tạo / ký lại.`,
+        confirmText: "Từ chối",
+        variant: "danger",
+      }))
+    ) {
+      return;
+    }
+    setConsentActingId(row.id);
+    try {
+      await consentService.adminReject(row.id, { reason: "" });
+      toast.success(`Đã từ chối hồ sơ của "${row.username}".`);
+      void fetchUsers({ silent: true });
+    } catch (error) {
+      toast.error(getApiErrorMessage(error));
+    } finally {
+      setConsentActingId(null);
+    }
+  };
+
   if (!canAccess) {
     return null;
   }
@@ -248,6 +298,9 @@ export default function AdminUsersView() {
             setConsentUser(row);
             setConsentOpen(true);
           }}
+          consentActingId={consentActingId}
+          onApproveConsent={(row) => void handleApproveConsent(row)}
+          onRejectConsent={(row) => void handleRejectConsent(row)}
         />
       </div>
 
@@ -282,7 +335,7 @@ export default function AdminUsersView() {
           setConsentOpen(false);
           setConsentUser(null);
         }}
-        onRevoked={() => void fetchUsers({ silent: true })}
+        onUpdated={() => void fetchUsers({ silent: true })}
       />
     </div>
   );

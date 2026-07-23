@@ -878,11 +878,14 @@ export const useZaloMessengerStore = create<ZaloMessengerState>((set, get) => ({
   },
 
   fetchFriendsForCreateGroup: async (accountId, options = {}) => {
+    // detail: true → full FriendDetail (uid/avatar/name); type=simple thiếu uid
+    // → filter isSelectableFriendForCreateGroup loại hết → list trống
     return zaloFriendService.list({
       accountId,
       page: options.page ?? 1,
       pageSize: 100,
       name: options.search,
+      detail: true,
     });
   },
 

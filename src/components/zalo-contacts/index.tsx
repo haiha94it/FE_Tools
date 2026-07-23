@@ -3,6 +3,7 @@
 import ComponentCard from "@/components/common/ComponentCard";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import { adminDataPageClass } from "@/components/ui/table/ScrollableTableContainer";
+import { SHOW_GROUP_LINK_FEATURES } from "@/config/feature-flags";
 import { useZaloContactsStore } from "@/stores/use-zalo-contacts-store";
 import { useSearchParams } from "next/navigation";
 import { useEffect } from "react";
@@ -45,6 +46,13 @@ export default function ZaloContactsView() {
     const id = Number(accountIdParam);
     if (Number.isFinite(id)) setSelectedAccountId(id);
   }, [accountIdParam, setSelectedAccountId]);
+
+  // Tạm ẩn get-link — nếu state còn "get-link" thì về scan
+  useEffect(() => {
+    if (!SHOW_GROUP_LINK_FEATURES && groupView === "get-link") {
+      setGroupView("scan");
+    }
+  }, [groupView, setGroupView]);
 
   const noAccount = !selectedAccountId;
 
@@ -145,10 +153,12 @@ export default function ZaloContactsView() {
                   scope="group"
                   accountId={selectedAccountId}
                 />
-                <GetGroupLinkPanel
-                  active={groupView === "get-link"}
-                  accountId={selectedAccountId}
-                />
+                {SHOW_GROUP_LINK_FEATURES ? (
+                  <GetGroupLinkPanel
+                    active={groupView === "get-link"}
+                    accountId={selectedAccountId}
+                  />
+                ) : null}
               </div>
             )}
           </div>

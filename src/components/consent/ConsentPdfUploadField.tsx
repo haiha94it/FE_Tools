@@ -52,9 +52,7 @@ function ConsentPdfUploadField({
       <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
         Upload file PDF hợp đồng
       </p>
-      <p className="text-xs text-gray-500 dark:text-gray-400">
-        Soạn trên Word rồi “Lưu thành PDF” và chọn file tại đây. Tối đa 20MB.
-      </p>
+      
 
       <input
         ref={inputRef}

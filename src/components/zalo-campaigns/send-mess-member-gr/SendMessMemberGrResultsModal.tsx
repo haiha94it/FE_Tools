@@ -2,6 +2,7 @@
 
 import Button from "@/components/ui/button/Button";
 import Checkbox from "@/components/form/input/Checkbox";
+import Input from "@/components/form/input/InputField";
 import Select from "@/components/form/Select";
 import Pagination from "@/components/tables/Pagination";
 import { Modal } from "@/components/ui/modal";
@@ -13,17 +14,21 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+  downloadSendMessMemberGrResultsCsv,
   formatCampaignStartTime,
   formatSendMessMemberGrResultStatus,
   getSendMessMemberGrMediaUrl,
+  toSendMessMemberGrStatsDate,
 } from "@/lib/zalo-send-mess-member-gr-campaign-utils";
 import { confirm } from "@/lib/confirm";
 import { getApiErrorMessage } from "@/lib/errors";
 import { toast } from "@/lib/toast";
+import { zaloSendMessMemberGrCampaignService } from "@/services/zalo-send-mess-member-gr-campaign.service";
 import { useZaloSendMessMemberGrCampaignStore } from "@/stores/use-zalo-send-mess-member-gr-campaign-store";
 import type { SendMessMemberGrCampaignStatistics } from "@/types/zalo-send-mess-member-gr-campaign";
 import type { ZaloAccount } from "@/types/zalo-account";
 import Image from "next/image";
+import { useEffect, useMemo, useState } from "react";
 
 interface SendMessMemberGrResultsModalProps {
   open: boolean;
@@ -67,6 +72,13 @@ function buildResultStats(statistics: SendMessMemberGrCampaignStatistics) {
   ];
 }
 
+function toInputDate(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
 export default function SendMessMemberGrResultsModal({
   open,
   accounts,
@@ -79,20 +91,88 @@ export default function SendMessMemberGrResultsModal({
   const resultsPerPage = useZaloSendMessMemberGrCampaignStore((s) => s.resultsPerPage);
   const resultsTotal = useZaloSendMessMemberGrCampaignStore((s) => s.resultsTotal);
   const resultsLoading = useZaloSendMessMemberGrCampaignStore((s) => s.resultsLoading);
+  const resultsFilter = useZaloSendMessMemberGrCampaignStore((s) => s.resultsFilter);
+  const resultsCampaignId = useZaloSendMessMemberGrCampaignStore((s) => s.resultsCampaignId);
   const statistics = useZaloSendMessMemberGrCampaignStore((s) => s.statistics);
   const toggleResultSelected = useZaloSendMessMemberGrCampaignStore((s) => s.toggleResultSelected);
   const toggleSelectAllResults = useZaloSendMessMemberGrCampaignStore((s) => s.toggleSelectAllResults);
   const setResultsPage = useZaloSendMessMemberGrCampaignStore((s) => s.setResultsPage);
   const setResultsPerPage = useZaloSendMessMemberGrCampaignStore((s) => s.setResultsPerPage);
+  const applyResultsFilter = useZaloSendMessMemberGrCampaignStore((s) => s.applyResultsFilter);
   const deleteSelectedResults = useZaloSendMessMemberGrCampaignStore((s) => s.deleteSelectedResults);
   const refreshResults = useZaloSendMessMemberGrCampaignStore((s) => s.refreshResults);
 
-  const accountMap = new Map(accounts.map((item) => [item.id, item]));
+  const [exporting, setExporting] = useState(false);
+  const [filterAccountId, setFilterAccountId] = useState<string>("");
+  const [filterStartDate, setFilterStartDate] = useState("");
+  const [filterEndDate, setFilterEndDate] = useState("");
+
+  useEffect(() => {
+    if (!open) return;
+    setFilterAccountId("");
+    setFilterStartDate("");
+    setFilterEndDate("");
+  }, [open, resultsCampaignId]);
+
+  const accountMap = useMemo(
+    () => new Map(accounts.map((item) => [item.id, item])),
+    [accounts],
+  );
   const selectedSet = new Set(resultsSelectedIds);
   const allSelected =
     results.length > 0 && results.every((item) => selectedSet.has(item.id));
   const totalPages = Math.max(1, Math.ceil(resultsTotal / resultsPerPage));
   const resultStats = buildResultStats(statistics);
+
+  const accountOptions = useMemo(
+    () => [
+      { value: "", label: "Tất cả nick" },
+      ...accounts.map((account) => ({
+        value: String(account.id),
+        label: account.name || `#${account.id}`,
+      })),
+    ],
+    [accounts],
+  );
+
+  const buildApiFilter = () => {
+    const idAccount = filterAccountId ? Number(filterAccountId) : null;
+    // Pad full day for date-only pickers; stats BE uses %d-%m-%Y
+    const start = filterStartDate
+      ? `${toSendMessMemberGrStatsDate(filterStartDate)} 00:00:00`
+      : null;
+    const end = filterEndDate
+      ? `${toSendMessMemberGrStatsDate(filterEndDate)} 23:59:59`
+      : null;
+    return {
+      id_account: idAccount && Number.isFinite(idAccount) ? idAccount : null,
+      start_time: start,
+      end_time: end,
+    };
+  };
+
+  const handleApplyFilter = async () => {
+    try {
+      await applyResultsFilter(buildApiFilter());
+    } catch (error) {
+      toast.error(getApiErrorMessage(error));
+    }
+  };
+
+  const handleClearFilter = async () => {
+    setFilterAccountId("");
+    setFilterStartDate("");
+    setFilterEndDate("");
+    try {
+      await applyResultsFilter({
+        id_account: null,
+        start_time: null,
+        end_time: null,
+      });
+    } catch (error) {
+      toast.error(getApiErrorMessage(error));
+    }
+  };
 
   const handleDelete = async () => {
     if (!resultsSelectedIds.length) {
@@ -117,9 +197,41 @@ export default function SendMessMemberGrResultsModal({
     }
   };
 
+  const handleExportExcel = async () => {
+    if (!resultsCampaignId) return;
+    setExporting(true);
+    try {
+      // Dùng filter đang apply trên store (sau khi bấm Lọc) hoặc build từ form
+      const filters = {
+        id_account: resultsFilter.id_account,
+        start_time: resultsFilter.start_time,
+        end_time: resultsFilter.end_time,
+      };
+      const rows = await zaloSendMessMemberGrCampaignService.fetchAllResults({
+        categoryId: resultsCampaignId,
+        filters,
+      });
+      if (!rows.length) {
+        toast.error("Không có kết quả trong khoảng thời gian / bộ lọc đã chọn.");
+        return;
+      }
+      const stamp = toInputDate(new Date());
+      downloadSendMessMemberGrResultsCsv(
+        rows,
+        accounts,
+        `mess-member-${resultsCampaignId}-${stamp}.csv`,
+      );
+      toast.success(`Đã xuất ${rows.length} dòng kết quả.`);
+    } catch (error) {
+      toast.error(getApiErrorMessage(error));
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <Modal isOpen={open} onClose={onClose} className="max-w-7xl" showCloseButton>
-      <div className="flex max-h-[min(90vh,760px)] flex-col overflow-hidden p-4 sm:p-6">
+      <div className="flex max-h-[min(90vh,800px)] flex-col overflow-hidden p-4 sm:p-6">
         <div className="mb-4 shrink-0 pr-8">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
             Kết quả chiến dịch
@@ -146,10 +258,65 @@ export default function SendMessMemberGrResultsModal({
           </div>
         </div>
 
+        <div className="mb-3 flex flex-col gap-3 rounded-xl border border-gray-200 bg-gray-50/50 p-3 dark:border-gray-800 dark:bg-white/[0.02]">
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="w-full min-w-[160px] sm:w-[200px]">
+              <label className="mb-1 block text-theme-xs font-medium text-gray-500">
+                Nick
+              </label>
+              <Select
+                options={accountOptions}
+                value={filterAccountId}
+                onChange={(value) => setFilterAccountId(value)}
+                placeholder="Tất cả nick"
+              />
+            </div>
+            <div className="w-[150px]">
+              <label className="mb-1 block text-theme-xs font-medium text-gray-500">
+                Từ ngày
+              </label>
+              <Input
+                type="date"
+                value={filterStartDate}
+                onChange={(e) => setFilterStartDate(e.target.value)}
+              />
+            </div>
+            <div className="w-[150px]">
+              <label className="mb-1 block text-theme-xs font-medium text-gray-500">
+                Đến ngày
+              </label>
+              <Input
+                type="date"
+                value={filterEndDate}
+                onChange={(e) => setFilterEndDate(e.target.value)}
+              />
+            </div>
+            <Button size="sm" onClick={() => void handleApplyFilter()} disabled={resultsLoading}>
+              Lọc
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => void handleClearFilter()}
+              disabled={resultsLoading}
+            >
+              Xóa lọc
+            </Button>
+          </div>
+        </div>
+
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button size="sm" variant="outline" onClick={() => void refreshResults()}>
               Làm mới
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={exporting || resultsLoading || !resultsCampaignId}
+              onClick={() => void handleExportExcel()}
+            >
+              {exporting ? "Đang xuất..." : "Xuất Excel"}
             </Button>
             <Button
               size="sm"
@@ -257,9 +424,9 @@ export default function SendMessMemberGrResultsModal({
                               {row.content || "—"}
                             </span>
                           </div>
-                          {row.status_add_friend_message ? (
+                          {row.status_send_message_message ? (
                             <span className="mt-0.5 block text-theme-xs text-gray-500">
-                              {row.status_add_friend_message}
+                              {row.status_send_message_message}
                             </span>
                           ) : null}
                         </TableCell>
@@ -287,9 +454,10 @@ export default function SendMessMemberGrResultsModal({
                               <span className={status.className}>{status.label}</span>
                             );
                           })()}
-                          {row.status_find_info_message ? (
+                          {row.status_add_friend_message || row.status_find_info_message ? (
                             <span className="mt-0.5 block text-theme-xs font-normal text-gray-500">
-                              {row.status_find_info_message}
+                              {row.status_add_friend_message ||
+                                row.status_find_info_message}
                             </span>
                           ) : null}
                         </TableCell>

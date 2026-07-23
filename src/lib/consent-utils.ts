@@ -2,10 +2,21 @@ import { API_BASE_URL } from "@/config/api";
 import { getApiErrorCode } from "@/lib/api-response";
 import { toast } from "@/lib/toast";
 import { useConsentStore } from "@/stores/use-consent-store";
-import type { ConsentDisplayMode, MessageProcessingTerms } from "@/types/consent";
+import type {
+  ConsentAgreementPayload,
+  ConsentAgreementStatus,
+  ConsentDisplayMode,
+  ConsentEntityType,
+  MessageProcessingConsentStatus,
+  MessageProcessingTerms,
+} from "@/types/consent";
 import {
   CONSENT_CHAT_REQUIRED,
+  CONSENT_EMPLOYEE_WAIT_MANAGER_DEFAULT,
+  CONSENT_MANAGER_REQUIRED,
   CONSENT_PDF_MAX_BYTES,
+  CONSENT_PENDING_APPROVAL,
+  CONSENT_REJECTED,
 } from "@/types/consent";
 import axios from "axios";
 
@@ -289,17 +300,252 @@ export function isConsentPhoneValid(phone?: string | null): boolean {
   return digits.length >= 9 && digits.length <= 11;
 }
 
-export function validateConsentSignerFields(
-  fullName: string,
-  phone: string,
-): string | null {
-  if (!isConsentFullNameValid(fullName)) {
+export function isConsentEmailValid(email?: string | null): boolean {
+  const raw = (email ?? "").trim();
+  if (!raw) return false;
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(raw);
+}
+
+export function isConsentAddressValid(address?: string | null): boolean {
+  return (address ?? "").trim().length >= 3;
+}
+
+export function normalizeConsentStatus(
+  status?: ConsentAgreementStatus | null,
+): ConsentAgreementStatus {
+  if (!status) return "none";
+  return status;
+}
+
+/** NV — không ký, theo HĐ quản lý */
+export function consentIsEmployee(
+  status: MessageProcessingConsentStatus | null | undefined,
+): boolean {
+  return Boolean(status?.is_employee);
+}
+
+/**
+ * FE ưu tiên flag BE; fallback theo status machine.
+ * NV: luôn false. Non-NV: need_wizard / none|rejected.
+ */
+export function consentNeedsWizard(
+  status: MessageProcessingConsentStatus | null | undefined,
+): boolean {
+  if (!status) return false;
+  if (!status.system_activated) return false;
+  if (consentIsEmployee(status)) return false;
+  if (typeof status.need_wizard === "boolean") return status.need_wizard;
+  if (typeof status.need_sign === "boolean") return status.need_sign;
+  const s = normalizeConsentStatus(status.status);
+  return s === "none" || s === "rejected" || s === "";
+}
+
+/** NV: QL chưa có HĐ / chưa đủ điều kiện chat */
+export function consentShowWaitManager(
+  status: MessageProcessingConsentStatus | null | undefined,
+): boolean {
+  if (!status?.system_activated) return false;
+  if (!consentIsEmployee(status)) return false;
+  if (typeof status.show_wait_manager === "boolean") {
+    return status.show_wait_manager;
+  }
+  if (consentCanUseChat(status)) return false;
+  return (
+    !consentShowPending(status) &&
+    !consentShowRejected(status)
+  );
+}
+
+/** Copy NV — ưu tiên employee_message / manager_message */
+export function consentEmployeeMessage(
+  status: MessageProcessingConsentStatus | null | undefined,
+): string {
+  const msg =
+    status?.employee_message?.trim() ||
+    status?.manager_message?.trim() ||
+    status?.pending_message?.trim() ||
+    status?.rejected_message?.trim() ||
+    "";
+  if (msg) return msg;
+  return CONSENT_EMPLOYEE_WAIT_MANAGER_DEFAULT;
+}
+
+/** Prefill form từ GET status */
+export function resolveConsentFormDefaults(
+  status: MessageProcessingConsentStatus | null | undefined,
+  authUser?: {
+    name?: string | null;
+    email?: string | null;
+    phone?: string | null;
+  } | null,
+): { fullName: string; email: string; phone: string } {
+  const d = status?.form_defaults;
+  return {
+    fullName: (
+      d?.full_name ||
+      status?.default_full_name ||
+      authUser?.name ||
+      ""
+    ).trim(),
+    email: (
+      d?.email ||
+      status?.default_email ||
+      authUser?.email ||
+      ""
+    ).trim(),
+    phone: (
+      d?.phone ||
+      status?.default_phone ||
+      authUser?.phone ||
+      ""
+    ).trim(),
+  };
+}
+
+export function consentCanUseChat(
+  status: MessageProcessingConsentStatus | null | undefined,
+): boolean {
+  if (!status) return true;
+  if (!status.system_activated) return true;
+  if (typeof status.can_use_chat === "boolean") return status.can_use_chat;
+  return normalizeConsentStatus(status.status) === "approved";
+}
+
+export function consentShowPending(
+  status: MessageProcessingConsentStatus | null | undefined,
+): boolean {
+  if (!status?.system_activated) return false;
+  if (typeof status.show_pending_status === "boolean") {
+    return status.show_pending_status;
+  }
+  return normalizeConsentStatus(status.status) === "pending_approval";
+}
+
+export function consentShowRejected(
+  status: MessageProcessingConsentStatus | null | undefined,
+): boolean {
+  if (!status?.system_activated) return false;
+  if (typeof status.show_rejected_status === "boolean") {
+    return status.show_rejected_status;
+  }
+  return normalizeConsentStatus(status.status) === "rejected";
+}
+
+export function consentStatusLabel(status?: ConsentAgreementStatus | null): string {
+  switch (normalizeConsentStatus(status)) {
+    case "pending_approval":
+      return "Chờ duyệt";
+    case "approved":
+      return "Đã duyệt";
+    case "rejected":
+      return "Không duyệt";
+    case "none":
+    default:
+      return "Chưa ký";
+  }
+}
+
+export function validateConsentAgreementForm(input: {
+  fullName: string;
+  email: string;
+  phone: string;
+  address: string;
+  entityType: ConsentEntityType;
+  companyName: string;
+  taxCode: string;
+  representativeName: string;
+  representativeTitle: string;
+  companyAddress: string;
+  companyPhone: string;
+  companyEmail: string;
+}): string | null {
+  if (!isConsentFullNameValid(input.fullName)) {
     return "Vui lòng nhập họ tên đầy đủ";
   }
-  if (!isConsentPhoneValid(phone)) {
-    return "Vui lòng nhập số điện thoại hợp lệ";
+  if (!isConsentEmailValid(input.email)) {
+    return "Vui lòng nhập email hợp lệ";
+  }
+  if (!isConsentPhoneValid(input.phone)) {
+    return "Vui lòng nhập số điện thoại có Zalo hợp lệ";
+  }
+  if (!isConsentAddressValid(input.address)) {
+    return "Vui lòng nhập địa chỉ";
+  }
+  if (input.entityType === "business") {
+    if (!input.companyName.trim()) return "Vui lòng nhập tên công ty / HKD";
+    if (!input.taxCode.trim()) return "Vui lòng nhập mã số thuế";
+    if (!input.representativeName.trim()) {
+      return "Vui lòng nhập tên người đại diện";
+    }
+    if (!input.representativeTitle.trim()) {
+      return "Vui lòng nhập chức vụ người đại diện";
+    }
+    if (!input.companyAddress.trim()) return "Vui lòng nhập địa chỉ công ty";
+    if (!isConsentPhoneValid(input.companyPhone)) {
+      return "Vui lòng nhập SĐT công ty hợp lệ";
+    }
+    if (!isConsentEmailValid(input.companyEmail)) {
+      return "Vui lòng nhập email công ty hợp lệ";
+    }
   }
   return null;
+}
+
+export function buildConsentAgreementPayload(input: {
+  fullName: string;
+  email: string;
+  phone: string;
+  address: string;
+  entityType: ConsentEntityType;
+  companyName: string;
+  taxCode: string;
+  representativeName: string;
+  representativeTitle: string;
+  companyAddress: string;
+  companyPhone: string;
+  companyEmail: string;
+  signature: {
+    dataUrl: string;
+    width: number;
+    height: number;
+    strokeCount: number;
+  };
+}): ConsentAgreementPayload {
+  const base: ConsentAgreementPayload = {
+    full_name: input.fullName.trim(),
+    email: input.email.trim(),
+    phone: input.phone.trim(),
+    address: input.address.trim(),
+    entity_type: input.entityType,
+    signature: {
+      format: "png",
+      image_base64: input.signature.dataUrl,
+      width: input.signature.width || 600,
+      height: input.signature.height || 200,
+      stroke_count: input.signature.strokeCount,
+    },
+    client_platform: detectConsentClientPlatform(),
+  };
+
+  if (input.entityType === "business") {
+    base.company_name = input.companyName.trim();
+    base.tax_code = input.taxCode.trim();
+    base.representative_name = input.representativeName.trim();
+    base.representative_title = input.representativeTitle.trim();
+    base.company_address = input.companyAddress.trim();
+    base.company_phone = input.companyPhone.trim();
+    base.company_email = input.companyEmail.trim();
+  } else {
+    base.company_name = "";
+    base.tax_code = "";
+    base.representative_name = "";
+    base.representative_title = "";
+    base.company_address = "";
+    base.company_phone = "";
+    base.company_email = "";
+  }
+
+  return base;
 }
 
 export function detectConsentClientPlatform(): "web_desktop" | "web_mobile" {
@@ -317,7 +563,7 @@ export function formatConsentDateTime(dateStr?: string | null): string {
   return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
-function readConsentErrorMessage(error: unknown): string {
+function readConsentErrorMessage(error: unknown, fallback: string): string {
   if (axios.isAxiosError(error)) {
     const data = error.response?.data;
     if (data && typeof data === "object") {
@@ -327,18 +573,63 @@ function readConsentErrorMessage(error: unknown): string {
     if (error.message?.trim()) return error.message.trim();
   }
   if (error instanceof Error && error.message.trim()) return error.message.trim();
-  return "Bạn cần ký đồng ý xử lý tin nhắn Zalo trước khi sử dụng chat.";
+  return fallback;
 }
 
 /**
- * Khi BE gate chat trả CONSENT_CHAT_REQUIRED → toast + mở modal ký.
- * Trả true nếu đã xử lý (caller có thể skip toast trùng).
- * Không import errors.ts để tránh circular dependency.
+ * Gate chat / API consent:
+ * - CONSENT_MANAGER_REQUIRED → NV: banner nhờ QL (không wizard)
+ * - CONSENT_CHAT_REQUIRED → wizard (non-NV)
+ * - CONSENT_PENDING_APPROVAL → refresh status
+ * - CONSENT_REJECTED → refresh + CTA ký lại (non-NV)
  */
 export function handleConsentChatRequired(error: unknown): boolean {
-  if (getApiErrorCode(error) !== CONSENT_CHAT_REQUIRED) return false;
-  toast.error(readConsentErrorMessage(error));
-  useConsentStore.getState().openConsentModal();
-  void useConsentStore.getState().fetchStatus({ force: true });
-  return true;
+  const code = getApiErrorCode(error);
+  const store = useConsentStore.getState();
+
+  if (code === CONSENT_MANAGER_REQUIRED) {
+    toast.error(
+      readConsentErrorMessage(error, CONSENT_EMPLOYEE_WAIT_MANAGER_DEFAULT),
+    );
+    void store.fetchStatus({ force: true });
+    store.closeConsentWizard();
+    return true;
+  }
+
+  if (code === CONSENT_PENDING_APPROVAL) {
+    toast.error(
+      readConsentErrorMessage(
+        error,
+        "Hồ sơ đang chờ duyệt. Bạn chưa thể dùng tin nhắn.",
+      ),
+    );
+    void store.fetchStatus({ force: true });
+    store.closeConsentWizard();
+    return true;
+  }
+
+  if (code === CONSENT_REJECTED) {
+    toast.error(
+      readConsentErrorMessage(
+        error,
+        "Thỏa thuận không được duyệt. Vui lòng tạo / ký lại.",
+      ),
+    );
+    void store.fetchStatus({ force: true });
+    return true;
+  }
+
+  if (code === CONSENT_CHAT_REQUIRED) {
+    toast.error(
+      readConsentErrorMessage(
+        error,
+        "Bạn cần hoàn tất thỏa thuận xử lý tin nhắn Zalo trước khi dùng chat.",
+      ),
+    );
+    store.openConsentWizard();
+    void store.fetchStatus({ force: true });
+    return true;
+  }
+
+  return false;
 }

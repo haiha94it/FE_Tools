@@ -93,9 +93,10 @@ export const API_ZALO_FRIEND = {
   ADD_FRIEND: "/api/friend/add-friend",
 } as const;
 
-/** Chiến dịch kết bạn — /api/campaign/add-friend/category/ */
-export const API_ZALO_ADD_FRIEND_CAMPAIGN = buildCampaignApiPaths("add-friend");
-
+/**
+ * @deprecated Campaign add-friend đã gộp vào mess-phone-number (BE xóa route).
+ * Giữ hằng số path FE cũ để grep; không gọi API.
+ */
 export const ADD_FRIEND_CAMPAIGN_BASE = "/zalo-campaigns/add-friend";
 
 /** Chiến dịch tham gia nhóm — /api/campaign/join-group/category/ */
@@ -115,6 +116,13 @@ export const API_ZALO_PHONE_INVITE_GROUP_CAMPAIGN =
 
 export const PHONE_INVITE_GROUP_CAMPAIGN_BASE =
   "/zalo-campaigns/phone-number-invite-group";
+
+/**
+ * Picker nhóm chung multi-nick (dùng chung spam/invite/mess-member).
+ * POST body: { id_accounts, keyword? } — không gắn prefix campaign con.
+ * Path cũ .../spam-link-group|invite-phone-group/.../all-group/ đã bị BE xóa.
+ */
+export const API_CAMPAIGN_ALL_GROUP = "/api/campaign/all-group/";
 
 /** Chiến dịch nhắn tin bạn bè — /api/campaign/mess-friend/category/ */
 export const API_ZALO_SEND_MES_FR_CAMPAIGN =
@@ -315,13 +323,13 @@ export const VIDEO_CREATOR_BASE = "/zalo-campaigns/post-video";
 /**
  * Đồng thuận xử lý tin nhắn Zalo — Carev2_BE consent.urls
  * Base: /api/consent/
+ * Flow: ký submit → pending → admin duyệt (không OTP / không revoke).
  */
 export const API_CONSENT = {
   STATUS: "/api/consent/message-processing/status/",
   TERMS: "/api/consent/message-processing/terms/",
   SIGN: "/api/consent/message-processing/sign/",
   PDF: "/api/consent/message-processing/pdf/",
-  REVOKE: "/api/consent/message-processing/revoke/",
   ADMIN_SETUP: "/api/consent/admin/setup/",
   ADMIN_ACTIVATE: "/api/consent/admin/activate/",
   ADMIN_DEACTIVATE: "/api/consent/admin/deactivate/",
@@ -329,8 +337,10 @@ export const API_CONSENT = {
     `/api/consent/admin/users/${userId}/contract/`,
   adminUserPdf: (userId: number | string) =>
     `/api/consent/admin/users/${userId}/pdf/`,
-  adminUserRevoke: (userId: number | string) =>
-    `/api/consent/admin/users/${userId}/revoke/`,
+  adminUserApprove: (userId: number | string) =>
+    `/api/consent/admin/users/${userId}/approve/`,
+  adminUserReject: (userId: number | string) =>
+    `/api/consent/admin/users/${userId}/reject/`,
 } as const;
 
 /** Mini Shop / cửa hàng — đồng bộ ZaloCN minishop, shoplinkhome, showproduct */

@@ -18,9 +18,7 @@ import CampaignAttachmentFields from "@/components/zalo-campaigns/shared/Campaig
 import SendMesFrContentEditor from "@/components/zalo-campaigns/send-mes-fr/SendMesFrContentEditor";
 import SendMessMemberGrFirstMessageEditor from "./SendMessMemberGrFirstMessageEditor";
 import { GroupIcon, UserIcon } from "@/icons";
-import { useGroupMembers } from "@/hooks/use-group-members";
 import { useScanTaskPoll } from "@/hooks/use-scan-task-poll";
-import { resolveZaloLabelColor } from "@/lib/zalo-label-utils";
 import {
   canEditSendMessMemberGrTargets,
   formatTimeForApi,
@@ -28,28 +26,26 @@ import {
   parseTimeToDate,
 } from "@/lib/zalo-send-mess-member-gr-campaign-utils";
 import {
-  getZaloGroupAvatar,
-  getZaloGroupDisplayName,
-  getGroupMemberDisplay,
   getScanTaskStatus,
   isScanTaskDone,
 } from "@/lib/zalo-contacts-utils";
-import { getGroupMemberUid } from "@/lib/zalo-messenger-mention-utils";
 import { getApiErrorMessage } from "@/lib/errors";
 import { toast } from "@/lib/toast";
+import { fetchCampaignCommonGroups } from "@/services/zalo-campaign-all-group.service";
 import { zaloGroupService } from "@/services/zalo-group.service";
-import { zaloLabelService } from "@/services/zalo-label.service";
 import { zaloSendMessMemberGrCampaignService } from "@/services/zalo-send-mess-member-gr-campaign.service";
 import { useZaloSendMessMemberGrCampaignStore } from "@/stores/use-zalo-send-mess-member-gr-campaign-store";
+import type { CampaignCommonGroupItem } from "@/types/zalo-campaign-common-group";
 import type {
+  SendMessMemberGrAssignMode,
   SendMessMemberGrCampaignDetail,
   SendMessMemberGrContentType,
+  SendMessMemberGrGroupMember,
 } from "@/types/zalo-send-mess-member-gr-campaign";
-import type { ZaloGroupItem, ZaloLabelCategory } from "@/types/zalo-contacts";
 import type { ScanTaskResponse } from "@/types/zalo-contacts";
 import type { ZaloAccount } from "@/types/zalo-account";
 import Image from "next/image";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 interface SendMessMemberGrCampaignFormModalProps {
   open: boolean;
@@ -72,64 +68,12 @@ const defaultEnd = () => {
   return date;
 };
 
-function LabelColorDot({ color }: { color?: string | null }) {
-  const resolved = resolveZaloLabelColor(color);
-  return (
-    <span
-      className="h-2.5 w-2.5 shrink-0 rounded-full ring-1 ring-black/10 dark:ring-white/15"
-      style={{ backgroundColor: resolved }}
-    />
-  );
+function accountIdsKey(ids: number[]): string {
+  return [...ids].sort((a, b) => a - b).join(",");
 }
 
-function labelChipClass(active: boolean) {
-  return `inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-theme-xs font-medium transition ${
-    active
-      ? "border-brand-300 bg-brand-50 text-brand-700 shadow-theme-xs dark:border-brand-500/40 dark:bg-brand-500/15 dark:text-brand-300"
-      : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:border-gray-600"
-  }`;
-}
-
-function LabelChipFilter({
-  labels,
-  value,
-  onChange,
-  disabled = false,
-}: {
-  labels: ZaloLabelCategory[];
-  value: number | null;
-  onChange: (id: number | null) => void;
-  disabled?: boolean;
-}) {
-  return (
-    <div className="custom-scrollbar flex min-w-0 flex-1 gap-1.5 overflow-x-auto pb-0.5">
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={() => onChange(null)}
-        className={labelChipClass(value === null)}
-      >
-        Tất cả
-      </button>
-      {labels.map((label) => {
-        const active = value === label.id;
-        const name = label.name || `Nhãn #${label.id}`;
-        return (
-          <button
-            key={label.id}
-            type="button"
-            disabled={disabled}
-            onClick={() => onChange(label.id)}
-            className={labelChipClass(active)}
-            title={name}
-          >
-            <LabelColorDot color={label.color} />
-            <span className="max-w-[88px] truncate">{name}</span>
-          </button>
-        );
-      })}
-    </div>
-  );
+function groupAvatar(group: CampaignCommonGroupItem): string | undefined {
+  return group.avt || group.avatar;
 }
 
 export default function SendMessMemberGrCampaignFormModal({
@@ -158,18 +102,31 @@ export default function SendMessMemberGrCampaignFormModal({
   const [selectedMediaId, setSelectedMediaId] = useState<number | null>(null);
   const [startTime, setStartTime] = useState(defaultStart);
   const [endTime, setEndTime] = useState(defaultEnd);
-  const [selectedAccountId, setSelectedAccountId] = useState<number | null>(null);
-  const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
-  const [selectedUids, setSelectedUids] = useState<string[]>([]);
+  const [selectedAccountIds, setSelectedAccountIds] = useState<number[]>([]);
+  const [groups, setGroups] = useState<CampaignCommonGroupItem[]>([]);
+  const [selectedGroupGlobalId, setSelectedGroupGlobalId] = useState<string | null>(
+    null,
+  );
+  const [selectedMemberGlobalIds, setSelectedMemberGlobalIds] = useState<string[]>(
+    [],
+  );
+  const [assignMode, setAssignMode] =
+    useState<SendMessMemberGrAssignMode>("distribute");
+  const [members, setMembers] = useState<SendMessMemberGrGroupMember[]>([]);
   const [groupSearch, setGroupSearch] = useState("");
   const [memberSearch, setMemberSearch] = useState("");
-  const [groupLabelId, setGroupLabelId] = useState<number | null>(null);
-  const [labelCategories, setLabelCategories] = useState<ZaloLabelCategory[]>([]);
-  const [groups, setGroups] = useState<ZaloGroupItem[]>([]);
   const [groupsLoading, setGroupsLoading] = useState(false);
+  const [membersLoading, setMembersLoading] = useState(false);
   const [scanningGroups, setScanningGroups] = useState(false);
-  const [scanGroupTaskId, setScanGroupTaskId] = useState<string | number | null>(null);
+  const [scanningMembers, setScanningMembers] = useState(false);
+  const [scanGroupTaskId, setScanGroupTaskId] = useState<string | number | null>(
+    null,
+  );
   const [uploadingImage, setUploadingImage] = useState(false);
+
+  const loadGroupsSeqRef = useRef(0);
+  const loadMembersSeqRef = useRef(0);
+  const pendingGroupGlobalIdRef = useRef<string | null>(null);
 
   const targetsEditable = editingCampaign
     ? canEditSendMessMemberGrTargets(editingCampaign.status)
@@ -180,35 +137,21 @@ export default function SendMessMemberGrCampaignFormModal({
     [accounts],
   );
 
-  const {
-    members,
-    isLoading: membersLoading,
-    isRefreshing: scanningMembers,
-    refreshMembers,
-  } = useGroupMembers(selectedAccountId, selectedGroupId, open && Boolean(selectedGroupId));
+  const selectedKey = accountIdsKey(selectedAccountIds);
+  const multiNick = selectedAccountIds.length >= 2;
 
   const filteredGroups = useMemo(() => {
     const key = groupSearch.trim().toLowerCase();
     if (!key) return groups;
-    return groups.filter((item) =>
-      getZaloGroupDisplayName(item).toLowerCase().includes(key),
-    );
+    return groups.filter((item) => item.name.toLowerCase().includes(key));
   }, [groups, groupSearch]);
 
   const filteredMembers = useMemo(() => {
-    // Chọn được khi có friend.id (hoặc uid fallback cho API uids)
-    const selectable = members.filter(
-      (item) => item.friend?.id != null || Boolean(getGroupMemberUid(item)),
-    );
     const key = memberSearch.trim().toLowerCase();
-    if (!key) return selectable;
-    return selectable.filter((item) => {
-      const display = getGroupMemberDisplay(item);
-      const uid = String(item.friend?.uid ?? "");
-      return (
-        display.name.toLowerCase().includes(key) ||
-        uid.toLowerCase().includes(key)
-      );
+    if (!key) return members;
+    return members.filter((item) => {
+      const id = item.member_global_id.toLowerCase();
+      return item.name.toLowerCase().includes(key) || id.includes(key);
     });
   }, [members, memberSearch]);
 
@@ -226,14 +169,15 @@ export default function SendMessMemberGrCampaignFormModal({
     setSelectedMediaId(null);
     setStartTime(defaultStart());
     setEndTime(defaultEnd());
-    setSelectedAccountId(null);
-    setSelectedGroupId(null);
-    setSelectedUids([]);
+    setSelectedAccountIds([]);
+    setGroups([]);
+    setSelectedGroupGlobalId(null);
+    setSelectedMemberGlobalIds([]);
+    setAssignMode("distribute");
+    setMembers([]);
     setGroupSearch("");
     setMemberSearch("");
-    setGroupLabelId(null);
-    setLabelCategories([]);
-    setGroups([]);
+    pendingGroupGlobalIdRef.current = null;
   }, []);
 
   useEffect(() => {
@@ -262,46 +206,151 @@ export default function SendMessMemberGrCampaignFormModal({
     );
     setStartTime(parseTimeToDate(editingCampaign.from_time) ?? defaultStart());
     setEndTime(parseTimeToDate(editingCampaign.to_time) ?? defaultEnd());
-    setSelectedAccountId(editingCampaign.account ?? null);
-    setSelectedGroupId(editingCampaign.group ?? null);
-    setSelectedUids(editingCampaign.list_uid ?? []);
+
+    // accounts M2M: number[] (serializer) — fallback object {id} nếu BE đổi shape
+    const rawAccounts = editingCampaign.accounts as unknown;
+    let accountIds: number[] = [];
+    if (Array.isArray(rawAccounts)) {
+      accountIds = rawAccounts
+        .map((item) => {
+          if (typeof item === "number" && Number.isFinite(item)) return item;
+          if (item && typeof item === "object" && "id" in item) {
+            const n = Number((item as { id: unknown }).id);
+            return Number.isFinite(n) ? n : NaN;
+          }
+          return NaN;
+        })
+        .filter((id) => Number.isFinite(id) && id > 0);
+    } else if (editingCampaign.account) {
+      accountIds = [editingCampaign.account];
+    }
+    setSelectedAccountIds(accountIds);
+    setAssignMode(editingCampaign.assign_mode === "all" ? "all" : "distribute");
+
+    const groupGlobalId = editingCampaign.group_global_id?.trim() || null;
+    setSelectedGroupGlobalId(groupGlobalId);
+    pendingGroupGlobalIdRef.current = groupGlobalId;
+
+    setSelectedMemberGlobalIds(
+      (editingCampaign.list_member_global ?? []).map(String).filter(Boolean),
+    );
+    setGroups([]);
+    setMembers([]);
+    setGroupSearch("");
+    setMemberSearch("");
   }, [open, editingCampaign, resetForm]);
 
   const loadGroups = useCallback(
-    async (accountId: number, search: string, categoryId: number | null) => {
-      setGroupsLoading(true);
-      try {
-        const page = await zaloGroupService.list({
-          accountId,
-          page: 1,
-          pageSize: 200,
-          name: search || undefined,
-          categoryId: categoryId ?? undefined,
-        });
-        const list = page.results ?? [];
-        if (!list.length) {
-          setGroups([]);
-          return;
-        }
-        const enriched = await zaloGroupService.fetchDetails(list);
-        setGroups(enriched);
-      } catch {
+    async (
+      accountIds: number[],
+      keyword?: string,
+      options?: { silentEmpty?: boolean },
+    ) => {
+      if (!accountIds.length) {
         setGroups([]);
+        setSelectedGroupGlobalId(null);
+        return;
+      }
+
+      const seq = ++loadGroupsSeqRef.current;
+      try {
+        setGroupsLoading(true);
+        const loaded = await fetchCampaignCommonGroups({
+          accountIds,
+          keyword,
+        });
+        if (seq !== loadGroupsSeqRef.current) return;
+
+        setGroups(loaded);
+
+        const pending = pendingGroupGlobalIdRef.current;
+        if (pending) {
+          const matched = loaded.find((item) => item.globalId === pending);
+          if (matched?.globalId) {
+            setSelectedGroupGlobalId(matched.globalId);
+            pendingGroupGlobalIdRef.current = null;
+          }
+        } else {
+          setSelectedGroupGlobalId((prev) => {
+            if (!prev) return null;
+            return loaded.some((item) => item.globalId === prev) ? prev : null;
+          });
+        }
+
+        if (!loaded.length && !options?.silentEmpty) {
+          toast.error(
+            accountIds.length >= 2
+              ? "Không có nhóm chung / chưa sync global giữa các nick đã chọn."
+              : "Không tìm thấy nhóm (hoặc nhóm chưa gắn global — hãy quét nhóm).",
+          );
+        }
+      } catch (error) {
+        if (seq !== loadGroupsSeqRef.current) return;
+        setGroups([]);
+        toast.error(getApiErrorMessage(error));
       } finally {
-        setGroupsLoading(false);
+        if (seq === loadGroupsSeqRef.current) {
+          setGroupsLoading(false);
+        }
+      }
+    },
+    [],
+  );
+
+  const loadMembers = useCallback(
+    async (accountIds: number[], groupGlobalId: string) => {
+      if (!accountIds.length || !groupGlobalId.trim()) {
+        setMembers([]);
+        return;
+      }
+      const seq = ++loadMembersSeqRef.current;
+      try {
+        setMembersLoading(true);
+        const loaded = await zaloSendMessMemberGrCampaignService.fetchGroupMembers({
+          accountIds,
+          groupGlobalId,
+        });
+        if (seq !== loadMembersSeqRef.current) return;
+        setMembers(loaded);
+        setSelectedMemberGlobalIds((prev) =>
+          prev.filter((id) =>
+            loaded.some((member) => member.member_global_id === id),
+          ),
+        );
+      } catch (error) {
+        if (seq !== loadMembersSeqRef.current) return;
+        setMembers([]);
+        toast.error(getApiErrorMessage(error));
+      } finally {
+        if (seq === loadMembersSeqRef.current) {
+          setMembersLoading(false);
+        }
       }
     },
     [],
   );
 
   useEffect(() => {
-    if (!open || !selectedAccountId) return;
-    void zaloLabelService
-      .listCategories(selectedAccountId)
-      .then(setLabelCategories)
-      .catch(() => setLabelCategories([]));
-    void loadGroups(selectedAccountId, groupSearch, groupLabelId);
-  }, [open, selectedAccountId, groupLabelId, loadGroups]);
+    if (!open) return;
+    if (!selectedAccountIds.length) {
+      setGroups([]);
+      if (!editingCampaign) {
+        setSelectedGroupGlobalId(null);
+        setMembers([]);
+        setSelectedMemberGlobalIds([]);
+      }
+      return;
+    }
+    void loadGroups(selectedAccountIds, undefined, { silentEmpty: true });
+  }, [open, selectedKey, editingCampaign?.id, loadGroups, selectedAccountIds, editingCampaign]);
+
+  useEffect(() => {
+    if (!open || !selectedGroupGlobalId || !selectedAccountIds.length) {
+      if (!selectedGroupGlobalId) setMembers([]);
+      return;
+    }
+    void loadMembers(selectedAccountIds, selectedGroupGlobalId);
+  }, [open, selectedKey, selectedGroupGlobalId, loadMembers, selectedAccountIds]);
 
   const handleScanGroupResult = useCallback(
     (result: ScanTaskResponse) => {
@@ -311,14 +360,14 @@ export default function SendMessMemberGrCampaignFormModal({
       setScanGroupTaskId(null);
       if (status === "SUCCESS") {
         toast.success("Quét danh sách nhóm thành công.");
-        if (selectedAccountId) {
-          void loadGroups(selectedAccountId, groupSearch, groupLabelId);
+        if (selectedAccountIds.length) {
+          void loadGroups(selectedAccountIds, groupSearch || undefined);
         }
       } else {
         toast.error(result.message || result.error || "Quét danh sách nhóm thất bại.");
       }
     },
-    [selectedAccountId, groupSearch, groupLabelId, loadGroups],
+    [selectedAccountIds, groupSearch, loadGroups],
   );
 
   useScanTaskPoll({
@@ -327,40 +376,76 @@ export default function SendMessMemberGrCampaignFormModal({
     onResult: handleScanGroupResult,
   });
 
-  const handleSelectAccount = (accountId: number) => {
-    if (selectedAccountId === accountId) return;
-    setSelectedAccountId(accountId);
-    if (!editingCampaign) {
-      setSelectedGroupId(null);
-      setSelectedUids([]);
-    }
-    setGroups([]);
-    setGroupSearch("");
-    setGroupLabelId(null);
-    setMemberSearch("");
-  };
-
-  const handleSelectGroup = (groupId: number) => {
+  const toggleAccount = (accountId: number) => {
     if (!targetsEditable) return;
-    setSelectedGroupId(groupId);
-    if (!editingCampaign) {
-      setSelectedUids([]);
+    setSelectedAccountIds((prev) => {
+      const next = prev.includes(accountId)
+        ? prev.filter((id) => id !== accountId)
+        : [...prev, accountId];
+      if (next.length !== prev.length) {
+        setSelectedGroupGlobalId(null);
+        setSelectedMemberGlobalIds([]);
+        setGroups([]);
+        setMembers([]);
+        pendingGroupGlobalIdRef.current = null;
+      }
+      return next;
+    });
+  };
+
+  const toggleSelectAllAccounts = () => {
+    if (!targetsEditable) return;
+    const allIds = activeAccounts.map((item) => item.id);
+    const allSelected =
+      allIds.length > 0 &&
+      allIds.every((id) => selectedAccountIds.includes(id));
+    setSelectedAccountIds(allSelected ? [] : allIds);
+    setSelectedGroupGlobalId(null);
+    setSelectedMemberGlobalIds([]);
+    setGroups([]);
+    setMembers([]);
+    pendingGroupGlobalIdRef.current = null;
+  };
+
+  const handleSelectGroup = (group: CampaignCommonGroupItem) => {
+    if (!targetsEditable) return;
+    const globalId = group.globalId?.trim();
+    if (!globalId) {
+      toast.error("Nhóm chưa có globalId — hãy quét/sync nhóm rồi thử lại.");
+      return;
     }
+    if (selectedGroupGlobalId === globalId) return;
+    setSelectedGroupGlobalId(globalId);
+    setSelectedMemberGlobalIds([]);
     setMemberSearch("");
   };
 
-  const toggleMember = (uid: string) => {
-    if (!targetsEditable || !uid) return;
-    setSelectedUids((prev) =>
-      prev.includes(uid) ? prev.filter((id) => id !== uid) : [...prev, uid],
+  const toggleMember = (memberGlobalId: string) => {
+    if (!targetsEditable || !memberGlobalId) return;
+    setSelectedMemberGlobalIds((prev) =>
+      prev.includes(memberGlobalId)
+        ? prev.filter((id) => id !== memberGlobalId)
+        : [...prev, memberGlobalId],
     );
   };
 
+  const toggleSelectAllMembers = () => {
+    if (!targetsEditable) return;
+    const allIds = filteredMembers.map((m) => m.member_global_id);
+    const allSelected =
+      allIds.length > 0 &&
+      allIds.every((id) => selectedMemberGlobalIds.includes(id));
+    setSelectedMemberGlobalIds(allSelected ? [] : allIds);
+  };
+
   const handleScanGroups = async () => {
-    if (!selectedAccountId) return;
+    if (!selectedAccountIds.length) {
+      toast.error("Chọn ít nhất một tài khoản.");
+      return;
+    }
     try {
       setScanningGroups(true);
-      const taskId = await zaloGroupService.startScan([selectedAccountId]);
+      const taskId = await zaloGroupService.startScan(selectedAccountIds);
       if (!taskId) {
         setScanningGroups(false);
         toast.error("Không gửi được yêu cầu quét nhóm.");
@@ -374,6 +459,133 @@ export default function SendMessMemberGrCampaignFormModal({
     }
   };
 
+  /**
+   * Quét TV từ Zalo (get-member) cho từng nick đã chọn trên nhóm global,
+   * rồi load lại list từ API members (accounts_ready cập nhật).
+   */
+  const handleScanMembers = async () => {
+    if (!selectedAccountIds.length) {
+      toast.error("Chọn ít nhất một tài khoản.");
+      return;
+    }
+    if (!selectedGroupGlobalId) {
+      toast.error("Chọn nhóm trước khi quét thành viên.");
+      return;
+    }
+
+    setScanningMembers(true);
+    try {
+      const selectedGroup = groups.find(
+        (item) => item.globalId === selectedGroupGlobalId,
+      );
+
+      // Resolve id_group (GroupModel) theo từng nick — all-group multi-nick chỉ trả id nick đầu
+      const firstAccountId = selectedAccountIds[0];
+      const knownFirstGroupId =
+        firstAccountId &&
+        selectedGroup?.id != null &&
+        Number.isFinite(selectedGroup.id) &&
+        selectedGroup.id > 0
+          ? selectedGroup.id
+          : null;
+
+      const resolved = await Promise.all(
+        selectedAccountIds.map(async (accountId) => {
+          if (accountId === firstAccountId && knownFirstGroupId != null) {
+            return { accountId, groupId: knownFirstGroupId };
+          }
+          try {
+            const list = await fetchCampaignCommonGroups({
+              accountIds: [accountId],
+            });
+            const match = list.find(
+              (item) => item.globalId === selectedGroupGlobalId,
+            );
+            if (match?.id != null && match.id > 0) {
+              return { accountId, groupId: match.id };
+            }
+          } catch {
+            // bỏ nick không resolve được
+          }
+          return null;
+        }),
+      );
+      const pairs = resolved.filter(
+        (item): item is { accountId: number; groupId: number } => item != null,
+      );
+
+      if (!pairs.length) {
+        toast.error(
+          "Không tìm thấy nhóm trên nick để quét thành viên. Hãy quét nhóm trước.",
+        );
+        return;
+      }
+
+      toast.info(
+        pairs.length > 1
+          ? `Đang quét thành viên trên ${pairs.length} nick...`
+          : "Đang quét thành viên nhóm từ Zalo...",
+      );
+
+      let successCount = 0;
+      let failCount = 0;
+
+      // Chạy tuần tự để tránh spam Zalo / Celery quá nhiều song song
+      for (const pair of pairs) {
+        try {
+          const taskId = await zaloGroupService.startGetMembers(
+            pair.accountId,
+            pair.groupId,
+          );
+          if (!taskId) {
+            failCount += 1;
+            continue;
+          }
+
+          let done = false;
+          for (let attempt = 0; attempt < 90; attempt++) {
+            const result = await zaloGroupService.pollGetMembersResult(taskId);
+            const status = getScanTaskStatus(result);
+            if (!isScanTaskDone(status)) {
+              await new Promise((resolve) => setTimeout(resolve, 1500));
+              continue;
+            }
+            if (status === "SUCCESS") {
+              successCount += 1;
+            } else {
+              failCount += 1;
+            }
+            done = true;
+            break;
+          }
+          if (!done) failCount += 1;
+        } catch {
+          failCount += 1;
+        }
+      }
+
+      await loadMembers(selectedAccountIds, selectedGroupGlobalId);
+
+      if (successCount > 0 && failCount === 0) {
+        toast.success(
+          successCount > 1
+            ? `Đã quét thành viên trên ${successCount} nick.`
+            : "Đã quét thành viên nhóm thành công.",
+        );
+      } else if (successCount > 0) {
+        toast.success(
+          `Đã quét ${successCount} nick; ${failCount} nick lỗi hoặc timeout.`,
+        );
+      } else {
+        toast.error("Quét thành viên nhóm thất bại. Thử lại sau.");
+      }
+    } catch (error) {
+      toast.error(getApiErrorMessage(error));
+    } finally {
+      setScanningMembers(false);
+    }
+  };
+
   const handleUploadImage = async (file: File) => {
     setUploadingImage(true);
     try {
@@ -384,27 +596,9 @@ export default function SendMessMemberGrCampaignFormModal({
   };
 
   const handleSave = async () => {
-    if (!sendMessage && !addFriend) {
-      toast.error("Chọn ít nhất một chức năng: Nhắn tin hoặc Kết bạn.");
-      return;
-    }
-    const trimmedName = name.trim();
-    if (!trimmedName) {
-      toast.error("Vui lòng nhập tên kịch bản.");
-      return;
-    }
-    if (!selectedAccountId) {
-      toast.error("Chọn tài khoản Zalo.");
-      return;
-    }
-    if (!selectedGroupId) {
-      toast.error("Chọn nhóm.");
-      return;
-    }
-    if (!selectedUids.length) {
-      toast.error("Chọn ít nhất một thành viên.");
-      return;
-    }
+    const isRunningContentOnly = editingCampaign?.status === 1;
+
+    // Validate nội dung (chung tạo/sửa + khi đang chạy chỉ sửa tin/media)
     if (sendMessage && !contents.length && !contentType) {
       toast.error("Nhập nội dung hoặc chọn đính kèm.");
       return;
@@ -431,6 +625,48 @@ export default function SendMessMemberGrCampaignFormModal({
       toast.error("Thêm ít nhất một lời chào kết bạn.");
       return;
     }
+
+    // status===1: BE chỉ nhận tin/media — không gửi nick/nhóm/TV/mode
+    if (isRunningContentOnly && editingCampaign?.id) {
+      try {
+        await createOrEditCampaign({
+          id_category: editingCampaign.id,
+          type: contentType || null,
+          contents,
+          images: contentType === "image" ? images : [],
+          id_video: contentType === "video" ? selectedMediaId : null,
+          id_album: contentType === "album" ? selectedMediaId : null,
+          first_messages: firstMessages,
+        });
+        toast.success("Đã cập nhật nội dung kịch bản đang chạy.");
+        onClose();
+      } catch (error) {
+        toast.error(getApiErrorMessage(error));
+      }
+      return;
+    }
+
+    if (!sendMessage && !addFriend) {
+      toast.error("Chọn ít nhất một chức năng: Nhắn tin hoặc Kết bạn.");
+      return;
+    }
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+      toast.error("Vui lòng nhập tên kịch bản.");
+      return;
+    }
+    if (!selectedAccountIds.length) {
+      toast.error("Chọn ít nhất một tài khoản Zalo.");
+      return;
+    }
+    if (!selectedGroupGlobalId) {
+      toast.error("Chọn nhóm (cần globalId từ danh sách nhóm chung).");
+      return;
+    }
+    if (!selectedMemberGlobalIds.length) {
+      toast.error("Chọn ít nhất một thành viên.");
+      return;
+    }
     const delay = Number(delayTime);
     const count = Number(numberCount);
     if (!Number.isFinite(delay) || delay <= 0) {
@@ -440,6 +676,15 @@ export default function SendMessMemberGrCampaignFormModal({
     if (!Number.isFinite(count) || count <= 0) {
       toast.error("Số lượt gửi không hợp lệ.");
       return;
+    }
+
+    if (assignMode === "all") {
+      const volume = selectedAccountIds.length * selectedMemberGlobalIds.length;
+      if (volume > 2000) {
+        toast.info(
+          `Mode "mọi nick × mọi TV" ≈ ${volume} lượt — số lượt lớn, hãy cân nhắc.`,
+        );
+      }
     }
 
     const payload = {
@@ -452,12 +697,12 @@ export default function SendMessMemberGrCampaignFormModal({
       id_album: contentType === "album" ? selectedMediaId : null,
       delay_time: delay,
       number_count: count,
-      id_account: selectedAccountId,
-      id_group: selectedGroupId,
-      uids: selectedUids,
+      id_accounts: selectedAccountIds,
+      group_global_id: selectedGroupGlobalId,
+      member_global_ids: selectedMemberGlobalIds,
+      assign_mode: assignMode,
       add_friend: addFriend,
       send_message: sendMessage,
-      split_attachment: splitAttachment,
       first_messages: firstMessages,
       from_time: formatTimeForApi(startTime),
       to_time: formatTimeForApi(endTime),
@@ -484,8 +729,13 @@ export default function SendMessMemberGrCampaignFormModal({
               : "Thêm kịch bản tương tác nhóm"}
           </h3>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Nhắn tin hoặc kết bạn với thành viên trong nhóm đã tham gia
+            Multi-nick: chọn nick → nhóm chung (globalId) → thành viên → chế độ chia
           </p>
+          {!targetsEditable ? (
+            <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
+              Kịch bản đang chạy — chỉ sửa nội dung / media. Nick, nhóm, TV và chế độ chia bị khóa.
+            </p>
+          ) : null}
         </div>
 
         <div className={campaignFormMainClass}>
@@ -543,6 +793,62 @@ export default function SendMessMemberGrCampaignFormModal({
                   <span className="text-theme-xs text-gray-500">Đến</span>
                   <TimePicker value={endTime} onChange={setEndTime} disabled={saving} />
                 </div>
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
+              <p className="mb-2 text-sm font-semibold text-gray-800 dark:text-white/90">
+                Chế độ gán thành viên
+              </p>
+              <div className="space-y-2">
+                <label
+                  className={`flex cursor-pointer items-start gap-2.5 rounded-lg border px-3 py-2 text-sm ${
+                    assignMode === "distribute"
+                      ? "border-brand-300 bg-brand-50/60 dark:border-brand-500/40 dark:bg-brand-500/10"
+                      : "border-gray-200 dark:border-gray-700"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="assign_mode"
+                    className="mt-1"
+                    checked={assignMode === "distribute"}
+                    disabled={!targetsEditable || saving}
+                    onChange={() => setAssignMode("distribute")}
+                  />
+                  <span>
+                    <span className="font-medium text-gray-800 dark:text-white/90">
+                      Chia thành viên cho các nick
+                    </span>
+                    <span className="mt-0.5 block text-theme-xs text-gray-500 dark:text-gray-400">
+                      Mỗi TV chỉ 1 nick xử lý; hệ thống chia cho nick còn hoạt động mỗi phiên.
+                    </span>
+                  </span>
+                </label>
+                <label
+                  className={`flex cursor-pointer items-start gap-2.5 rounded-lg border px-3 py-2 text-sm ${
+                    assignMode === "all"
+                      ? "border-brand-300 bg-brand-50/60 dark:border-brand-500/40 dark:bg-brand-500/10"
+                      : "border-gray-200 dark:border-gray-700"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="assign_mode"
+                    className="mt-1"
+                    checked={assignMode === "all"}
+                    disabled={!targetsEditable || saving}
+                    onChange={() => setAssignMode("all")}
+                  />
+                  <span>
+                    <span className="font-medium text-gray-800 dark:text-white/90">
+                      Mọi nick gửi tất cả thành viên
+                    </span>
+                    <span className="mt-0.5 block text-theme-xs text-gray-500 dark:text-gray-400">
+                      Mỗi nick lần lượt nhắn/kết bạn toàn bộ TV (số lượt ≈ nick × TV).
+                    </span>
+                  </span>
+                </label>
               </div>
             </div>
 
@@ -623,9 +929,22 @@ export default function SendMessMemberGrCampaignFormModal({
                 className={`${campaignFormSidePaneClass} gap-3 rounded-2xl border border-gray-200 bg-gray-50/40 p-3 dark:border-gray-800 dark:bg-white/[0.02]`}
               >
             <div className="shrink-0">
-              <p className="mb-2 text-sm font-semibold text-gray-800 dark:text-white/90">
-                Tài khoản gửi tin
-              </p>
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <p className="text-sm font-semibold text-gray-800 dark:text-white/90">
+                  Tài khoản gửi tin
+                </p>
+                <button
+                  type="button"
+                  disabled={!targetsEditable || saving || !activeAccounts.length}
+                  onClick={toggleSelectAllAccounts}
+                  className="text-theme-xs font-medium text-brand-600 hover:underline disabled:opacity-50 dark:text-brand-400"
+                >
+                  {activeAccounts.length > 0 &&
+                  activeAccounts.every((a) => selectedAccountIds.includes(a.id))
+                    ? "Bỏ chọn tất cả"
+                    : "Chọn tất cả"}
+                </button>
+              </div>
               <div className="custom-scrollbar flex gap-2 overflow-x-auto pb-0.5">
                 {accountsLoading ? (
                   <p className="px-2 py-3 text-sm text-gray-500">Đang tải...</p>
@@ -633,17 +952,18 @@ export default function SendMessMemberGrCampaignFormModal({
                   <p className="px-2 py-3 text-sm text-gray-500">Không có tài khoản</p>
                 ) : (
                   activeAccounts.map((account) => {
-                    const active = selectedAccountId === account.id;
+                    const active = selectedAccountIds.includes(account.id);
                     return (
                       <button
                         key={account.id}
                         type="button"
-                        onClick={() => handleSelectAccount(account.id)}
+                        disabled={!targetsEditable || saving}
+                        onClick={() => toggleAccount(account.id)}
                         className={`flex shrink-0 items-center gap-2 rounded-xl border px-2.5 py-2 transition ${
                           active
                             ? "border-brand-300 bg-white shadow-theme-xs ring-2 ring-brand-500/15 dark:border-brand-500/40 dark:bg-gray-900"
                             : "border-gray-200 bg-white/80 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-900/60"
-                        }`}
+                        } disabled:cursor-not-allowed disabled:opacity-60`}
                       >
                         <span className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
                           {account.avatar ? (
@@ -659,11 +979,19 @@ export default function SendMessMemberGrCampaignFormModal({
                         <span className="max-w-[120px] truncate text-left text-sm font-medium text-gray-800 dark:text-white/90">
                           {account.name || `#${account.id}`}
                         </span>
+                        {active ? (
+                          <span className="text-brand-600 dark:text-brand-400">✓</span>
+                        ) : null}
                       </button>
                     );
                   })
                 )}
               </div>
+              {multiNick ? (
+                <p className="mt-1.5 text-theme-xs text-gray-500 dark:text-gray-400">
+                  ≥2 nick: chỉ hiện nhóm mọi nick đều join (cùng globalId).
+                </p>
+              ) : null}
             </div>
 
             <div className="grid min-h-0 flex-1 gap-3 lg:grid-cols-2">
@@ -673,26 +1001,17 @@ export default function SendMessMemberGrCampaignFormModal({
                     <GroupIcon className="size-3.5" />
                   </span>
                   <span className="text-sm font-semibold text-gray-800 dark:text-white/90">
-                    Chọn nhóm
+                    Nhóm chung
                   </span>
                 </div>
                 <div className="shrink-0 min-w-0 space-y-2 border-b border-gray-100 px-3 py-2 dark:border-gray-800">
-                  <div className="flex min-w-0 items-center gap-2">
-                    <span className="shrink-0 text-theme-xs font-medium text-gray-500">Nhãn</span>
-                    <LabelChipFilter
-                      labels={labelCategories}
-                      value={groupLabelId}
-                      onChange={setGroupLabelId}
-                      disabled={!selectedAccountId || saving}
-                    />
-                  </div>
                   <div className="flex h-10 items-stretch gap-2">
                     <div className="min-w-0 flex-1 [&>div]:h-full [&_input]:!h-full">
                       <Input
                         value={groupSearch}
                         onChange={(e) => setGroupSearch(e.target.value)}
                         placeholder="Tìm nhóm..."
-                        disabled={!selectedAccountId || saving}
+                        disabled={!selectedAccountIds.length || saving}
                         className="!h-full !min-h-10 !px-3 !py-2 !text-sm"
                       />
                     </div>
@@ -700,7 +1019,7 @@ export default function SendMessMemberGrCampaignFormModal({
                       size="sm"
                       variant="outline"
                       className="h-10 shrink-0 whitespace-nowrap !py-0 px-3 text-xs"
-                      disabled={!selectedAccountId || scanningGroups || saving}
+                      disabled={!selectedAccountIds.length || scanningGroups || saving}
                       onClick={() => void handleScanGroups()}
                     >
                       {scanningGroups ? "Đang quét..." : "Quét nhóm"}
@@ -708,40 +1027,49 @@ export default function SendMessMemberGrCampaignFormModal({
                   </div>
                 </div>
                 <div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain p-1.5">
-                  {!selectedAccountId ? (
+                  {!selectedAccountIds.length ? (
                     <p className="px-3 py-6 text-center text-xs text-gray-500">
-                      Chọn tài khoản để xem nhóm
+                      Chọn tài khoản để xem nhóm chung
                     </p>
                   ) : groupsLoading ? (
                     <p className="px-3 py-6 text-center text-xs text-gray-500">Đang tải...</p>
                   ) : filteredGroups.length === 0 ? (
                     <p className="px-3 py-6 text-center text-xs text-gray-500">
-                      Không có nhóm phù hợp
+                      Không có nhóm chung / chưa sync global
                     </p>
                   ) : (
                     <ul className="space-y-0.5">
                       {filteredGroups.map((group) => {
-                        const active = selectedGroupId === group.id;
-                        const groupName = getZaloGroupDisplayName(group);
+                        const globalId = group.globalId ?? "";
+                        const active = Boolean(
+                          globalId && selectedGroupGlobalId === globalId,
+                        );
                         return (
-                          <li key={group.id}>
+                          <li key={globalId || `${group.id}-${group.name}`}>
                             <button
                               type="button"
-                              disabled={!targetsEditable || saving}
-                              onClick={() => handleSelectGroup(group.id)}
+                              disabled={!targetsEditable || saving || !globalId}
+                              onClick={() => handleSelectGroup(group)}
                               className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition ${
                                 active
                                   ? "bg-brand-50 dark:bg-brand-500/10"
                                   : "hover:bg-gray-50 dark:hover:bg-white/[0.04]"
-                              }`}
+                              } disabled:opacity-50`}
                             >
                               <ContactAvatar
-                                name={groupName}
-                                avatar={getZaloGroupAvatar(group)}
+                                name={group.name}
+                                avatar={groupAvatar(group)}
                                 size="sm"
                               />
-                              <span className="min-w-0 flex-1 truncate text-gray-800 dark:text-white/90">
-                                {groupName}
+                              <span className="min-w-0 flex-1">
+                                <span className="block truncate text-gray-800 dark:text-white/90">
+                                  {group.name}
+                                </span>
+                                {typeof group.total_member === "number" ? (
+                                  <span className="text-theme-xs text-gray-500">
+                                    {group.total_member} TV
+                                  </span>
+                                ) : null}
                               </span>
                             </button>
                           </li>
@@ -759,12 +1087,31 @@ export default function SendMessMemberGrCampaignFormModal({
                       <UserIcon className="size-3.5" />
                     </span>
                     <span className="text-sm font-semibold text-gray-800 dark:text-white/90">
-                      Chọn thành viên
+                      Thành viên
                     </span>
                   </div>
-                  <span className="rounded-full bg-brand-50 px-2 py-0.5 text-theme-xs font-medium text-brand-600 dark:bg-brand-500/10 dark:text-brand-400">
-                    {selectedUids.length} đã chọn
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      disabled={
+                        !targetsEditable ||
+                        saving ||
+                        !filteredMembers.length
+                      }
+                      onClick={toggleSelectAllMembers}
+                      className="text-theme-xs font-medium text-brand-600 hover:underline disabled:opacity-50 dark:text-brand-400"
+                    >
+                      {filteredMembers.length > 0 &&
+                      filteredMembers.every((m) =>
+                        selectedMemberGlobalIds.includes(m.member_global_id),
+                      )
+                        ? "Bỏ chọn"
+                        : "Chọn hết"}
+                    </button>
+                    <span className="rounded-full bg-brand-50 px-2 py-0.5 text-theme-xs font-medium text-brand-600 dark:bg-brand-500/10 dark:text-brand-400">
+                      {selectedMemberGlobalIds.length} đã chọn
+                    </span>
+                  </div>
                 </div>
 
                 {!targetsEditable ? (
@@ -780,7 +1127,7 @@ export default function SendMessMemberGrCampaignFormModal({
                         value={memberSearch}
                         onChange={(e) => setMemberSearch(e.target.value)}
                         placeholder="Tìm thành viên..."
-                        disabled={!selectedGroupId || saving}
+                        disabled={!selectedGroupGlobalId || saving}
                         className="!h-full !min-h-10 !px-3 !py-2 !text-sm"
                       />
                     </div>
@@ -788,16 +1135,22 @@ export default function SendMessMemberGrCampaignFormModal({
                       size="sm"
                       variant="outline"
                       className="h-10 shrink-0 whitespace-nowrap !py-0 px-3 text-xs"
-                      disabled={!selectedAccountId || !selectedGroupId || scanningMembers || saving}
-                      onClick={() => void refreshMembers()}
+                      disabled={
+                        !selectedAccountIds.length ||
+                        !selectedGroupGlobalId ||
+                        membersLoading ||
+                        scanningMembers ||
+                        saving
+                      }
+                      onClick={() => void handleScanMembers()}
                     >
-                      {scanningMembers ? "Đang quét..." : "Quét thành viên"}
+                      {scanningMembers ? "Đang quét..." : "Quét TV"}
                     </Button>
                   </div>
                 </div>
 
                 <div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain p-1.5">
-                  {!selectedGroupId ? (
+                  {!selectedGroupGlobalId ? (
                     <p className="px-3 py-6 text-center text-xs text-gray-500">
                       Chọn nhóm để xem thành viên
                     </p>
@@ -805,20 +1158,20 @@ export default function SendMessMemberGrCampaignFormModal({
                     <p className="px-3 py-6 text-center text-xs text-gray-500">Đang tải...</p>
                   ) : filteredMembers.length === 0 ? (
                     <p className="px-3 py-6 text-center text-xs text-gray-500">
-                      Không có thành viên phù hợp
+                      Chưa có thành viên trong nhóm (thử Quét TV nếu danh sách trống).
                     </p>
                   ) : (
                     <ul className="space-y-0.5">
                       {filteredMembers.map((member) => {
-                        const uid = getGroupMemberUid(member);
-                        const display = getGroupMemberDisplay(member);
-                        const selected = selectedUids.includes(uid);
+                        const selected = selectedMemberGlobalIds.includes(
+                          member.member_global_id,
+                        );
                         return (
-                          <li key={member.id}>
+                          <li key={member.member_global_id}>
                             <button
                               type="button"
-                              disabled={!targetsEditable || saving || !uid}
-                              onClick={() => toggleMember(uid)}
+                              disabled={!targetsEditable || saving}
+                              onClick={() => toggleMember(member.member_global_id)}
                               className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition ${
                                 selected
                                   ? "bg-brand-50 dark:bg-brand-500/10"
@@ -826,12 +1179,17 @@ export default function SendMessMemberGrCampaignFormModal({
                               }`}
                             >
                               <ContactAvatar
-                                name={display.name}
-                                avatar={display.avatar}
+                                name={member.name}
+                                avatar={member.avatar}
                                 size="sm"
                               />
                               <span className="min-w-0 flex-1 truncate text-gray-800 dark:text-white/90">
-                                {display.name}
+                                {member.name}
+                                {member.is_admin ? (
+                                  <span className="ml-1 text-theme-xs text-gray-500">
+                                    · Admin
+                                  </span>
+                                ) : null}
                               </span>
                               {selected ? (
                                 <span className="shrink-0 text-brand-600 dark:text-brand-400">

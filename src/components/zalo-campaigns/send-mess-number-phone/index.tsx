@@ -163,7 +163,7 @@ export default function SendMessPhoneCampaignView() {
   return (
     <div className={`${adminDataPanelClass} flex min-h-0 flex-1 flex-col gap-4`}>
       <PageBreadcrumb
-        pageTitle="Nhắn tin đến SĐT"
+        pageTitle="Nhắn tin / Kết bạn SĐT"
         parents={[
           { label: "Chiến dịch", href: "/zalo-campaigns/send-mess-number-phone" },
         ]}

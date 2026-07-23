@@ -251,10 +251,28 @@ export type MessengerChatType =
   | "block-friend"
   | "reset-unread-count";
 
+/** Poll /api/group/create/result — BE trả task_status + result (không phải status + data). */
+export interface MessengerCreateGroupTaskResult {
+  success?: boolean;
+  message?: string;
+  error_type?: string;
+  groupId?: string | number;
+  globalId?: string;
+  name?: string;
+  avt?: string;
+  totalMember?: number;
+  creatorId?: string;
+  link_group?: string;
+  id_conversation?: number;
+}
+
 export interface MessengerCreateGroupResult {
+  /** legacy */
   status?: string;
+  task_status?: string;
   message?: string;
   data?: { id_conversation?: number };
+  result?: MessengerCreateGroupTaskResult;
 }
 
 export interface MessengerStickerItem {

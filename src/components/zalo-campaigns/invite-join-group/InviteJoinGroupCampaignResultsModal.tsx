@@ -16,6 +16,7 @@ import {
   formatCampaignStartTime,
   formatInviteJoinGroupResultStatus,
 } from "@/lib/zalo-invite-join-group-campaign-utils";
+import { SHOW_GROUP_LINK_FEATURES } from "@/config/feature-flags";
 import { confirm } from "@/lib/confirm";
 import { getApiErrorMessage } from "@/lib/errors";
 import { toast } from "@/lib/toast";
@@ -215,9 +216,11 @@ export default function InviteJoinGroupCampaignResultsModal({
                     <TableCell isHeader className={headerClass}>
                       Tài khoản
                     </TableCell>
-                    <TableCell isHeader className={headerClass}>
-                      Link nhóm
-                    </TableCell>
+                    {SHOW_GROUP_LINK_FEATURES ? (
+                      <TableCell isHeader className={headerClass}>
+                        Link nhóm
+                      </TableCell>
+                    ) : null}
                     <TableCell isHeader className={headerClass}>
                       Tên nhóm
                     </TableCell>
@@ -249,11 +252,13 @@ export default function InviteJoinGroupCampaignResultsModal({
                         <TableCell className="px-4 py-3 text-theme-sm text-gray-700 dark:text-gray-300">
                           {account?.name || `#${row.account}`}
                         </TableCell>
-                        <TableCell className="max-w-[180px] px-4 py-3 text-theme-sm">
-                          <span className="line-clamp-2 break-all text-gray-700 dark:text-gray-300">
-                            {row.group_link || "—"}
-                          </span>
-                        </TableCell>
+                        {SHOW_GROUP_LINK_FEATURES ? (
+                          <TableCell className="max-w-[180px] px-4 py-3 text-theme-sm">
+                            <span className="line-clamp-2 break-all text-gray-700 dark:text-gray-300">
+                              {row.group_link || "—"}
+                            </span>
+                          </TableCell>
+                        ) : null}
                         <TableCell className="px-4 py-3 text-theme-sm text-gray-700 dark:text-gray-300">
                           {row.group_name || "—"}
                         </TableCell>

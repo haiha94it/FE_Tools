@@ -3,17 +3,33 @@ import { getApiErrorMessage } from "@/lib/errors";
 import { consentService } from "@/services/consent.service";
 import type { MessageProcessingConsentStatus } from "@/types/consent";
 
+/** Local — tránh circular import consent-utils ↔ store */
+function statusKeepsWizardOpen(
+  status: MessageProcessingConsentStatus,
+): boolean {
+  if (!status.system_activated) return false;
+  // NV không bao giờ wizard
+  if (status.is_employee) return false;
+  const s = status.status || "none";
+  // pending/approved: đóng wizard; rejected/none: giữ force nếu đang mở ký lại
+  if (s === "pending_approval" || s === "approved") return false;
+  if (status.show_pending_status) return false;
+  if (typeof status.need_wizard === "boolean") return status.need_wizard;
+  return s === "none" || s === "rejected";
+}
+
 type ConsentState = {
   status: MessageProcessingConsentStatus | null;
   statusLoading: boolean;
   statusError: string | null;
-  /** Ép mở modal khi API trả CONSENT_CHAT_REQUIRED hoặc sau sign fail */
-  forceModalOpen: boolean;
-  fetchStatus: (options?: { force?: boolean }) => Promise<MessageProcessingConsentStatus | null>;
-  applySignedStatus: (status: MessageProcessingConsentStatus) => void;
+  /** Ép mở wizard khi API gate hoặc user bấm “Tạo / ký lại” */
+  forceWizardOpen: boolean;
+  fetchStatus: (options?: {
+    force?: boolean;
+  }) => Promise<MessageProcessingConsentStatus | null>;
   applyStatus: (status: MessageProcessingConsentStatus) => void;
-  openConsentModal: () => void;
-  closeConsentModal: () => void;
+  openConsentWizard: () => void;
+  closeConsentWizard: () => void;
   reset: () => void;
 };
 
@@ -21,7 +37,7 @@ export const useConsentStore = create<ConsentState>((set, get) => ({
   status: null,
   statusLoading: false,
   statusError: null,
-  forceModalOpen: false,
+  forceWizardOpen: false,
 
   fetchStatus: async (options) => {
     const force = options?.force === true;
@@ -36,7 +52,9 @@ export const useConsentStore = create<ConsentState>((set, get) => ({
         status,
         statusLoading: false,
         statusError: null,
-        forceModalOpen: status.need_sign ? get().forceModalOpen : false,
+        forceWizardOpen: statusKeepsWizardOpen(status)
+          ? get().forceWizardOpen
+          : false,
       });
       return status;
     } catch (error) {
@@ -48,30 +66,24 @@ export const useConsentStore = create<ConsentState>((set, get) => ({
     }
   },
 
-  applySignedStatus: (status) => {
-    set({
-      status,
-      forceModalOpen: false,
-      statusError: null,
-    });
-  },
-
   applyStatus: (status) => {
     set({
       status,
-      forceModalOpen: status.need_sign ? true : false,
+      forceWizardOpen: statusKeepsWizardOpen(status)
+        ? get().forceWizardOpen
+        : false,
       statusError: null,
     });
   },
 
-  openConsentModal: () => set({ forceModalOpen: true }),
-  closeConsentModal: () => set({ forceModalOpen: false }),
+  openConsentWizard: () => set({ forceWizardOpen: true }),
+  closeConsentWizard: () => set({ forceWizardOpen: false }),
 
   reset: () =>
     set({
       status: null,
       statusLoading: false,
       statusError: null,
-      forceModalOpen: false,
+      forceWizardOpen: false,
     }),
 }));

@@ -46,9 +46,14 @@ export interface ManagedUser {
   expiration_date?: string | null;
   created_at?: string | null;
   token?: string;
-  /** Đồng thuận xử lý tin nhắn Zalo — BE get-all-account */
+  /** Đồng thuận xử lý tin nhắn Zalo — BE get-all-account (§5.3b) */
   message_processing_signed?: boolean;
   message_processing_signed_at?: string | null;
+  /** none | pending_approval | approved | rejected */
+  message_processing_status?: string | null;
+  message_processing_submitted_at?: string | null;
+  message_processing_reviewed_at?: string | null;
+  message_processing_reject_reason?: string | null;
 }
 
 export interface UserActivityLog {

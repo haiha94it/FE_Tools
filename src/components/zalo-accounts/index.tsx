@@ -303,8 +303,8 @@ export default function ZaloAccountsView() {
             title="Danh sách tài khoản"
             desc={
               canManageNick
-                ? "Quản lý tài khoản Zalo đã kết nối — thêm, kiểm tra, sửa, xóa."
-                : "Xem nick Zalo manager đã gán cho bạn. Không thể thêm, sửa hoặc bật listener."
+                ? "Quản lý tài khoản Zalo đã kết nối."
+                : "Xem nick Zalo manager đã gán cho bạn."
             }
             hideDescOnMobile
           >

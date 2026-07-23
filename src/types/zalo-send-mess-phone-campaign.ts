@@ -6,6 +6,9 @@ export type SendMessPhoneResultStatus = 0 | 1 | 2 | 3 | 4 | 5;
 
 export type SendMessPhoneContentType = "" | "image" | "video" | "album";
 
+/** Chia SĐT cho nick | mọi nick × mọi SĐT */
+export type SendMessPhoneAssignMode = "distribute" | "all";
+
 export interface SendMessPhoneCampaign extends TeamCategoryFields {
   id: number;
   name: string;
@@ -13,6 +16,9 @@ export interface SendMessPhoneCampaign extends TeamCategoryFields {
   start_time?: string | null;
   status: SendMessPhoneCampaignRunStatus;
   accounts?: number[];
+  assign_mode?: SendMessPhoneAssignMode;
+  add_friend?: boolean;
+  send_message?: boolean;
 }
 
 export interface SendMessPhoneCampaignDetail {
@@ -23,7 +29,9 @@ export interface SendMessPhoneCampaignDetail {
   images: string[];
   delay_time: number;
   number_count: number;
-  divide: boolean;
+  /** @deprecated form mới dùng assign_mode */
+  divide?: boolean;
+  assign_mode?: SendMessPhoneAssignMode;
   split_attachment: boolean;
   accounts: number[];
   type: SendMessPhoneContentType;
@@ -32,6 +40,9 @@ export interface SendMessPhoneCampaignDetail {
   from_time?: string | null;
   to_time?: string | null;
   status: SendMessPhoneCampaignRunStatus;
+  add_friend?: boolean;
+  send_message?: boolean;
+  first_messages?: string[];
 }
 
 export interface SendMessPhoneCampaignFormPayload {
@@ -45,29 +56,55 @@ export interface SendMessPhoneCampaignFormPayload {
   images: string[];
   delay_time: number;
   number_count: number;
-  divide: boolean;
+  assign_mode: SendMessPhoneAssignMode;
   split_attachment: boolean;
   id_accounts: number[];
   from_time: string | null;
   to_time: string | null;
+  add_friend: boolean;
+  send_message: boolean;
+  first_messages: string[];
 }
+
+/** status===1: chỉ tin/media/first_messages */
+export interface SendMessPhoneRunningContentPayload {
+  id_category: number;
+  type: SendMessPhoneContentType | null;
+  id_album?: number | null;
+  id_video?: number | null;
+  contents: string[];
+  images: string[];
+  first_messages: string[];
+  split_attachment?: boolean;
+}
+
+export type SendMessPhoneSavePayload =
+  | SendMessPhoneCampaignFormPayload
+  | SendMessPhoneRunningContentPayload;
 
 export interface SendMessPhoneCampaignResult {
   id: number;
   created_at: string;
   account: number;
   name: string;
+  avt?: string;
   phone_number?: string;
-  content: string;
+  content?: string;
+  first_message?: string;
   images?: string[];
   thumb_url?: string;
-  status: SendMessPhoneResultStatus;
+  /** Nhánh mess (field cũ `status`) */
+  status?: SendMessPhoneResultStatus;
   status_message?: string;
+  status_add_friend?: SendMessPhoneResultStatus;
+  status_add_friend_message?: string;
 }
 
 export interface SendMessPhoneCampaignStatistics {
   mess_phone_number_success?: number;
   mess_phone_number_failure?: number;
+  add_friend_success?: number;
+  add_friend_failure?: number;
   account_count?: number;
   total_account?: number;
   account_excluded_count?: number;

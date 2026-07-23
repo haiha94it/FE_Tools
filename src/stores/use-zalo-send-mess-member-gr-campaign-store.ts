@@ -4,9 +4,10 @@ import { zaloSendMessMemberGrCampaignService } from "@/services/zalo-send-mess-m
 import { fetchAccessibleAccounts } from "@/lib/fetch-accessible-accounts";
 import type {
   SendMessMemberGrCampaign,
-  SendMessMemberGrCampaignFormPayload,
   SendMessMemberGrCampaignResult,
   SendMessMemberGrCampaignStatistics,
+  SendMessMemberGrResultsFilter,
+  SendMessMemberGrSavePayload,
 } from "@/types/zalo-send-mess-member-gr-campaign";
 import type { ZaloAccount } from "@/types/zalo-account";
 import { create } from "zustand";
@@ -29,6 +30,7 @@ interface SendMessMemberGrCampaignState {
   resultsPerPage: number;
   resultsTotal: number;
   resultsLoading: boolean;
+  resultsFilter: SendMessMemberGrResultsFilter;
   statistics: SendMessMemberGrCampaignStatistics;
 
   fetchCampaigns: (options?: { silent?: boolean }) => Promise<void>;
@@ -36,7 +38,7 @@ interface SendMessMemberGrCampaignState {
   toggleSelected: (id: number) => void;
   toggleSelectAll: () => void;
 
-  createOrEditCampaign: (payload: SendMessMemberGrCampaignFormPayload) => Promise<void>;
+  createOrEditCampaign: (payload: SendMessMemberGrSavePayload) => Promise<void>;
   deleteCampaign: (id: number) => Promise<void>;
   copyCampaign: (id: number, name: string) => Promise<void>;
   startCampaigns: (type: "new" | "continue") => Promise<void>;
@@ -46,11 +48,22 @@ interface SendMessMemberGrCampaignState {
   closeResults: () => void;
   setResultsPage: (page: number) => void;
   setResultsPerPage: (perPage: number) => void;
+  setResultsFilter: (filter: Partial<SendMessMemberGrResultsFilter>) => void;
+  applyResultsFilter: (
+    filter?: Partial<SendMessMemberGrResultsFilter>,
+  ) => Promise<void>;
   toggleResultSelected: (id: number) => void;
   toggleSelectAllResults: () => void;
   deleteSelectedResults: () => Promise<void>;
   refreshResults: (options?: { silent?: boolean }) => Promise<void>;
+  exportResultsExcel: () => Promise<number>;
 }
+
+const emptyFilter = (): SendMessMemberGrResultsFilter => ({
+  id_account: null,
+  start_time: null,
+  end_time: null,
+});
 
 export const useZaloSendMessMemberGrCampaignStore = create<SendMessMemberGrCampaignState>(
   (set, get) => ({
@@ -71,6 +84,7 @@ export const useZaloSendMessMemberGrCampaignStore = create<SendMessMemberGrCampa
     resultsPerPage: 100,
     resultsTotal: 0,
     resultsLoading: false,
+    resultsFilter: emptyFilter(),
     statistics: {},
 
     fetchCampaigns: async (options) => {
@@ -203,6 +217,7 @@ export const useZaloSendMessMemberGrCampaignStore = create<SendMessMemberGrCampa
         resultsCampaignId: campaignId,
         resultsPage: 1,
         resultsSelectedIds: [],
+        resultsFilter: emptyFilter(),
       });
       await get().refreshResults();
     },
@@ -213,6 +228,7 @@ export const useZaloSendMessMemberGrCampaignStore = create<SendMessMemberGrCampa
         resultsCampaignId: null,
         results: [],
         resultsSelectedIds: [],
+        resultsFilter: emptyFilter(),
         statistics: {},
       }),
 
@@ -224,6 +240,25 @@ export const useZaloSendMessMemberGrCampaignStore = create<SendMessMemberGrCampa
     setResultsPerPage: (perPage) => {
       set({ resultsPerPage: perPage, resultsPage: 1 });
       void get().refreshResults();
+    },
+
+    setResultsFilter: (filter) => {
+      set((state) => ({
+        resultsFilter: { ...state.resultsFilter, ...filter },
+      }));
+    },
+
+    applyResultsFilter: async (filter) => {
+      if (filter) {
+        set((state) => ({
+          resultsFilter: { ...state.resultsFilter, ...filter },
+          resultsPage: 1,
+          resultsSelectedIds: [],
+        }));
+      } else {
+        set({ resultsPage: 1, resultsSelectedIds: [] });
+      }
+      await get().refreshResults();
     },
 
     toggleResultSelected: (id) => {
@@ -265,18 +300,31 @@ export const useZaloSendMessMemberGrCampaignStore = create<SendMessMemberGrCampa
     },
 
     refreshResults: async (options) => {
-      const { resultsCampaignId, resultsPage, resultsPerPage } = get();
+      const {
+        resultsCampaignId,
+        resultsPage,
+        resultsPerPage,
+        resultsFilter,
+      } = get();
       if (!resultsCampaignId) return;
       const silent = options?.silent ?? false;
       if (!silent) set({ resultsLoading: true });
       try {
+        const statsOpts = {
+          start_time: resultsFilter.start_time,
+          end_time: resultsFilter.end_time,
+        };
         const [pageData, statistics] = await Promise.all([
           zaloSendMessMemberGrCampaignService.fetchResults({
             categoryId: resultsCampaignId,
             page: resultsPage,
             perPage: resultsPerPage,
+            filters: resultsFilter,
           }),
-          zaloSendMessMemberGrCampaignService.fetchStatistics(resultsCampaignId),
+          zaloSendMessMemberGrCampaignService.fetchStatistics(
+            resultsCampaignId,
+            statsOpts,
+          ),
         ]);
         set({
           results: pageData.results ?? [],
@@ -292,6 +340,18 @@ export const useZaloSendMessMemberGrCampaignStore = create<SendMessMemberGrCampa
           resultsLoading: false,
         }));
       }
+    },
+
+    exportResultsExcel: async () => {
+      const { resultsCampaignId, resultsFilter } = get();
+      if (!resultsCampaignId) {
+        throw new Error("Chưa mở kết quả kịch bản.");
+      }
+      const rows = await zaloSendMessMemberGrCampaignService.fetchAllResults({
+        categoryId: resultsCampaignId,
+        filters: resultsFilter,
+      });
+      return rows.length;
     },
   }),
 );
