@@ -70,18 +70,36 @@ if show_rejected_status → rejected_message + CTA ký lại
 Thứ tự:
 
 1. **Đồng ý / Không đồng ý** (local; không POST). Không đồng ý → home.  
-2. **HĐ** `GET .../terms/` — Quay lại = clear tick.  
-3. **Form + chữ ký** → `POST .../sign/` một lần (**Ký và xác nhận**).  
-4. Toast chờ duyệt; poll `status`.
+2. **HĐ** `GET .../terms/` (đọc điều khoản mẫu chung, chưa điền thông tin). Quay lại = clear tick.  
+3. **Form thông tin**: Thiết kế form đơn giản gộp chung thông tin liên hệ và người đại diện:
+   - Nếu `entity_type === 'personal'`:
+     - Họ tên cá nhân -> Gửi làm `full_name`
+     - Số điện thoại -> Gửi làm `phone`
+     - Email -> Gửi làm `email`
+     - Địa chỉ -> Gửi làm `address`
+   - Nếu `entity_type === 'business'`:
+     - Tên công ty / HKD -> Gửi làm `company_name`
+     - Mã số thuế -> Gửi làm `tax_code`
+     - Họ tên Người đại diện -> Gửi làm `full_name` (BE tự động copy vào `representative_name`)
+     - Chức vụ -> Gửi làm `representative_title`
+     - Số điện thoại liên hệ -> Gửi làm `phone` (BE tự động copy vào `company_phone`)
+     - Email liên hệ -> Gửi làm `email` (BE tự động copy vào `company_email`)
+     - Địa chỉ công ty / HKD -> Gửi làm `address` (BE tự động copy vào `company_address`)
+4. **Nút Xem trước hợp đồng**:
+   - Sau khi điền đủ form, có nút "Xem trước hợp đồng". Bấm nút sẽ trigger gọi API preview:
+     `POST /api/consent/message-processing/preview/` gửi kèm dữ liệu form.
+   - Response trả về `{ success: true, message: "...", data: { body_html: "..." } }`.
+   - FE hiển thị `body_html` này vào Modal/Popup để user kiểm tra văn bản HĐ đã điền thông tin của họ.
+5. **Ký và xác nhận**: Vẽ chữ ký tay -> Bấm nút **"Ký và xác nhận"** (gửi `POST .../sign/`).
+6. Toast chờ duyệt; poll `status`.
 
-### Form
+### Form (Quy tắc mapping cho FE)
 
-- Luôn: `full_name`, `email`, `phone`, `address`, signature (`stroke_count` ≥ 1)  
-- `entity_type`: `personal` \| `business` (+ field CTY nếu business)  
-- Email: prefill `form_defaults.email`, sửa được  
+- Chỉ hiển thị các ô tương ứng với loại hình cá nhân/doanh nghiệp đã chọn.
+- FE không cần gửi các trường `company_phone`, `company_email`, `company_address` và `representative_name` lên nữa. FE chỉ cần gửi các trường cơ bản `full_name`, `phone`, `email`, `address` cùng với `company_name`, `tax_code`, `representative_title` (đối với doanh nghiệp). BE sẽ tự động copy map giá trị sang tương thích.
 
-### Sign body (JSON)
-
+### Preview & Sign body (JSON)
+Request body gửi lên API Preview và API Sign giống nhau (API Preview không cần trường `signature`):
 ```json
 {
   "full_name": "...",
@@ -89,6 +107,13 @@ Thứ tự:
   "phone": "09...",
   "address": "...",
   "entity_type": "personal",
+  "company_name": "",
+  "tax_code": "",
+  "representative_name": "",
+  "representative_title": "",
+  "company_address": "",
+  "company_phone": "",
+  "company_email": "",
   "signature": {
     "image_base64": "data:image/png;base64,...",
     "width": 600,
@@ -105,12 +130,13 @@ NV gọi sign → BE **400** (không cần ký).
 
 ## 4. API user (path)
 
-| Method | Path |
-|--------|------|
-| GET | `/api/consent/message-processing/status/` |
-| GET | `/api/consent/message-processing/terms/` |
-| POST | `/api/consent/message-processing/sign/` |
-| GET | `/api/consent/message-processing/pdf/` |
+| Method | Path | Mô tả |
+|--------|------|------|
+| GET | `/api/consent/message-processing/status/` | Trạng thái hiện hành |
+| GET | `/api/consent/message-processing/terms/` | Lấy HĐ gốc (chưa điền thông tin) |
+| POST | `/api/consent/message-processing/preview/` | **Xem trước** HĐ đã điền thông tin (mới) |
+| POST | `/api/consent/message-processing/sign/` | Ký và gửi hồ sơ |
+| GET | `/api/consent/message-processing/pdf/` | Tải PDF hợp đồng đã ký |
 
 **Cấm:** `otp/*`, `revoke/*`.
 
@@ -125,6 +151,20 @@ NV gọi sign → BE **400** (không cần ký).
 | Kích hoạt | `POST .../admin/activate/` chỉ khi `can_activate` |
 | Duyệt user | List `GET /api/users/get-all-account` → `message_processing_status` |
 | Approve / reject | `POST .../admin/users/<id>/approve/` · `reject/` |
+
+### Thanh công cụ Quick-Insert trong Editor soạn thảo HĐ của Admin
+Tại màn cấu hình Admin Setup, FE thiết kế các nút bấm để chèn nhanh các biến placeholder vào Rich Text Editor tại vị trí con trỏ:
+* **Thông tin Khách hàng (Bên B) - Đã gộp**:
+  - Nút "Tên đơn vị / Cá nhân" -> chèn `{{ entity_name }}`
+  - Nút "Mã số thuế" -> chèn `{{ tax_code }}`
+  - Nút "Dòng Đại diện & Chức vụ" -> chèn `{{ representative_row }}`
+  - Nút "Địa chỉ" -> chèn `{{ address }}`
+  - Nút "Số điện thoại" -> chèn `{{ phone }}`
+  - Nút "Email" -> chèn `{{ email }}`
+* **Thời gian hiện tại / Ngày ký**:
+  - Nút "Ngày hiện tại" -> chèn `{{ current_day }}`
+  - Nút "Tháng hiện tại" -> chèn `{{ current_month }}`
+  - Nút "Năm hiện tại" -> chèn `{{ current_year }}`
 
 Activate cần: nội dung HĐ, tên+MST+địa chỉ CT, stamp, nick, nhóm.  
 `can_activate` / `activate_checklist` / `activate_missing` trên setup.  

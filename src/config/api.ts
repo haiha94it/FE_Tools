@@ -328,6 +328,7 @@ export const VIDEO_CREATOR_BASE = "/zalo-campaigns/post-video";
 export const API_CONSENT = {
   STATUS: "/api/consent/message-processing/status/",
   TERMS: "/api/consent/message-processing/terms/",
+  PREVIEW: "/api/consent/message-processing/preview/",
   SIGN: "/api/consent/message-processing/sign/",
   PDF: "/api/consent/message-processing/pdf/",
   ADMIN_SETUP: "/api/consent/admin/setup/",
@@ -341,6 +342,8 @@ export const API_CONSENT = {
     `/api/consent/admin/users/${userId}/approve/`,
   adminUserReject: (userId: number | string) =>
     `/api/consent/admin/users/${userId}/reject/`,
+  adminUserRevoke: (userId: number | string) =>
+    `/api/consent/admin/users/${userId}/revoke/`,
 } as const;
 
 /** Mini Shop / cửa hàng — đồng bộ ZaloCN minishop, shoplinkhome, showproduct */

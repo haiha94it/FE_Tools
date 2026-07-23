@@ -3,6 +3,7 @@
 import Input from "@/components/form/input/InputField";
 import Label from "@/components/form/Label";
 import Button from "@/components/ui/button/Button";
+import { Modal } from "@/components/ui/modal";
 import {
   buildConsentAgreementPayload,
   resolveConsentFormDefaults,
@@ -83,6 +84,10 @@ function MessageConsentModal({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewHtml, setPreviewHtml] = useState<string | null>(null);
+  const [previewModalOpen, setPreviewModalOpen] = useState(false);
+
   const applyFormDefaults = useCallback(() => {
     const defaults = resolveConsentFormDefaults(consentStatus, authUser);
     setEntityType("personal");
@@ -101,6 +106,9 @@ function MessageConsentModal({
     setImportedPreview(null);
     setError(null);
     setExpandOpen(false);
+    setPreviewLoading(false);
+    setPreviewHtml(null);
+    setPreviewModalOpen(false);
   }, [consentStatus, authUser]);
 
   useEffect(() => {
@@ -154,6 +162,55 @@ function MessageConsentModal({
     signature.hasSignature &&
     signature.strokeCount >= 1 &&
     Boolean(signature.dataUrl);
+
+  const handlePreview = async () => {
+    const fieldError = validateConsentAgreementForm({
+      fullName,
+      email,
+      phone,
+      address,
+      entityType,
+      companyName,
+      taxCode,
+      representativeName,
+      representativeTitle,
+      companyAddress,
+      companyPhone,
+      companyEmail,
+    });
+    if (fieldError) {
+      setError(fieldError);
+      return;
+    }
+
+    setPreviewLoading(true);
+    setError(null);
+    try {
+      const response = await consentService.preview({
+        full_name: fullName.trim(),
+        email: email.trim(),
+        phone: phone.trim(),
+        address: address.trim(),
+        entity_type: entityType,
+        company_name: entityType === "business" ? companyName.trim() : undefined,
+        tax_code: entityType === "business" ? taxCode.trim() : undefined,
+        representative_title: entityType === "business" ? representativeTitle.trim() : undefined,
+        client_platform: "web_desktop",
+      });
+      if (response && response.body_html) {
+        setPreviewHtml(response.body_html);
+        setPreviewModalOpen(true);
+      } else {
+        toast.error("Không nhận được nội dung xem trước.");
+      }
+    } catch (err) {
+      const message = getApiErrorMessage(err);
+      setError(message);
+      toast.error(message);
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
 
   const handleSubmit = async () => {
     const fieldError = validateConsentAgreementForm({
@@ -339,76 +396,76 @@ function MessageConsentModal({
                   ))}
                 </div>
 
-                <div className="rounded-xl border border-gray-200 bg-gray-50/80 p-4 dark:border-gray-700 dark:bg-white/[0.03]">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                    Thông tin người ký *
-                  </p>
-                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                    <div className="sm:col-span-2">
-                      <Label htmlFor="consent-full-name">
-                        Họ tên đầy đủ <span className="text-error-500">*</span>
-                      </Label>
-                      <Input
-                        id="consent-full-name"
-                        value={fullName}
-                        onChange={(e) => setFullName(e.target.value)}
-                        disabled={submitting}
-                        autoComplete="name"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="consent-email">
-                        Email <span className="text-error-500">*</span>
-                      </Label>
-                      <Input
-                        id="consent-email"
-                        type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        disabled={submitting}
-                        autoComplete="email"
-                      />
-                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                        Điền sẵn từ tài khoản — bạn có thể sửa.
-                      </p>
-                    </div>
-                    <div>
-                      <Label htmlFor="consent-phone">
-                        Số điện thoại <span className="text-error-500">*</span>
-                      </Label>
-                      <Input
-                        id="consent-phone"
-                        type="tel"
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                        disabled={submitting}
-                        autoComplete="tel"
-                      />
-                    </div>
-                    <div className="sm:col-span-2">
-                      <Label htmlFor="consent-address">
-                        Địa chỉ <span className="text-error-500">*</span>
-                      </Label>
-                      <Input
-                        id="consent-address"
-                        value={address}
-                        onChange={(e) => setAddress(e.target.value)}
-                        disabled={submitting}
-                        autoComplete="street-address"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {entityType === "business" ? (
+                {entityType === "personal" ? (
                   <div className="rounded-xl border border-gray-200 bg-gray-50/80 p-4 dark:border-gray-700 dark:bg-white/[0.03]">
                     <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                      Thông tin HKD / Công ty *
+                      Thông tin liên hệ (Cá nhân) *
+                    </p>
+                    <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                      <div className="sm:col-span-2">
+                        <Label htmlFor="consent-full-name">
+                          Họ tên cá nhân <span className="text-error-500">*</span>
+                        </Label>
+                        <Input
+                          id="consent-full-name"
+                          value={fullName}
+                          onChange={(e) => setFullName(e.target.value)}
+                          disabled={submitting}
+                          autoComplete="name"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="consent-email">
+                          Email <span className="text-error-500">*</span>
+                        </Label>
+                        <Input
+                          id="consent-email"
+                          type="email"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          disabled={submitting}
+                          autoComplete="email"
+                        />
+                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                          Điền sẵn từ tài khoản — bạn có thể sửa.
+                        </p>
+                      </div>
+                      <div>
+                        <Label htmlFor="consent-phone">
+                          Số điện thoại <span className="text-error-500">*</span>
+                        </Label>
+                        <Input
+                          id="consent-phone"
+                          type="tel"
+                          value={phone}
+                          onChange={(e) => setPhone(e.target.value)}
+                          disabled={submitting}
+                          autoComplete="tel"
+                        />
+                      </div>
+                      <div className="sm:col-span-2">
+                        <Label htmlFor="consent-address">
+                          Địa chỉ <span className="text-error-500">*</span>
+                        </Label>
+                        <Input
+                          id="consent-address"
+                          value={address}
+                          onChange={(e) => setAddress(e.target.value)}
+                          disabled={submitting}
+                          autoComplete="street-address"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-gray-200 bg-gray-50/80 p-4 dark:border-gray-700 dark:bg-white/[0.03]">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                      Thông tin HKD / Công ty & Người đại diện *
                     </p>
                     <div className="mt-3 grid gap-3 sm:grid-cols-2">
                       <div className="sm:col-span-2">
                         <Label htmlFor="consent-company-name">
-                          Tên công ty / HKD *
+                          Tên công ty / HKD <span className="text-error-500">*</span>
                         </Label>
                         <Input
                           id="consent-company-name"
@@ -417,8 +474,21 @@ function MessageConsentModal({
                           disabled={submitting}
                         />
                       </div>
+                      <div className="sm:col-span-2">
+                        <Label htmlFor="consent-rep-name">
+                          Họ tên Người đại diện <span className="text-error-500">*</span>
+                        </Label>
+                        <Input
+                          id="consent-rep-name"
+                          value={fullName}
+                          onChange={(e) => setFullName(e.target.value)}
+                          disabled={submitting}
+                        />
+                      </div>
                       <div>
-                        <Label htmlFor="consent-tax">Mã số thuế *</Label>
+                        <Label htmlFor="consent-tax">
+                          Mã số thuế <span className="text-error-500">*</span>
+                        </Label>
                         <Input
                           id="consent-tax"
                           value={taxCode}
@@ -427,7 +497,9 @@ function MessageConsentModal({
                         />
                       </div>
                       <div>
-                        <Label htmlFor="consent-rep-title">Chức vụ *</Label>
+                        <Label htmlFor="consent-rep-title">
+                          Chức vụ người đại diện
+                        </Label>
                         <Input
                           id="consent-rep-title"
                           value={representativeTitle}
@@ -437,53 +509,47 @@ function MessageConsentModal({
                           disabled={submitting}
                         />
                       </div>
-                      <div className="sm:col-span-2">
-                        <Label htmlFor="consent-rep-name">
-                          Người đại diện *
-                        </Label>
-                        <Input
-                          id="consent-rep-name"
-                          value={representativeName}
-                          onChange={(e) =>
-                            setRepresentativeName(e.target.value)
-                          }
-                          disabled={submitting}
-                        />
-                      </div>
-                      <div className="sm:col-span-2">
-                        <Label htmlFor="consent-co-address">
-                          Địa chỉ công ty *
-                        </Label>
-                        <Input
-                          id="consent-co-address"
-                          value={companyAddress}
-                          onChange={(e) => setCompanyAddress(e.target.value)}
-                          disabled={submitting}
-                        />
-                      </div>
                       <div>
-                        <Label htmlFor="consent-co-phone">SĐT công ty *</Label>
+                        <Label htmlFor="consent-phone">
+                          Số điện thoại liên hệ <span className="text-error-500">*</span>
+                        </Label>
                         <Input
-                          id="consent-co-phone"
+                          id="consent-phone"
                           type="tel"
-                          value={companyPhone}
-                          onChange={(e) => setCompanyPhone(e.target.value)}
+                          value={phone}
+                          onChange={(e) => setPhone(e.target.value)}
                           disabled={submitting}
+                          autoComplete="tel"
                         />
                       </div>
                       <div>
-                        <Label htmlFor="consent-co-email">Email công ty *</Label>
+                        <Label htmlFor="consent-email">
+                          Email liên hệ <span className="text-error-500">*</span>
+                        </Label>
                         <Input
-                          id="consent-co-email"
+                          id="consent-email"
                           type="email"
-                          value={companyEmail}
-                          onChange={(e) => setCompanyEmail(e.target.value)}
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
                           disabled={submitting}
+                          autoComplete="email"
+                        />
+                      </div>
+                      <div className="sm:col-span-2">
+                        <Label htmlFor="consent-address">
+                          Địa chỉ công ty / HKD <span className="text-error-500">*</span>
+                        </Label>
+                        <Input
+                          id="consent-address"
+                          value={address}
+                          onChange={(e) => setAddress(e.target.value)}
+                          disabled={submitting}
+                          autoComplete="street-address"
                         />
                       </div>
                     </div>
                   </div>
-                ) : null}
+                )}
 
                 {importedPreview ? (
                   <div className="rounded-xl border border-brand-200 bg-brand-50/40 p-3 dark:border-brand-500/30 dark:bg-brand-500/5">
@@ -579,7 +645,7 @@ function MessageConsentModal({
                     type="button"
                     variant="outline"
                     size="sm"
-                    disabled={submitting}
+                    disabled={submitting || previewLoading}
                     onClick={() => {
                       setError(null);
                       setStep("terms");
@@ -589,8 +655,17 @@ function MessageConsentModal({
                   </Button>
                   <Button
                     type="button"
+                    variant="outline"
                     size="sm"
-                    disabled={submitting || !signatureOk}
+                    disabled={submitting || previewLoading}
+                    onClick={() => void handlePreview()}
+                  >
+                    {previewLoading ? "Đang tải..." : "Xem trước hợp đồng"}
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={submitting || previewLoading || !signatureOk}
                     onClick={() => void handleSubmit()}
                   >
                     {submitting ? "Đang gửi..." : "Ký và xác nhận"}
@@ -611,6 +686,34 @@ function MessageConsentModal({
           onConfirm={handleExpandConfirm}
         />
       ) : null}
+
+      {previewModalOpen && (
+        <Modal
+          isOpen={previewModalOpen}
+          onClose={() => setPreviewModalOpen(false)}
+          layer="top"
+          className="max-w-4xl p-6 sm:p-8"
+        >
+          <h3 className="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
+            Xem trước văn bản hợp đồng
+          </h3>
+          <div className="custom-scrollbar max-h-[60vh] overflow-y-auto rounded-xl border border-gray-200 p-4 dark:border-gray-800 bg-white dark:bg-gray-950">
+            {previewHtml ? (
+              <div
+                className="dialog-quill text-sm leading-relaxed text-gray-700 dark:text-gray-300"
+                dangerouslySetInnerHTML={{ __html: previewHtml }}
+              />
+            ) : (
+              <p className="text-gray-500">Nội dung trống</p>
+            )}
+          </div>
+          <div className="mt-6 flex justify-end">
+            <Button size="sm" onClick={() => setPreviewModalOpen(false)}>
+              Đóng
+            </Button>
+          </div>
+        </Modal>
+      )}
     </>
   );
 }

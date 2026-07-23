@@ -163,8 +163,82 @@ function ConsentRichTextEditor({
     }
   }, [value]);
 
+  const insertPlaceholder = (text: string) => {
+    const quill = quillRef.current;
+    if (!quill) return;
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const q = quill as any;
+    const range = q.getSelection();
+
+    if (range) {
+      q.insertText(range.index, text, "user");
+      q.setSelection(range.index + text.length, 0, "user");
+    } else {
+      const length = q.getLength ? q.getLength() : 0;
+      const index = Math.max(0, length - 1);
+      q.insertText(index, text, "user");
+      q.setSelection(index + text.length, 0, "user");
+    }
+  };
+
   return (
-    <div className={`consent-quill-editor min-w-0 ${className}`.trim()}>
+    <div className={`consent-quill-editor min-w-0 space-y-3 ${className}`.trim()}>
+      <div className="rounded-xl border border-gray-200 bg-gray-50/50 p-4 dark:border-gray-800 dark:bg-white/[0.02]">
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+          Chèn nhanh các biến placeholder
+        </p>
+        <div className="space-y-3">
+          <div>
+            <span className="mb-1.5 block text-xs font-medium text-gray-600 dark:text-gray-400">
+              Thông tin Khách hàng (Bên B) - Đã gộp
+            </span>
+            <div className="flex flex-wrap gap-1.5">
+              {[
+                { label: "Tên đơn vị / Cá nhân", text: "{{ entity_name }}" },
+                { label: "Mã số thuế", text: "{{ tax_code }}" },
+                { label: "Người đại diện", text: "{{ representative_name }}" },
+                { label: "Chức vụ", text: "{{ representative_title }}" },
+                { label: "Địa chỉ", text: "{{ address }}" },
+                { label: "Số điện thoại", text: "{{ phone }}" },
+                { label: "Email", text: "{{ email }}" },
+              ].map((btn) => (
+                <button
+                  key={btn.text}
+                  type="button"
+                  onClick={() => insertPlaceholder(btn.text)}
+                  className="cursor-pointer rounded bg-brand-50 px-2 py-1 text-xs font-medium text-brand-700 hover:bg-brand-100 dark:bg-brand-500/10 dark:text-brand-300 dark:hover:bg-brand-500/20"
+                >
+                  {btn.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <span className="mb-1.5 block text-xs font-medium text-gray-600 dark:text-gray-400">
+              Thời gian hiện tại / Ngày ký
+            </span>
+            <div className="flex flex-wrap gap-1.5">
+              {[
+                { label: "Ngày hiện tại", text: "{{ current_day }}" },
+                { label: "Tháng hiện tại", text: "{{ current_month }}" },
+                { label: "Năm hiện tại", text: "{{ current_year }}" },
+              ].map((btn) => (
+                <button
+                  key={btn.text}
+                  type="button"
+                  onClick={() => insertPlaceholder(btn.text)}
+                  className="cursor-pointer rounded bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+                >
+                  {btn.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div
         ref={containerRef}
         className="overflow-hidden rounded-xl border border-gray-300 bg-white dark:border-gray-700 dark:bg-gray-900"

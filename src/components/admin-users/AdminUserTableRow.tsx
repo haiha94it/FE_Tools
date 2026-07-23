@@ -23,6 +23,7 @@ import {
   HiOutlinePencil,
   HiOutlineTrash,
   HiOutlineX,
+  HiOutlineMinusCircle,
 } from "react-icons/hi";
 import AdminIconButton from "./AdminIconButton";
 
@@ -53,6 +54,7 @@ interface AdminUserTableRowProps {
   /** §5.3b — chỉ pending_approval */
   onApproveConsent?: (user: ManagedUser) => void;
   onRejectConsent?: (user: ManagedUser) => void;
+  onRevokeConsent?: (user: ManagedUser) => void;
 }
 
 export default function AdminUserTableRow({
@@ -69,6 +71,7 @@ export default function AdminUserTableRow({
   onViewConsent,
   onApproveConsent,
   onRejectConsent,
+  onRevokeConsent,
 }: AdminUserTableRowProps) {
   const displayName = user.fullname || user.username;
   const passwordValue =
@@ -197,6 +200,17 @@ export default function AdminUserTableRow({
               onClick={() => onRejectConsent(user)}
             >
               <HiOutlineX size={15} />
+            </AdminIconButton>
+          ) : null}
+          {consentStatus !== "none" && onRevokeConsent ? (
+            <AdminIconButton
+              label={consentActing ? "Đang xử lý..." : "Thu hồi HĐ"}
+              side="left"
+              className={iconBtnDangerClass}
+              disabled={consentActing}
+              onClick={() => onRevokeConsent(user)}
+            >
+              <HiOutlineMinusCircle size={15} />
             </AdminIconButton>
           ) : null}
           <AdminIconButton

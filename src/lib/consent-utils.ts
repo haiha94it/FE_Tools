@@ -460,33 +460,28 @@ export function validateConsentAgreementForm(input: {
   companyEmail: string;
 }): string | null {
   if (!isConsentFullNameValid(input.fullName)) {
-    return "Vui lòng nhập họ tên đầy đủ";
+    return input.entityType === "business"
+      ? "Vui lòng nhập họ tên người đại diện"
+      : "Vui lòng nhập họ tên đầy đủ";
   }
   if (!isConsentEmailValid(input.email)) {
-    return "Vui lòng nhập email hợp lệ";
+    return input.entityType === "business"
+      ? "Vui lòng nhập email liên hệ hợp lệ"
+      : "Vui lòng nhập email hợp lệ";
   }
   if (!isConsentPhoneValid(input.phone)) {
-    return "Vui lòng nhập số điện thoại có Zalo hợp lệ";
+    return input.entityType === "business"
+      ? "Vui lòng nhập số điện thoại liên hệ hợp lệ"
+      : "Vui lòng nhập số điện thoại có Zalo hợp lệ";
   }
   if (!isConsentAddressValid(input.address)) {
-    return "Vui lòng nhập địa chỉ";
+    return input.entityType === "business"
+      ? "Vui lòng nhập địa chỉ công ty / HKD"
+      : "Vui lòng nhập địa chỉ";
   }
   if (input.entityType === "business") {
     if (!input.companyName.trim()) return "Vui lòng nhập tên công ty / HKD";
     if (!input.taxCode.trim()) return "Vui lòng nhập mã số thuế";
-    if (!input.representativeName.trim()) {
-      return "Vui lòng nhập tên người đại diện";
-    }
-    if (!input.representativeTitle.trim()) {
-      return "Vui lòng nhập chức vụ người đại diện";
-    }
-    if (!input.companyAddress.trim()) return "Vui lòng nhập địa chỉ công ty";
-    if (!isConsentPhoneValid(input.companyPhone)) {
-      return "Vui lòng nhập SĐT công ty hợp lệ";
-    }
-    if (!isConsentEmailValid(input.companyEmail)) {
-      return "Vui lòng nhập email công ty hợp lệ";
-    }
   }
   return null;
 }
@@ -530,19 +525,7 @@ export function buildConsentAgreementPayload(input: {
   if (input.entityType === "business") {
     base.company_name = input.companyName.trim();
     base.tax_code = input.taxCode.trim();
-    base.representative_name = input.representativeName.trim();
     base.representative_title = input.representativeTitle.trim();
-    base.company_address = input.companyAddress.trim();
-    base.company_phone = input.companyPhone.trim();
-    base.company_email = input.companyEmail.trim();
-  } else {
-    base.company_name = "";
-    base.tax_code = "";
-    base.representative_name = "";
-    base.representative_title = "";
-    base.company_address = "";
-    base.company_phone = "";
-    base.company_email = "";
   }
 
   return base;

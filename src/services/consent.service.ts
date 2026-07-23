@@ -64,6 +64,16 @@ export const consentService = {
     });
   },
 
+  async preview(
+    payload: Omit<ConsentAgreementPayload, "signature">,
+  ): Promise<{ body_html: string }> {
+    const response = await api.post<{ body_html: string }>(
+      API_CONSENT.PREVIEW,
+      payload,
+    );
+    return response.data;
+  },
+
   /** Ký và xác nhận — 1 lần POST, không OTP */
   async sign(payload: ConsentAgreementPayload): Promise<ConsentSubmitResult> {
     const response = await api.post<ConsentSubmitResult>(
@@ -165,6 +175,14 @@ export const consentService = {
     const response = await api.post<ConsentUserContract>(
       API_CONSENT.adminUserReject(userId),
       { reason: payload?.reason ?? "" },
+    );
+    return response.data;
+  },
+
+  async adminRevoke(userId: number): Promise<ConsentUserContract> {
+    const response = await api.post<ConsentUserContract>(
+      API_CONSENT.adminUserRevoke(userId),
+      {},
     );
     return response.data;
   },

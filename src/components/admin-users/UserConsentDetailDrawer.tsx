@@ -11,6 +11,7 @@ import {
   normalizeConsentStatus,
   resolveConsentMediaUrl,
 } from "@/lib/consent-utils";
+import { confirm } from "@/lib/confirm";
 import { getApiErrorMessage } from "@/lib/errors";
 import { toast } from "@/lib/toast";
 import { consentService } from "@/services/consent.service";
@@ -156,6 +157,31 @@ function UserConsentDetailDrawer({
       notifyUpdated();
     } catch (err) {
       setRejectError(getApiErrorMessage(err));
+    } finally {
+      setActing(false);
+    }
+  };
+
+  const handleRevoke = async () => {
+    if (!user) return;
+    if (
+      !(await confirm({
+        title: "Thu hồi thỏa thuận?",
+        message: `Thu hồi thỏa thuận của "${user.username}"? User sẽ bị chặn chat và bắt buộc ký lại thỏa thuận mới.`,
+        confirmText: "Thu hồi",
+        variant: "danger",
+      }))
+    ) {
+      return;
+    }
+    setActing(true);
+    try {
+      const data = await consentService.adminRevoke(user.id);
+      setContract(data);
+      toast.success("Đã thu hồi thỏa thuận thành công");
+      notifyUpdated();
+    } catch (err) {
+      toast.error(getApiErrorMessage(err));
     } finally {
       setActing(false);
     }
@@ -348,6 +374,18 @@ function UserConsentDetailDrawer({
                 }}
               >
                 Từ chối
+              </Button>
+            ) : null}
+            {status !== "none" ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="!border-error-200 !text-error-600 dark:!border-error-500/40 dark:!text-error-400"
+                disabled={acting}
+                onClick={() => void handleRevoke()}
+              >
+                {acting ? "Đang xử lý..." : "Thu hồi"}
               </Button>
             ) : null}
             {canApprove && isPending ? (

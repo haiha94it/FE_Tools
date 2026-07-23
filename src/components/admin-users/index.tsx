@@ -230,6 +230,30 @@ export default function AdminUsersView() {
     }
   };
 
+  /** Thu hồi thỏa thuận (xóa hồ sơ) để user ký lại */
+  const handleRevokeConsent = async (row: ManagedUser) => {
+    if (
+      !(await confirm({
+        title: "Thu hồi thỏa thuận?",
+        message: `Thu hồi thỏa thuận của "${row.username}"? User sẽ bị chặn chat và bắt buộc ký lại thỏa thuận mới.`,
+        confirmText: "Thu hồi",
+        variant: "danger",
+      }))
+    ) {
+      return;
+    }
+    setConsentActingId(row.id);
+    try {
+      await consentService.adminRevoke(row.id);
+      toast.success(`Đã thu hồi thỏa thuận của "${row.username}".`);
+      void fetchUsers({ silent: true });
+    } catch (error) {
+      toast.error(getApiErrorMessage(error));
+    } finally {
+      setConsentActingId(null);
+    }
+  };
+
   if (!canAccess) {
     return null;
   }
@@ -301,6 +325,7 @@ export default function AdminUsersView() {
           consentActingId={consentActingId}
           onApproveConsent={(row) => void handleApproveConsent(row)}
           onRejectConsent={(row) => void handleRejectConsent(row)}
+          onRevokeConsent={(row) => void handleRevokeConsent(row)}
         />
       </div>
 

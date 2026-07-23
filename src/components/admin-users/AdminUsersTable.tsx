@@ -36,6 +36,7 @@ interface AdminUsersTableProps {
   consentActingId?: number | null;
   onApproveConsent?: (user: ManagedUser) => void;
   onRejectConsent?: (user: ManagedUser) => void;
+  onRevokeConsent?: (user: ManagedUser) => void;
 }
 
 const PAGE_SIZE_OPTIONS = [50, 100, 200];
@@ -96,6 +97,7 @@ export default function AdminUsersTable({
   consentActingId = null,
   onApproveConsent,
   onRejectConsent,
+  onRevokeConsent,
 }: AdminUsersTableProps) {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const isEmpty = mode === "users" ? users.length === 0 : logs.length === 0;
@@ -261,6 +263,7 @@ export default function AdminUsersTable({
                     consentActing={consentActingId === user.id}
                     onApproveConsent={onApproveConsent}
                     onRejectConsent={onRejectConsent}
+                    onRevokeConsent={onRevokeConsent}
                   />
                 ))}
               </TableBody>
