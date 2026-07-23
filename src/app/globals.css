@@ -236,19 +236,19 @@
 }
 
 @utility menu-item {
-  @apply relative flex items-center w-full gap-3 px-2.5 py-2 font-medium rounded-xl text-theme-sm;
+  @apply relative flex items-center w-full gap-3 px-4 py-2 font-normal rounded-xl text-theme-sm;
 }
 
 @utility menu-item-active {
-  @apply bg-brand-50 text-brand-500 dark:bg-brand-500/[0.12] dark:text-brand-400;
+  @apply bg-brand-50 text-brand-500 font-semibold dark:bg-brand-500/[0.12] dark:text-brand-400;
 }
 
 @utility menu-item-inactive {
-  @apply text-gray-700 hover:bg-gray-100 group-hover:text-gray-700 dark:text-gray-300 dark:hover:bg-white/5 dark:hover:text-gray-300;
+  @apply text-gray-800 hover:bg-gray-100 font-normal group-hover:text-gray-900 dark:text-gray-200 dark:hover:bg-white/5 dark:hover:text-white;
 }
 
 @utility menu-item-icon {
-  @apply text-gray-500 group-hover:text-gray-700 dark:text-gray-400;
+  @apply text-gray-600 group-hover:text-gray-800 dark:text-gray-400;
 }
 
 @utility menu-item-icon-active {
@@ -256,7 +256,7 @@
 }
 
 @utility menu-item-icon-inactive {
-  @apply text-gray-500 group-hover:text-gray-700 dark:text-gray-400 dark:group-hover:text-gray-300;
+  @apply text-gray-600 group-hover:text-gray-800 dark:text-gray-400 dark:group-hover:text-gray-200;
 }
 
 @utility menu-item-arrow {
@@ -268,19 +268,19 @@
 }
 
 @utility menu-item-arrow-inactive {
-  @apply text-gray-500 group-hover:text-gray-700 dark:text-gray-400 dark:group-hover:text-gray-300;
+  @apply text-gray-600 group-hover:text-gray-800 dark:text-gray-400 dark:group-hover:text-gray-200;
 }
 
 @utility menu-dropdown-item {
-  @apply relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-theme-sm font-medium;
+  @apply relative flex items-center gap-3 rounded-lg px-4 py-2.5 text-theme-sm font-normal;
 }
 
 @utility menu-dropdown-item-active {
-  @apply bg-brand-50 text-brand-500 dark:bg-brand-500/[0.12] dark:text-brand-400;
+  @apply bg-brand-50 text-brand-500 font-semibold dark:bg-brand-500/[0.12] dark:text-brand-400;
 }
 
 @utility menu-dropdown-item-inactive {
-  @apply text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5;
+  @apply text-gray-800 hover:bg-gray-100 font-normal dark:text-gray-200 dark:hover:bg-white/5;
 }
 
 @utility menu-dropdown-badge {

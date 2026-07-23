@@ -6,7 +6,6 @@ import CategoryPanel from "@/components/chatbot/detail/CategoryPanel";
 import ChatbotDetailTabs from "@/components/chatbot/detail/ChatbotDetailTabs";
 import ImagesPanel from "@/components/chatbot/detail/ImagesPanel";
 import ReminderPanel from "@/components/chatbot/detail/ReminderPanel";
-import SettingsPanel from "@/components/chatbot/detail/SettingsPanel";
 import SpecialCasePanel from "@/components/chatbot/detail/SpecialCasePanel";
 import TrainingPanel from "@/components/chatbot/detail/TrainingPanel";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
@@ -17,15 +16,17 @@ import { confirm } from "@/lib/confirm";
 import { useChatbotStore } from "@/stores/use-chatbot-store";
 import type { ChatbotInstance } from "@/types/chatbot";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { FiCopy, FiCpu, FiPlus, FiTrash2 } from "react-icons/fi";
+import AssignAccountsModal from "./AssignAccountsModal";
+import MissDataNotificationModal from "./MissDataNotificationModal";
 
 interface ChatbotDetailViewProps {
   chatbotId: number;
 }
 
 const formatRelativeTime = (dateStr?: string) => {
-  if (!dateStr) return "Vừa cập nhật";
+  if (!dateStr) return "vừa xong";
   try {
     const date = new Date(dateStr);
     const now = new Date();
@@ -34,12 +35,12 @@ const formatRelativeTime = (dateStr?: string) => {
     const diffHours = Math.floor(diffMins / 60);
     const diffDays = Math.floor(diffHours / 24);
     
-    if (diffMins < 1) return "Vừa xong";
+    if (diffMins < 1) return "vừa xong";
     if (diffMins < 60) return `${diffMins} phút trước`;
     if (diffHours < 24) return `${diffHours} giờ trước`;
     return `${diffDays} ngày trước`;
   } catch (e) {
-    return "Mới cập nhật";
+    return "vừa xong";
   }
 };
 
@@ -81,6 +82,33 @@ export default function ChatbotDetailView({
   const closeCopy = useChatbotStore((s) => s.closeCopy);
   const setCopyName = useChatbotStore((s) => s.setCopyName);
   const copyChatbot = useChatbotStore((s) => s.copyChatbot);
+
+  // Assign Accounts Modal states
+  const [isAssignOpen, setIsAssignOpen] = useState(false);
+  const [assignBot, setAssignBot] = useState<ChatbotInstance | null>(null);
+
+  const openAssign = (bot: ChatbotInstance) => {
+    setAssignBot(bot);
+    setIsAssignOpen(true);
+  };
+  const closeAssign = () => {
+    setIsAssignOpen(false);
+    setAssignBot(null);
+  };
+
+  // Miss Data Config Modal states
+  const [isMissDataOpen, setIsMissDataOpen] = useState(false);
+  const [missDataBot, setMissDataBot] = useState<ChatbotInstance | null>(null);
+
+  const openMissData = (bot: ChatbotInstance) => {
+    setMissDataBot(bot);
+    setIsMissDataOpen(true);
+  };
+  const closeMissData = () => {
+    setIsMissDataOpen(false);
+    setMissDataBot(null);
+  };
+
 
   useEffect(() => {
     void fetchChatbotDetail(chatbotId);
@@ -171,7 +199,7 @@ export default function ChatbotDetailView({
                 disabled={atLimit}
                 className="!px-2.5 !py-1 !text-xs flex items-center gap-1 shrink-0"
               >
-                <FiPlus size={12} /> kịch bản
+                <FiPlus size={12} /> Kịch bản
               </Button>
             </div>
 
@@ -234,6 +262,27 @@ export default function ChatbotDetailView({
                       <div className="flex items-center gap-1.5">
                         <span className={`inline-block h-1.5 w-1.5 rounded-full ${bot.is_active ? "bg-success-500" : "bg-gray-300"}`}></span>
                         <span>ID #{bot.id}</span>
+                         <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openAssign(bot);
+                          }}
+                          className="ml-1.5 cursor-pointer font-bold text-brand-600 hover:text-brand-700 hover:underline dark:text-brand-400 dark:hover:text-brand-300"
+                        >
+                          [Gán tài khoản]
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openMissData(bot);
+                          }}
+                          className="ml-1.5 cursor-pointer font-bold text-amber-600 hover:text-amber-700 hover:underline dark:text-amber-400 dark:hover:text-amber-300"
+                        >
+                          [Báo thiếu data]
+                        </button>
+
                       </div>
                       <span>Cập nhật {formatRelativeTime(bot.updated_at)}</span>
                       
@@ -298,9 +347,6 @@ export default function ChatbotDetailView({
               {detailTab === "reminders" ? (
                 <ReminderPanel chatbotId={chatbotId} />
               ) : null}
-              {detailTab === "settings" ? (
-                <SettingsPanel chatbot={chatbot} />
-              ) : null}
             </div>
           </div>
         </div>
@@ -332,6 +378,18 @@ export default function ChatbotDetailView({
         onSubmit={() => {
           void handleCopy();
         }}
+      />
+
+       <AssignAccountsModal
+        isOpen={isAssignOpen}
+        onClose={closeAssign}
+        chatbot={assignBot}
+      />
+
+      <MissDataNotificationModal
+        isOpen={isMissDataOpen}
+        onClose={closeMissData}
+        chatbot={missDataBot}
       />
     </div>
   );

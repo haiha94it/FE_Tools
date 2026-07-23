@@ -124,7 +124,7 @@ const AppSidebar: React.FC = () => {
   };
 
   const renderMenuItems = (items: NavItem[], menuType: "main" | "others") => (
-    <ul className="flex flex-col gap-2">
+    <ul className="flex flex-col gap-1">
       {items.map((nav, index) => {
         const submenuOpen =
           openSubmenu?.type === menuType && openSubmenu?.index === index;
@@ -137,7 +137,9 @@ const AppSidebar: React.FC = () => {
                 type="button"
                 onClick={() => handleSubmenuToggle(index, menuType)}
                 className={`menu-item group cursor-pointer ${
-                  submenuOpen ? "menu-item-active" : "menu-item-inactive"
+                  submenuOpen
+                    ? "bg-brand-50 text-brand-500 font-semibold dark:bg-brand-500/[0.12] dark:text-brand-400"
+                    : "text-gray-800 hover:bg-gray-100 font-normal group-hover:text-gray-900 dark:text-gray-200 dark:hover:bg-white/5"
                 } ${!isExpanded && !isHovered ? "lg:justify-center" : "lg:justify-start"}`}
               >
                 <SidebarNavIcon
@@ -162,7 +164,9 @@ const AppSidebar: React.FC = () => {
                   href={nav.path}
                   prefetch={false}
                   className={`menu-item group ${
-                    linkActive ? "menu-item-active" : "menu-item-inactive"
+                    linkActive
+                      ? "bg-brand-50 text-brand-500 font-semibold dark:bg-brand-500/[0.12] dark:text-brand-400"
+                      : "text-gray-800 hover:bg-gray-100 font-normal group-hover:text-gray-900 dark:text-gray-200 dark:hover:bg-white/5"
                   } ${!isExpanded && !isHovered ? "lg:justify-center" : ""}`}
                 >
                   <SidebarNavIcon
@@ -198,8 +202,8 @@ const AppSidebar: React.FC = () => {
                         prefetch={false}
                         className={`menu-dropdown-item ${
                           isActive(subItem.path)
-                            ? "menu-dropdown-item-active"
-                            : "menu-dropdown-item-inactive"
+                            ? "bg-brand-50 text-brand-500 font-semibold dark:bg-brand-500/[0.12] dark:text-brand-400"
+                            : "text-gray-800 hover:bg-gray-100 font-normal dark:text-gray-200 dark:hover:bg-white/5"
                         }`}
                       >
                         <span
@@ -247,14 +251,14 @@ const AppSidebar: React.FC = () => {
             <>
               <Image
                 className="dark:hidden"
-                src="/images/logo/logo.png"
+                src="/images/logo/logo.svg"
                 alt={APP_NAME}
                 width={150}
                 height={40}
               />
               <Image
                 className="hidden dark:block"
-                src="/images/logo/logo-dark.png"
+                src="/images/logo/logo-dark.svg"
                 alt={APP_NAME}
                 width={150}
                 height={40}
@@ -262,7 +266,7 @@ const AppSidebar: React.FC = () => {
             </>
           ) : (
             <Image
-              src="/images/logo/logo-icon.png"
+              src="/images/logo/logo-icon.svg"
               alt={APP_NAME}
               width={32}
               height={32}
@@ -275,7 +279,7 @@ const AppSidebar: React.FC = () => {
           <div className="flex flex-col gap-4">
             <div>
               <h2
-                className={`mb-4 flex text-xs leading-[20px] text-gray-400 uppercase ${
+                className={`mb-4 flex text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider ${
                   !isExpanded && !isHovered
                     ? "lg:justify-center"
                     : "justify-start"
@@ -293,7 +297,7 @@ const AppSidebar: React.FC = () => {
             {othersItems.length > 0 && (
               <div>
                 <h2
-                  className={`mb-4 flex text-xs leading-[20px] text-gray-400 uppercase ${
+                  className={`mb-4 flex text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider ${
                     !isExpanded && !isHovered
                       ? "lg:justify-center"
                       : "justify-start"

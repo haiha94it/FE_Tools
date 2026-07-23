@@ -187,15 +187,6 @@ export default function TrainingPanel({ chatbotId }: TrainingPanelProps) {
             <Badge size="sm" color="primary" variant="light">
               {trainingCount} Q&A
             </Badge>
-            <label className="flex cursor-pointer items-center gap-2 text-xs font-medium text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition">
-              <input
-                type="checkbox"
-                checked={hideAutoHarvested}
-                onChange={(e) => setHideAutoHarvested(e.target.checked)}
-                className="h-4 w-4 rounded-md border-gray-300 text-brand-500 focus:ring-brand-500/20 dark:border-gray-700 dark:bg-gray-800"
-              />
-              Ẩn auto-harvested
-            </label>
           </div>
           
           <div className="flex items-center gap-2">

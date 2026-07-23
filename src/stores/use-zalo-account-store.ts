@@ -15,7 +15,7 @@ import { zaloAccountService } from "@/services/zalo-account.service";
 import { zaloProxyService } from "@/services/zalo-proxy.service";
 import type { ZaloProxyItem } from "@/types/zalo-proxy";
 import { runAsyncAction } from "@/stores/helpers/async-actions";
-import type { EditZaloAccountPayload, ZaloAccount } from "@/types/zalo-account";
+import type { EditZaloAccountPayload, ZaloAccount, ZaloAccountGroup, ZaloGroupMember } from "@/types/zalo-account";
 import {
   buildZaloCookieCreateBody,
   type ZaloCookieAccountPayload,
@@ -98,7 +98,30 @@ interface ZaloAccountState {
 
   openDeleteConfirm: (ids: number[]) => void;
   closeDeleteConfirm: () => void;
+
+  loadingChatbotDisabledFriendsAccountIds: number[];
+  savingChatbotDisabledFriendsAccountIds: number[];
+  fetchChatbotDisabledFriends: (accountId: number | string) => Promise<{ chatbot_disabled_friend_uids: string[]; friends: any[] } | null>;
+  saveChatbotDisabledFriends: (accountId: number | string, disabledUids: string[]) => Promise<boolean>;
+
+  groupsByAccountId: Record<number, { results: ZaloAccountGroup[]; count: number; page: number }>;
+  loadingGroupAccountIds: number[];
+  groupErrorsByAccountId: Record<number, string>;
+  groupMembersByGroupId: Record<number, ZaloGroupMember[]>;
+  loadingGroupMemberIds: number[];
+  scanningGroupMemberIds: number[];
+  groupMemberErrorsByGroupId: Record<number, string>;
+  groupScanTaskIdsByAccountId: Record<number, string | number>;
+  groupMemberScanTaskIdsByGroupId: Record<number, string | number>;
+
+  fetchGroupsByAccount: (accountId: number, page?: number, search?: string) => Promise<void>;
+  scanGroupsByAccount: (accountId: number) => Promise<boolean>;
+  pollGroupScanResult: (accountId: number) => Promise<void>;
+  fetchGroupMembers: (groupId: number) => Promise<void>;
+  scanGroupMembers: (accountId: number, groupId: number) => Promise<boolean>;
+  pollGroupMemberScanResult: (groupId: number) => Promise<void>;
 }
+
 
 export const useZaloAccountStore = create<ZaloAccountState>((set, get) => ({
   accounts: [],
@@ -135,6 +158,19 @@ export const useZaloAccountStore = create<ZaloAccountState>((set, get) => ({
   loadingToggleMessageId: null,
 
   deleteConfirm: null,
+
+  loadingChatbotDisabledFriendsAccountIds: [],
+  savingChatbotDisabledFriendsAccountIds: [],
+
+  groupsByAccountId: {},
+  loadingGroupAccountIds: [],
+  groupErrorsByAccountId: {},
+  groupMembersByGroupId: {},
+  loadingGroupMemberIds: [],
+  scanningGroupMemberIds: [],
+  groupMemberErrorsByGroupId: {},
+  groupScanTaskIdsByAccountId: {},
+  groupMemberScanTaskIdsByGroupId: {},
 
   fetchAccounts: async (options = {}) => {
     const force = options.force === true;
@@ -451,6 +487,304 @@ export const useZaloAccountStore = create<ZaloAccountState>((set, get) => ({
     set({ deleteConfirm: { ids } });
   },
   closeDeleteConfirm: () => set({ deleteConfirm: null }),
+
+  fetchChatbotDisabledFriends: async (accountId) => {
+    set((state) => ({
+      loadingChatbotDisabledFriendsAccountIds: [
+        ...state.loadingChatbotDisabledFriendsAccountIds,
+        Number(accountId),
+      ],
+    }));
+    try {
+      const data = await zaloAccountService.getChatbotDisabledFriends(accountId);
+      set((state) => ({
+        accounts: state.accounts.map((acc) =>
+          acc.id === Number(accountId)
+            ? { ...acc, chatbot_disabled_friend_uids: data.chatbot_disabled_friend_uids }
+            : acc
+        ),
+      }));
+      return data;
+    } catch (err) {
+      set({ error: getApiErrorMessage(err) });
+      return null;
+    } finally {
+      set((state) => ({
+        loadingChatbotDisabledFriendsAccountIds:
+          state.loadingChatbotDisabledFriendsAccountIds.filter(
+            (id) => id !== Number(accountId),
+          ),
+      }));
+    }
+  },
+
+  saveChatbotDisabledFriends: async (accountId, disabledUids) => {
+    set((state) => ({
+      savingChatbotDisabledFriendsAccountIds: [
+        ...state.savingChatbotDisabledFriendsAccountIds,
+        Number(accountId),
+      ],
+    }));
+    try {
+      await zaloAccountService.saveChatbotDisabledFriends(accountId, disabledUids);
+      set((state) => ({
+        accounts: state.accounts.map((acc) =>
+          acc.id === Number(accountId)
+            ? { ...acc, chatbot_disabled_friend_uids: disabledUids }
+            : acc
+        ),
+      }));
+      return true;
+    } catch (err) {
+      set({ error: getApiErrorMessage(err) });
+      return false;
+    } finally {
+      set((state) => ({
+        savingChatbotDisabledFriendsAccountIds:
+          state.savingChatbotDisabledFriendsAccountIds.filter(
+            (id) => id !== Number(accountId),
+          ),
+      }));
+    }
+  },
+
+  fetchGroupsByAccount: async (accountId, page = 1, search = "") => {
+    set((state) => ({
+      loadingGroupAccountIds: state.loadingGroupAccountIds.includes(accountId)
+        ? state.loadingGroupAccountIds
+        : [...state.loadingGroupAccountIds, accountId],
+      groupErrorsByAccountId: Object.fromEntries(
+        Object.entries(state.groupErrorsByAccountId).filter(([id]) => Number(id) !== accountId),
+      ),
+    }));
+
+    try {
+      const data = await zaloAccountService.fetchGroupsByAccount(accountId, page, search);
+      set((state) => ({
+        groupsByAccountId: {
+          ...state.groupsByAccountId,
+          [accountId]: {
+            results: data.results ?? [],
+            count: data.count ?? 0,
+            page,
+          },
+        },
+        loadingGroupAccountIds: state.loadingGroupAccountIds.filter((id) => id !== accountId),
+      }));
+    } catch (error) {
+      const message = getApiErrorMessage(error);
+      set((state) => ({
+        groupErrorsByAccountId: {
+          ...state.groupErrorsByAccountId,
+          [accountId]: message,
+        },
+        loadingGroupAccountIds: state.loadingGroupAccountIds.filter((id) => id !== accountId),
+      }));
+    }
+  },
+
+  scanGroupsByAccount: async (accountId) => {
+    set((state) => ({
+      groupErrorsByAccountId: Object.fromEntries(
+        Object.entries(state.groupErrorsByAccountId).filter(([id]) => Number(id) !== accountId),
+      ),
+    }));
+
+    try {
+      const data = await zaloAccountService.scanGroupsByAccount(accountId);
+      const taskId = data.id_task;
+      if (!taskId) {
+        set((state) => ({
+          groupErrorsByAccountId: {
+            ...state.groupErrorsByAccountId,
+            [accountId]: "Không nhận được mã tác vụ quét nhóm.",
+          },
+        }));
+        return false;
+      }
+
+      set((state) => ({
+        groupScanTaskIdsByAccountId: {
+          ...state.groupScanTaskIdsByAccountId,
+          [accountId]: taskId,
+        },
+      }));
+      return true;
+    } catch (error) {
+      const message = getApiErrorMessage(error);
+      set((state) => ({
+        groupErrorsByAccountId: {
+          ...state.groupErrorsByAccountId,
+          [accountId]: message,
+        },
+      }));
+      return false;
+    }
+  },
+
+  pollGroupScanResult: async (accountId) => {
+    const taskId = get().groupScanTaskIdsByAccountId[accountId];
+    if (!taskId) return;
+
+    try {
+      const response = await zaloAccountService.pollGroupScanResult(taskId);
+      if (response.status === "PENDING") return;
+
+      if (response.status === "SUCCESS") {
+        set((state) => ({
+          groupScanTaskIdsByAccountId: Object.fromEntries(
+            Object.entries(state.groupScanTaskIdsByAccountId).filter(([id]) => Number(id) !== accountId),
+          ),
+        }));
+        await get().fetchGroupsByAccount(accountId, 1);
+        return;
+      }
+
+      set((state) => ({
+        groupScanTaskIdsByAccountId: Object.fromEntries(
+          Object.entries(state.groupScanTaskIdsByAccountId).filter(([id]) => Number(id) !== accountId),
+        ),
+        groupErrorsByAccountId: {
+          ...state.groupErrorsByAccountId,
+          [accountId]: "Quét danh sách nhóm thất bại.",
+        },
+      }));
+    } catch (error) {
+      const message = getApiErrorMessage(error);
+      set((state) => ({
+        groupScanTaskIdsByAccountId: Object.fromEntries(
+          Object.entries(state.groupScanTaskIdsByAccountId).filter(([id]) => Number(id) !== accountId),
+        ),
+        groupErrorsByAccountId: {
+          ...state.groupErrorsByAccountId,
+          [accountId]: message,
+        },
+      }));
+    }
+  },
+
+  fetchGroupMembers: async (groupId) => {
+    set((state) => ({
+      loadingGroupMemberIds: state.loadingGroupMemberIds.includes(groupId)
+        ? state.loadingGroupMemberIds
+        : [...state.loadingGroupMemberIds, groupId],
+      groupMemberErrorsByGroupId: Object.fromEntries(
+        Object.entries(state.groupMemberErrorsByGroupId || {}).filter(([id]) => Number(id) !== groupId),
+      ),
+    }));
+
+    try {
+      const data = await zaloAccountService.fetchGroupMembers(groupId);
+      set((state) => ({
+        groupMembersByGroupId: {
+          ...state.groupMembersByGroupId,
+          [groupId]: data.results ?? [],
+        },
+        loadingGroupMemberIds: state.loadingGroupMemberIds.filter((id) => id !== groupId),
+      }));
+    } catch (error) {
+      const message = getApiErrorMessage(error);
+      set((state) => ({
+        groupMemberErrorsByGroupId: {
+          ...(state.groupMemberErrorsByGroupId || {}),
+          [groupId]: message,
+        },
+        loadingGroupMemberIds: state.loadingGroupMemberIds.filter((id) => id !== groupId),
+      }));
+    }
+  },
+
+  scanGroupMembers: async (accountId, groupId) => {
+    set((state) => ({
+      scanningGroupMemberIds: state.scanningGroupMemberIds.includes(groupId)
+        ? state.scanningGroupMemberIds
+        : [...state.scanningGroupMemberIds, groupId],
+      groupMemberErrorsByGroupId: Object.fromEntries(
+        Object.entries(state.groupMemberErrorsByGroupId || {}).filter(([id]) => Number(id) !== groupId),
+      ),
+    }));
+
+    try {
+      const data = await zaloAccountService.scanGroupMembers(accountId, groupId);
+      const taskId = data.id_task;
+      if (!taskId) {
+        set((state) => ({
+          scanningGroupMemberIds: state.scanningGroupMemberIds.filter((id) => id !== groupId),
+          groupMemberErrorsByGroupId: {
+            ...(state.groupMemberErrorsByGroupId || {}),
+            [groupId]: "Không nhận được mã tác vụ quét thành viên.",
+          },
+        }));
+        return false;
+      }
+
+      set((state) => ({
+        groupMemberScanTaskIdsByGroupId: {
+          ...state.groupMemberScanTaskIdsByGroupId,
+          [groupId]: taskId,
+        },
+      }));
+      return true;
+    } catch (error) {
+      const message = getApiErrorMessage(error);
+      set((state) => ({
+        scanningGroupMemberIds: state.scanningGroupMemberIds.filter((id) => id !== groupId),
+        groupMemberErrorsByGroupId: {
+          ...(state.groupMemberErrorsByGroupId || {}),
+          [groupId]: message,
+        },
+      }));
+      return false;
+    }
+  },
+
+  pollGroupMemberScanResult: async (groupId) => {
+    const taskId = get().groupMemberScanTaskIdsByGroupId[groupId];
+    if (!taskId) return;
+
+    try {
+      const response = await zaloAccountService.pollGroupMemberScanResult(taskId);
+      if (response.status === "PENDING") return;
+
+      if (response.status === "SUCCESS") {
+        set((state) => ({
+          groupMembersByGroupId: {
+            ...state.groupMembersByGroupId,
+            [groupId]: response.data ?? [],
+          },
+          scanningGroupMemberIds: state.scanningGroupMemberIds.filter((id) => id !== groupId),
+          groupMemberScanTaskIdsByGroupId: Object.fromEntries(
+            Object.entries(state.groupMemberScanTaskIdsByGroupId).filter(([id]) => Number(id) !== groupId),
+          ),
+        }));
+        await get().fetchGroupMembers(groupId);
+        return;
+      }
+
+      set((state) => ({
+        scanningGroupMemberIds: state.scanningGroupMemberIds.filter((id) => id !== groupId),
+        groupMemberScanTaskIdsByGroupId: Object.fromEntries(
+          Object.entries(state.groupMemberScanTaskIdsByGroupId).filter(([id]) => Number(id) !== groupId),
+        ),
+        groupMemberErrorsByGroupId: {
+          ...(state.groupMemberErrorsByGroupId || {}),
+          [groupId]: "Quét thành viên nhóm thất bại.",
+        },
+      }));
+    } catch (error) {
+      const message = getApiErrorMessage(error);
+      set((state) => ({
+        scanningGroupMemberIds: state.scanningGroupMemberIds.filter((id) => id !== groupId),
+        groupMemberScanTaskIdsByGroupId: Object.fromEntries(
+          Object.entries(state.groupMemberScanTaskIdsByGroupId).filter(([id]) => Number(id) !== groupId),
+        ),
+        groupMemberErrorsByGroupId: {
+          ...(state.groupMemberErrorsByGroupId || {}),
+          [groupId]: message,
+        },
+      }));
+    }
+  },
 }));
 
 /** Danh sách đã lọc theo từ khóa tìm kiếm */
