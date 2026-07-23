@@ -1,5 +1,6 @@
 "use client";
 
+import { toast } from "@/lib/toast";
 import { useAuthStore } from "@/stores/use-auth-store";
 import { useWebSocketStore } from "@/stores/use-websocket-store";
 import { useEffect } from "react";
@@ -43,6 +44,23 @@ export function WebSocketBridge() {
     window.addEventListener("online", handleOnline);
     return () => window.removeEventListener("online", handleOnline);
   }, [connect]);
+
+  useEffect(() => {
+    const unsubscribe = useWebSocketStore.getState().subscribe((payload) => {
+      if (
+        payload?.type === "zalo_reminder_send_message" ||
+        payload?.event === "zalo_reminder_send_message"
+      ) {
+        const uid =
+          (payload.uid as string) ||
+          (payload.target_id as string) ||
+          "khách hàng";
+        toast.info(`Đã gửi tin nhắn nhắc nhở tự động tới ${uid}`);
+      }
+    });
+
+    return unsubscribe;
+  }, []);
 
   return null;
 }
