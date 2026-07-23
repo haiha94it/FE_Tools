@@ -1,4 +1,4 @@
-import { API_ZALO_ACCOUNT } from "@/config/api";
+import { API_ZALO_ACCOUNT, API_ZALO_GROUP } from "@/config/api";
 import { unwrapApiBody } from "@/lib/api-response";
 import api from "@/lib/axios";
 import { extractZaloAccounts } from "@/lib/zalo-account-utils";
@@ -101,5 +101,102 @@ export const zaloAccountService = {
       data.data?.message ||
       "Thêm tài khoản bằng cookie thất bại.";
     throw new Error(message);
+  },
+
+  async getChatbotDisabledFriends(
+    accountId: number | string,
+  ): Promise<{ chatbot_disabled_friend_uids: string[]; friends: any[] }> {
+    const response = await api.get(
+      API_ZALO_ACCOUNT.CHATBOT_DISABLED_FRIENDS(accountId),
+    );
+    return unwrapApiBody<{ chatbot_disabled_friend_uids: string[]; friends: any[] }>(
+      response.data,
+    );
+  },
+
+  async saveChatbotDisabledFriends(
+    accountId: number | string,
+    disabledUids: string[],
+  ): Promise<void> {
+    await api.put(
+      API_ZALO_ACCOUNT.CHATBOT_DISABLED_FRIENDS(accountId),
+      { chatbot_disabled_friend_uids: disabledUids },
+    );
+  },
+
+  async fetchFriends(
+    params: {
+      id_account: number | string;
+      page?: number;
+      number_per_page?: number;
+      all_friend?: boolean;
+      name?: string;
+    },
+  ): Promise<any> {
+    const response = await api.get("/api/friend/", { params });
+    return response.data;
+  },
+
+  async fetchGroupsByAccount(
+    accountId: number | string,
+    page = 1,
+    search = "",
+  ): Promise<any> {
+    const response = await api.get(API_ZALO_GROUP.LIST, {
+      params: {
+        number_per_page: 100,
+        page,
+        id_account: accountId,
+        name: search.trim() || undefined,
+      },
+    });
+    return response.data;
+  },
+
+  async scanGroupsByAccount(
+    accountId: number | string,
+  ): Promise<{ id_task: string | number }> {
+    const response = await api.post(API_ZALO_GROUP.SCAN, {
+      id_accounts: [accountId],
+    });
+    return response.data;
+  },
+
+  async pollGroupScanResult(
+    taskId: string | number,
+  ): Promise<any> {
+    const response = await api.get(API_ZALO_GROUP.SCAN_RESULT, {
+      params: { id_task: taskId },
+    });
+    return response.data;
+  },
+
+  async fetchGroupMembers(
+    groupId: number | string,
+  ): Promise<any> {
+    const response = await api.get(API_ZALO_GROUP.GET_MEMBER, {
+      params: { id_group: groupId },
+    });
+    return response.data;
+  },
+
+  async scanGroupMembers(
+    accountId: number | string,
+    groupId: number | string,
+  ): Promise<{ id_task: string | number }> {
+    const response = await api.post(API_ZALO_GROUP.GET_MEMBER, {
+      id_account: accountId,
+      id_group: groupId,
+    });
+    return response.data;
+  },
+
+  async pollGroupMemberScanResult(
+    taskId: string | number,
+  ): Promise<any> {
+    const response = await api.post(API_ZALO_GROUP.GET_MEMBER_RESULT, {
+      id_task: taskId,
+    });
+    return response.data;
   },
 };

@@ -75,3 +75,30 @@ export interface ToggleMessageListenerAccountPayload {
 export type ToggleMessageListenerPayload =
   | ToggleMessageListenerAllPayload
   | ToggleMessageListenerAccountPayload;
+
+export interface ZaloAccountGroup {
+  id: number;
+  uid: string;
+  name: string;
+  avt?: string;
+  total_member?: string | number;
+  link_group?: string;
+  is_joined?: boolean;
+  is_blocked_chat?: boolean;
+  is_miss_data_notification?: boolean;
+  miss_data_notification_config_id?: number;
+}
+
+export interface ZaloGroupMember {
+  id: number;
+  friend: {
+    id: number;
+    uid: string;
+    name: string;
+    avatar?: string | null;
+    avt?: string | null;
+    phone_number?: string | null;
+  };
+  is_admin?: boolean;
+  is_creator?: boolean;
+}

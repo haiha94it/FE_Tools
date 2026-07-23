@@ -36,6 +36,12 @@ export default function SettingsPanel({ chatbot }: SettingsPanelProps) {
   const accounts = useZaloAccountStore((s) => s.accounts);
   const fetchAccounts = useZaloAccountStore((s) => s.fetchAccounts);
   const accountsLoading = useZaloAccountStore((s) => s.isLoading);
+  const toggleAccountMessageListener = useZaloAccountStore(
+    (s) => s.toggleAccountMessageListener,
+  );
+  const loadingToggleMessageId = useZaloAccountStore(
+    (s) => s.loadingToggleMessageId,
+  );
 
   const [name, setName] = useState(chatbot.name);
   const [isActive, setIsActive] = useState(chatbot.is_active);
@@ -106,6 +112,7 @@ export default function SettingsPanel({ chatbot }: SettingsPanelProps) {
           <div className="flex justify-end">
             <Button
               size="sm"
+              variant="outline"
               onClick={() => void handleSaveInfo()}
               disabled={isSaving || !name.trim()}
             >
@@ -150,10 +157,10 @@ export default function SettingsPanel({ chatbot }: SettingsPanelProps) {
                   <label
                     className={`flex cursor-pointer items-start gap-3 rounded-xl border px-3 py-2.5 transition ${
                       checked
-                        ? "border-brand-300 bg-brand-50/60 dark:border-brand-800 dark:bg-brand-500/10"
+                        ? "border-brand-500 bg-brand-50/60 dark:border-brand-500/30 dark:bg-brand-500/10"
                         : blocked
-                          ? "cursor-not-allowed border-gray-100 bg-gray-50 opacity-60 dark:border-gray-800 dark:bg-white/[0.02]"
-                          : "border-gray-200 hover:border-gray-300 dark:border-gray-800 dark:hover:border-gray-700"
+                          ? "cursor-not-allowed border-gray-200 bg-gray-50 opacity-60 dark:border-gray-800 dark:bg-white/[0.02]"
+                          : "border-gray-300 hover:border-gray-400 dark:border-gray-700 dark:hover:border-gray-600"
                     }`}
                   >
                     <input
@@ -177,6 +184,23 @@ export default function SettingsPanel({ chatbot }: SettingsPanelProps) {
                           Đang gán ở kịch bản: {elsewhere}
                         </p>
                       ) : null}
+                      {checked && (
+                        <div
+                          onClick={(e) => e.stopPropagation()}
+                          className="mt-2 flex items-center gap-2 rounded-lg bg-gray-50 dark:bg-white/[0.03] px-2.5 py-1 w-fit border border-gray-100 dark:border-gray-800"
+                        >
+                          <span className="text-[10px] font-bold text-gray-500 dark:text-gray-400">
+                            Hoạt động Chatbot:
+                          </span>
+                          <Switch
+                            checked={!account.disable_message}
+                            disabled={loadingToggleMessageId === account.id}
+                            onChange={(checkedVal) => {
+                              void toggleAccountMessageListener(account.id, checkedVal);
+                            }}
+                          />
+                        </div>
+                      )}
                     </div>
                   </label>
                 </li>

@@ -66,11 +66,13 @@ export default function SidebarNavIcon({
   const Icon = ICON_MAP[icon];
   return (
     <span
-      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-all duration-200 ${TONE_CLASS[tone]} ${
-        active ? TONE_ACTIVE_CLASS[tone] : ""
+      className={`flex h-9 w-9 shrink-0 items-center justify-center transition-all duration-200 ${
+        active
+          ? "text-brand-500 dark:text-brand-400"
+          : "text-gray-500 group-hover:text-gray-800 dark:text-gray-400 dark:group-hover:text-gray-200"
       }`}
     >
-      <Icon className="size-[18px]" />
+      <Icon className="size-[20px]" />
     </span>
   );
 }

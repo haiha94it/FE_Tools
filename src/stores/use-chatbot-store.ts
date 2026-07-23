@@ -249,17 +249,10 @@ export const useChatbotStore = create<ChatbotState>((set, get) => ({
         isSaving: false,
         selectedChatbot:
           state.selectedChatbotId === id
-            ? { ...state.selectedChatbot!, ...updated, zalo_account_keys: accountKeys }
+            ? { ...state.selectedChatbot!, ...updated }
             : state.selectedChatbot,
         chatbots: state.chatbots.map((item) =>
-          item.id === id
-            ? {
-                ...item,
-                ...updated,
-                zalo_account_keys: accountKeys,
-                zalo_accounts: accountKeys,
-              }
-            : item,
+          item.id === id ? { ...item, ...updated } : item,
         ),
       }));
       toast.success("Đã cập nhật gán tài khoản Zalo.");
