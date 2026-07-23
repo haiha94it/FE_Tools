@@ -52,7 +52,11 @@ export const authService = {
     const refresh = getRefreshToken();
     try {
       if (refresh) {
-        await api.post(API_AUTH.LOGOUT, { refresh });
+        try {
+          await api.post(API_AUTH.LOGOUT, { refresh });
+        } catch (apiError) {
+          console.warn("API logout failed (possibly expired token):", apiError);
+        }
       }
     } finally {
       clearTokens();

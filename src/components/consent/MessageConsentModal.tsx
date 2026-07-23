@@ -336,6 +336,33 @@ function MessageConsentModal({
             </div>
           </div>
 
+          {step === "form" ? (
+            <div className="shrink-0 border-b border-gray-100 bg-gray-50/50 px-4 py-3 dark:border-gray-800 dark:bg-white/[0.01] sm:px-5">
+              <div className="flex flex-wrap gap-2">
+                {(
+                  [
+                    ["personal", "Cá nhân"],
+                    ["business", "HKD / Công ty"],
+                  ] as const
+                ).map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    disabled={submitting}
+                    onClick={() => setEntityType(value)}
+                    className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition ${
+                      entityType === value
+                        ? "border-brand-300 bg-brand-50 text-brand-700 dark:border-brand-500/40 dark:bg-brand-500/15 dark:text-brand-200"
+                        : "border-gray-200 text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
           <div className="custom-scrollbar min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-4 py-4 sm:px-5">
             {step === "agree" ? (
               <div className="space-y-4 py-4">
@@ -373,29 +400,6 @@ function MessageConsentModal({
 
             {step === "form" ? (
               <div className="space-y-4">
-                <div className="flex flex-wrap gap-2">
-                  {(
-                    [
-                      ["personal", "Cá nhân"],
-                      ["business", "HKD / Công ty"],
-                    ] as const
-                  ).map(([value, label]) => (
-                    <button
-                      key={value}
-                      type="button"
-                      disabled={submitting}
-                      onClick={() => setEntityType(value)}
-                      className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition ${
-                        entityType === value
-                          ? "border-brand-300 bg-brand-50 text-brand-700 dark:border-brand-500/40 dark:bg-brand-500/15 dark:text-brand-200"
-                          : "border-gray-200 text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300"
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-
                 {entityType === "personal" ? (
                   <div className="rounded-xl border border-gray-200 bg-gray-50/80 p-4 dark:border-gray-700 dark:bg-white/[0.03]">
                     <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
