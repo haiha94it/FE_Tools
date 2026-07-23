@@ -382,3 +382,36 @@ export const API_ZALO_SHOP = {
 
 export const SHOP_ADMIN_BASE = "/shop";
 export const STORE_PUBLIC_BASE = "/store";
+
+/** Chatbot AI / kịch bản Zalo — đồng bộ MANAGE_CN API_CHATBOT */
+export const API_CHATBOT = {
+  CHATBOTS: "/api/chatbot/chatbots",
+  CHATBOT_COPY: "/api/chatbot/chatbots/copy",
+  CHATBOT_DETAIL: (id: number | string) => `/api/chatbot/chatbots/${id}`,
+  CHATBOT_ASSIGNMENTS: (id: number | string) =>
+    `/api/chatbot/chatbots/${id}/assignments`,
+  CATEGORIES: "/api/chatbot/categories",
+  CATEGORY_DETAIL: (id: number | string) => `/api/chatbot/categories/${id}`,
+  TRAINING_DATA: "/api/chatbot/training-data",
+  TRAINING_DATA_SYNC_EMBEDDINGS: "/api/chatbot/training-data/sync-embeddings",
+  TRAINING_DATA_DETAIL: (id: number | string) =>
+    `/api/chatbot/training-data/${id}`,
+  TRAINING_DATA_EXPORT: "/api/chatbot/training-data/export",
+  TRAINING_DATA_CLEAR: "/api/chatbot/training-data/clear",
+  TRAINING_IMAGES: "/api/chatbot/training-images",
+  TRAINING_IMAGE_DETAIL: (id: number | string) =>
+    `/api/chatbot/training-images/${id}`,
+  PLACEHOLDERS: "/api/chatbot/placeholders",
+  SPECIAL_CASE_TYPES: "/api/chatbot/special-case-types",
+  SPECIAL_CASE_CONFIGS: "/api/chatbot/special-case-configs",
+  SPECIAL_CASE_CONFIG_DETAIL: (id: number | string) =>
+    `/api/chatbot/special-case-configs/${id}`,
+  REMINDER_GLOBAL: "/api/chatbot/reminders/global-configs",
+  REMINDER_TIME_CONFIGS: "/api/chatbot/reminders/time-configs",
+  REMINDER_TIME_CONFIG_DETAIL: (id: number | string) =>
+    `/api/chatbot/reminders/time-configs/${id}`,
+  REMINDER_COPY: "/api/chatbot/reminders/copy",
+  TEST_MESSAGE: "/api/chatbot/test-message",
+} as const;
+
+export const CHATBOTS_BASE = "/chatbots";

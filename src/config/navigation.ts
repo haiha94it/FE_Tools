@@ -64,6 +64,12 @@ export const mainNavItems: NavItemConfig[] = [
     iconTone: "success",
   },
   {
+    name: "Chatbot AI",
+    path: "/chatbots",
+    icon: "plugin",
+    iconTone: "purple",
+  },
+  {
     name: "Cửa hàng",
     path: "/shop",
     icon: "box",
