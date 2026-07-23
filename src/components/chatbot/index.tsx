@@ -43,6 +43,12 @@ export default function ChatbotsView() {
     void fetchChatbots();
   }, [fetchChatbots]);
 
+  useEffect(() => {
+    if (!isLoading && chatbots.length > 0) {
+      router.replace(`/chatbots/${chatbots[0].id}`);
+    }
+  }, [chatbots, isLoading, router]);
+
   const atLimit = count >= maxChatbots;
 
   const handleDelete = async (chatbot: ChatbotInstance) => {

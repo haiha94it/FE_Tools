@@ -270,3 +270,12 @@ export const CHATBOT_MAX_REMINDER_MESSAGES = 10;
 export const CHATBOT_MAX_REMINDER_IMAGES = 5;
 export const TRAINING_QUESTION_MAX_LENGTH = 500;
 export const TRAINING_ANSWER_MAX_LENGTH = 4000;
+
+export interface TestMessageResult {
+  message?: string;
+  answer?: string | string[];
+  image_urls?: string[];
+  llm_suggestion?: string | null;
+  training_data_id?: number | null;
+  category?: ChatbotCategory | null;
+}

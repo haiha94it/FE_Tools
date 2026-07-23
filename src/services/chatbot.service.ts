@@ -28,6 +28,7 @@ import type {
   UpdateCategoryPayload,
   UpdateChatbotPayload,
   UpdateTrainingDataPayload,
+  TestMessageResult,
 } from "@/types/chatbot";
 
 export const chatbotService = {
@@ -343,5 +344,16 @@ export const chatbotService = {
       source_chatbot_id: sourceChatbotId,
       target_chatbot_id: targetChatbotId,
     });
+  },
+
+  async testMessage(
+    chatbotId: number,
+    message: string,
+  ): Promise<TestMessageResult> {
+    const response = await api.post(API_CHATBOT.TEST_MESSAGE, {
+      chatbot_id: chatbotId,
+      message,
+    });
+    return response.data as TestMessageResult;
   },
 };

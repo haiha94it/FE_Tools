@@ -411,6 +411,7 @@ export const API_CHATBOT = {
   REMINDER_TIME_CONFIG_DETAIL: (id: number | string) =>
     `/api/chatbot/reminders/time-configs/${id}`,
   REMINDER_COPY: "/api/chatbot/reminders/copy",
+  TEST_MESSAGE: "/api/chatbot/test-message",
 } as const;
 
 export const CHATBOTS_BASE = "/chatbots";

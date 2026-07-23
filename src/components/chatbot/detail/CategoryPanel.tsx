@@ -7,6 +7,7 @@ import Switch from "@/components/form/switch/Switch";
 import Badge from "@/components/ui/badge/Badge";
 import Button from "@/components/ui/button/Button";
 import { Modal } from "@/components/ui/modal";
+import { Tooltip } from "@/components/ui/tooltip/Tooltip";
 import { confirm } from "@/lib/confirm";
 import {
   CATEGORY_COLOR_PRESETS,
@@ -15,6 +16,7 @@ import {
 import { useChatbotTrainingStore } from "@/stores/use-chatbot-training-store";
 import type { ChatbotCategory } from "@/types/chatbot";
 import { useEffect, useState } from "react";
+import { FiEdit, FiFolder, FiFolderPlus, FiTrash2 } from "react-icons/fi";
 
 interface CategoryPanelProps {
   chatbotId: number;
@@ -101,37 +103,67 @@ export default function CategoryPanel({ chatbotId }: CategoryPanelProps) {
     if (ok) setOpen(false);
   };
 
+  const isTrulyEmpty = categories.length === 0;
+
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <Badge size="sm" color="primary" variant="light">
-          {categories.length} danh mục
-        </Badge>
-        <Button size="sm" onClick={openCreate}>
-          + Thêm danh mục
-        </Button>
-      </div>
+      {/* Header bar */}
+      {!isTrulyEmpty && (
+        <div className="flex items-center justify-between gap-3 border-b border-gray-100 pb-3 dark:border-gray-800">
+          <Badge size="sm" color="primary" variant="light">
+            {categories.length} Danh mục
+          </Badge>
+          <Button
+            size="sm"
+            onClick={openCreate}
+            className="flex items-center gap-1.5 !px-3.5 !py-2 text-xs font-semibold"
+          >
+            <FiFolderPlus size={14} /> Thêm danh mục
+          </Button>
+        </div>
+      )}
 
-      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.02]">
+      {/* Main container */}
+      <div className="overflow-hidden rounded-2xl border border-gray-150 bg-white dark:border-gray-800 dark:bg-white/[0.01]">
         {isLoadingCategories && categories.length === 0 ? (
-          <p className="px-4 py-10 text-center text-sm text-gray-500">
-            Đang tải danh mục…
-          </p>
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <div className="relative mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-brand-55 text-brand-600 dark:bg-brand-500/10 dark:text-brand-400">
+              <FiFolder className="animate-pulse text-brand-500" size={20} />
+            </div>
+            <p className="text-xs font-medium text-gray-500 dark:text-gray-400">
+              Đang tải danh sách danh mục...
+            </p>
+          </div>
         ) : categories.length === 0 ? (
-          <p className="px-4 py-10 text-center text-sm text-gray-500">
-            Chưa có danh mục. Tạo danh mục để phân loại câu hỏi.
-          </p>
+          <div className="flex flex-col items-center justify-center py-14 px-4 text-center">
+            <div className="mb-3.5 flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-50 text-gray-400 dark:bg-gray-800/50 dark:text-gray-500">
+              <FiFolder size={24} />
+            </div>
+            <h5 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">
+              Danh mục trống
+            </h5>
+            <p className="text-xs text-gray-500 dark:text-gray-400 max-w-[280px] mb-4">
+              Chưa có danh mục nào. Hãy tạo danh mục mới để dễ dàng nhóm các câu hỏi huấn luyện.
+            </p>
+            <Button
+              size="sm"
+              onClick={openCreate}
+              className="flex items-center gap-1.5 !px-3.5 !py-2 text-xs font-semibold"
+            >
+              <FiFolderPlus size={13} /> Tạo danh mục đầu tiên
+            </Button>
+          </div>
         ) : (
           <ul className="divide-y divide-gray-100 dark:divide-gray-800">
             {categories.map((cat) => (
               <li
                 key={cat.id}
-                className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                className="group flex flex-col gap-3 px-4 py-3.5 hover:bg-gray-50/50 dark:hover:bg-white/[0.01] transition sm:flex-row sm:items-center sm:justify-between"
               >
-                <div className="min-w-0">
+                <div className="min-w-0 space-y-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <span
-                      className="inline-flex rounded px-2 py-0.5 text-xs font-semibold text-white"
+                      className="inline-flex rounded-md px-2 py-0.5 text-[10px] font-bold text-white uppercase tracking-wider"
                       style={{
                         backgroundColor: resolveCategoryBgColor(cat.color),
                       }}
@@ -143,7 +175,7 @@ export default function CategoryPanel({ chatbotId }: CategoryPanelProps) {
                       color={cat.is_active === false ? "light" : "success"}
                       variant="light"
                     >
-                      {cat.is_active === false ? "Tắt" : "Bật"}
+                      {cat.is_active === false ? "Tắt" : "Hoạt động"}
                     </Badge>
                     {cat.disable_reminder_chatbot ? (
                       <Badge size="sm" color="warning" variant="light">
@@ -152,35 +184,39 @@ export default function CategoryPanel({ chatbotId }: CategoryPanelProps) {
                     ) : null}
                   </div>
                   {cat.description ? (
-                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed pl-3 border-l border-gray-100 dark:border-gray-800">
                       {cat.description}
                     </p>
                   ) : null}
                 </div>
-                <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => openEdit(cat)}
-                    className="!px-3 !py-1.5"
-                  >
-                    Sửa
-                  </Button>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      const ok = await confirm({
-                        title: "Xóa danh mục",
-                        message: `Xóa “${cat.name}”?`,
-                        confirmText: "Xóa",
-                        variant: "danger",
-                      });
-                      if (ok) await deleteCategory(cat.id);
-                    }}
-                    className="cursor-pointer rounded-lg px-3 py-1.5 text-sm font-medium text-error-600 ring-1 ring-inset ring-gray-200 transition hover:bg-error-50 dark:ring-gray-700"
-                  >
-                    Xóa
-                  </button>
+                
+                <div className="flex shrink-0 gap-1.5 opacity-90 sm:opacity-0 sm:group-hover:opacity-100 transition duration-150 justify-end">
+                  <Tooltip content="Chỉnh sửa">
+                    <button
+                      type="button"
+                      onClick={() => openEdit(cat)}
+                      className="cursor-pointer flex h-7 w-7 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 hover:border-brand-500 hover:text-brand-600 hover:shadow-xs dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400 dark:hover:border-brand-500 dark:hover:text-brand-400 transition"
+                    >
+                      <FiEdit size={12} />
+                    </button>
+                  </Tooltip>
+                  <Tooltip content="Xóa danh mục">
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const ok = await confirm({
+                          title: "Xóa danh mục",
+                          message: `Xóa “${cat.name}”?`,
+                          confirmText: "Xóa",
+                          variant: "danger",
+                        });
+                        if (ok) await deleteCategory(cat.id);
+                      }}
+                      className="cursor-pointer flex h-7 w-7 items-center justify-center rounded-lg border border-gray-200 bg-white text-error-600 hover:border-error-500 hover:bg-error-50 hover:shadow-xs dark:border-gray-800 dark:bg-gray-900 dark:hover:border-error-500 dark:hover:bg-error-500/10 transition"
+                    >
+                      <FiTrash2 size={12} />
+                    </button>
+                  </Tooltip>
                 </div>
               </li>
             ))}
@@ -200,81 +236,93 @@ export default function CategoryPanel({ chatbotId }: CategoryPanelProps) {
               <Input
                 id="cat-name"
                 value={form.name}
-                onChange={(e) =>
-                  setForm((prev) => ({ ...prev, name: e.target.value }))
-                }
-                placeholder="Ví dụ: Báo giá"
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                placeholder="Ví dụ: Đặt hàng, Khuyến mãi..."
+                className="mt-1"
               />
             </div>
 
             <div>
-              <Label>Màu sắc</Label>
-              <CustomSelect
-                value={form.color}
-                onChange={(v) => setForm((prev) => ({ ...prev, color: v }))}
-                options={CATEGORY_COLOR_PRESETS.map((item) => ({
-                  value: item.value,
-                  label: item.label,
-                }))}
-              />
-              <div
-                className="mt-2 h-2 w-full rounded-full"
-                style={{ backgroundColor: resolveCategoryBgColor(form.color) }}
-              />
+              <Label htmlFor="cat-color">Màu sắc hiển thị</Label>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {CATEGORY_COLOR_PRESETS.map((color) => {
+                  const active = form.color === color.value;
+                  return (
+                    <button
+                      key={color.value}
+                      type="button"
+                      onClick={() => setForm({ ...form, color: color.value })}
+                      className={`h-7 w-7 cursor-pointer rounded-full transition ${
+                        active
+                          ? "ring-2 ring-brand-500 ring-offset-2 dark:ring-offset-gray-900"
+                          : "opacity-80 hover:opacity-100"
+                      }`}
+                      style={{ backgroundColor: color.hex }}
+                      title={color.label}
+                    />
+                  );
+                })}
+              </div>
             </div>
 
             <div>
-              <Label htmlFor="cat-desc">Mô tả</Label>
+              <Label htmlFor="cat-desc">Mô tả danh mục</Label>
               <textarea
                 id="cat-desc"
                 value={form.description}
                 onChange={(e) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    description: e.target.value,
-                  }))
+                  setForm({ ...form, description: e.target.value })
                 }
-                rows={3}
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm shadow-theme-xs focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
-                placeholder="Mô tả ngắn"
+                placeholder="Mô tả ngắn về danh mục này..."
+                rows={2}
+                className="mt-1 block w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-sm focus:border-brand-500 focus:outline-hidden focus:ring-1 focus:ring-brand-500 dark:border-gray-700 dark:text-white"
               />
             </div>
 
-            <Switch
-              label="Bật danh mục"
-              checked={form.is_active}
-              onChange={(checked) =>
-                setForm((prev) => ({ ...prev, is_active: checked }))
-              }
-            />
-            <Switch
-              label="Tắt nhắc nhở tự động với danh mục này"
-              checked={form.disable_reminder_chatbot}
-              onChange={(checked) =>
-                setForm((prev) => ({
-                  ...prev,
-                  disable_reminder_chatbot: checked,
-                }))
-              }
-            />
-          </div>
+            <div className="flex flex-col gap-3 rounded-xl border border-gray-100 p-3.5 dark:border-gray-800">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label htmlFor="cat-active" className="!mb-0 cursor-pointer">
+                    Trạng thái hoạt động
+                  </Label>
+                  <p className="text-[11px] text-gray-500">
+                    Bật/Tắt phân loại câu hỏi này của Bot
+                  </p>
+                </div>
+                <Switch
+                  checked={form.is_active}
+                  onChange={(checked) => setForm({ ...form, is_active: checked })}
+                />
+              </div>
 
-          <div className="mt-6 flex justify-end gap-3">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setOpen(false)}
-              disabled={isSavingCategory}
-            >
-              Hủy
-            </Button>
-            <Button
-              size="sm"
-              onClick={() => void handleSave()}
-              disabled={isSavingCategory || !form.name.trim()}
-            >
-              {isSavingCategory ? "Đang lưu…" : "Lưu"}
-            </Button>
+              <div className="border-t border-gray-50 dark:border-gray-800/80 my-1"></div>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label htmlFor="cat-reminder" className="!mb-0 cursor-pointer">
+                    Chặn nhắc nhở tự động
+                  </Label>
+                  <p className="text-[11px] text-gray-500">
+                    Không gửi nhắc nhở khi khách hỏi chủ đề này
+                  </p>
+                </div>
+                <Switch
+                  checked={form.disable_reminder_chatbot}
+                  onChange={(checked) =>
+                    setForm({ ...form, disable_reminder_chatbot: checked })
+                  }
+                />
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setOpen(false)}>
+                Hủy
+              </Button>
+              <Button onClick={() => void handleSave()} disabled={isSavingCategory}>
+                {isSavingCategory ? "Đang lưu…" : "Lưu"}
+              </Button>
+            </div>
           </div>
         </div>
       </Modal>
