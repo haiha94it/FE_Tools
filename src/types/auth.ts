@@ -74,7 +74,7 @@ export interface RegisterPayload {
   fullname: string;
   password: string;
   mail: string;
-  phone_number?: string;
+  phone_number: string;
   facebook_link?: string;
   referral_code?: string;
   is_pro?: boolean;

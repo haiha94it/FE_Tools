@@ -9,6 +9,7 @@ import {
   formatDateForApi,
 } from "@/lib/zalo-user-admin-utils";
 import { getApiErrorMessage } from "@/lib/errors";
+import { validatePhone } from "@/lib/auth-validation";
 import { toast } from "@/lib/toast";
 import { zaloUserAdminService } from "@/services/zalo-user-admin.service";
 import type { ManagedUser, UserPermissionValue } from "@/types/zalo-user-admin";
@@ -41,6 +42,7 @@ export default function EditUserModal({
     username: "",
     password: "",
     fullname: "",
+    phone_number: "",
     mail: "",
     permission: "" as UserPermissionValue | "",
     employee_limit: "",
@@ -56,6 +58,7 @@ export default function EditUserModal({
       username: user.username ?? "",
       password: "",
       fullname: user.fullname ?? "",
+      phone_number: user.phone_number ?? "",
       mail: user.mail ?? "",
       permission: (user.permission as UserPermissionValue) ?? "",
       employee_limit: String(user.employee_limit ?? ""),
@@ -86,6 +89,11 @@ export default function EditUserModal({
       toast.error("Bạn phải chọn một quyền.");
       return false;
     }
+    const phoneError = validatePhone(form.phone_number);
+    if (phoneError) {
+      toast.error(phoneError);
+      return false;
+    }
     if (!form.mail.trim()) {
       toast.error("Email không được để trống.");
       return false;
@@ -108,6 +116,7 @@ export default function EditUserModal({
         id_manager: user.id,
         username: form.username.trim(),
         fullname: form.fullname.trim(),
+        phone_number: form.phone_number.trim(),
         employee_limit: form.employee_limit,
         account_limit: form.account_limit,
         expiration_date: expirationDate,
@@ -157,6 +166,13 @@ export default function EditUserModal({
         </Field>
         <Field label="Họ tên">
           <Input value={form.fullname} onChange={(e) => updateField("fullname", e.target.value)} />
+        </Field>
+        <Field label="Số điện thoại (*)">
+          <Input
+            placeholder="Ví dụ: 0912345678"
+            value={form.phone_number}
+            onChange={(e) => updateField("phone_number", e.target.value)}
+          />
         </Field>
         <Field label="Email">
           <Input value={form.mail} onChange={(e) => updateField("mail", e.target.value)} />

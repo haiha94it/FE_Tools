@@ -12,6 +12,7 @@ import {
   validateGmail,
   validatePassword,
   validateUsername,
+  validatePhone,
 } from "@/lib/auth-validation";
 import { popupService } from "@/services/popup.service";
 import { useAuthStore } from "@/stores/use-auth-store";
@@ -29,6 +30,7 @@ export default function SignUpForm() {
 
   const [fullname, setFullname] = useState("");
   const [username, setUsername] = useState("");
+  const [phone, setPhone] = useState("");
   const [mail, setMail] = useState("");
   const [referralCode, setReferralCode] = useState("");
   const [password, setPassword] = useState("");
@@ -60,10 +62,11 @@ export default function SignUpForm() {
 
     const mailError = validateGmail(mail);
     const usernameError = validateUsername(username);
+    const phoneError = validatePhone(phone);
     const passwordError = validatePassword(password);
 
-    if (mailError || usernameError || passwordError) {
-      setFieldError(mailError || usernameError || passwordError);
+    if (mailError || usernameError || phoneError || passwordError) {
+      setFieldError(mailError || usernameError || phoneError || passwordError);
       return;
     }
 
@@ -86,6 +89,7 @@ export default function SignUpForm() {
       await register({
         fullname: fullname.trim(),
         username: username.trim(),
+        phone_number: phone.trim(),
         password,
         mail: mail.trim(),
         referral_code: referralCode.trim(),
@@ -100,6 +104,7 @@ export default function SignUpForm() {
 
       setFullname("");
       setUsername("");
+      setPhone("");
       setMail("");
       setPassword("");
       setConfirmPassword("");
@@ -163,6 +168,18 @@ export default function SignUpForm() {
                 placeholder="Chỉ chữ và số, không dấu"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
+                disabled={isLoading}
+              />
+            </div>
+
+            <div>
+              <Label>
+                Số điện thoại <span className="text-error-500">*</span>
+              </Label>
+              <Input
+                placeholder="Ví dụ: 0912345678"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
                 disabled={isLoading}
               />
             </div>

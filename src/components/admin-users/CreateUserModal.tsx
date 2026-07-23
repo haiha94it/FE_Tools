@@ -6,6 +6,7 @@ import Button from "@/components/ui/button/Button";
 import { Modal } from "@/components/ui/modal";
 import { USER_PERMISSION_CREATE_OPTIONS } from "@/lib/zalo-user-admin-utils";
 import { getApiErrorMessage } from "@/lib/errors";
+import { validatePhone } from "@/lib/auth-validation";
 import { toast } from "@/lib/toast";
 import { zaloUserAdminService } from "@/services/zalo-user-admin.service";
 import type { UserPermissionValue } from "@/types/zalo-user-admin";
@@ -21,6 +22,7 @@ const emptyForm = {
   username: "",
   password: "",
   fullname: "",
+  phone_number: "",
   mail: "",
   permission: "" as UserPermissionValue | "",
   employee_limit: "1",
@@ -64,6 +66,11 @@ export default function CreateUserModal({
       toast.error("Bạn phải chọn ít nhất một quyền.");
       return false;
     }
+    const phoneError = validatePhone(form.phone_number);
+    if (phoneError) {
+      toast.error(phoneError);
+      return false;
+    }
     if (!form.mail.trim()) {
       toast.error("Email không được để trống.");
       return false;
@@ -83,6 +90,7 @@ export default function CreateUserModal({
       await zaloUserAdminService.createUser({
         username: form.username.trim(),
         fullname: form.fullname.trim(),
+        phone_number: form.phone_number.trim(),
         password: form.password,
         employee_limit: Number(form.employee_limit) || 1,
         expiration_date: form.expiration_date || undefined,
@@ -123,6 +131,13 @@ export default function CreateUserModal({
         </Field>
         <Field label="Họ tên">
           <Input value={form.fullname} onChange={(e) => updateField("fullname", e.target.value)} />
+        </Field>
+        <Field label="Số điện thoại (*)">
+          <Input
+            placeholder="Ví dụ: 0912345678"
+            value={form.phone_number}
+            onChange={(e) => updateField("phone_number", e.target.value)}
+          />
         </Field>
         <Field label="Email">
           <Input value={form.mail} onChange={(e) => updateField("mail", e.target.value)} />

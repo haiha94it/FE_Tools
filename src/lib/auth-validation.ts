@@ -1,10 +1,10 @@
-const PHONE_REGEX = /^(0[1|3|5|7|8|9])+([0-9]{8})$/;
+const PHONE_REGEX = /^(0|\+84|84)\d{9,10}$/;
 const USERNAME_REGEX = /^[a-zA-Z0-9]+$/;
 
 export function validatePhone(phone: string): string | null {
   if (!phone.trim()) return "Vui lòng nhập số điện thoại";
   if (!PHONE_REGEX.test(phone.trim())) {
-    return "Số điện thoại không hợp lệ. Vui lòng nhập 10 số.";
+    return "Số điện thoại không hợp lệ. Vui lòng nhập đúng định dạng ví dụ: 0912345678";
   }
   return null;
 }
