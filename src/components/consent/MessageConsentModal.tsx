@@ -369,10 +369,10 @@ function MessageConsentModal({
               <div className="space-y-4 py-4">
                 <div className="rounded-xl border border-brand-200 bg-brand-50/70 p-4 text-sm leading-relaxed text-gray-700 dark:border-brand-500/30 dark:bg-brand-500/10 dark:text-gray-200">
                   <p>
-                    Theo quy định mới của Nghị định về Bảo vệ dữ liệu cá nhân, bạn cần xác nhận đồng ý với Thỏa thuận xử lý dữ liệu tin nhắn. Việc này giúp đảm bảo an toàn, bảo mật dữ liệu tối đa và bảo vệ quyền lợi hợp pháp của bạn.
+                    Theo quy định pháp luật về bảo vệ dữ liệu cá nhân, mọi hoạt động liên quan đến tin nhắn, tệp tin, thông tin khách hàng hoặc dữ liệu giao dịch đều thuộc phạm vi dữ liệu cá nhân. Việc ký thỏa thuận giúp hai bên xác nhận rõ quyền và nghĩa vụ khi thu thập, lưu trữ và xử lý dữ liệu, đảm bảo an toàn và tuân thủ quy định.
                   </p>
-                  <p className="mt-2 text-xs font-semibold text-error-600 dark:text-error-400">
-                    Lưu ý: Xác nhận đồng ý là bắt buộc để tiếp tục sử dụng tính năng quản lý tin nhắn.
+                  <p className="mt-2 text-xs font-semibold">
+                    Bạn vui lòng đọc và xác nhận thỏa thuận để tiếp tục sử dụng tính năng này.
                   </p>
                 </div>
               </div>
