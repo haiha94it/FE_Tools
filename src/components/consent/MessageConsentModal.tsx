@@ -368,9 +368,7 @@ function MessageConsentModal({
             {step === "agree" ? (
               <div className="space-y-4 py-4">
                 <div className="rounded-xl border border-brand-200 bg-brand-50/70 p-4 text-sm leading-relaxed text-gray-700 dark:border-brand-500/30 dark:bg-brand-500/10 dark:text-gray-200">
-                  Để quét và xử lý tin nhắn Zalo, bạn cần đồng ý với thỏa thuận
-                  xử lý dữ liệu tin nhắn. Nếu không đồng ý, bạn sẽ không vào được
-                  chat và được đưa về trang chủ.
+                  Theo quy định mới của Nghị định về Bảo vệ dữ liệu cá nhân, bạn cần xác nhận đồng ý với Thỏa thuận xử lý dữ liệu tin nhắn Zalo. Việc này giúp đảm bảo an toàn, bảo mật dữ liệu tối đa và bảo vệ quyền lợi hợp pháp của bạn. (Lưu ý: Xác nhận đồng ý là bắt buộc để tiếp tục sử dụng tính năng quản lý tin nhắn).
                 </div>
               </div>
             ) : null}
