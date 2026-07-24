@@ -317,7 +317,7 @@ function MessageConsentModal({
                 </h2>
                 <p className="mt-1 text-sm leading-relaxed text-gray-500 dark:text-gray-400">
                   {step === "agree"
-                    ? "Bạn cần đồng ý thỏa thuận để dùng tin nhắn Zalo. Menu bên trái vẫn dùng được."
+                    ? "Bạn cần đồng ý thỏa thuận để dùng tin nhắn Zalo."
                     : step === "terms"
                       ? "Đọc kỹ điều khoản trước khi tiếp tục."
                       : "Điền thông tin, ký tay rồi bấm Ký và xác nhận. Hồ sơ sẽ chờ admin duyệt."}
@@ -350,11 +350,10 @@ function MessageConsentModal({
                     type="button"
                     disabled={submitting}
                     onClick={() => setEntityType(value)}
-                    className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition ${
-                      entityType === value
+                    className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition ${entityType === value
                         ? "border-brand-300 bg-brand-50 text-brand-700 dark:border-brand-500/40 dark:bg-brand-500/15 dark:text-brand-200"
                         : "border-gray-200 text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300"
-                    }`}
+                      }`}
                   >
                     {label}
                   </button>
