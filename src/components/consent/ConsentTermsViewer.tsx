@@ -22,6 +22,7 @@ interface ConsentTermsViewerProps {
   /** 1 ảnh chữ ký + con dấu (ghép sẵn) */
   companySignatureUrl?: string | null;
   userSignatureUrl?: string | null;
+  userName?: string;
   showPartyBPlaceholder?: boolean;
   className?: string;
 }
@@ -38,6 +39,7 @@ function ConsentTermsViewer({
   companyAddress,
   companySignatureUrl,
   userSignatureUrl,
+  userName,
   showPartyBPlaceholder = false,
   className = "",
 }: ConsentTermsViewerProps) {
@@ -121,50 +123,45 @@ function ConsentTermsViewer({
         </div>
       ) : null}
 
-      <div className="rounded-xl border border-gray-200 bg-gray-50/80 p-4 dark:border-gray-700 dark:bg-white/[0.03]">
-        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-          Bên A — Công ty
-        </p>
-        <div className="mt-2 space-y-1 text-sm text-gray-700 dark:text-gray-300">
-          {companyName ? <p>Tên: {companyName}</p> : null}
-          {companyTaxCode ? <p>MST: {companyTaxCode}</p> : null}
-          {companyAddress ? <p>Địa chỉ: {companyAddress}</p> : null}
-        </div>
-        <div className="mt-3">
-          {sigA ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={sigA}
-              alt="Chữ ký và con dấu công ty"
-              className="h-28 w-auto max-w-full object-contain object-left"
-            />
-          ) : (
-            <p className="text-xs text-gray-400">
-              Chưa có ảnh chữ ký + con dấu công ty
+      <div className="grid grid-cols-2 gap-4 rounded-xl border border-gray-200 bg-gray-50/80 p-4 dark:border-gray-700 dark:bg-white/[0.03]">
+        {/* Bên A */}
+        <div className="flex flex-col justify-between min-h-[140px] text-center">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+              Bên A
             </p>
-          )}
+          </div>
+          <div className="flex-1 py-6" />
+        </div>
+
+        {/* Bên B */}
+        <div className="flex flex-col justify-between border-l border-gray-200 pl-4 dark:border-gray-800 min-h-[140px] text-center">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+              Bên B
+            </p>
+          </div>
+          <div className="flex-1 flex flex-col justify-end items-center">
+            <div className="py-2 flex items-center justify-center w-full">
+              {sigB ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={sigB}
+                  alt="Chữ ký bên B"
+                  className="h-16 w-auto max-w-full object-contain mx-auto"
+                />
+              ) : (
+                <div className="h-16 w-full" />
+              )}
+            </div>
+            {userName ? (
+              <p className="text-sm font-semibold text-gray-900 dark:text-white w-full">
+                {userName}
+              </p>
+            ) : null}
+          </div>
         </div>
       </div>
-
-      {sigB || showPartyBPlaceholder ? (
-        <div className="rounded-xl border border-gray-200 bg-gray-50/80 p-4 dark:border-gray-700 dark:bg-white/[0.03]">
-          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-            Bên B — Người dùng
-          </p>
-          {sigB ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={sigB}
-              alt="Chữ ký người dùng"
-              className="mt-3 h-24 max-w-full object-contain"
-            />
-          ) : (
-            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-              Chữ ký sẽ hiển thị sau khi người dùng ký.
-            </p>
-          )}
-        </div>
-      ) : null}
     </div>
   );
 }

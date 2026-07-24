@@ -351,6 +351,7 @@ function UserConsentDetailDrawer({
                   companyAddress={contract?.company_address}
                   companySignatureUrl={contract?.company_signature_url}
                   userSignatureUrl={contract?.signature_url}
+                  userName={contract?.signer_full_name}
                 />
               </div>
             )}

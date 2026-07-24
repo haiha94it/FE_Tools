@@ -309,13 +309,6 @@ export default function ConsentSettingsPanel() {
           : "Chưa nhập địa chỉ công ty (bên A)",
       },
       {
-        key: "company_signature",
-        ok: hasSignature,
-        message: hasSignature
-          ? "Đã có ảnh chữ ký + con dấu bên A"
-          : "Chưa upload ảnh chữ ký kèm con dấu bên A",
-      },
-      {
         key: "notify_zalo_account",
         ok: hasNotifyAccount,
         message: hasNotifyAccount
@@ -541,7 +534,7 @@ export default function ConsentSettingsPanel() {
 
       <section className="space-y-4 rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
         <h3 className="text-sm font-semibold text-gray-800 dark:text-white/90">
-          Thông tin / chữ ký bên A
+          Thông tin doanh nghiệp Bên A (để lưu trữ)
         </h3>
         <div className="grid gap-4 md:grid-cols-2">
           <div>
@@ -568,20 +561,6 @@ export default function ConsentSettingsPanel() {
               onChange={(e) => setCompanyAddress(e.target.value)}
             />
           </div>
-        </div>
-        <div className="max-w-md">
-          <SettingsImageField
-            label="Ảnh chữ ký + con dấu (ghép sẵn)"
-            imagePath={signaturePreview}
-            onSelect={(file) => {
-              setSignatureFile(file);
-              setSignaturePreview(URL.createObjectURL(file));
-            }}
-            required
-          />
-          <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-            Ghép chữ ký và con dấu thành 1 ảnh (PNG/JPG) rồi upload tại đây.
-          </p>
         </div>
       </section>
 
@@ -830,7 +809,8 @@ export default function ConsentSettingsPanel() {
             companyName={companyName}
             companyTaxCode={companyTaxCode}
             companyAddress={companyAddress}
-            companySignatureUrl={signaturePreview || signatureUrl}
+            userName="[Họ tên Khách hàng (Bên B)]"
+            showPartyBPlaceholder
           />
         </div>
       </Modal>
