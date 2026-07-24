@@ -237,16 +237,41 @@ function buildGroupMediaItem(message: DisplayMessage): MessengerGroupMediaItem {
   };
 }
 
-/** Gộp ảnh/video cùng group_layout_id thành một album */
+/** 
+ * Gộp ảnh/video cùng group_layout_id thành một album.
+ * Phân tách các đợt gửi khác nhau dựa vào khoảng cách timestamp (ngưỡng 60 giây).
+ */
 export function mergeGroupMediaMessages(
   messages: DisplayMessage[],
 ): DisplayMessage[] {
   const groups = new Map<string, DisplayMessage[]>();
+  const lastActiveGroup = new Map<string, { key: string; lastTs: number }>();
+  const messageKeyMap = new Map<string, string>();
+  let groupCounter = 0;
 
   for (const message of messages) {
     const layout = message._groupLayout;
     if (!layout?.groupLayoutId) continue;
-    const key = `${message.uidFrom ?? ""}:${layout.groupLayoutId}`;
+
+    const baseKey = `${message.uidFrom ?? ""}:${layout.groupLayoutId}`;
+    const ts = normalizeTimestampMs(message.ts);
+    const lastActive = lastActiveGroup.get(baseKey);
+
+    let key = baseKey;
+    if (lastActive && Math.abs(ts - lastActive.lastTs) < 60000) {
+      key = lastActive.key;
+      lastActive.lastTs = ts;
+    } else {
+      groupCounter++;
+      key = `${baseKey}:${groupCounter}`;
+      lastActiveGroup.set(baseKey, { key, lastTs: ts });
+    }
+
+    const id = getMessageIdentity(message);
+    if (id) {
+      messageKeyMap.set(id, key);
+    }
+
     const bucket = groups.get(key) ?? [];
     bucket.push(message);
     groups.set(key, bucket);
@@ -294,12 +319,11 @@ export function mergeGroupMediaMessages(
   for (const message of messages) {
     const id = getMessageIdentity(message);
     if (id && hiddenIds.has(id)) {
-      const layout = message._groupLayout;
-      if (!layout?.groupLayoutId) {
+      const key = messageKeyMap.get(id);
+      if (!key) {
         result.push(message);
         continue;
       }
-      const key = `${message.uidFrom ?? ""}:${layout.groupLayoutId}`;
       if (emitted.has(key)) continue;
       const merged = mergedByKey.get(key);
       if (!merged) {
@@ -331,6 +355,14 @@ function parseRecommendedMeta(description: unknown): {
   } catch {
     return { phone: "", qrCodeUrl: "" };
   }
+}
+
+function convertJxlToJpg(url: string | undefined | null): string {
+  if (!url) return "";
+  if (url.includes(".jxl")) {
+    return url.replace("/jxl/", "/jpg/").replace(".jxl", ".jpg");
+  }
+  return url;
 }
 
 /** Raw Zalo → shape hiển thị UI */
@@ -377,8 +409,8 @@ export function normalizeIncomingMessage(raw: RawZaloMessage): DisplayMessage {
 
     case "chat.photo": {
       const record = readContentRecord(content);
-      const href = trimToString(record?.href);
-      const thumb = trimToString(record?.thumb) || href;
+      const href = convertJxlToJpg(trimToString(record?.href));
+      const thumb = convertJxlToJpg(trimToString(record?.thumb)) || href;
       const title = trimToString(record?.title);
       const groupLayout = extractGroupLayoutMeta(raw, content);
       return {
@@ -393,7 +425,7 @@ export function normalizeIncomingMessage(raw: RawZaloMessage): DisplayMessage {
       const record = readContentRecord(content);
       const params = parseContentParams(record?.params);
       const href = trimToString(record?.href);
-      const thumb = trimToString(record?.thumb) || href;
+      const thumb = convertJxlToJpg(trimToString(record?.thumb)) || href;
       const duration = Number(params?.duration);
       const durationMs =
         Number.isFinite(duration) && duration > 0 ? duration : undefined;
