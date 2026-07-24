@@ -12,6 +12,7 @@ import { useEffect, useState } from "react";
 interface FilterUsersModalProps {
   open: boolean;
   permission: UserPermissionFilter;
+  messageProcessingStatus: string;
   dateEnabled: boolean;
   startDate: Date | null;
   endDate: Date | null;
@@ -22,6 +23,7 @@ interface FilterUsersModalProps {
     enabled: boolean;
     startDate: Date | null;
     endDate: Date | null;
+    messageProcessingStatus: string;
   }) => void;
 }
 
@@ -40,6 +42,7 @@ function fromInputDate(value: string): Date | null {
 export default function FilterUsersModal({
   open,
   permission,
+  messageProcessingStatus,
   dateEnabled,
   startDate,
   endDate,
@@ -48,6 +51,7 @@ export default function FilterUsersModal({
   onApply,
 }: FilterUsersModalProps) {
   const [localPermission, setLocalPermission] = useState<UserPermissionFilter>(permission);
+  const [localMessageProcessingStatus, setLocalMessageProcessingStatus] = useState(messageProcessingStatus);
   const [enabled, setEnabled] = useState(dateEnabled);
   const [localStart, setLocalStart] = useState(toInputDate(startDate));
   const [localEnd, setLocalEnd] = useState(toInputDate(endDate));
@@ -58,13 +62,22 @@ export default function FilterUsersModal({
     setEnabled(dateEnabled);
     setLocalStart(toInputDate(startDate));
     setLocalEnd(toInputDate(endDate));
-  }, [open, permission, dateEnabled, startDate, endDate]);
+    setLocalMessageProcessingStatus(messageProcessingStatus);
+  }, [open, permission, dateEnabled, startDate, endDate, messageProcessingStatus]);
 
   const options = USER_PERMISSION_OPTIONS.filter(
     (item) =>
       !hideAdminOptions ||
       (item.value !== "is_admin" && item.value !== "is_developer"),
   );
+
+  const CONSENT_STATUS_OPTIONS = [
+    { value: "all", label: "Tất cả" },
+    { value: "pending_approval", label: "Chờ duyệt" },
+    { value: "approved", label: "Đã duyệt" },
+    { value: "rejected", label: "Từ chối" },
+    { value: "none", label: "Chưa ký" },
+  ];
 
   return (
     <Modal isOpen={open} onClose={onClose} className="max-w-md p-6">
@@ -85,6 +98,18 @@ export default function FilterUsersModal({
             placeholder="Chọn quyền"
             value={localPermission}
             onChange={(value) => setLocalPermission(value as UserPermissionFilter)}
+          />
+        </label>
+
+        <label className="block space-y-1.5">
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+            Trạng thái chữ ký xử lý tin nhắn
+          </span>
+          <Select
+            options={CONSENT_STATUS_OPTIONS}
+            placeholder="Chọn trạng thái"
+            value={localMessageProcessingStatus}
+            onChange={(value) => setLocalMessageProcessingStatus(value as string)}
           />
         </label>
 
@@ -126,6 +151,7 @@ export default function FilterUsersModal({
               enabled,
               startDate: fromInputDate(localStart),
               endDate: fromInputDate(localEnd),
+              messageProcessingStatus: localMessageProcessingStatus,
             });
             onClose();
           }}

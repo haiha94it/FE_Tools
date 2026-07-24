@@ -124,6 +124,7 @@ export interface ListManagedUsersParams {
   permission?: UserPermissionFilter;
   startDate?: string;
   endDate?: string;
+  messageProcessingStatus?: string;
 }
 
 export type ManagedUsersResponse = PaginatedResponse<ManagedUser>;

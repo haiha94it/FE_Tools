@@ -36,6 +36,7 @@ export default function AdminUsersView() {
   const pageSize = useZaloUserAdminStore((s) => s.pageSize);
   const keyword = useZaloUserAdminStore((s) => s.keyword);
   const permissionFilter = useZaloUserAdminStore((s) => s.permissionFilter);
+  const messageProcessingStatusFilter = useZaloUserAdminStore((s) => s.messageProcessingStatusFilter);
   const startDate = useZaloUserAdminStore((s) => s.startDate);
   const endDate = useZaloUserAdminStore((s) => s.endDate);
   const dateFilterEnabled = useZaloUserAdminStore((s) => s.dateFilterEnabled);
@@ -297,6 +298,7 @@ export default function AdminUsersView() {
           onClearFilters={() =>
             applyFilters({
               permission: "all",
+              messageProcessingStatus: "all",
               enabled: false,
               startDate: null,
               endDate: null,
@@ -345,6 +347,7 @@ export default function AdminUsersView() {
       <FilterUsersModal
         open={filterOpen}
         permission={permissionFilter}
+        messageProcessingStatus={messageProcessingStatusFilter}
         dateEnabled={dateFilterEnabled}
         startDate={startDate}
         endDate={endDate}

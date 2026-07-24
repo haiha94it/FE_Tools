@@ -32,6 +32,9 @@ function buildListQuery(params: ListManagedUsersParams): string {
   }
   if (params.startDate) search.set("start_date", params.startDate);
   if (params.endDate) search.set("end_date", params.endDate);
+  if (params.messageProcessingStatus) {
+    search.set("message_processing_status", params.messageProcessingStatus);
+  }
   return search.toString();
 }
 
