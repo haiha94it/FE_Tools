@@ -8,7 +8,7 @@ import "@/styles/landing-theme.css";
 export const metadata: Metadata = createPublicMetadata({
   title: `${APP_NAME} — Quản trị Zalo thông minh`,
   description:
-    "Nền tảng quản lý tài khoản Zalo, tin nhắn realtime, chiến dịch marketing và cửa hàng online cho doanh nghiệp. Vận hành sale & marketing trên một bảng điều khiển.",
+    "Quản lý Zalo thông minh. Tích hợp AI tự động hóa chiến dịch marketing cho doanh nghiệp. Vận hành quản lý sale & marketing trên một giao diện thân thiện",
   path: "/",
   absoluteTitle: true,
   keywords: [
