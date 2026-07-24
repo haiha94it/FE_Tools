@@ -82,6 +82,7 @@ function MessageConsentModal({
   const [expandOpen, setExpandOpen] = useState(false);
 
   const [submitting, setSubmitting] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [previewLoading, setPreviewLoading] = useState(false);
@@ -105,6 +106,7 @@ function MessageConsentModal({
     setSignature(emptySignature());
     setImportedPreview(null);
     setError(null);
+    setAcceptedTerms(false);
     setExpandOpen(false);
     setPreviewLoading(false);
     setPreviewHtml(null);
@@ -383,17 +385,34 @@ function MessageConsentModal({
                   {termsError}
                 </p>
               ) : (
-                <ConsentTermsViewer
-                  bodyHtml={terms?.body_html}
-                  hasBodyHtml={terms?.has_body_html}
-                  contractPdfUrl={terms?.contract_pdf_url}
-                  hasContractPdf={terms?.has_contract_pdf}
-                  displayMode={terms?.display_mode}
-                  companyName={terms?.company_name}
-                  companyTaxCode={terms?.company_tax_code}
-                  companyAddress={terms?.company_address}
-                  companySignatureUrl={terms?.company_signature_url}
-                />
+                <>
+                  <ConsentTermsViewer
+                    bodyHtml={terms?.body_html}
+                    hasBodyHtml={terms?.has_body_html}
+                    contractPdfUrl={terms?.contract_pdf_url}
+                    hasContractPdf={terms?.has_contract_pdf}
+                    displayMode={terms?.display_mode}
+                    companyName={terms?.company_name}
+                    companyTaxCode={terms?.company_tax_code}
+                    companyAddress={terms?.company_address}
+                    companySignatureUrl={terms?.company_signature_url}
+                  />
+                  <div className="mt-4 flex items-start gap-2.5 rounded-lg border border-brand-200 bg-brand-50/30 p-3 dark:border-brand-500/30 dark:bg-brand-500/5">
+                    <input
+                      type="checkbox"
+                      id="accept-terms-checkbox"
+                      checked={acceptedTerms}
+                      onChange={(e) => setAcceptedTerms(e.target.checked)}
+                      className="mt-0.5 size-4 cursor-pointer rounded border-gray-300 text-brand-600 focus:ring-brand-500"
+                    />
+                    <label
+                      htmlFor="accept-terms-checkbox"
+                      className="cursor-pointer text-sm font-medium text-gray-700 dark:text-gray-300 select-none"
+                    >
+                      Tôi đã đọc, hiểu rõ và đồng ý với toàn bộ nội dung Thỏa thuận này.
+                    </label>
+                  </div>
+                </>
               )
             ) : null}
 
@@ -634,7 +653,7 @@ function MessageConsentModal({
                   <Button
                     type="button"
                     size="sm"
-                    disabled={submitting || loadingTerms || Boolean(termsError)}
+                    disabled={submitting || loadingTerms || Boolean(termsError) || !acceptedTerms}
                     onClick={() => setStep("form")}
                   >
                     Tiếp tục

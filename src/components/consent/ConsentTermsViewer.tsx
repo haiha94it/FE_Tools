@@ -123,6 +123,23 @@ function ConsentTermsViewer({
         </div>
       ) : null}
 
+      {/* Khối Xác nhận đồng ý Bên B */}
+      <div className="mb-4 rounded-xl border border-gray-200 bg-gray-50/50 p-4 dark:border-gray-800 dark:bg-white/[0.02]">
+        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+          Xác nhận đồng ý Bên B
+        </p>
+        <p className="mt-1.5 text-sm text-gray-700 dark:text-gray-300 flex items-start gap-2.5">
+          {sigB ? (
+            <span className="inline-flex size-4 shrink-0 items-center justify-center rounded border border-brand-500 bg-brand-500 text-white text-[10px] font-bold">
+              ✓
+            </span>
+          ) : (
+            <span className="inline-flex size-4 shrink-0 rounded border border-gray-300 bg-white dark:border-gray-600 dark:bg-gray-800" />
+          )}
+          <span>Tôi đã đọc, hiểu rõ và đồng ý với toàn bộ nội dung Thỏa thuận này.</span>
+        </p>
+      </div>
+
       <div className="grid grid-cols-2 gap-4 rounded-xl border border-gray-200 bg-gray-50/80 p-4 dark:border-gray-700 dark:bg-white/[0.03]">
         {/* Bên A */}
         <div className="flex flex-col justify-between min-h-[140px] text-center">

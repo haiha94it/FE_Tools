@@ -180,39 +180,7 @@ export default function AdminUserTableRow({
           >
             <HiOutlineDocumentText size={15} />
           </AdminIconButton>
-          {isPendingConsent && onApproveConsent ? (
-            <AdminIconButton
-              label={consentActing ? "Đang duyệt..." : "Duyệt HĐ"}
-              side="left"
-              className={iconBtnSuccessClass}
-              disabled={consentActing}
-              onClick={() => onApproveConsent(user)}
-            >
-              <HiOutlineCheck size={15} />
-            </AdminIconButton>
-          ) : null}
-          {isPendingConsent && onRejectConsent ? (
-            <AdminIconButton
-              label={consentActing ? "Đang xử lý..." : "Từ chối HĐ"}
-              side="left"
-              className={iconBtnDangerClass}
-              disabled={consentActing}
-              onClick={() => onRejectConsent(user)}
-            >
-              <HiOutlineX size={15} />
-            </AdminIconButton>
-          ) : null}
-          {consentStatus !== "none" && onRevokeConsent ? (
-            <AdminIconButton
-              label={consentActing ? "Đang xử lý..." : "Thu hồi HĐ"}
-              side="left"
-              className={iconBtnDangerClass}
-              disabled={consentActing}
-              onClick={() => onRevokeConsent(user)}
-            >
-              <HiOutlineMinusCircle size={15} />
-            </AdminIconButton>
-          ) : null}
+
           <AdminIconButton
             label="Sửa thông tin"
             side="left"
