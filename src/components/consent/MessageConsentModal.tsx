@@ -353,8 +353,8 @@ function MessageConsentModal({
                     disabled={submitting}
                     onClick={() => setEntityType(value)}
                     className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition ${entityType === value
-                        ? "border-brand-300 bg-brand-50 text-brand-700 dark:border-brand-500/40 dark:bg-brand-500/15 dark:text-brand-200"
-                        : "border-gray-200 text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300"
+                      ? "border-brand-300 bg-brand-50 text-brand-700 dark:border-brand-500/40 dark:bg-brand-500/15 dark:text-brand-200"
+                      : "border-gray-200 text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300"
                       }`}
                   >
                     {label}
@@ -368,7 +368,12 @@ function MessageConsentModal({
             {step === "agree" ? (
               <div className="space-y-4 py-4">
                 <div className="rounded-xl border border-brand-200 bg-brand-50/70 p-4 text-sm leading-relaxed text-gray-700 dark:border-brand-500/30 dark:bg-brand-500/10 dark:text-gray-200">
-                  Theo quy định mới của Nghị định về Bảo vệ dữ liệu cá nhân, bạn cần xác nhận đồng ý với Thỏa thuận xử lý dữ liệu tin nhắn Zalo. Việc này giúp đảm bảo an toàn, bảo mật dữ liệu tối đa và bảo vệ quyền lợi hợp pháp của bạn. (Lưu ý: Xác nhận đồng ý là bắt buộc để tiếp tục sử dụng tính năng quản lý tin nhắn).
+                  <p>
+                    Theo quy định mới của Nghị định về Bảo vệ dữ liệu cá nhân, bạn cần xác nhận đồng ý với Thỏa thuận xử lý dữ liệu tin nhắn. Việc này giúp đảm bảo an toàn, bảo mật dữ liệu tối đa và bảo vệ quyền lợi hợp pháp của bạn.
+                  </p>
+                  <p className="mt-2 text-xs font-semibold text-error-600 dark:text-error-400">
+                    Lưu ý: Xác nhận đồng ý là bắt buộc để tiếp tục sử dụng tính năng quản lý tin nhắn.
+                  </p>
                 </div>
               </div>
             ) : null}
@@ -383,34 +388,20 @@ function MessageConsentModal({
                   {termsError}
                 </p>
               ) : (
-                <>
-                  <ConsentTermsViewer
-                    bodyHtml={terms?.body_html}
-                    hasBodyHtml={terms?.has_body_html}
-                    contractPdfUrl={terms?.contract_pdf_url}
-                    hasContractPdf={terms?.has_contract_pdf}
-                    displayMode={terms?.display_mode}
-                    companyName={terms?.company_name}
-                    companyTaxCode={terms?.company_tax_code}
-                    companyAddress={terms?.company_address}
-                    companySignatureUrl={terms?.company_signature_url}
-                  />
-                  <div className="mt-4 flex items-start gap-2.5 rounded-lg border border-brand-200 bg-brand-50/30 p-3 dark:border-brand-500/30 dark:bg-brand-500/5">
-                    <input
-                      type="checkbox"
-                      id="accept-terms-checkbox"
-                      checked={acceptedTerms}
-                      onChange={(e) => setAcceptedTerms(e.target.checked)}
-                      className="mt-0.5 size-4 cursor-pointer rounded border-gray-300 text-brand-600 focus:ring-brand-500"
-                    />
-                    <label
-                      htmlFor="accept-terms-checkbox"
-                      className="cursor-pointer text-sm font-medium text-gray-700 dark:text-gray-300 select-none"
-                    >
-                      Tôi đã đọc, hiểu rõ và đồng ý với toàn bộ nội dung Thỏa thuận này.
-                    </label>
-                  </div>
-                </>
+                <ConsentTermsViewer
+                  bodyHtml={terms?.body_html}
+                  hasBodyHtml={terms?.has_body_html}
+                  contractPdfUrl={terms?.contract_pdf_url}
+                  hasContractPdf={terms?.has_contract_pdf}
+                  displayMode={terms?.display_mode}
+                  companyName={terms?.company_name}
+                  companyTaxCode={terms?.company_tax_code}
+                  companyAddress={terms?.company_address}
+                  companySignatureUrl={terms?.company_signature_url}
+                  checked={acceptedTerms}
+                  onChange={setAcceptedTerms}
+                  isEditableCheckbox={true}
+                />
               )
             ) : null}
 
@@ -694,46 +685,50 @@ function MessageConsentModal({
               ) : null}
             </div>
           </div>
-        </div>
-      </div>
+        </div >
+      </div >
 
-      {expandOpen ? (
-        <ConsentSignatureFullscreen
-          key="consent-pad-expand"
-          open
-          disabled={submitting}
-          onClose={() => setExpandOpen(false)}
-          onConfirm={handleExpandConfirm}
-        />
-      ) : null}
+      {
+        expandOpen ? (
+          <ConsentSignatureFullscreen
+            key="consent-pad-expand"
+            open
+            disabled={submitting}
+            onClose={() => setExpandOpen(false)
+            }
+            onConfirm={handleExpandConfirm}
+          />
+        ) : null}
 
-      {previewModalOpen && (
-        <Modal
-          isOpen={previewModalOpen}
-          onClose={() => setPreviewModalOpen(false)}
-          layer="top"
-          className="max-w-4xl p-6 sm:p-8"
-        >
-          <h3 className="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
-            Xem trước văn bản hợp đồng
-          </h3>
-          <div className="custom-scrollbar max-h-[60vh] overflow-y-auto rounded-xl border border-gray-200 p-4 dark:border-gray-800 bg-white dark:bg-gray-950">
-            {previewHtml ? (
-              <div
-                className="dialog-quill text-sm leading-relaxed text-gray-700 dark:text-gray-300"
-                dangerouslySetInnerHTML={{ __html: previewHtml }}
-              />
-            ) : (
-              <p className="text-gray-500">Nội dung trống</p>
-            )}
-          </div>
-          <div className="mt-6 flex justify-end">
-            <Button size="sm" onClick={() => setPreviewModalOpen(false)}>
-              Đóng
-            </Button>
-          </div>
-        </Modal>
-      )}
+      {
+        previewModalOpen && (
+          <Modal
+            isOpen={previewModalOpen}
+            onClose={() => setPreviewModalOpen(false)}
+            layer="top"
+            className="max-w-4xl p-6 sm:p-8"
+          >
+            <h3 className="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
+              Xem trước văn bản hợp đồng
+            </h3>
+            <div className="custom-scrollbar max-h-[60vh] overflow-y-auto rounded-xl border border-gray-200 p-4 dark:border-gray-800 bg-white dark:bg-gray-950">
+              {previewHtml ? (
+                <div
+                  className="dialog-quill text-sm leading-relaxed text-gray-700 dark:text-gray-300"
+                  dangerouslySetInnerHTML={{ __html: previewHtml }}
+                />
+              ) : (
+                <p className="text-gray-500">Nội dung trống</p>
+              )}
+            </div>
+            <div className="mt-6 flex justify-end">
+              <Button size="sm" onClick={() => setPreviewModalOpen(false)}>
+                Đóng
+              </Button>
+            </div>
+          </Modal>
+        )
+      }
     </>
   );
 }

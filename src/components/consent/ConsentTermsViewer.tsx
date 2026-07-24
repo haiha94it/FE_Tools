@@ -24,6 +24,9 @@ interface ConsentTermsViewerProps {
   userSignatureUrl?: string | null;
   userName?: string;
   showPartyBPlaceholder?: boolean;
+  checked?: boolean;
+  onChange?: (checked: boolean) => void;
+  isEditableCheckbox?: boolean;
   className?: string;
 }
 
@@ -41,6 +44,9 @@ function ConsentTermsViewer({
   userSignatureUrl,
   userName,
   showPartyBPlaceholder = false,
+  checked = false,
+  onChange,
+  isEditableCheckbox = false,
   className = "",
 }: ConsentTermsViewerProps) {
   const isMobile = useMediaQuery("(max-width: 768px)");
@@ -124,20 +130,39 @@ function ConsentTermsViewer({
       ) : null}
 
       {/* Khối Xác nhận đồng ý Bên B */}
-      <div className="mb-4 rounded-xl border border-gray-200 bg-gray-50/50 p-4 dark:border-gray-800 dark:bg-white/[0.02]">
-        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+      <div className={`mb-4 rounded-xl border p-4 transition ${
+        isEditableCheckbox
+          ? checked
+            ? "border-brand-500 bg-brand-50/30 dark:border-brand-500/40 dark:bg-brand-500/10"
+            : "border-brand-200 bg-brand-50/10 hover:bg-brand-50/20 dark:border-brand-500/20 dark:bg-brand-500/5 cursor-pointer"
+          : "border-gray-200 bg-gray-50/50 dark:border-gray-800 dark:bg-white/[0.02]"
+      }`}>
+        <p className="text-xs font-bold uppercase tracking-wide text-gray-900 dark:text-white">
           Xác nhận đồng ý Bên B
         </p>
-        <p className="mt-1.5 text-sm text-gray-700 dark:text-gray-300 flex items-start gap-2.5">
-          {sigB ? (
-            <span className="inline-flex size-4 shrink-0 items-center justify-center rounded border border-brand-500 bg-brand-500 text-white text-[10px] font-bold">
-              ✓
-            </span>
-          ) : (
-            <span className="inline-flex size-4 shrink-0 rounded border border-gray-300 bg-white dark:border-gray-600 dark:bg-gray-800" />
-          )}
-          <span>Tôi đã đọc, hiểu rõ và đồng ý với toàn bộ nội dung Thỏa thuận này.</span>
-        </p>
+        {isEditableCheckbox ? (
+          <label className="mt-1.5 text-sm font-bold text-gray-900 dark:text-white flex items-start gap-2.5 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              id="accept-terms-internal-checkbox"
+              checked={checked}
+              onChange={(e) => onChange?.(e.target.checked)}
+              className="mt-0.5 size-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500 cursor-pointer"
+            />
+            <span>Tôi đã đọc, hiểu rõ và đồng ý với toàn bộ nội dung Thỏa thuận này.</span>
+          </label>
+        ) : (
+          <p className="mt-1.5 text-sm font-bold text-gray-900 dark:text-white flex items-start gap-2.5">
+            {sigB ? (
+              <span className="inline-flex size-4 shrink-0 items-center justify-center rounded border border-brand-500 bg-brand-500 text-white text-[10px] font-bold">
+                ✓
+              </span>
+            ) : (
+              <span className="inline-flex size-4 shrink-0 rounded border border-gray-300 bg-white dark:border-gray-600 dark:bg-gray-800" />
+            )}
+            <span>Tôi đã đọc, hiểu rõ và đồng ý với toàn bộ nội dung Thỏa thuận này.</span>
+          </p>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-4 rounded-xl border border-gray-200 bg-gray-50/80 p-4 dark:border-gray-700 dark:bg-white/[0.03]">
