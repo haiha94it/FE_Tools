@@ -17,7 +17,7 @@ export const SITE_NAME = APP_NAME;
 export const SITE_TAGLINE = "Quản trị Zalo thông minh cho doanh nghiệp";
 
 export const DEFAULT_DESCRIPTION =
-  "CAREVIPPRO — nền tảng quản lý tài khoản Zalo, tin nhắn realtime, chiến dịch marketing tự động và cửa hàng online. Vận hành sale & marketing trên một bảng điều khiển.";
+  "CAREVIPPRO — quản lý Zalo thông minh. Tích hợp AI tự động hóa chiến dịch marketing cho doanh nghiệp. Vận hành quản lý sale & marketing trên một giao diện thân thiện";
 
 export const DEFAULT_KEYWORDS = [
   "CAREVIPPRO",
