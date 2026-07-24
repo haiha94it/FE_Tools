@@ -141,7 +141,7 @@ function ConsentTermsViewer({
           Xác nhận đồng ý Bên B
         </p>
         {isEditableCheckbox ? (
-          <label className="mt-1.5 text-sm font-bold text-gray-900 dark:text-white flex items-start gap-2.5 cursor-pointer select-none">
+          <label className="mt-1.5 text-sm font-normal text-gray-900 dark:text-white flex items-start gap-2.5 cursor-pointer select-none">
             <input
               type="checkbox"
               id="accept-terms-internal-checkbox"
@@ -152,7 +152,7 @@ function ConsentTermsViewer({
             <span>Tôi đã đọc, hiểu rõ và đồng ý với toàn bộ nội dung Thỏa thuận này.</span>
           </label>
         ) : (
-          <p className="mt-1.5 text-sm font-bold text-gray-900 dark:text-white flex items-start gap-2.5">
+          <p className="mt-1.5 text-sm font-normal text-gray-900 dark:text-white flex items-start gap-2.5">
             {sigB ? (
               <span className="inline-flex size-4 shrink-0 items-center justify-center rounded border border-brand-500 bg-brand-500 text-white text-[10px] font-bold">
                 ✓
