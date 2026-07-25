@@ -93,9 +93,7 @@ export default function AssignAccountsModal({
 
   const toggleAccount = (id: number) => {
     const key = String(id);
-    setSelectedKeys((prev) =>
-      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key],
-    );
+    setSelectedKeys((prev) => (prev.includes(key) ? [] : [key]));
   };
 
   // Lọc tài khoản theo query tìm kiếm
@@ -124,7 +122,7 @@ export default function AssignAccountsModal({
             Kịch bản: <span className="font-semibold text-brand-600 dark:text-brand-400">{chatbot.name}</span>
           </p>
           <p className="mt-1 text-xs text-gray-400">
-            Mỗi tài khoản Zalo chỉ được gán vào tối đa 1 kịch bản chatbot.
+            Mỗi kịch bản chatbot chỉ gán tối đa 1 tài khoản Zalo.
           </p>
         </div>
 
@@ -145,7 +143,7 @@ export default function AssignAccountsModal({
               Danh sách tài khoản Zalo
             </span>
             <Badge size="sm" color="primary" variant="light">
-              Đã chọn {selectedKeys.length}
+              {selectedKeys.length > 0 ? "Đã chọn 1 tài khoản" : "Chưa chọn tài khoản"}
             </Badge>
           </div>
 
@@ -183,11 +181,18 @@ export default function AssignAccountsModal({
                       }`}
                     >
                       <input
-                        type="checkbox"
-                        className="mt-2.5 rounded border-gray-300 text-brand-500 focus:ring-brand-500 disabled:cursor-not-allowed"
+                        type="radio"
+                        name="assign-zalo-account"
+                        className="mt-2.5 h-4 w-4 border-gray-300 text-brand-500 focus:ring-brand-500 disabled:cursor-not-allowed cursor-pointer shrink-0"
                         checked={checked}
                         disabled={blocked}
                         onChange={() => toggleAccount(account.id)}
+                        onClick={(e) => {
+                          if (checked) {
+                            e.preventDefault();
+                            toggleAccount(account.id);
+                          }
+                        }}
                       />
                       
                       {/* Avatar tài khoản Zalo */}

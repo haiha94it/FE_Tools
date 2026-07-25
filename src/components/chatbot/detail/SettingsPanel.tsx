@@ -84,9 +84,7 @@ export default function SettingsPanel({ chatbot }: SettingsPanelProps) {
 
   const toggleAccount = (id: number) => {
     const key = String(id);
-    setSelectedKeys((prev) =>
-      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key],
-    );
+    setSelectedKeys((prev) => (prev.includes(key) ? [] : [key]));
   };
 
   return (
@@ -129,12 +127,11 @@ export default function SettingsPanel({ chatbot }: SettingsPanelProps) {
               Gán tài khoản Zalo
             </h3>
             <p className="mt-0.5 text-xs text-gray-500">
-              Mỗi tài khoản chỉ được gán vào 1 kịch bản. Gửi danh sách đầy đủ để
-              thay thế.
+              Mỗi kịch bản chatbot chỉ gán tối đa 1 tài khoản Zalo.
             </p>
           </div>
           <Badge size="sm" color="primary" variant="light">
-            {selectedKeys.length} đã chọn
+            {selectedKeys.length > 0 ? "1 đã chọn" : "0 đã chọn"}
           </Badge>
         </div>
 
@@ -164,11 +161,18 @@ export default function SettingsPanel({ chatbot }: SettingsPanelProps) {
                     }`}
                   >
                     <input
-                      type="checkbox"
-                      className="mt-1 rounded border-gray-300 text-brand-500 focus:ring-brand-500"
+                      type="radio"
+                      name="settings-zalo-account"
+                      className="mt-1 h-4 w-4 border-gray-300 text-brand-500 focus:ring-brand-500 disabled:cursor-not-allowed cursor-pointer shrink-0"
                       checked={checked}
                       disabled={blocked}
                       onChange={() => toggleAccount(account.id)}
+                      onClick={(e) => {
+                        if (checked) {
+                          e.preventDefault();
+                          toggleAccount(account.id);
+                        }
+                      }}
                     />
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium text-gray-900 dark:text-white">

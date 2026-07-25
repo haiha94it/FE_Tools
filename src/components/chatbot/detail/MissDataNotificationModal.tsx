@@ -468,29 +468,6 @@ export default function MissDataNotificationModal({
 
                     </div>
 
-                    {/* Message Box */}
-                    <div className="space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <label className="text-xs font-bold text-gray-700 dark:text-gray-300">
-                          Nội dung tin nhắn báo động
-                        </label>
-                        <button
-                          type="button"
-                          onClick={() => restoreTemplate(index)}
-                          className="text-[10px] font-bold text-amber-600 hover:text-amber-700"
-                        >
-                          Dùng mẫu mặc định
-                        </button>
-                      </div>
-                      <textarea
-                        value={action.message}
-                        onChange={(e) => updateAction(index, { message: e.target.value })}
-                        rows={4}
-                        placeholder="Ví dụ: Khách {{name}} hỏi thiếu dữ liệu: {{user_message}}..."
-                        className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-950 px-3 py-2 text-xs leading-5 text-gray-800 dark:text-white outline-hidden focus:border-brand-500"
-                      />
-                    </div>
-
                     {/* Mentions Config */}
                     <div className="space-y-2">
                       <label className="text-xs font-bold text-gray-700 dark:text-gray-300">
@@ -640,37 +617,6 @@ export default function MissDataNotificationModal({
                 <FiPlus />
                 Thêm nhóm nhận khác
               </button>
-            </div>
-          )}
-
-          {/* Autovariables manual info */}
-          {isEnabled && (
-            <div className="border border-gray-150 dark:border-gray-800 rounded-xl overflow-hidden bg-white dark:bg-transparent">
-              <button
-                type="button"
-                onClick={() => setVariablesOpen(!variablesOpen)}
-                className="flex w-full items-center justify-between px-4 py-3 text-xs font-bold text-gray-700 dark:text-gray-300"
-              >
-                <span>Biến tự động trong tin nhắn</span>
-                {variablesOpen ? <FiChevronUp size={14} /> : <FiChevronDown size={14} />}
-              </button>
-              {variablesOpen && (
-                <div className="px-4 pb-3 pt-1 border-t border-gray-100 dark:border-gray-800 grid grid-cols-2 sm:grid-cols-4 gap-2 bg-gray-50/50 dark:bg-white/[0.01]">
-                  {MESSAGE_VARIABLES.map((item) => (
-                    <div
-                      key={item.token}
-                      className="p-2 border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-950 rounded-lg text-center"
-                    >
-                      <code className="text-[10px] font-bold text-amber-700 dark:text-amber-500 font-mono block">
-                        {item.token}
-                      </code>
-                      <span className="text-[9px] text-gray-500 mt-0.5 block">
-                        {item.label}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
           )}
 
