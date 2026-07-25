@@ -120,7 +120,7 @@ export function getChatbotAccountKeys(
 ): string[] {
   if (!chatbot) return [];
   const keys = chatbot.zalo_account_keys ?? chatbot.zalo_accounts ?? [];
-  return keys
+  const result = keys
     .map((item: any) => {
       if (item && typeof item === "object") {
         return String(item.id ?? item.key ?? "");
@@ -128,6 +128,7 @@ export function getChatbotAccountKeys(
       return String(item);
     })
     .filter(Boolean);
+  return result.slice(0, 1);
 }
 
 export function getTrainingImageUrl(image: TrainingImage): string {
