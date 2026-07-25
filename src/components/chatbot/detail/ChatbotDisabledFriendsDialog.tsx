@@ -80,6 +80,9 @@ export default function ChatbotDisabledFriendsDialog({
   const saveChatbotDisabledFriends = useZaloAccountStore(
     (s) => s.saveChatbotDisabledFriends,
   );
+  const patchChatbotDisabledFriends = useZaloAccountStore(
+    (s) => s.patchChatbotDisabledFriends,
+  );
   const loadingAccountIds = useZaloAccountStore(
     (s) => s.loadingChatbotDisabledFriendsAccountIds,
   );
@@ -180,16 +183,19 @@ export default function ChatbotDisabledFriendsDialog({
   };
 
   // Bật lại chatbot cho tất cả bạn bè (Reset danh sách tắt bot về rỗng)
-  const handleResetAll = useCallback(() => {
-    if (disabledUids.length === 0) {
-      toast.info("Tất cả bạn bè đã được bật chatbot tự động.");
-      return;
-    }
-    setDisabledUids([]);
-    toast.success(
-      'Đã chọn bật lại chatbot cho tất cả bạn bè. Hãy bấm "Lưu thay đổi" để hoàn tất.',
-    );
-  }, [disabledUids.length]);
+  const handleResetAll = useCallback(async () => {
+    const nextUids = await patchChatbotDisabledFriends(account.id, "enable_all");
+    if (!nextUids) return;
+    setDisabledUids(nextUids);
+    toast.success("Đã bật lại chatbot cho tất cả bạn bè.");
+  }, [account.id, patchChatbotDisabledFriends]);
+
+  const handleDisableAll = useCallback(async () => {
+    const nextUids = await patchChatbotDisabledFriends(account.id, "disable_all");
+    if (!nextUids) return;
+    setDisabledUids(nextUids);
+    toast.success(`Đã tắt chatbot cho ${nextUids.length} bạn bè.`);
+  }, [account.id, patchChatbotDisabledFriends]);
 
   const isSearching = search.trim() !== debouncedSearch.trim();
   const isLoading =
@@ -426,7 +432,17 @@ export default function ChatbotDisabledFriendsDialog({
                 variant="outline"
                 size="sm"
                 className="!px-2 !py-1 !text-xs shrink-0 !text-warning-600 hover:!bg-warning-50"
-                onClick={handleResetAll}
+                onClick={() => void handleDisableAll()}
+                disabled={isSaving}
+              >
+                <FiX size={12} /> Tắt hết
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="!px-2 !py-1 !text-xs shrink-0 !text-emerald-600 hover:!bg-emerald-50"
+                onClick={() => void handleResetAll()}
+                disabled={isSaving}
               >
                 <FiRefreshCw size={12} /> Bật lại hết
               </Button>
