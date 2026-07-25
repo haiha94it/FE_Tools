@@ -169,6 +169,36 @@ export function formatTimeForApi(time: string): string {
   return `${match[1].padStart(2, "0")}:${match[2]}:00`;
 }
 
+function categoryHasActionFlag(
+  cat: Pick<ChatbotCategory, "notification_actions">,
+  flag: "disable_reminder_chatbot" | "disable_friend_chatbot",
+): boolean {
+  const actions = cat.notification_actions;
+  if (!Array.isArray(actions)) return false;
+  return actions.some(
+    (item) =>
+      item &&
+      typeof item === "object" &&
+      (item as Record<string, unknown>)[flag] === true,
+  );
+}
+
+/** Category tắt nhắc nhở — field BE hoặc flag trong notification_actions */
+export function isCategoryReminderDisabled(
+  cat: Pick<ChatbotCategory, "disable_reminder_chatbot" | "notification_actions">,
+): boolean {
+  if (cat.disable_reminder_chatbot === true) return true;
+  return categoryHasActionFlag(cat, "disable_reminder_chatbot");
+}
+
+/** Category tắt auto-reply chatbot cho KH hỏi chủ đề này */
+export function isCategoryFriendChatbotDisabled(
+  cat: Pick<ChatbotCategory, "disable_friend_chatbot" | "notification_actions">,
+): boolean {
+  if (cat.disable_friend_chatbot === true) return true;
+  return categoryHasActionFlag(cat, "disable_friend_chatbot");
+}
+
 export function resolveCategoryBgColor(color?: string | null): string {
   if (!color) return "#64748b";
   const normalized = color.trim().toLowerCase();

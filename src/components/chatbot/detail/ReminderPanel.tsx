@@ -592,13 +592,20 @@ export default function ReminderPanel({ chatbotId }: ReminderPanelProps) {
     <div className="space-y-6">
       {globalConfig ? (
         <GlobalConfigForm
-          key={`global-${globalConfig.id ?? "default"}-${globalConfig.updated_at ?? ""}`}
+          key={`global-${globalConfig.id ?? "default"}-${(globalConfig.excluded_category_ids ?? []).join(",")}-${globalConfig.updated_at ?? ""}`}
           globalConfig={globalConfig}
           categories={categories}
           specialConfigs={specialConfigs}
           isSaving={isSavingGlobal}
           isLoading={isLoadingGlobal}
-          onSave={updateGlobalConfig}
+          onSave={async (payload) => {
+            const ok = await updateGlobalConfig(payload);
+            if (ok) {
+              // Đồng bộ badge/flag danh mục (cùng cờ disable_reminder_chatbot)
+              await fetchCategories({ silent: true });
+            }
+            return ok;
+          }}
         />
       ) : (
         <section className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.02]">

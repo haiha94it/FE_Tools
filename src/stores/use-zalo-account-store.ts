@@ -60,6 +60,7 @@ interface ZaloAccountState {
 
   loadingToggleAllMessage: boolean;
   loadingToggleMessageId: number | null;
+  loadingToggleChatbotId: number | null;
 
   deleteConfirm: { ids: number[] } | null;
 
@@ -72,6 +73,10 @@ interface ZaloAccountState {
   pollCookieResult: () => Promise<"pending" | "success" | "failure">;
   toggleAllMessageListener: (checked: boolean) => Promise<void>;
   toggleAccountMessageListener: (
+    accountId: number,
+    checked: boolean,
+  ) => Promise<void>;
+  toggleAccountChatbot: (
     accountId: number,
     checked: boolean,
   ) => Promise<void>;
@@ -161,6 +166,7 @@ export const useZaloAccountStore = create<ZaloAccountState>((set, get) => ({
 
   loadingToggleAllMessage: false,
   loadingToggleMessageId: null,
+  loadingToggleChatbotId: null,
 
   deleteConfirm: null,
 
@@ -364,6 +370,79 @@ export const useZaloAccountStore = create<ZaloAccountState>((set, get) => ({
       toast.error(formatMessageListenerError(getApiErrorMessage(error)));
     } finally {
       set({ loadingToggleMessageId: null });
+    }
+  },
+
+  toggleAccountChatbot: async (accountId, checked) => {
+    if (!canCurrentUserManageNick()) {
+      toast.error("Chỉ manager mới bật/tắt chatbot.");
+      return;
+    }
+    const prev = get().accounts.find((a) => a.id === accountId);
+    if (!prev) return;
+
+    // Optimistic: switch + tin nhắn (BE bật chatbot → disable_message=false)
+    set({
+      loadingToggleChatbotId: accountId,
+      error: null,
+      accounts: get().accounts.map((account) =>
+        account.id === accountId
+          ? {
+              ...account,
+              is_chatbot: checked,
+              ...(checked ? { disable_message: false } : {}),
+            }
+          : account,
+      ),
+    });
+
+    try {
+      const updated = await zaloAccountService.toggleChatbot({
+        id_account: accountId,
+        is_chatbot: checked,
+      });
+      set((state) => ({
+        accounts: state.accounts.map((account) => {
+          if (account.id !== accountId) return account;
+          const nextChatbot =
+            typeof updated?.is_chatbot === "boolean"
+              ? updated.is_chatbot
+              : checked;
+          const nextDisableMessage =
+            typeof updated?.disable_message === "boolean"
+              ? updated.disable_message
+              : checked
+                ? false
+                : account.disable_message;
+          return {
+            ...account,
+            is_chatbot: nextChatbot,
+            disable_message: nextDisableMessage,
+            is_chatbot_reaction_enabled:
+              typeof updated?.is_chatbot_reaction_enabled === "boolean"
+                ? updated.is_chatbot_reaction_enabled
+                : account.is_chatbot_reaction_enabled,
+          };
+        }),
+      }));
+      toast.success(checked ? "Đã bật chatbot." : "Đã tắt chatbot.");
+    } catch (error) {
+      // Rollback UI nếu API fail
+      set((state) => ({
+        accounts: state.accounts.map((account) =>
+          account.id === accountId
+            ? {
+                ...account,
+                is_chatbot: prev.is_chatbot,
+                disable_message: prev.disable_message,
+                is_chatbot_reaction_enabled: prev.is_chatbot_reaction_enabled,
+              }
+            : account,
+        ),
+      }));
+      toast.error(getApiErrorMessage(error));
+    } finally {
+      set({ loadingToggleChatbotId: null });
     }
   },
 

@@ -210,6 +210,11 @@ interface ZaloMessengerState {
   messagesCache: Record<string, MessageCacheEntry>;
 
   setComposerText: (value: string) => void;
+  /** Cập nhật list UID tắt chatbot sau PATCH từ header chat 1-1 */
+  setAccountChatbotDisabledUids: (
+    accountId: number,
+    uids: string[],
+  ) => void;
   setQuoteMessage: (message: DisplayMessage | null) => void;
   clearComposer: () => void;
   uploadAttachments: (files: File[]) => Promise<void>;
@@ -383,6 +388,15 @@ export const useZaloMessengerStore = create<ZaloMessengerState>((set, get) => ({
   messagesCache: {},
 
   setComposerText: (composerText) => set({ composerText }),
+
+  setAccountChatbotDisabledUids: (accountId, uids) =>
+    set((state) => ({
+      accounts: state.accounts.map((account) =>
+        account.id === accountId
+          ? { ...account, chatbot_disabled_friend_uids: uids }
+          : account,
+      ),
+    })),
   setQuoteMessage: (quoteMessage) => set({ quoteMessage }),
   clearComposer: () =>
     set({ composerText: "", attachmentDrafts: [], quoteMessage: null }),

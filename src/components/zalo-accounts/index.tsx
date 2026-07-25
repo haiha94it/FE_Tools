@@ -101,6 +101,9 @@ export default function ZaloAccountsView() {
   const loadingToggleMessageId = useZaloAccountStore(
     (s) => s.loadingToggleMessageId,
   );
+  const loadingToggleChatbotId = useZaloAccountStore(
+    (s) => s.loadingToggleChatbotId,
+  );
   const deleteConfirm = useZaloAccountStore((s) => s.deleteConfirm);
 
   const fetchAccounts = useZaloAccountStore((s) => s.fetchAccounts);
@@ -115,6 +118,9 @@ export default function ZaloAccountsView() {
   );
   const toggleAccountMessageListener = useZaloAccountStore(
     (s) => s.toggleAccountMessageListener,
+  );
+  const toggleAccountChatbot = useZaloAccountStore(
+    (s) => s.toggleAccountChatbot,
   );
   const setSearch = useZaloAccountStore((s) => s.setSearch);
   const setShowSensitiveInfo = useZaloAccountStore(
@@ -284,6 +290,13 @@ export default function ZaloAccountsView() {
     [toggleAccountMessageListener],
   );
 
+  const handleToggleChatbot = useCallback(
+    (accountId: number, checked: boolean) => {
+      void toggleAccountChatbot(accountId, checked);
+    },
+    [toggleAccountChatbot],
+  );
+
   const handleDeleteAccount = useCallback(
     (account: { id: number }) => {
       openDeleteConfirm([account.id]);
@@ -362,11 +375,13 @@ export default function ZaloAccountsView() {
                 selectedIds={selectedIds}
                 checkingIds={checkingIds}
                 loadingToggleMessageId={loadingToggleMessageId}
+                loadingToggleChatbotId={loadingToggleChatbotId}
                 showSensitiveInfo={showSensitiveInfo}
                 isLoading={isLoading}
                 onToggleAll={handleToggleAll}
                 onToggleOne={toggleSelect}
                 onToggleMessage={handleToggleMessage}
+                onToggleChatbot={handleToggleChatbot}
                 onEdit={openEdit}
                 onRelogin={openReloginQr}
                 onDelete={handleDeleteAccount}

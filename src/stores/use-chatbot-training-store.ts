@@ -1,6 +1,7 @@
 import { handleApiError } from "@/lib/errors";
 import { toast } from "@/lib/toast";
 import { chatbotService } from "@/services/chatbot.service";
+import { useChatbotReminderStore } from "@/stores/use-chatbot-reminder-store";
 import type {
   ChatbotCategory,
   CreateCategoryPayload,
@@ -268,6 +269,8 @@ export const useChatbotTrainingStore = create<ChatbotTrainingState>(
         toast.success("Đã tạo danh mục.");
         set({ isSavingCategory: false });
         await get().fetchCategories({ silent: true });
+        // Đồng bộ tab Nhắc nhở (excluded_category_ids)
+        await useChatbotReminderStore.getState().fetchGlobalConfig({ silent: true });
         return true;
       } catch (error) {
         handleApiError(error);
@@ -283,10 +286,25 @@ export const useChatbotTrainingStore = create<ChatbotTrainingState>(
         set((state) => ({
           isSavingCategory: false,
           categories: state.categories.map((item) =>
-            item.id === id ? { ...item, ...updated } : item,
+            item.id === id
+              ? {
+                  ...item,
+                  ...updated,
+                  // Ưu tiên field BE; fallback payload form
+                  disable_reminder_chatbot:
+                    updated.disable_reminder_chatbot ??
+                    payload.disable_reminder_chatbot ??
+                    item.disable_reminder_chatbot,
+                  disable_friend_chatbot:
+                    updated.disable_friend_chatbot ??
+                    payload.disable_friend_chatbot ??
+                    item.disable_friend_chatbot,
+                }
+              : item,
           ),
         }));
         toast.success("Đã cập nhật danh mục.");
+        await useChatbotReminderStore.getState().fetchGlobalConfig({ silent: true });
         return true;
       } catch (error) {
         handleApiError(error);

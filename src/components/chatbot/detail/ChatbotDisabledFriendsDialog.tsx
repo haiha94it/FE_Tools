@@ -15,6 +15,7 @@ import {
   FiDownload,
   FiLoader,
   FiMessageSquare,
+  FiPlus,
   FiRefreshCw,
   FiSearch,
   FiUpload,
@@ -45,6 +46,8 @@ interface ChatbotDisabledFriendsDialogProps {
   onSaved?: (accountId: number, disabledUids: string[]) => void;
 }
 
+type ImportMode = "append" | "replace";
+
 const SEARCH_DEBOUNCE_MS = 400;
 const PAGE_SIZE = 50;
 
@@ -69,6 +72,17 @@ function mergeFriendList(
   return [...friendList, ...extras];
 }
 
+function parseUidsFromTxt(text: string): string[] {
+  return Array.from(
+    new Set(
+      text
+        .split(/[\r\n,\s]+/)
+        .map((item) => item.trim())
+        .filter((item) => item.length > 0),
+    ),
+  );
+}
+
 export default function ChatbotDisabledFriendsDialog({
   account,
   onClose,
@@ -86,10 +100,6 @@ export default function ChatbotDisabledFriendsDialog({
   const loadingAccountIds = useZaloAccountStore(
     (s) => s.loadingChatbotDisabledFriendsAccountIds,
   );
-  const savingAccountIds = useZaloAccountStore(
-    (s) => s.savingChatbotDisabledFriendsAccountIds,
-  );
-
   const [friends, setFriends] = useState<ZaloFriendItem[]>([]);
   const [friendResultCount, setFriendResultCount] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
@@ -99,14 +109,54 @@ export default function ChatbotDisabledFriendsDialog({
   const [disabledFriendExtras, setDisabledFriendExtras] = useState<
     ChatbotDisabledFriendInfo[]
   >([]);
+  const [pendingUids, setPendingUids] = useState<string[]>([]);
+  const [bulkPending, setBulkPending] = useState(false);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [loadError, setLoadError] = useState<string | null>(null);
   const [configLoaded, setConfigLoaded] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const importModeRef = useRef<ImportMode>("append");
 
-  // Xuất (Backup) danh sách UID bị tắt chatbot ra file TXT
+  const isSearching = search.trim() !== debouncedSearch.trim();
+  const isLoading =
+    loadingFriends ||
+    loadingConfig ||
+    loadingAccountIds.includes(account.id);
+  const disabledUidSet = useMemo(() => new Set(disabledUids), [disabledUids]);
+  const pendingUidSet = useMemo(() => new Set(pendingUids), [pendingUids]);
+  const hasSearchKeyword = Boolean(debouncedSearch.trim());
+  const anyPending = bulkPending || pendingUids.length > 0;
+
+  const isAutoReplyEnabled = useCallback(
+    (uid: string) => !disabledUidSet.has(uid),
+    [disabledUidSet],
+  );
+
+  const applyDisabledUids = useCallback(
+    (nextUids: string[]) => {
+      setDisabledUids(nextUids);
+      onSaved?.(account.id, nextUids);
+    },
+    [account.id, onSaved],
+  );
+
+  const failToast = useCallback((fallback: string) => {
+    // getState sau await — hook storeError có thể stale
+    const latest = useZaloAccountStore.getState().error;
+    toast.error(latest || fallback);
+  }, []);
+
+  const setPendingUid = useCallback((uid: string, pending: boolean) => {
+    setPendingUids((current) => {
+      if (pending) {
+        return current.includes(uid) ? current : [...current, uid];
+      }
+      return current.filter((item) => item !== uid);
+    });
+  }, []);
+
   const handleExportTxt = useCallback(() => {
     if (disabledUids.length === 0) {
       toast.info("Danh sách UID tắt bot hiện đang rỗng.");
@@ -125,90 +175,129 @@ export default function ChatbotDisabledFriendsDialog({
     toast.success(`Đã xuất ${disabledUids.length} UID ra file TXT.`);
   }, [account.id, disabledUids]);
 
-  // Nhập (Import) danh sách UID từ file TXT
   const handleImportFileChange = async (
     event: React.ChangeEvent<HTMLInputElement>,
   ) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
+    const mode = importModeRef.current;
+
     try {
       const text = await file.text();
-      const rawUids = text.split(/[\r\n,\s]+/);
-      const parsedUids = rawUids
-        .map((item) => item.trim())
-        .filter((item) => item.length > 0);
-
-      const uniqueImported = Array.from(new Set(parsedUids));
+      const uniqueImported = parseUidsFromTxt(text);
 
       if (uniqueImported.length === 0) {
-        toast.warning("File TXT không chứa UID hợp lệ.");
+        toast.warning("File TXT không có UID hợp lệ.");
         return;
       }
 
-      setDisabledUids((current) => {
-        const currentSet = new Set(current);
-        let addedCount = 0;
-
-        uniqueImported.forEach((uid) => {
-          if (!currentSet.has(uid)) {
-            currentSet.add(uid);
-            addedCount++;
-          }
-        });
-
-        if (addedCount > 0) {
-          toast.success(
-            `Đã nhập ${uniqueImported.length} UID từ file. Bổ sung ${addedCount} UID mới vào danh sách tắt bot.`,
-          );
-        } else {
-          toast.info(
-            `Tất cả ${uniqueImported.length} UID trong file đã có sẵn trong danh sách.`,
-          );
+      setBulkPending(true);
+      if (mode === "append") {
+        const nextUids = await patchChatbotDisabledFriends(
+          account.id,
+          "add",
+          uniqueImported,
+        );
+        if (!nextUids) {
+          failToast("Không bổ sung được UID từ file.");
+          return;
         }
-
-        return Array.from(currentSet);
-      });
+        applyDisabledUids(nextUids);
+        toast.success(
+          `Đã bổ sung UID từ file. Đang tắt bot cho ${nextUids.length} UID.`,
+        );
+      } else {
+        const success = await saveChatbotDisabledFriends(
+          account.id,
+          uniqueImported,
+        );
+        if (!success) {
+          failToast("Không thay thế được danh sách từ file.");
+          return;
+        }
+        applyDisabledUids(uniqueImported);
+        toast.success(
+          `Đã thay thế danh sách. Đang tắt bot cho ${uniqueImported.length} UID.`,
+        );
+      }
     } catch {
       toast.error("Không thể đọc file TXT. Vui lòng kiểm tra lại định dạng file.");
     } finally {
+      setBulkPending(false);
       if (event.target) {
         event.target.value = "";
       }
     }
   };
 
-  const handleTriggerImport = () => {
+  const triggerImport = (mode: ImportMode) => {
+    importModeRef.current = mode;
     fileInputRef.current?.click();
   };
 
-  // Bật lại chatbot cho tất cả bạn bè (Reset danh sách tắt bot về rỗng)
   const handleResetAll = useCallback(async () => {
-    const nextUids = await patchChatbotDisabledFriends(account.id, "enable_all");
-    if (!nextUids) return;
-    setDisabledUids(nextUids);
-    toast.success("Đã bật lại chatbot cho tất cả bạn bè.");
-  }, [account.id, patchChatbotDisabledFriends]);
+    setBulkPending(true);
+    try {
+      const nextUids = await patchChatbotDisabledFriends(account.id, "enable_all");
+      if (!nextUids) {
+        failToast("Không bật lại chatbot cho toàn bộ bạn bè.");
+        return;
+      }
+      applyDisabledUids(nextUids);
+      toast.success("Đã bật lại chatbot cho tất cả bạn bè.");
+    } finally {
+      setBulkPending(false);
+    }
+  }, [account.id, applyDisabledUids, failToast, patchChatbotDisabledFriends]);
 
   const handleDisableAll = useCallback(async () => {
-    const nextUids = await patchChatbotDisabledFriends(account.id, "disable_all");
-    if (!nextUids) return;
-    setDisabledUids(nextUids);
-    toast.success(`Đã tắt chatbot cho ${nextUids.length} bạn bè.`);
-  }, [account.id, patchChatbotDisabledFriends]);
+    setBulkPending(true);
+    try {
+      const nextUids = await patchChatbotDisabledFriends(account.id, "disable_all");
+      if (!nextUids) {
+        failToast("Không tắt chatbot cho toàn bộ bạn bè.");
+        return;
+      }
+      applyDisabledUids(nextUids);
+      toast.success(`Đã tắt chatbot cho ${nextUids.length} bạn bè.`);
+    } finally {
+      setBulkPending(false);
+    }
+  }, [account.id, applyDisabledUids, failToast, patchChatbotDisabledFriends]);
 
-  const isSearching = search.trim() !== debouncedSearch.trim();
-  const isLoading =
-    loadingFriends ||
-    loadingConfig ||
-    loadingAccountIds.includes(account.id);
-  const isSaving = savingAccountIds.includes(account.id);
-  const disabledUidSet = useMemo(() => new Set(disabledUids), [disabledUids]);
-  const hasSearchKeyword = Boolean(debouncedSearch.trim());
+  const setAutoReplyForUid = useCallback(
+    async (uid: string, enabled: boolean) => {
+      if (pendingUidSet.has(uid) || bulkPending) return;
 
-  const isAutoReplyEnabled = useCallback(
-    (uid: string) => !disabledUidSet.has(uid),
-    [disabledUidSet],
+      const action = enabled ? "remove" : "add";
+      setPendingUid(uid, true);
+      try {
+        const nextUids = await patchChatbotDisabledFriends(account.id, action, [
+          uid,
+        ]);
+        if (!nextUids) {
+          failToast(
+            enabled
+              ? "Không bật lại chatbot cho bạn bè này."
+              : "Không tắt chatbot cho bạn bè này.",
+          );
+          return;
+        }
+        applyDisabledUids(nextUids);
+      } finally {
+        setPendingUid(uid, false);
+      }
+    },
+    [
+      account.id,
+      applyDisabledUids,
+      bulkPending,
+      failToast,
+      patchChatbotDisabledFriends,
+      pendingUidSet,
+      setPendingUid,
+    ],
   );
 
   useEffect(() => {
@@ -224,6 +313,8 @@ export default function ChatbotDisabledFriendsDialog({
     setDebouncedSearch("");
     setCurrentPage(1);
     setConfigLoaded(false);
+    setPendingUids([]);
+    setBulkPending(false);
   }, [account.id]);
 
   useEffect(() => {
@@ -232,10 +323,18 @@ export default function ChatbotDisabledFriendsDialog({
 
   const loadDisabledConfig = useCallback(async () => {
     setLoadingConfig(true);
+    setLoadError(null);
     try {
       const res = await fetchChatbotDisabledFriends(account.id);
-      const disabledFromApi = res?.chatbot_disabled_friend_uids ?? [];
-      const extras = res?.friends ?? [];
+      if (!res) {
+        setLoadError("Không tải được cấu hình chatbot theo bạn bè.");
+        setDisabledUids([]);
+        setDisabledFriendExtras([]);
+        return [];
+      }
+
+      const disabledFromApi = res.chatbot_disabled_friend_uids ?? [];
+      const extras = res.friends ?? [];
 
       setDisabledUids(disabledFromApi);
       setDisabledFriendExtras(extras);
@@ -268,11 +367,12 @@ export default function ChatbotDisabledFriendsDialog({
           name: searchKey.trim() || undefined,
         });
 
-        // Response format mapping
         const results = Array.isArray(response)
           ? response
           : response?.results ?? [];
-        const count = Array.isArray(response) ? response.length : response?.count ?? 0;
+        const count = Array.isArray(response)
+          ? response.length
+          : response?.count ?? 0;
 
         const shouldMergeExtras = page === 1 && !searchKey.trim();
         setFriends(shouldMergeExtras ? mergeFriendList(results, extras) : results);
@@ -312,23 +412,6 @@ export default function ChatbotDisabledFriendsDialog({
     ? Math.min(currentPage * PAGE_SIZE, friendResultCount)
     : 0;
 
-  const setAutoReplyForUid = (uid: string, enabled: boolean) => {
-    setDisabledUids((current) => {
-      if (enabled) return current.filter((item) => item !== uid);
-      if (current.includes(uid)) return current;
-      return [...current, uid];
-    });
-  };
-
-  const handleSave = async () => {
-    const success = await saveChatbotDisabledFriends(account.id, disabledUids);
-    if (success) {
-      toast.success("Đã lưu cấu hình trả lời tự động theo bạn bè.");
-      onSaved?.(account.id, disabledUids);
-      onClose();
-    }
-  };
-
   const accountLabel =
     account.name || account.phone_number || `Tài khoản #${account.id}`;
 
@@ -349,13 +432,16 @@ export default function ChatbotDisabledFriendsDialog({
                 <p className="text-sm text-gray-500">{accountLabel}</p>
               </div>
             </div>
+            <Badge size="sm" color="warning" variant="light">
+              Đang tắt: {disabledUids.length}
+            </Badge>
           </div>
         </div>
 
-        {/* Cấu dẫn sử dụng nhanh */}
+        {/* Hướng dẫn */}
         <div className="my-4 shrink-0 bg-gray-50 p-3 rounded-xl border border-gray-100 dark:bg-white/[0.02] dark:border-gray-800">
           <p className="text-xs font-bold uppercase tracking-wider text-brand-600 dark:text-brand-400 mb-2">
-            Hướng dẫn
+            Hướng dẫn — áp dụng ngay khi đổi công tắc
           </p>
           <div className="grid gap-2 sm:grid-cols-2 text-xs">
             <div className="rounded-lg bg-emerald-50/50 p-2.5 border border-emerald-100 dark:bg-emerald-500/5 dark:border-emerald-500/10">
@@ -363,7 +449,7 @@ export default function ChatbotDisabledFriendsDialog({
                 Công tắc BẬT
               </p>
               <p className="text-gray-500 mt-0.5">
-                Chatbot sẽ tự động phản hồi tin nhắn của bạn bè này.
+                Chatbot tự trả lời tin nhắn bạn bè này (lưu ngay).
               </p>
             </div>
             <div className="rounded-lg bg-warning-50/50 p-2.5 border border-warning-100 dark:bg-warning-500/5 dark:border-warning-500/10">
@@ -371,7 +457,7 @@ export default function ChatbotDisabledFriendsDialog({
                 Công tắc TẮT
               </p>
               <p className="text-gray-500 mt-0.5">
-                Chatbot sẽ bỏ qua và không nhắn tin tự động cho bạn bè này.
+                Chatbot bỏ qua bạn bè này (lưu ngay).
               </p>
             </div>
           </div>
@@ -395,7 +481,9 @@ export default function ChatbotDisabledFriendsDialog({
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-1.5">
               <Badge size="sm" color="primary" variant="light">
-                {friendResultCount > 0 ? `Trang ${currentPage}/${totalPages}` : "Trang 1"}
+                {friendResultCount > 0
+                  ? `Trang ${currentPage}/${totalPages}`
+                  : "Trang 1"}
               </Badge>
               {friendResultCount > 0 && (
                 <Badge size="sm" color="light" variant="light">
@@ -417,6 +505,7 @@ export default function ChatbotDisabledFriendsDialog({
                 size="sm"
                 className="!px-2 !py-1 !text-xs shrink-0"
                 onClick={handleExportTxt}
+                disabled={bulkPending}
               >
                 <FiDownload size={12} /> Xuất TXT
               </Button>
@@ -424,16 +513,26 @@ export default function ChatbotDisabledFriendsDialog({
                 variant="outline"
                 size="sm"
                 className="!px-2 !py-1 !text-xs shrink-0"
-                onClick={handleTriggerImport}
+                onClick={() => triggerImport("append")}
+                disabled={bulkPending}
               >
-                <FiUpload size={12} /> Nhập TXT
+                <FiPlus size={12} /> Bổ sung UID từ file
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="!px-2 !py-1 !text-xs shrink-0"
+                onClick={() => triggerImport("replace")}
+                disabled={bulkPending}
+              >
+                <FiUpload size={12} /> Thay thế bằng file
               </Button>
               <Button
                 variant="outline"
                 size="sm"
                 className="!px-2 !py-1 !text-xs shrink-0 !text-warning-600 hover:!bg-warning-50"
                 onClick={() => void handleDisableAll()}
-                disabled={isSaving}
+                disabled={bulkPending}
               >
                 <FiX size={12} /> Tắt hết
               </Button>
@@ -442,7 +541,7 @@ export default function ChatbotDisabledFriendsDialog({
                 size="sm"
                 className="!px-2 !py-1 !text-xs shrink-0 !text-emerald-600 hover:!bg-emerald-50"
                 onClick={() => void handleResetAll()}
-                disabled={isSaving}
+                disabled={bulkPending}
               >
                 <FiRefreshCw size={12} /> Bật lại hết
               </Button>
@@ -451,7 +550,7 @@ export default function ChatbotDisabledFriendsDialog({
                 size="sm"
                 className="!px-2 !py-1 !text-xs shrink-0 !text-brand-600 hover:!bg-brand-50"
                 onClick={() => void reloadAll()}
-                disabled={isLoading}
+                disabled={isLoading || anyPending}
               >
                 Làm mới
               </Button>
@@ -459,11 +558,18 @@ export default function ChatbotDisabledFriendsDialog({
           </div>
         </div>
 
-        {/* Friends list (scrollable) */}
+        {/* Friends list */}
         <div className="flex-1 overflow-y-auto space-y-3 pr-1 min-h-0">
           {loadError && (
             <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-600 dark:border-red-500/20 dark:bg-red-500/5">
-              {loadError}
+              <p>{loadError}</p>
+              <button
+                type="button"
+                className="mt-2 font-semibold text-brand-600 underline-offset-2 hover:underline"
+                onClick={() => void reloadAll()}
+              >
+                Thử lại / Làm mới
+              </button>
             </div>
           )}
 
@@ -475,7 +581,9 @@ export default function ChatbotDisabledFriendsDialog({
 
           {!isLoading && !loadError && friends.length === 0 && (
             <p className="py-12 text-center text-sm font-medium text-gray-500">
-              {hasSearchKeyword ? "Không tìm thấy bạn bè phù hợp." : "Chưa có bạn bè trong tài khoản này."}
+              {hasSearchKeyword
+                ? "Không tìm thấy bạn bè phù hợp."
+                : "Chưa có bạn bè trong tài khoản này."}
             </p>
           )}
 
@@ -483,6 +591,8 @@ export default function ChatbotDisabledFriendsDialog({
             {friends.map((friend) => {
               const autoReplyEnabled = isAutoReplyEnabled(friend.uid);
               const label = getZaloFriendLabel(friend);
+              const uidPending = pendingUidSet.has(friend.uid);
+              const switchDisabled = uidPending || bulkPending;
 
               return (
                 <li key={friend.uid}>
@@ -493,9 +603,9 @@ export default function ChatbotDisabledFriendsDialog({
                         : "border-warning-200 bg-warning-50/10 dark:border-warning-500/10 dark:bg-warning-500/[0.01]"
                     }`}
                   >
-                    {/* Avatar bạn bè */}
                     <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full border border-gray-200 dark:border-gray-800">
                       {friend.avatar ? (
+                        // eslint-disable-next-line @next/next/no-img-element
                         <img
                           src={friend.avatar}
                           alt={label}
@@ -521,18 +631,31 @@ export default function ChatbotDisabledFriendsDialog({
                       <div className="text-right shrink-0">
                         <span
                           className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                            autoReplyEnabled
-                              ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400"
-                              : "bg-warning-50 text-warning-850 dark:bg-warning-500/10 dark:text-warning-400"
+                            uidPending
+                              ? "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400"
+                              : autoReplyEnabled
+                                ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400"
+                                : "bg-warning-50 text-warning-700 dark:bg-warning-500/10 dark:text-warning-400"
                           }`}
                         >
-                          <FiMessageSquare size={10} />
-                          {autoReplyEnabled ? "Bot trả lời" : "Bot bỏ qua"}
+                          {uidPending ? (
+                            <FiLoader size={10} className="animate-spin" />
+                          ) : (
+                            <FiMessageSquare size={10} />
+                          )}
+                          {uidPending
+                            ? "Đang lưu…"
+                            : autoReplyEnabled
+                              ? "Bot trả lời"
+                              : "Bot bỏ qua"}
                         </span>
                       </div>
                       <Switch
                         checked={autoReplyEnabled}
-                        onChange={(nextVal) => setAutoReplyForUid(friend.uid, nextVal)}
+                        disabled={switchDisabled}
+                        onChange={(nextVal) => {
+                          void setAutoReplyForUid(friend.uid, nextVal);
+                        }}
                       />
                     </div>
                   </div>
@@ -542,16 +665,15 @@ export default function ChatbotDisabledFriendsDialog({
           </ul>
         </div>
 
-        {/* Footer */}
+        {/* Footer — không nút Lưu; mutation đã realtime */}
         <div className="border-t border-gray-100 pt-4 dark:border-gray-800 flex items-center justify-between gap-3 shrink-0">
-          {/* Pagination buttons */}
           <div className="flex gap-2">
             <Button
               variant="outline"
               size="sm"
               className="!px-2.5 !py-1 !text-xs"
               onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
-              disabled={isLoading || currentPage <= 1}
+              disabled={isLoading || currentPage <= 1 || anyPending}
             >
               Trang trước
             </Button>
@@ -560,20 +682,20 @@ export default function ChatbotDisabledFriendsDialog({
               size="sm"
               className="!px-2.5 !py-1 !text-xs"
               onClick={() => setCurrentPage((p) => p + 1)}
-              disabled={isLoading || currentPage >= totalPages}
+              disabled={isLoading || currentPage >= totalPages || anyPending}
             >
               Trang sau
             </Button>
           </div>
 
-          <div className="flex gap-3">
-            <Button variant="outline" size="sm" onClick={onClose} disabled={isSaving}>
-              Hủy
-            </Button>
-            <Button size="sm" onClick={() => void handleSave()} disabled={isSaving || isLoading}>
-              {isSaving ? "Đang lưu…" : "Lưu thay đổi"}
-            </Button>
-          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onClose}
+            disabled={anyPending}
+          >
+            Đóng
+          </Button>
         </div>
       </div>
     </Modal>

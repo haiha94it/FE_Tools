@@ -4,6 +4,7 @@ import api from "@/lib/axios";
 import { extractZaloAccounts } from "@/lib/zalo-account-utils";
 import type {
   EditZaloAccountPayload,
+  ToggleChatbotPayload,
   ToggleMessageListenerPayload,
   ZaloAccount,
   ZaloAccountCheckResultResponse,
@@ -70,6 +71,16 @@ export const zaloAccountService = {
     payload: ToggleMessageListenerPayload,
   ): Promise<void> {
     await api.post(API_ZALO_ACCOUNT.TOGGLE_MESSAGE_LISTENER, payload);
+  },
+
+  async toggleChatbot(payload: ToggleChatbotPayload): Promise<ZaloAccount> {
+    const response = await api.post(API_ZALO_ACCOUNT.TOGGLE_CHATBOT, payload);
+    // Interceptor đã unwrap envelope → response.data = account object
+    const body = response.data as unknown;
+    if (body && typeof body === "object" && "id" in (body as object)) {
+      return body as ZaloAccount;
+    }
+    return unwrapApiBody<ZaloAccount>(body);
   },
 
   async pollCookieCreateResult(

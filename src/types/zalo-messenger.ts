@@ -11,6 +11,9 @@ export interface MessengerAccount {
   user_name?: string | null;
   pinning?: boolean;
   checkpoint?: boolean;
+  /** Nick bật chatbot — header chat 1-1 hiện switch theo bạn */
+  is_chatbot?: boolean;
+  chatbot_disabled_friend_uids?: string[];
 }
 
 export interface MessengerFriend {

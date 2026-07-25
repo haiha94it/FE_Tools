@@ -424,15 +424,8 @@ export default function SendMessPhoneCampaignFormModal({
                   </p>
                   <SendMessPhoneContentEditor
                     contents={contents}
-                    images={images}
-                    contentType={contentType}
-                    splitAttachment={splitAttachment}
-                    uploadingImage={uploadingImage}
                     disabled={saving}
                     onContentsChange={setContents}
-                    onImagesChange={setImages}
-                    onSplitAttachmentChange={setSplitAttachment}
-                    onUploadImage={handleUploadImage}
                   />
                 </div>
 
@@ -456,6 +449,16 @@ export default function SendMessPhoneCampaignFormModal({
                       }
                     }}
                   />
+                  {contentType ? (
+                    <label className="mt-3 flex cursor-pointer items-start gap-2.5 text-sm text-gray-600 dark:text-gray-400">
+                      <Checkbox
+                        checked={splitAttachment}
+                        onChange={setSplitAttachment}
+                        disabled={saving || readOnly}
+                      />
+                      <span>Tách tin nhắn và đính kèm</span>
+                    </label>
+                  ) : null}
                 </div>
               </>
             ) : null}

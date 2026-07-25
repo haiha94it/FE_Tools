@@ -32,6 +32,7 @@ export interface SendMesFrCampaignDetail {
   from_time?: string | null;
   to_time?: string | null;
   status: SendMesFrCampaignRunStatus;
+  split_attachment?: boolean;
 }
 
 export interface SendMesFrCampaignFormPayload {
@@ -48,6 +49,7 @@ export interface SendMesFrCampaignFormPayload {
   id_account: number;
   from_time: string | null;
   to_time: string | null;
+  split_attachment: boolean;
 }
 
 export interface SendMesFrCampaignResult {

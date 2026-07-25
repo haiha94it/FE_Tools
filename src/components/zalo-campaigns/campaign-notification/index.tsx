@@ -70,7 +70,7 @@ export default function CampaignNotificationView() {
         desc="Nhận tin Zalo khi có sự kiện chiến dịch (vd. khách hỏi mua). Cần 1 nick Zalo gửi và 1 SĐT có Zalo nhận — nên kết bạn 2 nick với nhau."
         fill
       >
-        <div className="mx-auto flex w-full max-w-xl flex-col gap-5">
+        <div className="custom-scrollbar mx-auto flex h-0 min-h-0 w-full max-w-xl flex-1 flex-col gap-5 overflow-y-auto overscroll-contain pr-1">
           <div className="flex items-start gap-3 rounded-2xl border border-brand-200 bg-brand-50/60 p-4 dark:border-brand-500/30 dark:bg-brand-500/10">
             <HiOutlineBellAlert
               className="mt-0.5 shrink-0 text-brand-600 dark:text-brand-400"

@@ -2,6 +2,7 @@
 
 import AvatarText from "@/components/ui/avatar/AvatarText";
 import Button from "@/components/ui/button/Button";
+import Checkbox from "@/components/form/input/Checkbox";
 import Input from "@/components/form/input/InputField";
 import TimePicker from "@/components/form/time-picker";
 import { Modal } from "@/components/ui/modal";
@@ -143,6 +144,7 @@ export default function SendMesFrCampaignFormModal({
   const [contents, setContents] = useState<string[]>([]);
   const [images, setImages] = useState<string[]>([]);
   const [contentType, setContentType] = useState<SendMesFrContentType>("");
+  const [splitAttachment, setSplitAttachment] = useState(false);
   const [selectedMediaId, setSelectedMediaId] = useState<number | null>(null);
   const [startTime, setStartTime] = useState(defaultStart);
   const [endTime, setEndTime] = useState(defaultEnd);
@@ -181,6 +183,7 @@ export default function SendMesFrCampaignFormModal({
     setContents([]);
     setImages([]);
     setContentType("");
+    setSplitAttachment(false);
     setSelectedMediaId(null);
     setStartTime(defaultStart());
     setEndTime(defaultEnd());
@@ -205,6 +208,7 @@ export default function SendMesFrCampaignFormModal({
     setImages(editingCampaign.images ?? []);
     const type = editingCampaign.type ?? "";
     setContentType(type);
+    setSplitAttachment(editingCampaign.split_attachment ?? false);
     setSelectedMediaId(
       type === "video"
         ? (editingCampaign.video ?? null)
@@ -384,6 +388,7 @@ export default function SendMesFrCampaignFormModal({
       id_account: selectedAccountId,
       from_time: formatTimeForApi(startTime),
       to_time: formatTimeForApi(endTime),
+      split_attachment: splitAttachment,
     } as const;
 
     try {
@@ -506,6 +511,16 @@ export default function SendMesFrCampaignFormModal({
                   }
                 }}
               />
+              {contentType ? (
+                <label className="mt-3 flex cursor-pointer items-start gap-2.5 text-sm text-gray-600 dark:text-gray-400">
+                  <Checkbox
+                    checked={splitAttachment}
+                    onChange={setSplitAttachment}
+                    disabled={saving || readOnly}
+                  />
+                  <span>Tách tin nhắn và đính kèm</span>
+                </label>
+              ) : null}
             </div>
                 </div>
               </div>

@@ -1,25 +1,13 @@
 "use client";
 
 import Button from "@/components/ui/button/Button";
-import Checkbox from "@/components/form/input/Checkbox";
-import { getSendMessPhoneMediaUrl } from "@/lib/zalo-send-mess-phone-campaign-utils";
-import { toast } from "@/lib/toast";
-import type { SendMessPhoneContentType } from "@/types/zalo-send-mess-phone-campaign";
-import Image from "next/image";
 import { useRef, useState } from "react";
-import { HiOutlinePhotograph, HiOutlinePlus, HiOutlineTrash } from "react-icons/hi";
+import { HiOutlinePlus, HiOutlineTrash } from "react-icons/hi";
 
 interface SendMessPhoneContentEditorProps {
   contents: string[];
-  images: string[];
-  contentType: SendMessPhoneContentType;
-  splitAttachment: boolean;
-  uploadingImage: boolean;
   disabled?: boolean;
   onContentsChange: (contents: string[]) => void;
-  onImagesChange: (images: string[]) => void;
-  onSplitAttachmentChange: (value: boolean) => void;
-  onUploadImage: (file: File) => Promise<string | null>;
 }
 
 const PLACEHOLDERS = [
@@ -29,7 +17,6 @@ const PLACEHOLDERS = [
   { key: "[r]", label: "Icon ngẫu nhiên" },
 ] as const;
 
-const MAX_IMAGES = 2;
 const MAX_CONTENT_LENGTH = 2000;
 const DEFAULT_TEMPLATE = "Xin chào [gender] [name] ! ...... Kết bạn nhé!";
 
@@ -38,18 +25,10 @@ const textareaClassName =
 
 export default function SendMessPhoneContentEditor({
   contents,
-  images,
-  contentType,
-  splitAttachment,
-  uploadingImage,
   disabled = false,
   onContentsChange,
-  onImagesChange,
-  onSplitAttachmentChange,
-  onUploadImage,
 }: SendMessPhoneContentEditorProps) {
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [draft, setDraft] = useState("");
 
   const insertPlaceholder = (token: string) => {
@@ -76,28 +55,6 @@ export default function SendMessPhoneContentEditor({
 
   const removeContent = (index: number) => {
     onContentsChange(contents.filter((_, i) => i !== index));
-  };
-
-  const handleImageSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(event.target.files ?? []);
-    if (!files.length) return;
-    if (images.length + files.length > MAX_IMAGES) {
-      toast.error(`Chỉ được chọn tối đa ${MAX_IMAGES} ảnh.`);
-      return;
-    }
-    let nextImages = [...images];
-    for (const file of files) {
-      try {
-        const path = await onUploadImage(file);
-        if (path) nextImages = [...nextImages, path];
-      } catch {
-        toast.error("Upload ảnh thất bại.");
-      }
-    }
-    if (nextImages.length > images.length) {
-      onImagesChange(nextImages);
-    }
-    event.target.value = "";
   };
 
   return (
@@ -174,74 +131,6 @@ export default function SendMessPhoneContentEditor({
               </button>
             </div>
           ))}
-        </div>
-      ) : null}
-
-      {/* Ảnh/video/album: dùng CampaignAttachmentFields ở form cha */}
-      {false && contentType === "" ? (
-        <div className="space-y-3">
-          <div>
-            <div className="mb-2 flex items-center justify-between gap-2">
-              <p className="text-xs font-medium text-gray-600 dark:text-gray-400">
-                Hình ảnh (tối đa {MAX_IMAGES})
-              </p>
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={disabled || uploadingImage || images.length >= MAX_IMAGES}
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <HiOutlinePhotograph className="mr-1" size={14} />
-                {uploadingImage ? "Đang tải..." : "Chọn ảnh"}
-              </Button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                multiple
-                className="hidden"
-                onChange={(e) => void handleImageSelect(e)}
-              />
-            </div>
-            {images.length > 0 ? (
-              <div className="flex flex-wrap gap-2">
-                {images.map((path, index) => (
-                  <div key={path} className="relative">
-                    <span className="relative block h-20 w-20 overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
-                      <Image
-                        src={getSendMessPhoneMediaUrl(path)}
-                        alt={`upload-${index}`}
-                        fill
-                        unoptimized
-                        className="object-cover"
-                      />
-                    </span>
-                    <button
-                      type="button"
-                      disabled={disabled}
-                      onClick={() => onImagesChange(images.filter((_, i) => i !== index))}
-                      className="absolute -right-1 -top-1 rounded-full bg-error-500 p-0.5 text-white"
-                    >
-                      <HiOutlineTrash size={12} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            ) : null}
-          </div>
-
-          {images.length > 0 ? (
-            <label className="flex cursor-pointer items-start gap-2.5 text-sm text-gray-600 dark:text-gray-400">
-              <Checkbox
-                checked={splitAttachment}
-                onChange={onSplitAttachmentChange}
-                disabled={disabled}
-              />
-              <span>
-                Tách tin nhắn và đính kèm — gửi nội dung và ảnh thành hai tin riêng
-              </span>
-            </label>
-          ) : null}
         </div>
       ) : null}
     </div>

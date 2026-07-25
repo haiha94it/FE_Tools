@@ -10,6 +10,7 @@ import {
   getProxyDisplay,
   getZaloAccountStatus,
   getZaloProxyStatus,
+  isZaloChatbotEnabled,
   isZaloMessageEnabled,
   maskPhone,
 } from "@/lib/zalo-account-utils";
@@ -27,9 +28,11 @@ export interface ZaloAccountTableRowProps {
   isSelected: boolean;
   isChecking: boolean;
   isMessageLoading: boolean;
+  isChatbotLoading: boolean;
   showSensitiveInfo: boolean;
   onToggleSelect: (id: number) => void;
   onToggleMessage: (accountId: number, checked: boolean) => void;
+  onToggleChatbot: (accountId: number, checked: boolean) => void;
   onEdit: (account: ZaloAccount) => void;
   onRelogin: (account: ZaloAccount) => void;
   onDelete: (account: ZaloAccount) => void;
@@ -42,9 +45,11 @@ function ZaloAccountTableRow({
   isSelected,
   isChecking,
   isMessageLoading,
+  isChatbotLoading,
   showSensitiveInfo,
   onToggleSelect,
   onToggleMessage,
+  onToggleChatbot,
   onEdit,
   onRelogin,
   onDelete,
@@ -56,6 +61,7 @@ function ZaloAccountTableRow({
   const displayName = account.name || "Chưa có tên";
   const needsRelogin = account.checkpoint !== false;
   const messageEnabled = isZaloMessageEnabled(account);
+  const chatbotEnabled = isZaloChatbotEnabled(account);
   const isCheckpoint = account.checkpoint === true;
 
   return (
@@ -110,13 +116,28 @@ function ZaloAccountTableRow({
       <TableCell className={cellClass}>
         {canManageNick ? (
           <Switch
+            key={`msg-${account.id}-${messageEnabled}`}
             checked={messageEnabled}
-            disabled={isCheckpoint || isMessageLoading}
+            disabled={isCheckpoint || isMessageLoading || isChatbotLoading}
             onChange={(checked) => onToggleMessage(account.id, checked)}
           />
         ) : (
           <Badge size="sm" color={messageEnabled ? "success" : "light"}>
             {messageEnabled ? "Bật" : "Tắt"}
+          </Badge>
+        )}
+      </TableCell>
+      <TableCell className={cellClass}>
+        {canManageNick ? (
+          <Switch
+            key={`bot-${account.id}-${chatbotEnabled}`}
+            checked={chatbotEnabled}
+            disabled={isCheckpoint || isChatbotLoading}
+            onChange={(checked) => onToggleChatbot(account.id, checked)}
+          />
+        ) : (
+          <Badge size="sm" color={chatbotEnabled ? "success" : "light"}>
+            {chatbotEnabled ? "Bật" : "Tắt"}
           </Badge>
         )}
       </TableCell>

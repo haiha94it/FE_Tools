@@ -11,6 +11,8 @@ import { Tooltip } from "@/components/ui/tooltip/Tooltip";
 import { confirm } from "@/lib/confirm";
 import {
   CATEGORY_COLOR_PRESETS,
+  isCategoryFriendChatbotDisabled,
+  isCategoryReminderDisabled,
   resolveCategoryBgColor,
 } from "@/lib/chatbot-utils";
 import { useChatbotTrainingStore } from "@/stores/use-chatbot-training-store";
@@ -28,6 +30,7 @@ interface CategoryFormState {
   description: string;
   is_active: boolean;
   disable_reminder_chatbot: boolean;
+  disable_friend_chatbot: boolean;
 }
 
 const emptyForm = (): CategoryFormState => ({
@@ -36,6 +39,7 @@ const emptyForm = (): CategoryFormState => ({
   description: "",
   is_active: true,
   disable_reminder_chatbot: false,
+  disable_friend_chatbot: false,
 });
 
 export default function CategoryPanel({ chatbotId }: CategoryPanelProps) {
@@ -72,7 +76,8 @@ export default function CategoryPanel({ chatbotId }: CategoryPanelProps) {
       color: cat.color || "blue",
       description: cat.description || "",
       is_active: cat.is_active !== false,
-      disable_reminder_chatbot: Boolean(cat.disable_reminder_chatbot),
+      disable_reminder_chatbot: isCategoryReminderDisabled(cat),
+      disable_friend_chatbot: isCategoryFriendChatbotDisabled(cat),
     });
     setOpen(true);
   };
@@ -87,6 +92,7 @@ export default function CategoryPanel({ chatbotId }: CategoryPanelProps) {
         description: form.description.trim(),
         is_active: form.is_active,
         disable_reminder_chatbot: form.disable_reminder_chatbot,
+        disable_friend_chatbot: form.disable_friend_chatbot,
       });
       if (ok) setOpen(false);
       return;
@@ -99,6 +105,7 @@ export default function CategoryPanel({ chatbotId }: CategoryPanelProps) {
       description: form.description.trim(),
       is_active: form.is_active,
       disable_reminder_chatbot: form.disable_reminder_chatbot,
+      disable_friend_chatbot: form.disable_friend_chatbot,
     });
     if (ok) setOpen(false);
   };
@@ -177,9 +184,14 @@ export default function CategoryPanel({ chatbotId }: CategoryPanelProps) {
                     >
                       {cat.is_active === false ? "Tắt" : "Hoạt động"}
                     </Badge>
-                    {cat.disable_reminder_chatbot ? (
+                    {isCategoryReminderDisabled(cat) ? (
                       <Badge size="sm" color="warning" variant="light">
                         Tắt nhắc nhở
+                      </Badge>
+                    ) : null}
+                    {isCategoryFriendChatbotDisabled(cat) ? (
+                      <Badge size="sm" color="error" variant="light">
+                        Tắt chatbot KH
                       </Badge>
                     ) : null}
                   </div>
@@ -297,19 +309,41 @@ export default function CategoryPanel({ chatbotId }: CategoryPanelProps) {
 
               <div className="border-t border-gray-50 dark:border-gray-800/80 my-1"></div>
 
-              <div className="flex items-center justify-between">
-                <div>
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
                   <Label htmlFor="cat-reminder" className="!mb-0 cursor-pointer">
-                    Chặn nhắc nhở tự động
+                    Tắt chatbot nhắc nhở cho chủ đề này
                   </Label>
                   <p className="text-[11px] text-gray-500">
-                    Không gửi nhắc nhở khi khách hỏi chủ đề này
+                    Khách hỏi thuộc danh mục này sẽ không nhận tin nhắc nhở (tab
+                    Nhắc nhở).
                   </p>
                 </div>
                 <Switch
                   checked={form.disable_reminder_chatbot}
                   onChange={(checked) =>
                     setForm({ ...form, disable_reminder_chatbot: checked })
+                  }
+                />
+              </div>
+
+              <div className="border-t border-gray-50 dark:border-gray-800/80 my-1"></div>
+
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <Label htmlFor="cat-friend-bot" className="!mb-0 cursor-pointer">
+                    Tắt chatbot cho khách hỏi chủ đề này
+                  </Label>
+                  <p className="text-[11px] text-gray-500">
+                    Khi khách (1-1) match Q&amp;A thuộc danh mục này: thêm UID vào
+                    danh sách tắt chatbot → tin sau chuyển chat thủ công (không
+                    auto-reply).
+                  </p>
+                </div>
+                <Switch
+                  checked={form.disable_friend_chatbot}
+                  onChange={(checked) =>
+                    setForm({ ...form, disable_friend_chatbot: checked })
                   }
                 />
               </div>

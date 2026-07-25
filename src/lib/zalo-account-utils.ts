@@ -124,6 +124,14 @@ export function isZaloMessageEnabled(account: ZaloAccount): boolean {
   return account.disable_message === false;
 }
 
+export function isZaloChatbotEnabled(
+  account: Pick<ZaloAccount, "is_chatbot"> | { is_chatbot?: boolean },
+): boolean {
+  // Chuẩn hóa truthy — list/API đôi khi trả 1/"true"
+  const v = account.is_chatbot as unknown;
+  return v === true || v === 1 || v === "true" || v === "1";
+}
+
 export function getZaloCheckTaskStatus(
   result: Pick<ZaloAccountCheckResultResponse, "task_status" | "status">,
 ): string | undefined {

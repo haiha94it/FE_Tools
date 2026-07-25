@@ -30,6 +30,7 @@ import type {
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import ChatComposer from "./ChatComposer";
 import ChatFriendActions from "./ChatFriendActions";
+import ChatFriendChatbotToggle from "./ChatFriendChatbotToggle";
 import ChatHeaderMenu from "./ChatHeaderMenu";
 import ChatScrollToBottom from "./ChatScrollToBottom";
 import GroupMembersPanel from "./GroupMembersPanel";
@@ -344,11 +345,17 @@ function ChatPanel({
         ) : null}
 
         {!isGroup && accountId && conversation.friend ? (
-          <ChatFriendActions
-            accountId={accountId}
-            conversation={conversation}
-            onStatusChanged={onRefreshConversation}
-          />
+          <div className="flex shrink-0 items-center gap-1.5">
+            <ChatFriendChatbotToggle
+              accountId={accountId}
+              conversation={conversation}
+            />
+            <ChatFriendActions
+              accountId={accountId}
+              conversation={conversation}
+              onStatusChanged={onRefreshConversation}
+            />
+          </div>
         ) : null}
 
         {onPin && onSaveNote ? (
