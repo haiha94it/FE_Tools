@@ -3,21 +3,12 @@
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import { syncDataFbAccounts } from "@/lib/zalo-video/sync-data-fb";
 import { zaloAccountService } from "@/services/zalo-account.service";
-import { useWebSocketStore } from "@/stores/use-websocket-store";
 import { useEffect } from "react";
 import "./ZaloVideoContainer.css";
 import { ZaloVideoContainer } from "./ZaloVideoContainer";
 import VideoCreatorStyles from "./VideoCreatorStyles";
 
 export default function VideoCreatorShell() {
-  const connect = useWebSocketStore((s) => s.connect);
-  const disconnect = useWebSocketStore((s) => s.disconnect);
-
-  useEffect(() => {
-    connect();
-    return () => disconnect();
-  }, [connect, disconnect]);
-
   useEffect(() => {
     void zaloAccountService.list().then(syncDataFbAccounts).catch(() => {});
   }, []);

@@ -124,6 +124,18 @@ export const zaloAccountService = {
     );
   },
 
+  async patchChatbotDisabledFriends(
+    accountId: number | string,
+    action: "add" | "remove" | "disable_all" | "enable_all",
+    uids?: string[],
+  ): Promise<{ chatbot_disabled_friend_uids: string[] }> {
+    const response = await api.patch(
+      API_ZALO_ACCOUNT.CHATBOT_DISABLED_FRIENDS(accountId),
+      { action, chatbot_disabled_friend_uids: uids },
+    );
+    return unwrapApiBody<{ chatbot_disabled_friend_uids: string[] }>(response.data);
+  },
+
   async fetchFriends(
     params: {
       id_account: number | string;

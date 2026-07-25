@@ -103,6 +103,11 @@ interface ZaloAccountState {
   savingChatbotDisabledFriendsAccountIds: number[];
   fetchChatbotDisabledFriends: (accountId: number | string) => Promise<{ chatbot_disabled_friend_uids: string[]; friends: any[] } | null>;
   saveChatbotDisabledFriends: (accountId: number | string, disabledUids: string[]) => Promise<boolean>;
+  patchChatbotDisabledFriends: (
+    accountId: number | string,
+    action: "add" | "remove" | "disable_all" | "enable_all",
+    uids?: string[],
+  ) => Promise<string[] | null>;
 
   groupsByAccountId: Record<number, { results: ZaloAccountGroup[]; count: number; page: number }>;
   loadingGroupAccountIds: number[];
@@ -538,6 +543,37 @@ export const useZaloAccountStore = create<ZaloAccountState>((set, get) => ({
     } catch (err) {
       set({ error: getApiErrorMessage(err) });
       return false;
+    } finally {
+      set((state) => ({
+        savingChatbotDisabledFriendsAccountIds:
+          state.savingChatbotDisabledFriendsAccountIds.filter(
+            (id) => id !== Number(accountId),
+          ),
+      }));
+    }
+  },
+
+  patchChatbotDisabledFriends: async (accountId, action, uids) => {
+    set((state) => ({
+      savingChatbotDisabledFriendsAccountIds: [
+        ...state.savingChatbotDisabledFriendsAccountIds,
+        Number(accountId),
+      ],
+    }));
+    try {
+      const data = await zaloAccountService.patchChatbotDisabledFriends(accountId, action, uids);
+      const disabledUids = data.chatbot_disabled_friend_uids;
+      set((state) => ({
+        accounts: state.accounts.map((acc) =>
+          acc.id === Number(accountId)
+            ? { ...acc, chatbot_disabled_friend_uids: disabledUids }
+            : acc
+        ),
+      }));
+      return disabledUids;
+    } catch (err) {
+      set({ error: getApiErrorMessage(err) });
+      return null;
     } finally {
       set((state) => ({
         savingChatbotDisabledFriendsAccountIds:
