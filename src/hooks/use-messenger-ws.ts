@@ -53,16 +53,11 @@ function isWsActionMessage(
 }
 
 export function useMessengerWs() {
-  const connect = useWebSocketStore((s) => s.connect);
   const subscribe = useWebSocketStore((s) => s.subscribe);
   const pendingActivityRef = useRef<Map<number, PendingAccountActivity>>(
     new Map(),
   );
   const activityTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    connect();
-  }, [connect]);
 
   // Subscribe một lần — đọc state mới nhất qua getState(), tránh re-subscribe khi store đổi
   useEffect(() => {

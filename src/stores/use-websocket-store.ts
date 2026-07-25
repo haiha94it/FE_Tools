@@ -34,9 +34,13 @@ interface WebSocketState {
 }
 
 let socket: WebSocket | null = null;
+let socketGeneration = 0;
 let intentionalClose = false;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 const listeners = new Set<WsMessageListener>();
+const seenEventIds = new Set<string>();
+const seenEventOrder: string[] = [];
+const MAX_SEEN_EVENT_IDS = 500;
 
 function clearReconnectTimer() {
   if (!reconnectTimer) return;
@@ -63,19 +67,36 @@ function parseWsPayload(raw: string): WsMessagePayload | null {
   }
 }
 
+function isDuplicateEvent(payload: WsMessagePayload): boolean {
+  const eventId = typeof payload.event_id === "string" ? payload.event_id : null;
+  if (!eventId) return false;
+  if (seenEventIds.has(eventId)) return true;
+
+  seenEventIds.add(eventId);
+  seenEventOrder.push(eventId);
+  if (seenEventOrder.length > MAX_SEEN_EVENT_IDS) {
+    const oldest = seenEventOrder.shift();
+    if (oldest) seenEventIds.delete(oldest);
+  }
+  return false;
+}
+
 function getReconnectDelay(attempt: number): number {
-  return Math.min(BASE_RECONNECT_MS * 2 ** Math.min(attempt, 4), MAX_RECONNECT_MS);
+  const capped = Math.min(BASE_RECONNECT_MS * 2 ** Math.min(attempt, 4), MAX_RECONNECT_MS);
+  return Math.min(capped + Math.floor(Math.random() * 1000), MAX_RECONNECT_MS);
 }
 
 function shouldReconnect(closeCode: number): boolean {
   return RECOVERABLE_CLOSE_CODES.has(closeCode);
 }
 
+/** Đóng socket hiện tại trước khi đổi generation để callback cũ không mutate state. */
 function closeActiveSocket() {
   if (!socket) return;
 
   const active = socket;
   socket = null;
+  socketGeneration += 1;
 
   if (
     active.readyState === WebSocket.CONNECTING ||
@@ -95,6 +116,7 @@ async function retryAuthAndReconnect(
   if (!newAccess) return false;
 
   intentionalClose = false;
+  closeActiveSocket();
   set({ reconnectAttempts: 0, status: "reconnecting" });
   get().connect();
   return true;
@@ -130,19 +152,25 @@ function scheduleReconnect(
   }, delay);
 }
 
+/** Gắn callback có generation guard; socket cũ không được ghi đè socket mới. */
 function bindSocketHandlers(
   client: WebSocket,
+  generation: number,
   set: (patch: Partial<WebSocketState>) => void,
   get: () => WebSocketState,
 ) {
+  const isCurrent = () => socket === client && socketGeneration === generation;
+
   client.onopen = () => {
+    if (!isCurrent()) return;
     set({ status: "connected", reconnectAttempts: 0 });
     clearReconnectTimer();
   };
 
   client.onmessage = async (event) => {
+    if (!isCurrent()) return;
     const payload = parseWsPayload(String(event.data));
-    if (!payload) return;
+    if (!payload || isDuplicateEvent(payload)) return;
 
     set({ lastPayload: payload });
     notifyListeners(payload);
@@ -170,11 +198,12 @@ function bindSocketHandlers(
   };
 
   client.onerror = () => {
-    set({ status: "reconnecting" });
+    if (isCurrent()) set({ status: "reconnecting" });
   };
 
   client.onclose = async (event) => {
-    if (socket === client) socket = null;
+    if (!isCurrent()) return;
+    socket = null;
 
     if (intentionalClose) {
       set({ status: "disconnected", reconnectAttempts: 0 });
@@ -239,15 +268,18 @@ export const useWebSocketStore = create<WebSocketState>((set, get) => ({
     closeActiveSocket();
     set({ status: "connecting" });
 
+    const generation = ++socketGeneration;
     const client = new WebSocket(wsUrl);
     socket = client;
-    bindSocketHandlers(client, set, get);
+    bindSocketHandlers(client, generation, set, get);
   },
 
   disconnect: () => {
     intentionalClose = true;
     clearReconnectTimer();
     closeActiveSocket();
+    seenEventIds.clear();
+    seenEventOrder.length = 0;
     set({
       status: "disconnected",
       reconnectAttempts: 0,
