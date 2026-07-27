@@ -197,8 +197,9 @@ export const zaloAccountService = {
   async fetchGroupMembers(
     groupId: number | string,
   ): Promise<any> {
-    const response = await api.get(API_ZALO_GROUP.GET_MEMBER, {
-      params: { id_group: groupId },
+    const response = await api.post(API_ZALO_GROUP.GET_MEMBER_SHOW, {
+      id_group: groupId,
+      type: "basic",
     });
     return response.data;
   },

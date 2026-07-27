@@ -793,7 +793,7 @@ export const useZaloAccountStore = create<ZaloAccountState>((set, get) => ({
       set((state) => ({
         groupMembersByGroupId: {
           ...state.groupMembersByGroupId,
-          [groupId]: data.results ?? [],
+          [groupId]: data.data ?? [],
         },
         loadingGroupMemberIds: state.loadingGroupMemberIds.filter((id) => id !== groupId),
       }));

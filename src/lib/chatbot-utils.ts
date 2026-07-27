@@ -180,7 +180,7 @@ function categoryHasActionFlag(
     (item) =>
       item &&
       typeof item === "object" &&
-      (item as Record<string, unknown>)[flag] === true,
+      ((item as unknown) as Record<string, unknown>)[flag] === true,
   );
 }
 

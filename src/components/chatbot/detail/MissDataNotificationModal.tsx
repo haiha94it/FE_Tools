@@ -312,8 +312,9 @@ export default function MissDataNotificationModal({
                 // Members Filtering
                 const memSearch = memberSearchTexts[index] || "";
                 const filteredMembers = groupMembers.filter((m) =>
-                  m.friend.name?.toLowerCase().includes(memSearch.toLowerCase()) ||
-                  m.friend.uid.includes(memSearch)
+                  m.friend &&
+                  (m.friend.name?.toLowerCase().includes(memSearch.toLowerCase()) ||
+                   m.friend.uid?.includes(memSearch))
                 );
 
                 const activeAccount = accounts.find((acc) => acc.id === accountId);
@@ -352,7 +353,7 @@ export default function MissDataNotificationModal({
                           onClick={() => setActiveAccountDropdown(activeAccountDropdown === index ? null : index)}
                           className="flex h-10 w-full items-center justify-between rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-950 px-3 text-sm"
                         >
-                          <span className="truncate">
+                          <span className={`truncate ${activeAccount ? "text-gray-800 dark:text-gray-200" : "text-gray-400 dark:text-gray-500"}`}>
                             {activeAccount
                               ? `${activeAccount.name || "Nick Zalo"} (${activeAccount.phone_number || "Không có SĐT"})`
                               : "Chọn tài khoản Zalo"}
@@ -417,7 +418,7 @@ export default function MissDataNotificationModal({
                           onClick={() => setActiveGroupDropdown(activeGroupDropdown === index ? null : index)}
                           className="flex h-10 w-full items-center justify-between rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-950 px-3 text-sm disabled:bg-gray-50 dark:disabled:bg-white/5"
                         >
-                          <span className="truncate">
+                          <span className={`truncate ${action.target_uid ? "text-gray-800 dark:text-gray-200" : "text-gray-400 dark:text-gray-500"}`}>
                             {action.target_label || action.target_uid || "Chọn nhóm Zalo"}
                           </span>
                           <FiChevronDown className="text-gray-400 shrink-0" />
@@ -430,7 +431,7 @@ export default function MissDataNotificationModal({
                               placeholder="Tìm nhóm..."
                               value={grpSearch}
                               onChange={(e) => setGroupSearchTexts({ ...groupSearchTexts, [index]: e.target.value })}
-                              className="w-full px-2.5 py-1.5 text-xs border border-gray-200 dark:border-gray-800 rounded-md outline-hidden bg-gray-50 dark:bg-gray-950"
+                              className="w-full px-2.5 py-1.5 text-xs border border-gray-200 dark:border-gray-800 rounded-md outline-hidden bg-gray-50 dark:bg-gray-950 text-gray-800 dark:text-gray-200"
                             />
                             <div className="max-h-40 overflow-y-auto flex flex-col">
                               {filteredGroups.map((grp) => (
@@ -489,7 +490,7 @@ export default function MissDataNotificationModal({
                               className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition ${
                                 active
                                   ? "border-brand-500 bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-400"
-                                  : "border-gray-200 hover:bg-gray-50 text-gray-600 dark:border-gray-800 dark:text-gray-400"
+                                  : "border-gray-200 hover:bg-gray-50 text-gray-600 dark:border-gray-800 dark:text-gray-300 dark:hover:bg-white/5"
                               }`}
                             >
                               {opt.label}
@@ -524,7 +525,7 @@ export default function MissDataNotificationModal({
                               onClick={() => setActiveMemberDropdown(activeMemberDropdown === index ? null : index)}
                               className="flex h-9 w-full items-center justify-between rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-950 px-2.5 text-xs"
                             >
-                              <span className="truncate">
+                              <span className={`truncate ${action.mention?.uids && action.mention.uids.length > 0 ? "text-gray-800 dark:text-gray-200" : "text-gray-400 dark:text-gray-500"}`}>
                                 {action.mention?.uids && action.mention.uids.length > 0
                                   ? `Đã chọn ${action.mention.uids.length} thành viên`
                                   : "Chọn thành viên nhóm"}
@@ -539,12 +540,12 @@ export default function MissDataNotificationModal({
                                   placeholder="Tìm thành viên..."
                                   value={memSearch}
                                   onChange={(e) => setMemberSearchTexts({ ...memberSearchTexts, [index]: e.target.value })}
-                                  className="w-full px-2 py-1.5 text-xs border border-gray-200 dark:border-gray-800 rounded-md outline-hidden bg-gray-50 dark:bg-gray-950"
+                                  className="w-full px-2 py-1.5 text-xs border border-gray-200 dark:border-gray-800 rounded-md outline-hidden bg-gray-50 dark:bg-gray-950 text-gray-800 dark:text-gray-200"
                                 />
                                 <div className="max-h-32 overflow-y-auto flex flex-col">
                                   {filteredMembers.map((mem) => {
                                     const uids = action.mention?.uids ?? [];
-                                    const isChecked = uids.includes(mem.friend.uid);
+                                    const isChecked = mem.friend?.uid ? uids.includes(mem.friend.uid) : false;
                                     return (
                                       <label
                                         key={mem.id}
@@ -553,16 +554,19 @@ export default function MissDataNotificationModal({
                                         <input
                                           type="checkbox"
                                           checked={isChecked}
+                                          disabled={!mem.friend?.uid}
                                           onChange={() => {
+                                            if (!mem.friend?.uid) return;
+                                            const uid = mem.friend.uid;
                                             const nextUids = isChecked
-                                              ? uids.filter((id) => id !== mem.friend.uid)
-                                              : [...uids, mem.friend.uid];
+                                              ? uids.filter((id) => id !== uid)
+                                              : [...uids, uid];
                                             updateAction(index, { mention: { uids: nextUids } });
                                           }}
                                           className="rounded border-gray-300 text-brand-500 focus:ring-brand-500"
                                         />
                                         <span className="truncate font-semibold text-gray-800 dark:text-white">
-                                          {mem.friend.name || mem.friend.uid}
+                                          {mem.friend?.name || mem.friend?.uid || "Thành viên ẩn"}
                                         </span>
                                       </label>
                                     );
@@ -581,13 +585,13 @@ export default function MissDataNotificationModal({
                           {action.mention?.uids && action.mention.uids.length > 0 && (
                             <div className="flex flex-wrap gap-1.5 mt-2">
                               {action.mention.uids.map((uid) => {
-                                const matchedMember = groupMembers.find((m) => m.friend.uid === uid);
+                                const matchedMember = groupMembers.find((m) => m.friend?.uid === uid);
                                 return (
                                   <span
                                     key={uid}
                                     className="inline-flex items-center gap-1 rounded-md bg-amber-50 dark:bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold text-amber-700 dark:text-amber-400"
                                   >
-                                    {matchedMember?.friend.name || uid}
+                                    {matchedMember?.friend?.name || uid}
                                     <FiX
                                       className="cursor-pointer hover:text-amber-900"
                                       onClick={() => {
