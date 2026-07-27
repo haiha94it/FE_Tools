@@ -7,10 +7,10 @@ import { Suspense } from "react";
 export const metadata: Metadata = createPublicMetadata({
   title: "Đăng ký",
   description:
-    "Đăng ký tài khoản CAREVIPPRO miễn phí — bắt đầu quản lý Zalo, chat khách hàng và chạy chiến dịch marketing ngay hôm nay.",
+    "Đăng ký tài khoản CSKH miễn phí — bắt đầu quản lý Zalo, chat khách hàng và chạy chiến dịch marketing ngay hôm nay.",
   path: "/signup",
   keywords: [
-    "đăng ký CAREVIPPRO",
+    "đăng ký CSKH",
     "tạo tài khoản Zalo",
     "dùng thử Zalo marketing",
     "phần mềm Zalo miễn phí",

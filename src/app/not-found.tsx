@@ -6,7 +6,7 @@ import Link from "next/link";
 
 export const metadata: Metadata = createPublicMetadata({
   title: "Không tìm thấy trang",
-  description: "Trang bạn tìm kiếm không tồn tại trên CAREVIPPRO.",
+  description: "Trang bạn tìm kiếm không tồn tại trên CSKH.",
   robots: NOINDEX_ROBOTS,
   skipCanonical: true,
 });
@@ -47,7 +47,7 @@ export default function NotFound() {
         </Link>
       </div>
       <p className="absolute bottom-6 left-1/2 -translate-x-1/2 text-center text-sm text-gray-500 dark:text-gray-400">
-        &copy; {new Date().getFullYear()} — CAREVIPPRO
+        &copy; {new Date().getFullYear()} — CSKH
       </p>
     </div>
   );

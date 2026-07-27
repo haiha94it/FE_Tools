@@ -16,7 +16,7 @@ export const metadata: Metadata = createPublicMetadata({
     "phần mềm Zalo",
     "Zalo marketing",
     "chat Zalo doanh nghiệp",
-    "CAREVIPPRO",
+    "CSKH",
     "bán hàng Zalo",
   ],
 });

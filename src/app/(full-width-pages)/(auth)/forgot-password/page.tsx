@@ -5,7 +5,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = createPublicMetadata({
   title: "Quên mật khẩu",
-  description: "Khôi phục mật khẩu tài khoản CAREVIPPRO của bạn.",
+  description: "Khôi phục mật khẩu tài khoản CSKH của bạn.",
   path: "/forgot-password",
   robots: NOINDEX_ROBOTS,
 });

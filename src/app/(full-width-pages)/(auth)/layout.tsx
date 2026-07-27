@@ -38,7 +38,7 @@ export default function AuthLayout({
                   />
                 </Link>
                 <p className="text-center text-gray-400 dark:text-white/60">
-                  CAREVIPPRO — Marketing & bán hàng tự động
+                  CSKH — Marketing & bán hàng tự động
                 </p>
               </div>
             </div>

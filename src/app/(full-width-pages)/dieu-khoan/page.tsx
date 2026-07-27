@@ -5,10 +5,10 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = createPublicMetadata({
   title: "Điều khoản sử dụng",
-  description: `Điều khoản sử dụng dịch vụ CAREVIPPRO — ${LEGAL_BRAND_NAME}. Quy định về tài khoản, quyền và trách nhiệm khi sử dụng nền tảng quản trị Zalo.`,
+  description: `Điều khoản sử dụng dịch vụ CSKH — ${LEGAL_BRAND_NAME}. Quy định về tài khoản, quyền và trách nhiệm khi sử dụng nền tảng quản trị Zalo.`,
   path: "/dieu-khoan",
   ogType: "article",
-  keywords: ["điều khoản CAREVIPPRO", "điều khoản sử dụng", "chính sách dịch vụ Zalo"],
+  keywords: ["điều khoản CSKH", "điều khoản sử dụng", "chính sách dịch vụ Zalo"],
 });
 
 export default function TermsPage() {
