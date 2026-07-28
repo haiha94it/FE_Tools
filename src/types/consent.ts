@@ -176,6 +176,7 @@ export interface ConsentUserContract {
   user: ConsentContractUser;
   status?: ConsentAgreementStatus;
   signed?: boolean;
+  full_name?: string;
   signed_at?: string | null;
   submitted_at?: string | null;
   reviewed_at?: string | null;
@@ -193,6 +194,8 @@ export interface ConsentUserContract {
   company_phone?: string;
   company_email?: string;
   signature_url?: string | null;
+  /** data:image/...;base64 — ưu tiên hiển thị khi /media/ 502 */
+  signature_data_url?: string | null;
   ip?: string | null;
   user_agent?: string;
   stroke_count?: number;

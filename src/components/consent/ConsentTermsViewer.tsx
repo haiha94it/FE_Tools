@@ -6,7 +6,7 @@ import {
   sanitizeConsentHtml,
 } from "@/lib/consent-utils";
 import type { ConsentDisplayMode } from "@/types/consent";
-import { memo } from "react";
+import { memo, useEffect, useState } from "react";
 import { useMediaQuery } from "@/hooks/use-media-query";
 
 interface ConsentTermsViewerProps {
@@ -50,6 +50,7 @@ function ConsentTermsViewer({
   className = "",
 }: ConsentTermsViewerProps) {
   const isMobile = useMediaQuery("(max-width: 768px)");
+  const [sigBFailed, setSigBFailed] = useState(false);
   const mode = resolveConsentDisplayMode({
     display_mode: displayMode,
     has_body_html: hasBodyHtml,
@@ -64,6 +65,11 @@ function ConsentTermsViewer({
   const sigA = resolveConsentMediaUrl(companySignatureUrl);
   const sigB = resolveConsentMediaUrl(userSignatureUrl);
   const safeHtml = sanitizeConsentHtml(bodyHtml);
+
+  // Đổi URL (vd. media 502 → data_url) phải reset lỗi load
+  useEffect(() => {
+    setSigBFailed(false);
+  }, [sigB]);
 
   return (
     <div className={`space-y-5 ${className}`.trim()}>
@@ -149,7 +155,7 @@ function ConsentTermsViewer({
               onChange={(e) => onChange?.(e.target.checked)}
               className="mt-0.5 size-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500 cursor-pointer"
             />
-            <span>Tôi đã đọc, hiểu rõ và đồng ý với toàn bộ nội dung Thỏa thuận này.</span>
+            <span>Tôi đã đọc, hiểu rõ và đồng ý với toàn bộ nội dung Thỏa thuận trong hợp đồng này.</span>
           </label>
         ) : (
           <p className="mt-1.5 text-sm font-normal text-gray-900 dark:text-white flex items-start gap-2.5">
@@ -160,7 +166,7 @@ function ConsentTermsViewer({
             ) : (
               <span className="inline-flex size-4 shrink-0 rounded border border-gray-300 bg-white dark:border-gray-600 dark:bg-gray-800" />
             )}
-            <span>Tôi đã đọc, hiểu rõ và đồng ý với toàn bộ nội dung Thỏa thuận này.</span>
+            <span>Tôi đã đọc, hiểu rõ và đồng ý với toàn bộ nội dung Thỏa thuận trong hợp đồng này.</span>
           </p>
         )}
       </div>
@@ -184,14 +190,20 @@ function ConsentTermsViewer({
             </p>
           </div>
           <div className="flex-1 flex flex-col justify-end items-center">
-            <div className="py-2 flex items-center justify-center w-full">
-              {sigB ? (
+            <div className="py-2 flex min-h-16 w-full items-center justify-center">
+              {sigB && !sigBFailed ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
+                  key={sigB}
                   src={sigB}
                   alt="Chữ ký bên B"
-                  className="h-16 w-auto max-w-full object-contain mx-auto"
+                  className="mx-auto h-16 w-auto max-w-full bg-white object-contain"
+                  onError={() => setSigBFailed(true)}
                 />
+              ) : sigB && sigBFailed ? (
+                <p className="text-xs text-error-600 dark:text-error-400">
+                  Không tải được ảnh chữ ký
+                </p>
               ) : (
                 <div className="h-16 w-full" />
               )}
