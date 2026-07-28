@@ -78,7 +78,6 @@ function ConsentRichTextEditor({
 
       const QuillModule = await import("quill");
       const Quill = QuillModule.default;
-      // @ts-expect-error CSS side-effect import
       await import("quill/dist/quill.snow.css");
 
       if (cancelled || !containerRef.current) return;
