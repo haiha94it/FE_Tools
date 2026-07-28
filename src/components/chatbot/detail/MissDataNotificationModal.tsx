@@ -96,8 +96,20 @@ export default function MissDataNotificationModal({
   useEffect(() => {
     if (isOpen) {
       if (accounts.length === 0) void fetchAccounts();
-      
-      const configActions = chatbot?.miss_data_notification_actions ?? [];
+
+      const configActions = (chatbot?.miss_data_notification_actions ?? []).map((action) => {
+        const rawId = action.account_id as number | string | null | undefined;
+        const accountId =
+          rawId == null || rawId === ""
+            ? null
+            : Number(rawId);
+        return {
+          ...action,
+          account_id: accountId != null && Number.isFinite(accountId) ? accountId : null,
+          target_type: (action.target_type || "group") as CategoryNotificationAction["target_type"],
+          message: action.message ?? "",
+        };
+      });
       setActions(configActions.length > 0 ? configActions : [createMissDataNotificationAction()]);
       setIsEnabled(configActions.length > 0);
     }
@@ -135,8 +147,8 @@ export default function MissDataNotificationModal({
   useEffect(() => {
     if (!isOpen) return;
     actions.forEach((action) => {
-      if (action.account_id && !groupsByAccountId[Number(action.account_id)]) {
-        void fetchGroupsByAccount(Number(action.account_id), 1);
+      if (action.account_id != null && !groupsByAccountId[action.account_id]) {
+        void fetchGroupsByAccount(action.account_id, 1);
       }
     });
   }, [isOpen, actions, groupsByAccountId, fetchGroupsByAccount]);
@@ -145,9 +157,8 @@ export default function MissDataNotificationModal({
   useEffect(() => {
     if (!isOpen) return;
     actions.forEach((action) => {
-      if (action.account_id && action.target_uid) {
-        const accountId = Number(action.account_id);
-        const groups = groupsByAccountId[accountId]?.results ?? [];
+      if (action.account_id != null && action.target_uid) {
+        const groups = groupsByAccountId[action.account_id]?.results ?? [];
         const matched = groups.find((g) => g.uid === action.target_uid);
         if (matched && !groupMembersByGroupId[matched.id]) {
           void fetchGroupMembers(matched.id);
@@ -196,7 +207,13 @@ export default function MissDataNotificationModal({
 
   const handleSave = async () => {
     const payloadActions = isEnabled
-      ? actions.filter((act) => act.account_id && act.target_uid)
+      ? actions
+          .filter((act) => act.account_id != null && act.target_uid)
+          .map((act) => ({
+            ...act,
+            account_id: Number(act.account_id),
+            target_type: "group" as const,
+          }))
       : [];
 
     const success = await updateChatbot(chatbot.id, {
@@ -289,8 +306,8 @@ export default function MissDataNotificationModal({
           {isEnabled && (
             <div className="space-y-4">
               {actions.map((action, index) => {
-                const accountId = action.account_id ? Number(action.account_id) : null;
-                const groupsRes = accountId ? groupsByAccountId[accountId] : null;
+                const accountId = action.account_id != null ? action.account_id : null;
+                const groupsRes = accountId != null ? groupsByAccountId[accountId] : null;
                 const groups = groupsRes?.results ?? [];
                 const loadingGroups = accountId ? loadingGroupAccountIds.includes(accountId) : false;
                 const scanningGroups = accountId ? Boolean(groupScanTaskIdsByAccountId[accountId]) : false;

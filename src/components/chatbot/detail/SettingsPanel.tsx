@@ -6,6 +6,10 @@ import Switch from "@/components/form/switch/Switch";
 import Badge from "@/components/ui/badge/Badge";
 import Button from "@/components/ui/button/Button";
 import { getChatbotAccountKeys } from "@/lib/chatbot-utils";
+import {
+  isZaloChatbotEnabled,
+  isZaloChatbotReactionEnabled,
+} from "@/lib/zalo-account-utils";
 import { useChatbotStore } from "@/stores/use-chatbot-store";
 import { useZaloAccountStore } from "@/stores/use-zalo-account-store";
 import type { ChatbotInstance } from "@/types/chatbot";
@@ -39,13 +43,19 @@ export default function SettingsPanel({ chatbot }: SettingsPanelProps) {
   const toggleAccountMessageListener = useZaloAccountStore(
     (s) => s.toggleAccountMessageListener,
   );
+  const toggleAccountChatbotReaction = useZaloAccountStore(
+    (s) => s.toggleAccountChatbotReaction,
+  );
   const loadingToggleMessageId = useZaloAccountStore(
     (s) => s.loadingToggleMessageId,
+  );
+  const loadingToggleChatbotReactionId = useZaloAccountStore(
+    (s) => s.loadingToggleChatbotReactionId,
   );
 
   const [name, setName] = useState(chatbot.name);
   const [isActive, setIsActive] = useState(chatbot.is_active);
-  const [selectedKeys, setSelectedKeys] = useState<string[]>(
+  const [selectedKeys, setSelectedKeys] = useState<number[]>(
     getChatbotAccountKeys(chatbot),
   );
 
@@ -61,11 +71,11 @@ export default function SettingsPanel({ chatbot }: SettingsPanelProps) {
 
   /** Map accountId -> chatbot name đã gán (khác kịch bản hiện tại) */
   const assignedElsewhere = useMemo(() => {
-    const map = new Map<string, string>();
+    const map = new Map<number, string>();
     for (const item of chatbots) {
       if (item.id === chatbot.id) continue;
       for (const key of getChatbotAccountKeys(item)) {
-        map.set(String(key), item.name);
+        map.set(key, item.name);
       }
     }
     return map;
@@ -83,8 +93,7 @@ export default function SettingsPanel({ chatbot }: SettingsPanelProps) {
   };
 
   const toggleAccount = (id: number) => {
-    const key = String(id);
-    setSelectedKeys((prev) => (prev.includes(key) ? [] : [key]));
+    setSelectedKeys((prev) => (prev.includes(id) ? [] : [id]));
   };
 
   return (
@@ -144,9 +153,8 @@ export default function SettingsPanel({ chatbot }: SettingsPanelProps) {
         ) : (
           <ul className="mt-4 max-h-80 space-y-2 overflow-y-auto">
             {accounts.map((account) => {
-              const key = String(account.id);
-              const checked = selectedKeys.includes(key);
-              const elsewhere = assignedElsewhere.get(key);
+              const checked = selectedKeys.includes(account.id);
+              const elsewhere = assignedElsewhere.get(account.id);
               const blocked = Boolean(elsewhere) && !checked;
 
               return (
@@ -191,18 +199,35 @@ export default function SettingsPanel({ chatbot }: SettingsPanelProps) {
                       {checked && (
                         <div
                           onClick={(e) => e.stopPropagation()}
-                          className="mt-2 flex items-center gap-2 rounded-lg bg-gray-50 dark:bg-white/[0.03] px-2.5 py-1 w-fit border border-gray-100 dark:border-gray-800"
+                          className="mt-2 flex flex-col gap-2"
                         >
-                          <span className="text-[10px] font-bold text-gray-500 dark:text-gray-400">
-                            Hoạt động Chatbot:
-                          </span>
-                          <Switch
-                            checked={!account.disable_message}
-                            disabled={loadingToggleMessageId === account.id}
-                            onChange={(checkedVal) => {
-                              void toggleAccountMessageListener(account.id, checkedVal);
-                            }}
-                          />
+                          <div className="flex items-center gap-2 rounded-lg bg-gray-50 dark:bg-white/[0.03] px-2.5 py-1 w-fit border border-gray-100 dark:border-gray-800">
+                            <span className="text-[10px] font-bold text-gray-500 dark:text-gray-400">
+                              Hoạt động Chatbot:
+                            </span>
+                            <Switch
+                              checked={!account.disable_message}
+                              disabled={loadingToggleMessageId === account.id}
+                              onChange={(checkedVal) => {
+                                void toggleAccountMessageListener(account.id, checkedVal);
+                              }}
+                            />
+                          </div>
+                          <div className="flex items-center gap-2 rounded-lg bg-gray-50 dark:bg-white/[0.03] px-2.5 py-1 w-fit border border-gray-100 dark:border-gray-800">
+                            <span className="text-[10px] font-bold text-gray-500 dark:text-gray-400">
+                              Thả tim:
+                            </span>
+                            <Switch
+                              checked={isZaloChatbotReactionEnabled(account)}
+                              disabled={
+                                !isZaloChatbotEnabled(account) ||
+                                loadingToggleChatbotReactionId === account.id
+                              }
+                              onChange={(checkedVal) => {
+                                void toggleAccountChatbotReaction(account.id, checkedVal);
+                              }}
+                            />
+                          </div>
                         </div>
                       )}
                     </div>

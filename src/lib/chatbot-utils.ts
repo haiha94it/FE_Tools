@@ -117,17 +117,15 @@ export function getChatbotTrainingCount(
 
 export function getChatbotAccountKeys(
   chatbot: ChatbotInstance | null | undefined,
-): string[] {
+): number[] {
   if (!chatbot) return [];
-  const keys = chatbot.zalo_account_keys ?? chatbot.zalo_accounts ?? [];
-  const result = keys
-    .map((item: any) => {
-      if (item && typeof item === "object") {
-        return String(item.id ?? item.key ?? "");
-      }
-      return String(item);
-    })
-    .filter(Boolean);
+  const keys = chatbot.zalo_account_keys ?? [];
+  const result: number[] = [];
+  for (const item of keys) {
+    const id = typeof item === "number" ? item : Number(item);
+    if (Number.isFinite(id) && id > 0) result.push(id);
+  }
+  // Mỗi kịch bản tối đa 1 tài khoản Zalo
   return result.slice(0, 1);
 }
 
@@ -140,7 +138,7 @@ export function resolveTrainingImageMediaId(image: TrainingImage): number {
   return image.id;
 }
 
-/** Chuẩn hóa mode gửi ảnh training — BE MANAGE dùng all | random_one */
+/** Chuẩn hóa mode gửi ảnh training cho UI — `random` (BE) và `random_one` (legacy UI) → random_one */
 export function resolveTrainingImageSendMode(
   value?: string | null,
 ): TrainingImageSendMode {
@@ -148,12 +146,11 @@ export function resolveTrainingImageSendMode(
   return "all";
 }
 
+/** Payload API ChotCare: model chỉ nhận `all` | `random` */
 export function toApiTrainingImageSendMode(
   value?: TrainingImageSendMode | string | null,
-): "all" | "random_one" {
-  return resolveTrainingImageSendMode(value) === "random_one"
-    ? "random_one"
-    : "all";
+): "all" | "random" {
+  return resolveTrainingImageSendMode(value) === "random_one" ? "random" : "all";
 }
 
 export function formatTimeForInput(time?: string | null): string {

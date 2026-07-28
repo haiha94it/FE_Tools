@@ -14,6 +14,7 @@ interface Message {
   timestamp: string;
   matchedQuestion?: string | null;
   trainingDataId?: number | null;
+  imageUrls?: string[];
 }
 
 interface ChatTestBotProps {
@@ -80,11 +81,18 @@ export default function ChatTestBot({ chatbotId }: ChatTestBotProps) {
     try {
       const result = await chatbotService.testMessage(chatbotId, text);
       const answer = Array.isArray(result.answer)
-        ? result.answer.join("\n")
+        ? result.answer.filter(Boolean).join("\n")
         : result.answer;
-      
-      const botResponseText = answer || "Không tìm thấy câu trả lời phù hợp trong kịch bản huấn luyện!";
-      
+      const imageUrls = Array.isArray(result.image_urls)
+        ? result.image_urls.filter(Boolean)
+        : [];
+
+      const botResponseText =
+        answer ||
+        (imageUrls.length
+          ? ""
+          : "Không tìm thấy câu trả lời phù hợp trong kịch bản huấn luyện!");
+
       const botMsg: Message = {
         id: `bot-${Date.now()}`,
         text: botResponseText,
@@ -95,6 +103,7 @@ export default function ChatTestBot({ chatbotId }: ChatTestBotProps) {
         }),
         matchedQuestion: result.llm_suggestion || null,
         trainingDataId: result.training_data_id || null,
+        imageUrls,
       };
 
       setMessages((prev) => [...prev, botMsg]);
@@ -190,16 +199,42 @@ export default function ChatTestBot({ chatbotId }: ChatTestBotProps) {
                 </div>
               )}
               <div className="max-w-[75%] min-w-0">
-                <div
-                  className={`rounded-2xl px-4 py-2.5 text-sm ${
-                    isBot
-                      ? "bg-white text-gray-800 border border-gray-200 dark:bg-gray-800 dark:text-gray-200 dark:border-gray-700 rounded-tl-none"
-                      : "bg-brand-500 text-white rounded-tr-none"
-                  }`}
-                  style={{ whiteSpace: "pre-line" }}
-                >
-                  {msg.text}
-                </div>
+                {msg.text ? (
+                  <div
+                    className={`rounded-2xl px-4 py-2.5 text-sm ${
+                      isBot
+                        ? "bg-white text-gray-800 border border-gray-200 dark:bg-gray-800 dark:text-gray-200 dark:border-gray-700 rounded-tl-none"
+                        : "bg-brand-500 text-white rounded-tr-none"
+                    }`}
+                    style={{ whiteSpace: "pre-line" }}
+                  >
+                    {msg.text}
+                  </div>
+                ) : null}
+                {isBot && msg.imageUrls && msg.imageUrls.length > 0 ? (
+                  <div
+                    className={`mt-1.5 flex flex-col gap-1.5 ${
+                      msg.text ? "" : ""
+                    }`}
+                  >
+                    {msg.imageUrls.map((url) => (
+                      <a
+                        key={url}
+                        href={url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="block overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800"
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={url}
+                          alt="Ảnh trả lời bot"
+                          className="max-h-48 w-full object-contain bg-gray-50 dark:bg-gray-900"
+                        />
+                      </a>
+                    ))}
+                  </div>
+                ) : null}
                 <div
                   className={`mt-1 flex items-center gap-2 text-[10px] text-gray-400 ${
                     isBot ? "justify-start" : "justify-end"
