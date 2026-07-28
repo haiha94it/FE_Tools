@@ -43,7 +43,7 @@ interface ChatbotState {
   ) => Promise<boolean>;
   deleteChatbot: (id: number) => Promise<boolean>;
   copyChatbot: () => Promise<number | null>;
-  assignAccounts: (id: number, accountKeys: string[]) => Promise<boolean>;
+  assignAccounts: (id: number, accountKeys: number[]) => Promise<boolean>;
   toggleActive: (id: number, isActive: boolean) => Promise<boolean>;
 
   setDetailTab: (tab: ChatbotDetailTab) => void;

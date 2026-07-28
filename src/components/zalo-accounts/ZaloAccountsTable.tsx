@@ -19,12 +19,14 @@ interface ZaloAccountsTableProps {
   checkingIds: number[];
   loadingToggleMessageId: number | null;
   loadingToggleChatbotId: number | null;
+  loadingToggleChatbotReactionId: number | null;
   showSensitiveInfo: boolean;
   isLoading: boolean;
   onToggleAll: () => void;
   onToggleOne: (id: number) => void;
   onToggleMessage: (accountId: number, checked: boolean) => void;
   onToggleChatbot: (accountId: number, checked: boolean) => void;
+  onToggleChatbotReaction: (accountId: number, checked: boolean) => void;
   onEdit: (account: ZaloAccount) => void;
   onRelogin: (account: ZaloAccount) => void;
   onDelete: (account: ZaloAccount) => void;
@@ -40,12 +42,14 @@ function ZaloAccountsTable({
   checkingIds,
   loadingToggleMessageId,
   loadingToggleChatbotId,
+  loadingToggleChatbotReactionId,
   showSensitiveInfo,
   isLoading,
   onToggleAll,
   onToggleOne,
   onToggleMessage,
   onToggleChatbot,
+  onToggleChatbotReaction,
   onEdit,
   onRelogin,
   onDelete,
@@ -70,6 +74,13 @@ function ZaloAccountsTable({
     [onToggleChatbot],
   );
 
+  const handleToggleChatbotReaction = useCallback(
+    (accountId: number, checked: boolean) => {
+      onToggleChatbotReaction(accountId, checked);
+    },
+    [onToggleChatbotReaction],
+  );
+
   if (isLoading) {
     return (
       <p className="py-10 text-center text-sm text-gray-500 dark:text-gray-400">
@@ -91,7 +102,7 @@ function ZaloAccountsTable({
   return (
     <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03]">
       <div className="max-w-full overflow-x-auto">
-        <div className="min-w-[1100px]">
+        <div className="min-w-[1200px]">
           <Table>
             <TableHeader className="border-b border-gray-100 dark:border-white/[0.05]">
               <TableRow>
@@ -125,6 +136,9 @@ function ZaloAccountsTable({
                 <TableCell isHeader className={headerClass}>
                   Chatbot
                 </TableCell>
+                <TableCell isHeader className={headerClass}>
+                  Thả tim
+                </TableCell>
                 <TableCell isHeader className={`${headerClass} text-end`}>
                   Tuỳ chọn
                 </TableCell>
@@ -142,10 +156,14 @@ function ZaloAccountsTable({
                   isChecking={checkingIdSet.has(account.id)}
                   isMessageLoading={loadingToggleMessageId === account.id}
                   isChatbotLoading={loadingToggleChatbotId === account.id}
+                  isChatbotReactionLoading={
+                    loadingToggleChatbotReactionId === account.id
+                  }
                   showSensitiveInfo={showSensitiveInfo}
                   onToggleSelect={onToggleOne}
                   onToggleMessage={handleToggleMessage}
                   onToggleChatbot={handleToggleChatbot}
+                  onToggleChatbotReaction={handleToggleChatbotReaction}
                   onEdit={onEdit}
                   onRelogin={onRelogin}
                   onDelete={onDelete}

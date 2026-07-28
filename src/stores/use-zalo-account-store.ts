@@ -4,6 +4,7 @@ import {
   filterZaloAccounts,
   formatMessageListenerError,
   getZaloCheckTaskStatus,
+  isZaloChatbotEnabled,
   isZaloCheckTaskPending,
   resolveProxyString,
 } from "@/lib/zalo-account-utils";
@@ -61,6 +62,7 @@ interface ZaloAccountState {
   loadingToggleAllMessage: boolean;
   loadingToggleMessageId: number | null;
   loadingToggleChatbotId: number | null;
+  loadingToggleChatbotReactionId: number | null;
 
   deleteConfirm: { ids: number[] } | null;
 
@@ -77,6 +79,10 @@ interface ZaloAccountState {
     checked: boolean,
   ) => Promise<void>;
   toggleAccountChatbot: (
+    accountId: number,
+    checked: boolean,
+  ) => Promise<void>;
+  toggleAccountChatbotReaction: (
     accountId: number,
     checked: boolean,
   ) => Promise<void>;
@@ -167,6 +173,7 @@ export const useZaloAccountStore = create<ZaloAccountState>((set, get) => ({
   loadingToggleAllMessage: false,
   loadingToggleMessageId: null,
   loadingToggleChatbotId: null,
+  loadingToggleChatbotReactionId: null,
 
   deleteConfirm: null,
 
@@ -443,6 +450,67 @@ export const useZaloAccountStore = create<ZaloAccountState>((set, get) => ({
       toast.error(getApiErrorMessage(error));
     } finally {
       set({ loadingToggleChatbotId: null });
+    }
+  },
+
+  toggleAccountChatbotReaction: async (accountId, checked) => {
+    if (!canCurrentUserManageNick()) {
+      toast.error("Chỉ manager mới bật/tắt thả tim chatbot.");
+      return;
+    }
+    const prev = get().accounts.find((a) => a.id === accountId);
+    if (!prev) return;
+
+    set({
+      loadingToggleChatbotReactionId: accountId,
+      error: null,
+      accounts: get().accounts.map((account) =>
+        account.id === accountId
+          ? { ...account, is_chatbot_reaction_enabled: checked }
+          : account,
+      ),
+    });
+
+    try {
+      // BE bắt buộc is_chatbot trong payload — gửi kèm trạng thái hiện tại
+      const updated = await zaloAccountService.toggleChatbot({
+        id_account: accountId,
+        is_chatbot: isZaloChatbotEnabled(prev),
+        is_chatbot_reaction_enabled: checked,
+      });
+      set((state) => ({
+        accounts: state.accounts.map((account) => {
+          if (account.id !== accountId) return account;
+          return {
+            ...account,
+            is_chatbot_reaction_enabled:
+              typeof updated?.is_chatbot_reaction_enabled === "boolean"
+                ? updated.is_chatbot_reaction_enabled
+                : checked,
+            is_chatbot:
+              typeof updated?.is_chatbot === "boolean"
+                ? updated.is_chatbot
+                : account.is_chatbot,
+          };
+        }),
+      }));
+      toast.success(
+        checked ? "Đã bật thả tim khi bot trả lời." : "Đã tắt thả tim chatbot.",
+      );
+    } catch (error) {
+      set((state) => ({
+        accounts: state.accounts.map((account) =>
+          account.id === accountId
+            ? {
+                ...account,
+                is_chatbot_reaction_enabled: prev.is_chatbot_reaction_enabled,
+              }
+            : account,
+        ),
+      }));
+      toast.error(getApiErrorMessage(error));
+    } finally {
+      set({ loadingToggleChatbotReactionId: null });
     }
   },
 

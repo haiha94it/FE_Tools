@@ -196,6 +196,7 @@ function UserConsentDetailDrawer({
   const hasRecord =
     status !== "none" ||
     Boolean(contract?.signature_url) ||
+    Boolean(contract?.signature_data_url) ||
     Boolean(contract?.signer_full_name);
   const canShowDetail = hasRecord && Boolean(contract);
   const originPdfUrl = resolveConsentMediaUrl(
@@ -350,8 +351,15 @@ function UserConsentDetailDrawer({
                   companyTaxCode={contract?.company_tax_code}
                   companyAddress={contract?.company_address}
                   companySignatureUrl={contract?.company_signature_url}
-                  userSignatureUrl={contract?.signature_url}
-                  userName={contract?.signer_full_name}
+                  userSignatureUrl={
+                    contract?.signature_data_url || contract?.signature_url
+                  }
+                  userName={
+                    contract?.signer_full_name ||
+                    contract?.full_name ||
+                    contract?.user?.fullname ||
+                    undefined
+                  }
                 />
               </div>
             )}

@@ -4,7 +4,7 @@ export type TrainingImageSendMode = "all" | "random_one" | "random";
 export type ReminderImageSendMode = "ALL" | "RANDOM";
 
 export interface CategoryNotificationAction {
-  account_id: number | string | null;
+  account_id: number | null;
   target_type: "group" | "uid" | "friend";
   target_id?: string;
   target_uid?: string;
@@ -65,11 +65,12 @@ export interface ChatbotInstance {
   is_active: boolean;
   created_at?: string;
   updated_at?: string;
-  zalo_accounts?: string[];
-  zalo_account_keys?: string[];
+  /** PK ZaloAccount đã gán — int[] từ BE */
+  zalo_account_keys?: number[];
   categories?: ChatbotCategory[];
   training_data?: Array<{ id: number } | TrainingDataItem>;
   special_case_configs?: SpecialCaseConfig[];
+  /** Map từ ChatbotMissDataNotificationConfig */
   miss_data_notification_actions?: CategoryNotificationAction[];
 }
 
@@ -102,7 +103,7 @@ export interface UpdateChatbotPayload {
 }
 
 export interface AssignChatbotAccountsPayload {
-  zalo_account_keys: string[];
+  zalo_account_keys: number[];
 }
 
 export interface CreateTrainingDataPayload {
@@ -273,9 +274,10 @@ export const TRAINING_ANSWER_MAX_LENGTH = 4000;
 
 export interface TestMessageResult {
   message?: string;
-  answer?: string | string[];
+  answer?: string | string[] | null;
   image_urls?: string[];
   llm_suggestion?: string | null;
   training_data_id?: number | null;
   category?: ChatbotCategory | null;
+  miss_data?: boolean;
 }

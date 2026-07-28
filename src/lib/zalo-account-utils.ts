@@ -132,6 +132,17 @@ export function isZaloChatbotEnabled(
   return v === true || v === 1 || v === "true" || v === "1";
 }
 
+/** Thả tim reaction khi bot trả lời — default ON nếu field thiếu */
+export function isZaloChatbotReactionEnabled(
+  account:
+    | Pick<ZaloAccount, "is_chatbot_reaction_enabled">
+    | { is_chatbot_reaction_enabled?: boolean },
+): boolean {
+  const v = account.is_chatbot_reaction_enabled as unknown;
+  if (v === undefined || v === null) return true;
+  return v === true || v === 1 || v === "true" || v === "1";
+}
+
 export function getZaloCheckTaskStatus(
   result: Pick<ZaloAccountCheckResultResponse, "task_status" | "status">,
 ): string | undefined {

@@ -11,6 +11,7 @@ import {
 } from "@/lib/consent-utils";
 import { getApiErrorMessage } from "@/lib/errors";
 import { toast } from "@/lib/toast";
+import { ChatIcon, CheckCircleIcon, LockIcon } from "@/icons";
 import { consentService } from "@/services/consent.service";
 import { useAuthStore } from "@/stores/use-auth-store";
 import { useConsentStore } from "@/stores/use-consent-store";
@@ -82,6 +83,8 @@ function MessageConsentModal({
   const [expandOpen, setExpandOpen] = useState(false);
 
   const [submitting, setSubmitting] = useState(false);
+  /** Step agree: tick trước khi vào xem HĐ */
+  const [agreeChecked, setAgreeChecked] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -106,6 +109,7 @@ function MessageConsentModal({
     setSignature(emptySignature());
     setImportedPreview(null);
     setError(null);
+    setAgreeChecked(false);
     setAcceptedTerms(false);
     setExpandOpen(false);
     setPreviewLoading(false);
@@ -319,7 +323,7 @@ function MessageConsentModal({
                 </h2>
                 <p className="mt-1 text-sm leading-relaxed text-gray-500 dark:text-gray-400">
                   {step === "agree"
-                    ? "Bạn cần đồng ý thỏa thuận để dùng tin nhắn Zalo."
+                    ? "Xác nhận hiểu rõ việc đồng bộ tin nhắn trước khi xem và ký hợp đồng."
                     : step === "terms"
                       ? "Đọc kỹ điều khoản trước khi tiếp tục."
                       : "Điền thông tin, ký tay rồi bấm Ký và xác nhận. Hồ sơ sẽ chờ admin duyệt."}
@@ -366,14 +370,133 @@ function MessageConsentModal({
 
           <div className="custom-scrollbar min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-4 py-4 sm:px-5">
             {step === "agree" ? (
-              <div className="space-y-4 py-4">
-                <div className="rounded-xl border border-brand-200 bg-brand-50/70 p-4 text-sm leading-relaxed text-gray-700 dark:border-brand-500/30 dark:bg-brand-500/10 dark:text-gray-200">
-                  <p>
-                    Theo quy định pháp luật về bảo vệ dữ liệu cá nhân, mọi hoạt động liên quan đến tin nhắn, tệp tin, thông tin khách hàng hoặc dữ liệu giao dịch đều thuộc phạm vi dữ liệu cá nhân. Việc ký thỏa thuận giúp hai bên xác nhận rõ quyền và nghĩa vụ khi thu thập, lưu trữ và xử lý dữ liệu, đảm bảo an toàn và tuân thủ quy định.
-                  </p>
-                  <p className="mt-2 text-xs font-semibold">
-                    Bạn vui lòng đọc và xác nhận thỏa thuận để tiếp tục sử dụng tính năng này.
-                  </p>
+              <div className="flex flex-col gap-5 py-1 sm:py-2">
+                {/* Hero */}
+                <div className="relative overflow-hidden rounded-2xl border border-brand-200/70 bg-gradient-to-br from-brand-500 via-brand-600 to-brand-700 p-5 text-white shadow-theme-md sm:p-6 dark:border-brand-500/25">
+                  <div
+                    className="pointer-events-none absolute -right-10 -top-10 size-36 rounded-full bg-white/10"
+                    aria-hidden
+                  />
+                  <div
+                    className="pointer-events-none absolute -bottom-12 -left-8 size-32 rounded-full bg-white/5"
+                    aria-hidden
+                  />
+                  <div className="relative flex items-start gap-3.5 sm:gap-4">
+                    <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-white shadow-theme-xs ring-1 ring-white/25">
+                      <ChatIcon className="size-6" />
+                    </span>
+                    <div className="min-w-0">
+                      <span className="inline-flex items-center rounded-full bg-white/15 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-white/90 ring-1 ring-white/20">
+                        Bước 1 / 3 · Xác nhận
+                      </span>
+                      <h3 className="mt-2 text-lg font-semibold tracking-tight sm:text-xl">
+                        Bắt đầu thỏa thuận xử lý tin nhắn
+                      </h3>
+                      <p className="mt-1.5 text-sm leading-relaxed text-white/90">
+                        Hệ thống cần bạn xác nhận trước khi mở trang hợp đồng và
+                        ký tay. Chỉ vài bước — sau khi admin duyệt bạn dùng chat
+                        bình thường.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Progress */}
+                <ol className="grid grid-cols-3 gap-2 sm:gap-3">
+                  {(
+                    [
+                      { n: 1, label: "Xác nhận", active: true },
+                      { n: 2, label: "Hợp đồng", active: false },
+                      { n: 3, label: "Ký & gửi", active: false },
+                    ] as const
+                  ).map((item) => (
+                    <li
+                      key={item.n}
+                      className={`rounded-xl border px-2 py-2.5 text-center sm:px-3 sm:py-3 ${
+                        item.active
+                          ? "border-brand-300 bg-brand-50 shadow-theme-xs dark:border-brand-500/40 dark:bg-brand-500/15"
+                          : "border-gray-200 bg-gray-50/80 dark:border-gray-800 dark:bg-white/[0.02]"
+                      }`}
+                    >
+                      <span
+                        className={`mx-auto flex size-7 items-center justify-center rounded-full text-xs font-bold ${
+                          item.active
+                            ? "bg-brand-500 text-white"
+                            : "bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-400"
+                        }`}
+                      >
+                        {item.n}
+                      </span>
+                      <p
+                        className={`mt-1.5 text-[11px] font-semibold sm:text-xs ${
+                          item.active
+                            ? "text-brand-700 dark:text-brand-200"
+                            : "text-gray-500 dark:text-gray-400"
+                        }`}
+                      >
+                        {item.label}
+                      </p>
+                    </li>
+                  ))}
+                </ol>
+
+                {/* Checkbox commit */}
+                <div
+                  className={`rounded-2xl border-2 p-4 transition sm:p-5 ${
+                    agreeChecked
+                      ? "border-brand-500 bg-brand-50/50 shadow-theme-xs dark:border-brand-500/50 dark:bg-brand-500/10"
+                      : "border-dashed border-gray-300 bg-gray-50/60 hover:border-brand-300 hover:bg-brand-50/20 dark:border-gray-700 dark:bg-white/[0.02] dark:hover:border-brand-500/40"
+                  }`}
+                >
+                  <div className="mb-3 flex items-center gap-2">
+                    <span
+                      className={`flex size-8 items-center justify-center rounded-lg ${
+                        agreeChecked
+                          ? "bg-brand-500 text-white"
+                          : "bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-400"
+                      }`}
+                    >
+                      <LockIcon className="size-4" />
+                    </span>
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                        Xác nhận của bạn
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        Bắt buộc tick để mở trang xem hợp đồng
+                      </p>
+                    </div>
+                  </div>
+                  <label className="flex cursor-pointer select-none items-start gap-3 text-sm leading-relaxed text-gray-800 dark:text-gray-100">
+                    <input
+                      type="checkbox"
+                      id="consent-agree-sync-checkbox"
+                      checked={agreeChecked}
+                      onChange={(e) => setAgreeChecked(e.target.checked)}
+                      className="mt-0.5 size-5 shrink-0 cursor-pointer rounded border-gray-300 text-brand-600 focus:ring-brand-500"
+                    />
+                    <span>
+                      Tôi hiểu rằng hệ thống sẽ đồng bộ và lưu trữ dữ liệu tin
+                      nhắn từ các nền tảng mạng xã hội về máy chủ của phần mềm,
+                      để phục vụ cho nhu cầu chăm sóc khách hàng và bán hàng của
+                      tôi. Và tôi muốn tiếp tục chuyển đến trang xem và ký hợp
+                      đồng.
+                    </span>
+                  </label>
+                  {!agreeChecked ? (
+                    <p className="mt-3 text-xs font-medium text-gray-500 dark:text-gray-400">
+                      Tick ô trên → nút{" "}
+                      <span className="text-brand-600 dark:text-brand-400">
+                        Chuyển đến xem hợp đồng
+                      </span>{" "}
+                      sẽ được bật.
+                    </p>
+                  ) : (
+                    <p className="mt-3 flex items-center gap-1.5 text-xs font-semibold text-success-600 dark:text-success-400">
+                      <CheckCircleIcon className="size-4 shrink-0" />
+                      Đã xác nhận — bạn có thể tiếp tục.
+                    </p>
+                  )}
                 </div>
               </div>
             ) : null}
@@ -607,11 +730,12 @@ function MessageConsentModal({
 
             <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-end">
               {step === "agree" ? (
-                <>
+                <div className="flex w-full flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-end">
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
+                    className="w-full sm:w-auto"
                     disabled={submitting}
                     onClick={handleDisagree}
                   >
@@ -620,12 +744,13 @@ function MessageConsentModal({
                   <Button
                     type="button"
                     size="sm"
-                    disabled={submitting}
+                    className="w-full sm:w-auto sm:min-w-[220px]"
+                    disabled={submitting || !agreeChecked}
                     onClick={handleAgree}
                   >
-                    Đồng ý
+                    Chuyển đến xem hợp đồng
                   </Button>
-                </>
+                </div>
               ) : null}
 
               {step === "terms" ? (

@@ -211,9 +211,9 @@ export default function TrainingPanel({ chatbotId }: TrainingPanelProps) {
                 <DropdownItem onClick={() => void handleExport()} className="flex items-center gap-2">
                   <FiDownload size={14} className="text-gray-400" /> Xuất file (Export)
                 </DropdownItem>
-                <DropdownItem onClick={() => void handleSyncEmbeddings()} className="flex items-center gap-2">
+                {/* <DropdownItem onClick={() => void handleSyncEmbeddings()} className="flex items-center gap-2">
                   <FiRefreshCw size={14} className="text-gray-400" /> Đồng bộ Vector AI
-                </DropdownItem>
+                </DropdownItem> */}
                 <div className="border-t border-gray-100 dark:border-gray-800 my-1"></div>
                 <DropdownItem
                   onClick={() => void handleClearAll()}

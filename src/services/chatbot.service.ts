@@ -350,13 +350,21 @@ export const chatbotService = {
     chatbotId: number,
     message: string,
   ): Promise<TestMessageResult> {
-    const response = await api.post<{ success: boolean; result: TestMessageResult }>(
+    const response = await api.post(
       API_CHATBOT.TEST_MESSAGE,
       {
         chatbot_id: chatbotId,
         message,
       },
     );
-    return response.data.result;
+    const body = response.data as {
+      success?: boolean;
+      result?: TestMessageResult;
+    } & TestMessageResult;
+    // Envelope { success, result } hoặc interceptor đã unwrap
+    if (body?.result && typeof body.result === "object") {
+      return body.result;
+    }
+    return body as TestMessageResult;
   },
 };

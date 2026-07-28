@@ -207,7 +207,7 @@ export default function ChatbotDetailView({
               {chatbots.map((bot) => {
                 const isActiveBot = bot.id === chatbotId;
                 const trainingDataCount = bot.training_data?.length ?? 0;
-                const accountsCount = bot.zalo_accounts?.length ?? 0;
+                const accountsCount = bot.zalo_account_keys?.length ?? 0;
                 
                 return (
                   <div
@@ -261,7 +261,7 @@ export default function ChatbotDetailView({
                     <div className="flex items-center justify-between text-[9px] text-gray-400 dark:text-gray-500 pt-1.5 border-t border-gray-100/50 dark:border-gray-800/50">
                       <div className="flex items-center gap-1.5">
                         <span className={`inline-block h-1.5 w-1.5 rounded-full ${bot.is_active ? "bg-success-500" : "bg-gray-300"}`}></span>
-                        <span>ID #{bot.id}</span>
+                        {/* <span>ID #{bot.id}</span> */}
                          <button
                           type="button"
                           onClick={(e) => {

@@ -21,19 +21,39 @@ import {
 import axios from "axios";
 
 /** URL media tuyệt đối hoặc path relative từ BE */
+/**
+ * URL media consent (chữ ký / PDF / stamp).
+ * - data/blob → giữ
+ * - absolute có `/media/` → ghép lại theo `API_BASE_URL` (tránh host BE sai khi FE localhost)
+ * - relative → `API_BASE_URL` + path
+ */
 export function resolveConsentMediaUrl(
   path?: string | null,
 ): string | null {
-  if (!path) return null;
-  if (
-    path.startsWith("http://") ||
-    path.startsWith("https://") ||
-    path.startsWith("data:") ||
-    path.startsWith("blob:")
-  ) {
-    return path;
+  if (!path?.trim()) return null;
+  const raw = path.trim();
+  if (raw.startsWith("data:") || raw.startsWith("blob:")) return raw;
+
+  const base = (API_BASE_URL || "").replace(/\/$/, "");
+
+  if (raw.startsWith("http://") || raw.startsWith("https://")) {
+    try {
+      const u = new URL(raw);
+      const isMedia =
+        u.pathname === "/media" ||
+        u.pathname.startsWith("/media/") ||
+        u.pathname.includes("/media/");
+      if (isMedia && base) {
+        return `${base}${u.pathname}${u.search}`;
+      }
+      return raw;
+    } catch {
+      return raw;
+    }
   }
-  return `${API_BASE_URL}/${path.replace(/^\//, "")}`;
+
+  if (!base) return raw.startsWith("/") ? raw : `/${raw}`;
+  return `${base}/${raw.replace(/^\//, "")}`;
 }
 
 /**

@@ -104,6 +104,9 @@ export default function ZaloAccountsView() {
   const loadingToggleChatbotId = useZaloAccountStore(
     (s) => s.loadingToggleChatbotId,
   );
+  const loadingToggleChatbotReactionId = useZaloAccountStore(
+    (s) => s.loadingToggleChatbotReactionId,
+  );
   const deleteConfirm = useZaloAccountStore((s) => s.deleteConfirm);
 
   const fetchAccounts = useZaloAccountStore((s) => s.fetchAccounts);
@@ -121,6 +124,9 @@ export default function ZaloAccountsView() {
   );
   const toggleAccountChatbot = useZaloAccountStore(
     (s) => s.toggleAccountChatbot,
+  );
+  const toggleAccountChatbotReaction = useZaloAccountStore(
+    (s) => s.toggleAccountChatbotReaction,
   );
   const setSearch = useZaloAccountStore((s) => s.setSearch);
   const setShowSensitiveInfo = useZaloAccountStore(
@@ -297,6 +303,13 @@ export default function ZaloAccountsView() {
     [toggleAccountChatbot],
   );
 
+  const handleToggleChatbotReaction = useCallback(
+    (accountId: number, checked: boolean) => {
+      void toggleAccountChatbotReaction(accountId, checked);
+    },
+    [toggleAccountChatbotReaction],
+  );
+
   const handleDeleteAccount = useCallback(
     (account: { id: number }) => {
       openDeleteConfirm([account.id]);
@@ -376,12 +389,14 @@ export default function ZaloAccountsView() {
                 checkingIds={checkingIds}
                 loadingToggleMessageId={loadingToggleMessageId}
                 loadingToggleChatbotId={loadingToggleChatbotId}
+                loadingToggleChatbotReactionId={loadingToggleChatbotReactionId}
                 showSensitiveInfo={showSensitiveInfo}
                 isLoading={isLoading}
                 onToggleAll={handleToggleAll}
                 onToggleOne={toggleSelect}
                 onToggleMessage={handleToggleMessage}
                 onToggleChatbot={handleToggleChatbot}
+                onToggleChatbotReaction={handleToggleChatbotReaction}
                 onEdit={openEdit}
                 onRelogin={openReloginQr}
                 onDelete={handleDeleteAccount}

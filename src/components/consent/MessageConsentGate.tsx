@@ -147,20 +147,22 @@ export function MessageConsentBanner() {
   }
 
   if (consentShowRejected(status)) {
+    const reason = status.reject_reason?.trim() || "";
     return (
       <div
         className="shrink-0 rounded-xl border border-error-200 bg-error-50 px-3 py-2.5 text-sm text-error-800 dark:border-error-500/40 dark:bg-error-500/15 dark:text-error-200"
         role="alert"
       >
         <p className="font-medium leading-relaxed">
-          {status.rejected_message?.trim() ||
-            "Thỏa thuận không được duyệt. Vui lòng tạo / ký lại để dùng tin nhắn."}
+          Thỏa thuận chưa được duyệt
         </p>
-        {status.reject_reason ? (
+        {reason ? (
+          <p className="mt-1 text-xs opacity-90">Lý do: {reason}</p>
+        ) : (
           <p className="mt-1 text-xs opacity-90">
-            Lý do: {status.reject_reason}
+            Vui lòng tạo / ký lại để dùng tin nhắn.
           </p>
-        ) : null}
+        )}
         <div className="mt-2">
           <Button
             type="button"
@@ -266,17 +268,17 @@ function MessageConsentGate() {
             ) : showRejected ? (
               <>
                 <p className="text-base font-semibold text-gray-900 dark:text-white">
-                  Thỏa thuận không được duyệt
+                  Thỏa thuận chưa được duyệt
                 </p>
-                <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
-                  {status.rejected_message?.trim() ||
-                    "Vui lòng tạo / ký lại để dùng tin nhắn."}
-                </p>
-                {status.reject_reason ? (
-                  <p className="mt-1 text-xs text-gray-500">
-                    Lý do: {status.reject_reason}
+                {status.reject_reason?.trim() ? (
+                  <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
+                    Lý do: {status.reject_reason.trim()}
                   </p>
-                ) : null}
+                ) : (
+                  <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
+                    Vui lòng tạo / ký lại để dùng tin nhắn.
+                  </p>
+                )}
                 <Button
                   type="button"
                   size="sm"
