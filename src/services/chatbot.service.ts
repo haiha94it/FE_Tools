@@ -115,6 +115,21 @@ export const chatbotService = {
     return response.data as TrainingDataItem;
   },
 
+  async importTrainingData(
+    items: CreateTrainingDataPayload[],
+  ): Promise<unknown> {
+    const body = items.map((item) => ({
+      chatbot_id: item.chatbot_id,
+      question: item.question,
+      answer: item.answer ?? "",
+      category_id: item.category_id ?? null,
+      image_send_mode: toApiTrainingImageSendMode(item.image_send_mode),
+      training_images: item.training_images ?? item.image_ids ?? [],
+    }));
+    const response = await api.post(API_CHATBOT.TRAINING_DATA, body);
+    return response.data;
+  },
+
   async updateTrainingData(
     id: number,
     payload: UpdateTrainingDataPayload,
