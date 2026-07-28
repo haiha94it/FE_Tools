@@ -44,6 +44,7 @@ import SaveMediaFromChatDialog, {
   type SaveMediaKind,
 } from "./SaveMediaFromChatDialog";
 import {
+  CallLogMessageContent,
   EcardMessageContent,
   FileAttachmentContent,
   GifMessageContent,
@@ -180,6 +181,17 @@ function MessageContent({
         description={attachment?.description}
         thumb={attachment?.thumb}
         centered={centered}
+      />
+    );
+  } else if (attachment?.action === "calltime") {
+    body = (
+      <CallLogMessageContent
+        title={attachment?.callHeadline || attachment?.title}
+        subline={attachment?.callSubline || attachment?.description}
+        durationSec={attachment?.callDurationSec ?? 0}
+        isVideo={attachment?.callType === 1}
+        status={attachment?.callStatus}
+        own={own}
       />
     );
   } else if (

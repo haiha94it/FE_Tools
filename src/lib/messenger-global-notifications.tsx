@@ -110,7 +110,15 @@ function getZaloMessagePreview(message: DisplayMessage): string {
   if (message.msgType === "chat.voice") return "[Tin thoại]";
   if (message.msgType === "chat.location.new") return "[Vị trí]";
   if (message.msgType === "chat.ecard") return "[Nhắc hẹn]";
-  if (message.msgType === "chat.recommended") return "[Danh thiếp]";
+  if (message.msgType === "chat.recommended") {
+    const att = message.attachments?.[0];
+    if (att?.action === "calltime") {
+      const head = att.callHeadline || att.title;
+      if (head) return `[${head}]`;
+      return att.callType === 1 ? "[Cuộc gọi video]" : "[Cuộc gọi]";
+    }
+    return "[Danh thiếp]";
+  }
   if (message.attachments?.length) return "[Tệp đính kèm]";
   if (message.sticker?.length) return "[Sticker]";
   return "Bạn có tin nhắn mới";

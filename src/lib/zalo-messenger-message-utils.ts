@@ -357,6 +357,158 @@ function parseRecommendedMeta(description: unknown): {
   }
 }
 
+/** duration Zalo calltime (giây) → "0:03" / "1:05" */
+export function formatCallDurationSec(seconds: number): string {
+  const s = Math.max(0, Math.floor(Number(seconds) || 0));
+  const m = Math.floor(s / 60);
+  const r = s % 60;
+  return `${m}:${String(r).padStart(2, "0")}`;
+}
+
+/**
+ * Map action + params Zalo → nhãn log cuộc gọi (chỉ hiển thị).
+ *
+ * Samples quan sát:
+ * - calltime + isCaller=1 → cuộc gọi đi (có duration)
+ * - calltime + isCaller=0 → cuộc gọi đến (có duration)
+ * - misscall + isCaller=0 + reason=2 → Bạn bị nhỡ
+ * - misscall + isCaller=1 + reason=2 → Người nhận không nghe máy
+ * - misscall + isCaller=1 + reason=3 → Bạn đã hủy
+ * - misscall + isCaller=1 + reason=4 → Người nhận từ chối
+ */
+export function resolveZaloCallLogDisplay(input: {
+  actionRaw: string;
+  durationSec?: number;
+  isCaller?: boolean;
+  callType?: number;
+  reason?: number;
+  description?: string;
+}): {
+  status: string;
+  headline: string;
+  subline: string;
+  isVideo: boolean;
+  durationSec: number;
+  isMiss: boolean;
+} {
+  const action = (input.actionRaw || "").toLowerCase();
+  const isVideo = Number(input.callType) === 1;
+  const isCaller = Boolean(input.isCaller);
+  const dur =
+    Number.isFinite(Number(input.durationSec)) && Number(input.durationSec) > 0
+      ? Math.floor(Number(input.durationSec))
+      : 0;
+  const reason = Number(input.reason);
+  const media = isVideo ? "video" : "thoại";
+  const isCalltime =
+    action.includes("calltime") || action.endsWith(".call");
+  const isMisscall =
+    action.includes("misscall") ||
+    action.includes("missed") ||
+    action.includes("reject") ||
+    action.includes("cancel");
+
+  // Cuộc gọi có trả lời
+  if (isCalltime && !isMisscall) {
+    if (isCaller) {
+      return {
+        status: "answered_out",
+        headline: isVideo ? "Cuộc gọi video đi" : "Cuộc gọi đi",
+        subline: dur > 0 ? `Thời lượng ${formatCallDurationSec(dur)}` : media,
+        isVideo,
+        durationSec: dur,
+        isMiss: false,
+      };
+    }
+    return {
+      status: "answered_in",
+      headline: isVideo ? "Cuộc gọi video đến" : "Cuộc gọi đến",
+      subline: dur > 0 ? `Thời lượng ${formatCallDurationSec(dur)}` : media,
+      isVideo,
+      durationSec: dur,
+      isMiss: false,
+    };
+  }
+
+  // Miss / reject / cancel — theo reason + isCaller
+  // reason (thực tế Zalo web, có thể mở rộng):
+  // 2: không bắt / nhỡ · 3: caller hủy · 4: callee từ chối · 1/5: bận / lỗi
+  if (!isCaller) {
+    // Phía nhận
+    if (reason === 4) {
+      return {
+        status: "declined_in",
+        headline: "Bạn đã từ chối",
+        subline: isVideo ? "Cuộc gọi video đến" : "Cuộc gọi đến",
+        isVideo,
+        durationSec: 0,
+        isMiss: true,
+      };
+    }
+    if (reason === 3) {
+      // Caller hủy trước khi mình nhấc
+      return {
+        status: "cancelled_by_peer",
+        headline: "Cuộc gọi bị hủy",
+        subline: isVideo ? "Cuộc gọi video đến" : "Cuộc gọi đến",
+        isVideo,
+        durationSec: 0,
+        isMiss: true,
+      };
+    }
+    // reason 2 hoặc mặc định: bị nhỡ
+    return {
+      status: "missed_in",
+      headline: "Bạn bị nhỡ",
+      subline: isVideo ? "Cuộc gọi video đến" : "Cuộc gọi đến",
+      isVideo,
+      durationSec: 0,
+      isMiss: true,
+    };
+  }
+
+  // Phía gọi đi (isCaller)
+  if (reason === 3) {
+    return {
+      status: "cancelled_out",
+      headline: "Bạn đã hủy",
+      subline: isVideo ? "Cuộc gọi video đi" : "Cuộc gọi đi",
+      isVideo,
+      durationSec: 0,
+      isMiss: true,
+    };
+  }
+  if (reason === 4) {
+    return {
+      status: "declined_out",
+      headline: "Người nhận từ chối",
+      subline: isVideo ? "Cuộc gọi video đi" : "Cuộc gọi đi",
+      isVideo,
+      durationSec: 0,
+      isMiss: true,
+    };
+  }
+  if (reason === 1 || reason === 5) {
+    return {
+      status: "busy",
+      headline: reason === 5 ? "Cuộc gọi lỗi" : "Máy bận",
+      subline: isVideo ? "Cuộc gọi video đi" : "Cuộc gọi đi",
+      isVideo,
+      durationSec: 0,
+      isMiss: true,
+    };
+  }
+  // reason 2 / default: không nghe máy
+  return {
+    status: "no_answer_out",
+    headline: "Người nhận không nghe máy",
+    subline: isVideo ? "Cuộc gọi video đi" : "Cuộc gọi đi",
+    isVideo,
+    durationSec: 0,
+    isMiss: true,
+  };
+}
+
 function convertJxlToJpg(url: string | undefined | null): string {
   if (!url) return "";
   if (url.includes(".jxl")) {
@@ -516,9 +668,63 @@ export function normalizeIncomingMessage(raw: RawZaloMessage): DisplayMessage {
 
     case "chat.recommended": {
       const record = readContentRecord(content);
+      const actionRaw = trimToString(record?.action);
       const title = trimToString(record?.title);
       const thumb = trimToString(record?.thumb);
       const href = trimToString(record?.href);
+      const description = trimToString(record?.description);
+
+      // Bubble cuộc gọi Zalo (typo "recommened.*") — chỉ hiển thị, không callback
+      const actionLower = actionRaw.toLowerCase();
+      const isCallBubble =
+        actionLower.includes("calltime") ||
+        actionLower.includes("misscall") ||
+        actionLower.includes("missed") ||
+        actionLower.includes("rejectcall") ||
+        actionLower.includes("cancelcall") ||
+        actionLower === "recommened.call" ||
+        actionLower === "recommended.call";
+
+      if (isCallBubble) {
+        const params = parseContentParams(record?.params) || {};
+        const durationSec = Number(params.duration);
+        const callType = Number(params.calltype ?? params.callType ?? 0);
+        const isCaller = Number(params.isCaller ?? 0) === 1;
+        const reason = Number(params.reason);
+        const resolved = resolveZaloCallLogDisplay({
+          actionRaw,
+          durationSec,
+          isCaller,
+          callType,
+          reason: Number.isFinite(reason) ? reason : undefined,
+          description,
+        });
+        return {
+          ...base,
+          attachments: [
+            {
+              action: "calltime",
+              title: resolved.headline,
+              description: resolved.subline,
+              callDurationSec: resolved.durationSec,
+              callType: resolved.isVideo ? 1 : 0,
+              callIsCaller: isCaller,
+              callStatus: resolved.status,
+              callReason: Number.isFinite(reason) ? reason : undefined,
+              callHeadline: resolved.headline,
+              callSubline: resolved.subline,
+            },
+          ],
+          text_message: [
+            {
+              text: resolved.durationSec > 0
+                ? `${resolved.headline} · ${formatCallDurationSec(resolved.durationSec)}`
+                : resolved.headline,
+            },
+          ],
+        };
+      }
+
       const meta = parseRecommendedMeta(record?.description);
       return {
         ...base,
@@ -657,6 +863,12 @@ export function getMessageKindLabel(message: DisplayMessage): string {
     return "Vị trí";
   }
   if (message.msgType === "chat.ecard" || action === "ecard") return "Nhắc hẹn";
+  if (action === "calltime") {
+    return (
+      attachment?.callHeadline ||
+      (attachment?.callType === 1 ? "Cuộc gọi video" : "Cuộc gọi thoại")
+    );
+  }
   if (message.msgType === "chat.recommended" || action === "recommended") {
     return "Danh thiếp";
   }

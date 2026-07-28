@@ -14,6 +14,7 @@ import type {
   MessengerConversation,
   NewGlobalUpdatePayload,
   RawZaloMessage,
+  VoiceCallResultPayload,
   WsActionMessagePayload,
 } from "@/types/zalo-messenger";
 import type { WsMessagePayload } from "@/types/websocket";
@@ -32,6 +33,9 @@ const WS_ACTION_FAILURE_HINT: Record<string, string> = {
   "send-reaction-to-uid": "Không gửi được cảm xúc.",
   "send-sticker": "Không gửi được sticker.",
   "block-friend": "Không thực hiện được thao tác chặn.",
+  "voice-call": "Không gọi được Zalo.",
+  "start-voice-call": "Không gọi được Zalo.",
+  "make-call": "Không gọi được Zalo.",
 };
 
 function isNewGlobalUpdate(
@@ -44,6 +48,12 @@ function isMessageAck(
   payload: WsMessagePayload,
 ): payload is MessageAckPayload & WsMessagePayload {
   return payload.type === "message_ack";
+}
+
+function isVoiceCallResult(
+  payload: WsMessagePayload,
+): payload is VoiceCallResultPayload & WsMessagePayload {
+  return payload.type === "voice_call_result";
 }
 
 function isWsActionMessage(
@@ -203,6 +213,77 @@ export function useMessengerWs() {
 
       if (isMessageAck(payload) && payload.clientMsgId) {
         handleMessageAck(payload.clientMsgId, payload.success !== false);
+        return;
+      }
+
+      if (isVoiceCallResult(payload)) {
+        const store = useZaloMessengerStore.getState();
+        store.setVoiceCallPending(false);
+        try {
+          delete (window as unknown as { __careVoiceCallToken?: string })
+            .__careVoiceCallToken;
+        } catch {
+          /* ignore */
+        }
+        const callType = (Number(payload.call_type ?? 0) === 1 ? 1 : 0) as 0 | 1;
+        const msg =
+          (typeof payload.message === "string" && payload.message.trim()) ||
+          (payload.success
+            ? callType === 1
+              ? "Đã kết nối gọi video Zalo."
+              : "Đã kết nối gọi Zalo."
+            : "Không gọi được Zalo.");
+        if (payload.success) {
+          const media = (
+            payload as {
+              media?: {
+                mediaReady?: boolean;
+                callId?: number | string;
+                note?: string;
+                holdMaxSeconds?: number;
+              };
+            }
+          ).media;
+          const peerName =
+            store.activeConversation?.friend?.display_name ||
+            store.activeConversation?.friend?.name ||
+            store.activeConversation?.name ||
+            "Cuộc gọi";
+          store.setActiveCall({
+            callType,
+            peerName: String(peerName),
+            mediaReady: Boolean(media?.mediaReady),
+            callId:
+              media?.callId ??
+              (payload.result as { data?: { callId?: number } } | undefined)?.data
+                ?.callId,
+            startedAt: Date.now(),
+            conversationId:
+              payload.id_conversation ?? store.activeConversationId ?? undefined,
+            note:
+              media?.note ||
+              "Đang giữ reo máy trên server. Người nhận hãy nhấc máy. Bấm đỏ để cúp. Audio 2 chiều ZRTC vẫn experimental.",
+          });
+          toast.success(
+            "Đã gửi tín hiệu gọi. Người nhận thường chỉ thấy cuộc gọi nhỡ (giới hạn API web).",
+          );
+        } else {
+          store.setActiveCall(null);
+          toast.error(msg);
+        }
+        return;
+      }
+
+      if (payload.type === "voice_call_hangup_result") {
+        useZaloMessengerStore.getState().setActiveCall(null);
+        useZaloMessengerStore.getState().setVoiceCallPending(false);
+        if (payload.success === false) {
+          toast.error(
+            typeof payload.message === "string"
+              ? payload.message
+              : "Không kết thúc được cuộc gọi.",
+          );
+        }
         return;
       }
 

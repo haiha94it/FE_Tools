@@ -129,6 +129,86 @@ export function useMessengerSend(options?: {
     [activeConversationId, selectedAccountId, wsSend, wsStatus],
   );
 
+  /**
+   * Ring gọi điện Zalo 1-1.
+   * Không WebRTC nghe-nói trong Care — chỉ reo máy app Zalo người nhận.
+   * Kết quả thật qua WS `voice_call_result` (useMessengerWs toast).
+   */
+  const startVoiceCall = useCallback(
+    (callType: 0 | 1 = 0) => {
+      if (!selectedAccountId || !activeConversationId) return false;
+      if (activeConversation?.friend == null) {
+        toast.error("Chỉ gọi được hội thoại bạn bè (1-1).");
+        return false;
+      }
+      if (wsStatus !== "connected") {
+        toast.error("Chưa kết nối WebSocket.");
+        return false;
+      }
+      if (useZaloMessengerStore.getState().voiceCallPending) {
+        toast.error("Đang có cuộc gọi đang xử lý. Vui lòng đợi.");
+        return false;
+      }
+
+      const kind = callType === 1 ? "video" : "thoại";
+      const ok = window.confirm(
+        `Gửi tín hiệu gọi ${kind} Zalo?\n\n` +
+          "LƯU Ý (giới hạn web cookie):\n" +
+          "• API web chỉ tạo tín hiệu / cuộc gọi NHỠ — không giữ reo để nhấc máy.\n" +
+          "• Cuộc gọi nhấc được cần stack native FriendCall (mobile), Care chưa có session key đó.\n" +
+          "• Bấm OK nếu vẫn muốn gửi tín hiệu báo gọi.",
+      );
+      if (!ok) return false;
+
+      const clientMsgId = generateClientMsgId();
+      useZaloMessengerStore.getState().setVoiceCallPending(true);
+      const sent = wsSend(
+        serializeWsChatCommand({
+          type: "voice-call",
+          id_account: selectedAccountId,
+          id_conversation: activeConversationId,
+          clientMsgId,
+          call_type: callType,
+        }),
+      );
+      if (!sent) {
+        useZaloMessengerStore.getState().setVoiceCallPending(false);
+        toast.error("Không gửi được lệnh gọi.");
+        return false;
+      }
+      toast.info(
+        callType === 1
+          ? "Đang gọi video — chờ reo máy…"
+          : "Đang gọi — chờ reo máy…",
+      );
+      // Chỉ timeout lúc setup (chưa có activeCall). Có activeCall = đang giữ ring.
+      const token = clientMsgId;
+      window.setTimeout(() => {
+        const st = useZaloMessengerStore.getState();
+        const activeToken = (window as unknown as { __careVoiceCallToken?: string })
+          .__careVoiceCallToken;
+        if (
+          st.voiceCallPending &&
+          activeToken === token &&
+          !st.activeCall
+        ) {
+          st.setVoiceCallPending(false);
+          toast.error("Hết thời gian chờ phản hồi cuộc gọi. Thử lại.");
+        }
+      }, 45_000);
+      (window as unknown as { __careVoiceCallToken?: string }).__careVoiceCallToken =
+        token;
+      return true;
+    },
+    [
+      activeConversation?.friend,
+      activeConversationId,
+      selectedAccountId,
+      wsSend,
+      wsStatus,
+    ],
+  );
+
   const sendReaction = useCallback(
     (message: DisplayMessage, reactionId: number) => {
       if (!activeConversation || !selectedAccountId) return false;
@@ -267,12 +347,54 @@ export function useMessengerSend(options?: {
     [activeConversationId, wsSend, wsStatus],
   );
 
+  const hangupVoiceCall = useCallback(() => {
+    if (!selectedAccountId) return false;
+    useZaloMessengerStore.getState().setActiveCall(null);
+    useZaloMessengerStore.getState().setVoiceCallPending(false);
+    if (wsStatus !== "connected") return false;
+    return wsSend(
+      serializeWsChatCommand({
+        type: "voice-call-hangup",
+        id_account: selectedAccountId,
+        id_conversation: activeConversationId,
+        clientMsgId: generateClientMsgId(),
+      }),
+    );
+  }, [activeConversationId, selectedAccountId, wsSend, wsStatus]);
+
+  const sendVoiceCallMedia = useCallback(
+    (frame: {
+      kind: "audio" | "video";
+      payloadBase64: string;
+      mime: string;
+      seq: number;
+    }) => {
+      if (!selectedAccountId || wsStatus !== "connected") return false;
+      // Không block UI nếu drop frame
+      return wsSend(
+        serializeWsChatCommand({
+          type: "voice-call-media",
+          id_account: selectedAccountId,
+          id_conversation: activeConversationId,
+          kind: frame.kind,
+          payload: frame.payloadBase64,
+          mime: frame.mime,
+          seq: frame.seq,
+        }),
+      );
+    },
+    [activeConversationId, selectedAccountId, wsSend, wsStatus],
+  );
+
   return {
     send,
     sendSticker,
     sendReaction,
     shareMessage,
     sendStrangerPhone,
+    startVoiceCall,
+    hangupVoiceCall,
+    sendVoiceCallMedia,
     canSend: wsStatus === "connected" && !uploadingAttachment,
   };
 }
