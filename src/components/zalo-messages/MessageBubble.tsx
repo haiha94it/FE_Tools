@@ -287,7 +287,7 @@ function MessageContent({
     );
   } else if (text) {
     body = (
-      <p className={`${messageTextClass} ${own ? "text-right" : "text-left"}`}>
+      <p className={`${messageTextClass} text-left`}>
         {text}
       </p>
     );

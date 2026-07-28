@@ -420,7 +420,7 @@ export default function ChatbotDisabledFriendsDialog({
       <div className="p-6 sm:p-8 flex flex-col max-h-[90vh]">
         {/* Header */}
         <div className="border-b border-gray-100 pb-4 dark:border-gray-800 shrink-0">
-          <div className="flex items-start justify-between gap-4">
+          <div className="flex items-start justify-between gap-4 pr-10 sm:pr-12">
             <div className="flex items-center gap-2.5">
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-600 dark:bg-brand-500/15 dark:text-brand-400">
                 <FiCpu size={18} />
