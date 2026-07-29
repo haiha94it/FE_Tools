@@ -50,18 +50,14 @@ export const authService = {
 
   async logout(): Promise<void> {
     const refresh = getRefreshToken();
-    try {
-      if (refresh) {
-        try {
-          await api.post(API_AUTH.LOGOUT, { refresh });
-        } catch (apiError) {
-          console.warn("API logout failed (possibly expired token):", apiError);
-        }
-      }
-    } finally {
-      clearTokens();
-      clearCareTokens();
+    if (refresh) {
+      // Fire-and-forget: Bắn API ngầm hủy token phía server, không await phản hồi
+      void api.post(API_AUTH.LOGOUT, { refresh }).catch((apiError) => {
+        console.warn("API logout failed (possibly expired token):", apiError);
+      });
     }
+    clearTokens();
+    clearCareTokens();
   },
 
   /** Xác nhận email / kích hoạt tài khoản — GET /api/register/activate?token= */

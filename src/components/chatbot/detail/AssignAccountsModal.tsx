@@ -6,6 +6,10 @@ import Switch from "@/components/form/switch/Switch";
 import Input from "@/components/form/input/InputField";
 import { Modal } from "@/components/ui/modal";
 import { getChatbotAccountKeys } from "@/lib/chatbot-utils";
+import {
+  isZaloChatbotEnabled,
+  isZaloChatbotReactionEnabled,
+} from "@/lib/zalo-account-utils";
 import { useChatbotStore } from "@/stores/use-chatbot-store";
 import { useZaloAccountStore } from "@/stores/use-zalo-account-store";
 import type { ChatbotInstance } from "@/types/chatbot";
@@ -47,15 +51,21 @@ export default function AssignAccountsModal({
   const toggleAccountMessageListener = useZaloAccountStore(
     (s) => s.toggleAccountMessageListener,
   );
+  const toggleAccountChatbotReaction = useZaloAccountStore(
+    (s) => s.toggleAccountChatbotReaction,
+  );
   const loadingToggleMessageId = useZaloAccountStore(
     (s) => s.loadingToggleMessageId,
+  );
+  const loadingToggleChatbotReactionId = useZaloAccountStore(
+    (s) => s.loadingToggleChatbotReactionId,
   );
 
   const [disabledFriendsAccount, setDisabledFriendsAccount] = useState<ZaloAccount | null>(
     null,
   );
 
-  const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
+  const [selectedKeys, setSelectedKeys] = useState<number[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
@@ -72,12 +82,12 @@ export default function AssignAccountsModal({
 
   /** Map accountId -> chatbot name đã gán (khác kịch bản hiện tại) */
   const assignedElsewhere = useMemo(() => {
-    if (!chatbot) return new Map<string, string>();
-    const map = new Map<string, string>();
+    if (!chatbot) return new Map<number, string>();
+    const map = new Map<number, string>();
     for (const item of chatbots) {
       if (item.id === chatbot.id) continue;
       for (const key of getChatbotAccountKeys(item)) {
-        map.set(String(key), item.name);
+        map.set(key, item.name);
       }
     }
     return map;
@@ -92,8 +102,7 @@ export default function AssignAccountsModal({
   };
 
   const toggleAccount = (id: number) => {
-    const key = String(id);
-    setSelectedKeys((prev) => (prev.includes(key) ? [] : [key]));
+    setSelectedKeys((prev) => (prev.includes(id) ? [] : [id]));
   };
 
   // Lọc tài khoản theo query tìm kiếm
@@ -163,9 +172,8 @@ export default function AssignAccountsModal({
           ) : (
             <ul className="space-y-3">
               {filteredAccounts.map((account) => {
-                const key = String(account.id);
-                const checked = selectedKeys.includes(key);
-                const elsewhere = assignedElsewhere.get(key);
+                const checked = selectedKeys.includes(account.id);
+                const elsewhere = assignedElsewhere.get(account.id);
                 const isCheckpoint = Boolean(account.checkpoint);
                 const blocked = (Boolean(elsewhere) && !checked) || isCheckpoint;
 
@@ -248,6 +256,32 @@ export default function AssignAccountsModal({
                                 disabled={loadingToggleMessageId === account.id}
                                 onChange={(checkedVal) => {
                                   void toggleAccountMessageListener(account.id, checkedVal);
+                                }}
+                              />
+                            </div>
+
+                            <div
+                              onClick={(e) => e.stopPropagation()}
+                              className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white/70 px-3 py-2 dark:border-gray-800 dark:bg-gray-900/50"
+                            >
+                              <div className="min-w-0">
+                                <p className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                                  Thả tim khi bot trả lời
+                                </p>
+                                <p className="text-[10px] text-gray-400 mt-0.5">
+                                  {isZaloChatbotEnabled(account)
+                                    ? "Reaction ❤ trước khi gửi tin"
+                                    : "Cần bật chatbot trên nick trước"}
+                                </p>
+                              </div>
+                              <Switch
+                                checked={isZaloChatbotReactionEnabled(account)}
+                                disabled={
+                                  !isZaloChatbotEnabled(account) ||
+                                  loadingToggleChatbotReactionId === account.id
+                                }
+                                onChange={(checkedVal) => {
+                                  void toggleAccountChatbotReaction(account.id, checkedVal);
                                 }}
                               />
                             </div>

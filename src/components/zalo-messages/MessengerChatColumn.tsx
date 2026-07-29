@@ -23,7 +23,6 @@ import ChatPanel from "./ChatPanel";
 const MessageShareDialog = dynamic(() => import("./MessageShareDialog"), {
   ssr: false,
 });
-
 interface MessengerChatColumnProps {
   showMobileBack?: boolean;
 }
@@ -81,7 +80,12 @@ function MessengerChatColumn({ showMobileBack = false }: MessengerChatColumnProp
 
   const selectedAccount = accounts.find((item) => item.id === selectedAccountId);
   const accountUid = selectedAccount?.uid ?? null;
-  const { send, sendSticker, sendReaction, shareMessage } = useMessengerSend({
+  const {
+    send,
+    sendSticker,
+    sendReaction,
+    shareMessage,
+  } = useMessengerSend({
     accountUid,
   });
   const [shareTargetMessage, setShareTargetMessage] =

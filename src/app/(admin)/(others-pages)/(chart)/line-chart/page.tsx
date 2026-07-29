@@ -5,9 +5,9 @@ import { Metadata } from "next";
 import React from "react";
 
 export const metadata: Metadata = {
-  title: "Next.js Line Chart | CAREVIPPRO",
+  title: "Next.js Line Chart | CSKH tự động",
   description:
-    "This is Next.js Line Chart page for CAREVIPPRO",
+    "This is Next.js Line Chart page for CSKH tự động",
 };
 export default function LineChart() {
   return (

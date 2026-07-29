@@ -58,7 +58,7 @@ export const LANDING_STEPS = [
   {
     step: "01",
     title: "Đăng ký tài khoản",
-    description: "Tạo tài khoản CAREVIPPRO và đăng nhập vào bảng điều khiển.",
+    description: "Tạo tài khoản CSKH tự động và đăng nhập vào bảng điều khiển.",
   },
   {
     step: "02",
@@ -75,7 +75,7 @@ export const LANDING_STEPS = [
 export const LANDING_TESTIMONIALS = [
   {
     quote:
-      "Chuyển từ quản lý thủ công sang CAREVIPPRO giúp team sale xử lý tin nhắn nhanh gấp đôi.",
+      "Chuyển từ quản lý thủ công sang CSKH tự động giúp team sale xử lý tin nhắn nhanh gấp đôi.",
     name: "Nguyễn Minh Anh",
     role: "Trưởng nhóm Sale",
     initials: "MA",
@@ -170,7 +170,7 @@ export const LANDING_USE_CASES = [
 
 export const LANDING_COMPARISON = {
   beforeLabel: "Quản lý thủ công",
-  afterLabel: "CAREVIPPRO",
+  afterLabel: "CSKH tự động",
   rows: [
     { aspect: "Tài khoản Zalo", before: "Nhiều thiết bị, nhiều tab", after: "Một dashboard tập trung" },
     { aspect: "Tin nhắn khách", before: "Refresh thủ công, dễ trễ", after: "Realtime WebSocket" },
@@ -193,8 +193,8 @@ export const LANDING_DEEP_DIVES = [
       "Nhãn màu phân loại khách VIP, mới, follow-up",
       "Fast reply và template tin nhắn nhanh",
     ],
-    image: "/images/chat/chat.jpg",
-    imageAlt: "Giao diện chat Zalo CAREVIPPRO",
+    image: "/images/logo/Ảnh 3 - đâu module 1.png",
+    imageAlt: "Giao diện chat Zalo CSKH tự động",
     tone: "success" as const,
     reverse: false,
   },
@@ -209,7 +209,7 @@ export const LANDING_DEEP_DIVES = [
       "Chiến dịch sinh nhật tự động",
       "Theo dõi % hoàn thành realtime",
     ],
-    image: "/images/carousel/carousel-02.png",
+    image: "/images/logo/Ảnh 3 - đâu module 2.png",
     imageAlt: "Module chiến dịch marketing Zalo",
     tone: "purple" as const,
     reverse: true,
@@ -225,8 +225,8 @@ export const LANDING_DEEP_DIVES = [
       "Quản lý đơn hàng trong admin",
       "Ảnh sản phẩm, giá và mô tả đầy đủ",
     ],
-    image: "/images/product/product-01.jpg",
-    imageAlt: "Cửa hàng online trên CAREVIPPRO",
+    image: "/images/logo/Ảnh 3 - đâu module 3.png",
+    imageAlt: "Cửa hàng online trên CSKH tự động",
     tone: "warning" as const,
     reverse: false,
   },
@@ -234,8 +234,8 @@ export const LANDING_DEEP_DIVES = [
 
 export const LANDING_FAQ = [
   {
-    q: "CAREVIPPRO là gì và dành cho ai?",
-    a: "CAREVIPPRO là nền tảng web giúp doanh nghiệp quản lý nhiều tài khoản Zalo, chat khách, chạy chiến dịch marketing và bán hàng trên một bảng điều khiển. Phù hợp team sale, marketing, shop online và quản lý vận hành.",
+    q: "CSKH tự động là gì và dành cho ai?",
+    a: "CSKH tự động là nền tảng web giúp doanh nghiệp quản lý nhiều tài khoản Zalo, chat khách, chạy chiến dịch marketing và bán hàng trên một bảng điều khiển. Phù hợp team sale, marketing, shop online và quản lý vận hành.",
   },
   {
     q: "Tôi cần bao nhiêu tài khoản Zalo để bắt đầu?",
@@ -243,7 +243,7 @@ export const LANDING_FAQ = [
   },
   {
     q: "Proxy có bắt buộc không?",
-    a: "Tùy cách vận hành và chính sách kết nối của bạn. CAREVIPPRO có module cấu hình proxy riêng giúp ổn định kết nối khi quản lý nhiều nick.",
+    a: "Tùy cách vận hành và chính sách kết nối của bạn. CSKH tự động có module cấu hình proxy riêng giúp ổn định kết nối khi quản lý nhiều nick.",
   },
   {
     q: "Tin nhắn có đồng bộ realtime không?",

@@ -59,13 +59,12 @@ export default function LandingNav() {
     >
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:h-[4.5rem] sm:px-6 lg:px-8">
         <Link href="/" className="flex shrink-0 items-center gap-2.5">
-          <Image
-            src="/images/logo/logo.png"
+          <img
+            src="/images/logo/logobanner.png"
             alt={APP_NAME}
             width={140}
             height={36}
-            className="h-8 w-auto transition-transform duration-300 hover:scale-[1.02] sm:h-9"
-            priority
+            className="h-8 w-auto transition-transform duration-300 hover:scale-[1.02] sm:h-9 object-contain"
           />
         </Link>
 

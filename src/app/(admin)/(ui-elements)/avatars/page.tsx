@@ -5,9 +5,9 @@ import { Metadata } from "next";
 import React from "react";
 
 export const metadata: Metadata = {
-  title: "Next.js Avatars | CAREVIPPRO",
+  title: "Next.js Avatars | CSKH tự động",
   description:
-    "This is Next.js Avatars page for CAREVIPPRO",
+    "This is Next.js Avatars page for CSKH tự động",
 };
 
 export default function AvatarPage() {

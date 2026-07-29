@@ -13,9 +13,9 @@ import { Metadata } from "next";
 import React from "react";
 
 export const metadata: Metadata = {
-  title: "Next.js Form Elements | CAREVIPPRO",
+  title: "Next.js Form Elements | CSKH tự động",
   description:
-    "This is Next.js Form Elements page for CAREVIPPRO",
+    "This is Next.js Form Elements page for CSKH tự động",
 };
 
 export default function FormElements() {

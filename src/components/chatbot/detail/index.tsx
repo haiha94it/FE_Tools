@@ -16,7 +16,7 @@ import { confirm } from "@/lib/confirm";
 import { useChatbotStore } from "@/stores/use-chatbot-store";
 import type { ChatbotInstance } from "@/types/chatbot";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { FiCopy, FiCpu, FiPlus, FiTrash2 } from "react-icons/fi";
 import AssignAccountsModal from "./AssignAccountsModal";
 import MissDataNotificationModal from "./MissDataNotificationModal";
@@ -49,6 +49,65 @@ export default function ChatbotDetailView({
 }: ChatbotDetailViewProps) {
   const router = useRouter();
   
+  // Resizable Panels state & ref
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [leftWidth, setLeftWidth] = useState<number>(25); // % Cột 1 (Sidebar)
+  const [midWidth, setMidWidth] = useState<number>(35);   // % Cột 2 (Chat test)
+  const [isDragging, setIsDragging] = useState<"left" | "right" | null>(null);
+
+  const startResizing = useCallback(
+    (handle: "left" | "right", e: React.PointerEvent) => {
+      e.preventDefault();
+      setIsDragging(handle);
+
+      const onPointerMove = (moveEvent: PointerEvent) => {
+        if (!containerRef.current) return;
+        const rect = containerRef.current.getBoundingClientRect();
+        const totalWidth = rect.width;
+        if (totalWidth <= 0) return;
+
+        if (handle === "left") {
+          const newLeftPx = moveEvent.clientX - rect.left;
+          let newLeftPercent = (newLeftPx / totalWidth) * 100;
+          newLeftPercent = Math.max(15, Math.min(42, newLeftPercent));
+          
+          setLeftWidth((prevLeft) => {
+            setMidWidth((prevMid) => {
+              if (100 - newLeftPercent - prevMid < 20) {
+                return Math.max(20, 100 - newLeftPercent - 20);
+              }
+              return prevMid;
+            });
+            return newLeftPercent;
+          });
+        } else if (handle === "right") {
+          setLeftWidth((currentLeft) => {
+            const currentLeftPx = (currentLeft / 100) * totalWidth;
+            const newMidPx = moveEvent.clientX - rect.left - currentLeftPx;
+            let newMidPercent = (newMidPx / totalWidth) * 100;
+            newMidPercent = Math.max(20, Math.min(55, newMidPercent));
+
+            if (100 - currentLeft - newMidPercent < 20) {
+              newMidPercent = Math.max(20, 100 - currentLeft - 20);
+            }
+            setMidWidth(newMidPercent);
+            return currentLeft;
+          });
+        }
+      };
+
+      const onPointerUp = () => {
+        setIsDragging(null);
+        window.removeEventListener("pointermove", onPointerMove);
+        window.removeEventListener("pointerup", onPointerUp);
+      };
+
+      window.addEventListener("pointermove", onPointerMove);
+      window.addEventListener("pointerup", onPointerUp);
+    },
+    []
+  );
+
   // Chatbots list & states
   const chatbots = useChatbotStore((s) => s.chatbots);
   const count = useChatbotStore((s) => s.count);
@@ -180,10 +239,23 @@ export default function ChatbotDetailView({
         <Alert variant="error" title="Lỗi" message={error} />
       ) : null}
 
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-12 xl:items-stretch">
+      {/* 3 Panels Resizable kéo thả liền kề nhau */}
+      <div
+        ref={containerRef}
+        className={`relative flex flex-col xl:flex-row items-stretch rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900/50 shadow-xs overflow-hidden ${
+          isDragging ? "select-none cursor-col-resize" : ""
+        }`}
+      >
         {/* Cột 1: Danh sách kịch bản (Sidebar) */}
-        <div className="xl:col-span-3">
-          <div className="rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.02] flex flex-col xl:h-[calc(100vh-210px)] w-full">
+        <div
+          className="w-full xl:w-auto xl:shrink-0 flex flex-col p-4 xl:h-[calc(100vh-210px)]"
+          ref={(node) => {
+            if (node && typeof window !== "undefined" && window.innerWidth >= 1280) {
+              node.style.width = `${leftWidth}%`;
+            }
+          }}
+        >
+          <div className="flex flex-col h-full w-full">
             <div className="flex items-center justify-between gap-2 border-b border-gray-100 pb-3 dark:border-gray-800 mb-3 shrink-0">
               <div>
                 <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
@@ -207,7 +279,7 @@ export default function ChatbotDetailView({
               {chatbots.map((bot) => {
                 const isActiveBot = bot.id === chatbotId;
                 const trainingDataCount = bot.training_data?.length ?? 0;
-                const accountsCount = bot.zalo_accounts?.length ?? 0;
+                const accountsCount = bot.zalo_account_keys?.length ?? 0;
                 
                 return (
                   <div
@@ -261,8 +333,7 @@ export default function ChatbotDetailView({
                     <div className="flex items-center justify-between text-[9px] text-gray-400 dark:text-gray-500 pt-1.5 border-t border-gray-100/50 dark:border-gray-800/50">
                       <div className="flex items-center gap-1.5">
                         <span className={`inline-block h-1.5 w-1.5 rounded-full ${bot.is_active ? "bg-success-500" : "bg-gray-300"}`}></span>
-                        <span>ID #{bot.id}</span>
-                         <button
+                        <button
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
@@ -282,7 +353,6 @@ export default function ChatbotDetailView({
                         >
                           [Báo thiếu data]
                         </button>
-
                       </div>
                       <span>Cập nhật {formatRelativeTime(bot.updated_at)}</span>
                       
@@ -319,35 +389,78 @@ export default function ChatbotDetailView({
           </div>
         </div>
 
+        {/* Thanh kéo kích thước 1 (Splitter giữa Cột 1 và Cột 2) */}
+        <div
+          onPointerDown={(e) => startResizing("left", e)}
+          className={`hidden xl:flex w-2 shrink-0 cursor-col-resize items-center justify-center border-x border-gray-200 dark:border-gray-800 transition-colors group z-20 ${
+            isDragging === "left"
+              ? "bg-brand-500/30 dark:bg-brand-500/40"
+              : "bg-gray-100/80 hover:bg-brand-500/20 dark:bg-gray-800/80 dark:hover:bg-brand-500/30"
+          }`}
+          title="Kéo để thay đổi kích thước"
+        >
+          <div
+            className={`h-8 w-1 rounded-full transition-colors ${
+              isDragging === "left"
+                ? "bg-brand-500"
+                : "bg-gray-300 dark:bg-gray-700 group-hover:bg-brand-500"
+            }`}
+          />
+        </div>
+
         {/* Cột 2: Khung chat test bot */}
-        <div className="xl:col-span-4 xl:h-[calc(100vh-210px)] flex flex-col">
+        <div
+          className="w-full xl:w-auto xl:shrink-0 flex flex-col xl:h-[calc(100vh-210px)]"
+          ref={(node) => {
+            if (node && typeof window !== "undefined" && window.innerWidth >= 1280) {
+              node.style.width = `${midWidth}%`;
+            }
+          }}
+        >
           <ChatTestBot chatbotId={chatbotId} />
         </div>
 
+        {/* Thanh kéo kích thước 2 (Splitter giữa Cột 2 và Cột 3) */}
+        <div
+          onPointerDown={(e) => startResizing("right", e)}
+          className={`hidden xl:flex w-2 shrink-0 cursor-col-resize items-center justify-center border-x border-gray-200 dark:border-gray-800 transition-colors group z-20 ${
+            isDragging === "right"
+              ? "bg-brand-500/30 dark:bg-brand-500/40"
+              : "bg-gray-100/80 hover:bg-brand-500/20 dark:bg-gray-800/80 dark:hover:bg-brand-500/30"
+          }`}
+          title="Kéo để thay đổi kích thước"
+        >
+          <div
+            className={`h-8 w-1 rounded-full transition-colors ${
+              isDragging === "right"
+                ? "bg-brand-500"
+                : "bg-gray-300 dark:bg-gray-700 group-hover:bg-brand-500"
+            }`}
+          />
+        </div>
+
         {/* Cột 3: Panel Huấn luyện & Cấu hình */}
-        <div className="xl:col-span-5">
-          <div className="rounded-2xl border border-gray-200 bg-white p-4 sm:p-5 dark:border-gray-800 dark:bg-white/[0.02] flex flex-col xl:h-[calc(100vh-210px)]">
-            <div className="shrink-0">
-              <ChatbotDetailTabs active={detailTab} onChange={setDetailTab} />
-            </div>
-            
-            <div className="mt-4 flex-1 overflow-y-auto pr-1 scrollbar-thin">
-              {detailTab === "training" ? (
-                <TrainingPanel chatbotId={chatbotId} />
-              ) : null}
-              {detailTab === "categories" ? (
-                <CategoryPanel chatbotId={chatbotId} />
-              ) : null}
-              {detailTab === "images" ? (
-                <ImagesPanel chatbotId={chatbotId} />
-              ) : null}
-              {detailTab === "special-cases" ? (
-                <SpecialCasePanel chatbotId={chatbotId} />
-              ) : null}
-              {detailTab === "reminders" ? (
-                <ReminderPanel chatbotId={chatbotId} />
-              ) : null}
-            </div>
+        <div className="w-full xl:flex-1 min-w-0 flex flex-col p-4 sm:p-5 xl:h-[calc(100vh-210px)]">
+          <div className="shrink-0">
+            <ChatbotDetailTabs active={detailTab} onChange={setDetailTab} />
+          </div>
+          
+          <div className="mt-4 flex-1 overflow-y-auto pr-1 scrollbar-thin">
+            {detailTab === "training" ? (
+              <TrainingPanel chatbotId={chatbotId} />
+            ) : null}
+            {detailTab === "categories" ? (
+              <CategoryPanel chatbotId={chatbotId} />
+            ) : null}
+            {detailTab === "images" ? (
+              <ImagesPanel chatbotId={chatbotId} />
+            ) : null}
+            {detailTab === "special-cases" ? (
+              <SpecialCasePanel chatbotId={chatbotId} />
+            ) : null}
+            {detailTab === "reminders" ? (
+              <ReminderPanel chatbotId={chatbotId} />
+            ) : null}
           </div>
         </div>
       </div>

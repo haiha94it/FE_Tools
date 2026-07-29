@@ -3,6 +3,7 @@
 import TrainingFormModal, {
   type TrainingFormValues,
 } from "@/components/chatbot/detail/TrainingFormModal";
+import ImportTrainingModal from "@/components/chatbot/detail/ImportTrainingModal";
 import CustomSelect from "@/components/form/CustomSelect";
 import Input from "@/components/form/input/InputField";
 import Badge from "@/components/ui/badge/Badge";
@@ -28,6 +29,7 @@ import {
   FiPlus,
   FiRefreshCw,
   FiTrash2,
+  FiUpload,
 } from "react-icons/fi";
 
 interface TrainingPanelProps {
@@ -69,6 +71,7 @@ export default function TrainingPanel({ chatbotId }: TrainingPanelProps) {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<TrainingDataItem | null>(null);
   const [actionsOpen, setActionsOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
 
   useEffect(() => {
     setChatbotId(chatbotId);
@@ -210,6 +213,9 @@ export default function TrainingPanel({ chatbotId }: TrainingPanelProps) {
               <Dropdown isOpen={actionsOpen} onClose={() => setActionsOpen(false)} className="w-48 right-0 mt-1.5">
                 <DropdownItem onClick={() => void handleExport()} className="flex items-center gap-2">
                   <FiDownload size={14} className="text-gray-400" /> Xuất file (Export)
+                </DropdownItem>
+                <DropdownItem onClick={() => { setActionsOpen(false); setImportOpen(true); }} className="flex items-center gap-2">
+                  <FiUpload size={14} className="text-gray-400" /> Nhập file (Import)
                 </DropdownItem>
                 {/* <DropdownItem onClick={() => void handleSyncEmbeddings()} className="flex items-center gap-2">
                   <FiRefreshCw size={14} className="text-gray-400" /> Đồng bộ Vector AI
@@ -401,6 +407,12 @@ export default function TrainingPanel({ chatbotId }: TrainingPanelProps) {
         onSubmit={(values) => {
           void handleSubmit(values);
         }}
+      />
+
+      <ImportTrainingModal
+        open={importOpen}
+        chatbotId={chatbotId}
+        onClose={() => setImportOpen(false)}
       />
     </div>
   );

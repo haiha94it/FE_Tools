@@ -115,8 +115,25 @@ export interface MessengerMessageAttachment {
   fileSizeBytes?: number;
   /** share.file — video / image / file (CDN Zalo thường trả attachment download) */
   fileKind?: "video" | "image" | "file";
-  /** Link CDN — mở sẽ tải file, không stream inline */
+  /** Link CDN — mở sẽ tải file, không phát inline */
   downloadOnly?: boolean;
+  /** recommened.calltime / misscall — giây (Zalo params.duration) */
+  callDurationSec?: number;
+  /** 0 = thoại, 1 = video */
+  callType?: number;
+  /** 1 = phía caller trong payload Zalo */
+  callIsCaller?: boolean;
+  /**
+   * Trạng thái log cuộc gọi (map từ action + reason + isCaller):
+   * answered_out | answered_in | missed_in | no_answer_out | cancelled_out | declined_out | busy | unknown
+   */
+  callStatus?: string;
+  /** Zalo params.reason (misscall) */
+  callReason?: number;
+  /** Headline hiển thị bubble (đã resolve) */
+  callHeadline?: string;
+  /** Dòng phụ (thời lượng / loại) */
+  callSubline?: string;
 }
 
 /** Một ô trong album ảnh/video Zalo (group_layout_id) */
@@ -213,6 +230,23 @@ export interface MessageAckPayload {
   result?: unknown;
 }
 
+/** Kết quả gọi điện Zalo (ring) — BE handlers.handle_voice_call */
+export interface VoiceCallResultPayload {
+  type: "voice_call_result";
+  success?: boolean;
+  message?: string;
+  clientMsgId?: string;
+  id_conversation?: number;
+  call_type?: number;
+  calleeId?: string;
+  result?: {
+    success?: boolean;
+    error_code?: number;
+    message?: string;
+    data?: unknown;
+  } | null;
+}
+
 /** Response WS cho reaction / sticker / forward / block — `type: message` */
 export interface WsActionMessagePayload {
   type: "message";
@@ -236,6 +270,10 @@ export type MessengerMobilePanel = "accounts" | "conversations" | "chat";
 export type MessengerChatType =
   | "send-message"
   | "send-file"
+  | "send-video"
+  | "voice-call"
+  | "voice-call-hangup"
+  | "voice-call-media"
   | "quote"
   | "share-photo"
   | "share-video"
@@ -327,6 +365,8 @@ export interface MessengerAttachmentDraft {
   link: string;
   name: string;
   isImage: boolean;
+  /** Video native (mp4…) — chat_type send-video, tách file/ảnh */
+  isVideo?: boolean;
 }
 
 export interface SendMessagePayload {

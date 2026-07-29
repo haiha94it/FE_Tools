@@ -132,8 +132,8 @@ export default function AccountInfoView() {
     }
   };
 
-  const handleLogout = async () => {
-    await logout();
+  const handleLogout = () => {
+    void logout();
     router.replace("/signin");
   };
 

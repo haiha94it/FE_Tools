@@ -129,6 +129,10 @@ export function buildShareWsPayload(
 
 export function canShareMessage(message: DisplayMessage): boolean {
   if (message.recalled) return false;
+  // Log cuộc gọi — chỉ hiển thị, không chia sẻ / gọi lại
+  if (message.attachments?.some((item) => item.action === "calltime")) {
+    return false;
+  }
   if (getMessageText(message)) return true;
   if (message.attachments?.some((item) => item.href || item.thumb)) return true;
   if (message.msgType === "chat.sticker") return true;

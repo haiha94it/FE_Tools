@@ -1,11 +1,9 @@
 import AuthHomeLink from "@/components/auth/AuthHomeLink";
 import AuthStoreReset from "@/components/auth/AuthStoreReset";
-import GridShape from "@/components/common/GridShape";
 import ThemeTogglerTwo from "@/components/common/ThemeTogglerTwo";
 
+import { APP_NAME } from "@/constants/brand";
 import { ThemeProvider } from "@/context/ThemeContext";
-import Image from "next/image";
-import Link from "next/link";
 import React from "react";
 
 export default function AuthLayout({
@@ -14,38 +12,33 @@ export default function AuthLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="relative p-6 bg-white z-1 dark:bg-gray-900 sm:p-0">
+    <div className="relative min-h-screen w-full overflow-hidden bg-gray-950">
       <ThemeProvider>
         <AuthStoreReset />
-        <div className="relative flex h-screen w-full flex-col justify-center dark:bg-gray-900 sm:p-0 lg:flex-row">
-          <div className="flex w-full flex-1 flex-col overflow-y-auto lg:w-1/2">
-            <div className="mx-auto w-full max-w-lg px-5 pt-6 sm:px-0 sm:pt-10">
+
+        {/* 1. Fullscreen Background Image - Soft Blur Balance */}
+        <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
+          <img
+            src="/images/logo/auth.png"
+            alt={APP_NAME}
+            className="h-full w-full object-cover scale-102 blur-[3px] opacity-75 dark:opacity-60 transition-all duration-300"
+          />
+          <div className="absolute inset-0 bg-gradient-to-br from-slate-950/45 via-black/35 to-slate-950/55" />
+        </div>
+
+        {/* 2. Centered Form UI Card */}
+        <div className="relative z-10 flex min-h-screen w-full items-center justify-center p-4 sm:p-6 lg:p-8">
+          <div className="w-full max-w-lg rounded-3xl border border-white/30 bg-white/85 p-6 shadow-2xl backdrop-blur-2xl transition-all duration-300 sm:p-10 dark:border-gray-700/60 dark:bg-gray-900/85">
+            <div className="mb-4">
               <AuthHomeLink />
             </div>
             {children}
           </div>
-          <div className="lg:w-1/2 w-full h-full bg-brand-950 dark:bg-white/5 lg:grid items-center hidden">
-            <div className="relative items-center justify-center  flex z-1">
-              {/* <!-- ===== Common Grid Shape Start ===== --> */}
-              <GridShape />
-              <div className="flex flex-col items-center max-w-xs">
-                <Link href="/" className="block mb-4">
-                  <Image
-                    width={231}
-                    height={48}
-                    src="/images/logo/logo-dark.png"
-                    alt="Logo"
-                  />
-                </Link>
-                <p className="text-center text-gray-400 dark:text-white/60">
-                  CSKH — Marketing & bán hàng tự động
-                </p>
-              </div>
-            </div>
-          </div>
-          <div className="fixed bottom-6 right-6 z-50 hidden sm:block">
-            <ThemeTogglerTwo />
-          </div>
+        </div>
+
+        {/* 3. Floating Theme Toggler */}
+        <div className="fixed bottom-6 right-6 z-50 hidden sm:block">
+          <ThemeTogglerTwo />
         </div>
       </ThemeProvider>
     </div>

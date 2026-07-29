@@ -56,6 +56,7 @@ interface ChatbotTrainingState {
   clearAllTrainingData: () => Promise<boolean>;
   syncEmbeddings: () => Promise<boolean>;
   exportTrainingData: () => Promise<unknown>;
+  importTrainingData: (items: CreateTrainingDataPayload[]) => Promise<boolean>;
 
   fetchCategories: (options?: { silent?: boolean }) => Promise<void>;
   createCategory: (payload: CreateCategoryPayload) => Promise<boolean>;
@@ -255,6 +256,20 @@ export const useChatbotTrainingStore = create<ChatbotTrainingState>(
       } catch (error) {
         handleApiError(error);
         return null;
+      }
+    },
+
+    importTrainingData: async (items) => {
+      set({ isSavingTraining: true });
+      try {
+        await chatbotService.importTrainingData(items);
+        set({ isSavingTraining: false });
+        await get().fetchTrainingData({ silent: true });
+        return true;
+      } catch (error) {
+        handleApiError(error);
+        set({ isSavingTraining: false });
+        return false;
       }
     },
 

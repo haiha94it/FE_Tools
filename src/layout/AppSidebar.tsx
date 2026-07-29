@@ -15,7 +15,6 @@ import {
 import { useAuthStore } from "@/stores/use-auth-store";
 import { useTeamCollaborationStore } from "@/stores/use-team-collaboration-store";
 import { ChevronDownIcon, HorizontaLDots } from "../icons/index";
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -249,27 +248,21 @@ const AppSidebar: React.FC = () => {
         <Link href="/" prefetch={false}>
           {isExpanded || isHovered || isMobileOpen ? (
             <>
-              <Image
-                className="dark:hidden"
-                src="/images/logo/logo.svg"
+              <img
+                src="/images/logo/logobanner.png"
                 alt={APP_NAME}
                 width={150}
                 height={40}
-              />
-              <Image
-                className="hidden dark:block"
-                src="/images/logo/logo-dark.svg"
-                alt={APP_NAME}
-                width={150}
-                height={40}
+                className="h-10 w-auto object-contain"
               />
             </>
           ) : (
-            <Image
-              src="/images/logo/logo-icon.svg"
+            <img
+              src="/images/logo/favicon.png"
               alt={APP_NAME}
               width={32}
               height={32}
+              className="h-8 w-8 object-contain"
             />
           )}
         </Link>

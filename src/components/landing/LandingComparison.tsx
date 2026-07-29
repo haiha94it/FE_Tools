@@ -16,7 +16,7 @@ export default function LandingComparison() {
             So sánh
           </p>
           <h2 className="landing-title mt-2 text-2xl font-bold tracking-tight sm:text-3xl">
-            Tại sao chuyển sang CAREVIPPRO?
+            Tại sao chuyển sang CSKH tự động?
           </h2>
           <p className="landing-lead mt-3 text-base">
             So với quản lý thủ công — tiết kiệm thời gian, giảm sai sót, scale dễ hơn.

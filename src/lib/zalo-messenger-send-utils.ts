@@ -63,6 +63,17 @@ export function isImageAttachmentDraft(
   );
 }
 
+export function isVideoAttachmentDraft(
+  draft: Pick<MessengerAttachmentDraft, "link" | "name" | "isImage" | "isVideo">,
+): boolean {
+  if (draft.isImage) return false;
+  if (draft.isVideo) return true;
+  return (
+    isVideoAttachmentLink(draft.link, draft.name) ||
+    isVideoAttachmentLink(draft.name)
+  );
+}
+
 export function parseUploadedFileLink(data: unknown): string | null {
   if (typeof data === "string" && data.trim()) {
     return data.trim();
@@ -109,17 +120,22 @@ export function resolveAttachmentChatType(options: {
 }): MessengerChatType {
   if (options.hasQuote) return "quote";
   if (isImageAttachmentDraft(options.draft)) return "send-message";
+  if (isVideoAttachmentDraft(options.draft)) return "send-video";
   return "send-file";
 }
 
 export function detectAttachmentKind(
   file: File,
   link: string,
-): Pick<MessengerAttachmentDraft, "isImage"> {
+): Pick<MessengerAttachmentDraft, "isImage" | "isVideo"> {
   const isImage =
     file.type.startsWith("image/") ||
     isImageAttachmentLink(link, file.name);
-  return { isImage };
+  if (isImage) return { isImage: true, isVideo: false };
+  const isVideo =
+    file.type.startsWith("video/") ||
+    isVideoAttachmentLink(link, file.name);
+  return { isImage: false, isVideo };
 }
 
 export function getQuotePreviewText(message: DisplayMessage): string {
@@ -144,9 +160,18 @@ export function getQuotePreviewText(message: DisplayMessage): string {
     return message.attachments?.[0]?.title || "Nhắc hẹn";
   }
   if (message.msgType === "chat.recommended") {
-    return message.attachments?.[0]?.title
-      ? `Danh thiếp: ${message.attachments[0].title}`
-      : "Danh thiếp";
+    const att = message.attachments?.[0];
+    if (att?.action === "calltime") {
+      const head = att.callHeadline || att.title || "Cuộc gọi";
+      const sec = att.callDurationSec ?? 0;
+      if (sec > 0) {
+        const m = Math.floor(sec / 60);
+        const r = sec % 60;
+        return `${head} · ${m}:${String(r).padStart(2, "0")}`;
+      }
+      return head;
+    }
+    return att?.title ? `Danh thiếp: ${att.title}` : "Danh thiếp";
   }
   if (message.msgType === "share.file") {
     const att = message.attachments?.[0];
