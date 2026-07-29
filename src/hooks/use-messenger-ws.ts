@@ -244,9 +244,12 @@ export function useMessengerWs() {
               };
             }
           ).media;
+          const friend = store.activeConversation?.friend as
+            | { name?: string; display_name?: string }
+            | undefined;
           const peerName =
-            store.activeConversation?.friend?.display_name ||
-            store.activeConversation?.friend?.name ||
+            friend?.display_name ||
+            friend?.name ||
             store.activeConversation?.name ||
             "Cuộc gọi";
           store.setActiveCall({
