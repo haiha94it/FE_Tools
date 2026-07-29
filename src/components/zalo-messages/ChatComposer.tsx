@@ -15,6 +15,7 @@ import {
 import {
   getQuotePreviewText,
   isImageAttachmentDraft,
+  isVideoAttachmentDraft,
   resolveAttachmentPreviewUrl,
 } from "@/lib/zalo-messenger-send-utils";
 import type { ZaloGroupMember } from "@/types/zalo-contacts";
@@ -30,10 +31,12 @@ import dynamic from "next/dynamic";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   HiOutlineBolt,
+  HiOutlineDocument,
   HiOutlineFaceSmile,
-  HiOutlinePaperClip,
+  HiOutlinePhoto,
   HiOutlinePlus,
   HiOutlinePuzzlePiece,
+  HiOutlineVideoCamera,
   HiOutlineXMark,
 } from "react-icons/hi2";
 import MentionSuggestions from "./MentionSuggestions";
@@ -137,6 +140,8 @@ export default function ChatComposer({
 }: ChatComposerProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const composerShellRef = useRef<HTMLDivElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const emojiRef = useRef<HTMLDivElement>(null);
   const stickerRef = useRef<HTMLDivElement>(null);
@@ -404,6 +409,8 @@ export default function ChatComposer({
     event.target.value = "";
   };
 
+  const attachDisabled = disabled || uploading;
+
   const handlePaste = (event: React.ClipboardEvent<HTMLTextAreaElement>) => {
     const files = Array.from(event.clipboardData.files ?? []);
     if (!files.length || !onUploadFiles) return;
@@ -484,9 +491,22 @@ export default function ChatComposer({
                   unoptimized
                   className="h-[72px] w-[72px] object-cover"
                 />
+              ) : isVideoAttachmentDraft(item) ? (
+                <div className="relative h-[72px] w-[120px] bg-black/80">
+                  <video
+                    src={resolveAttachmentPreviewUrl(item.link)}
+                    className="h-full w-full object-cover opacity-90"
+                    muted
+                    playsInline
+                    preload="metadata"
+                  />
+                  <span className="absolute inset-0 flex items-center justify-center text-[10px] font-semibold text-white drop-shadow">
+                    ▶ Video
+                  </span>
+                </div>
               ) : (
                 <div className="flex h-[72px] w-[120px] items-center px-2 text-xs text-gray-600 dark:text-gray-300">
-                  📎 {item.name}
+                  📄 {item.name}
                 </div>
               )}
               <button
@@ -552,10 +572,26 @@ export default function ChatComposer({
       ) : null}
 
       <input
+        ref={imageInputRef}
+        type="file"
+        multiple
+        accept="image/*"
+        className="hidden"
+        onChange={handleFileChange}
+      />
+      <input
+        ref={videoInputRef}
+        type="file"
+        multiple
+        accept="video/mp4,video/*,.mp4"
+        className="hidden"
+        onChange={handleFileChange}
+      />
+      <input
         ref={fileInputRef}
         type="file"
         multiple
-        accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.zip,.rar"
+        accept=".pdf,.doc,.docx,.xls,.xlsx,.zip,.rar,.txt,application/pdf"
         className="hidden"
         onChange={handleFileChange}
       />
@@ -613,13 +649,27 @@ export default function ChatComposer({
                 }}
               />
             ) : (
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <ComposerActionButton
-                  label="Đính kèm"
-                  disabled={disabled || uploading}
+                  label="Ảnh"
+                  disabled={attachDisabled}
+                  onClick={() => imageInputRef.current?.click()}
+                >
+                  <HiOutlinePhoto size={20} aria-hidden />
+                </ComposerActionButton>
+                <ComposerActionButton
+                  label="Video"
+                  disabled={attachDisabled}
+                  onClick={() => videoInputRef.current?.click()}
+                >
+                  <HiOutlineVideoCamera size={20} aria-hidden />
+                </ComposerActionButton>
+                <ComposerActionButton
+                  label="File"
+                  disabled={attachDisabled}
                   onClick={() => fileInputRef.current?.click()}
                 >
-                  <HiOutlinePaperClip size={20} aria-hidden />
+                  <HiOutlineDocument size={20} aria-hidden />
                 </ComposerActionButton>
                 {accountId && onSendSticker ? (
                   <ComposerActionButton
@@ -662,15 +712,37 @@ export default function ChatComposer({
 
         <div ref={composerShellRef} className="flex items-end gap-2">
           <div className="hidden shrink-0 items-center gap-1 xl:flex">
-          <Tooltip content="Đính kèm file" side="top">
+          <Tooltip content="Gửi ảnh" side="top">
             <button
               type="button"
-              disabled={disabled || uploading}
-              onClick={() => fileInputRef.current?.click()}
-              aria-label="Đính kèm file"
+              disabled={attachDisabled}
+              onClick={() => imageInputRef.current?.click()}
+              aria-label="Gửi ảnh"
               className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-xl border border-gray-200 text-gray-500 transition hover:border-brand-300 hover:text-brand-600 disabled:opacity-50 dark:border-gray-700"
             >
-              📎
+              <HiOutlinePhoto size={18} aria-hidden />
+            </button>
+          </Tooltip>
+          <Tooltip content="Gửi video" side="top">
+            <button
+              type="button"
+              disabled={attachDisabled}
+              onClick={() => videoInputRef.current?.click()}
+              aria-label="Gửi video"
+              className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-xl border border-gray-200 text-gray-500 transition hover:border-brand-300 hover:text-brand-600 disabled:opacity-50 dark:border-gray-700"
+            >
+              <HiOutlineVideoCamera size={18} aria-hidden />
+            </button>
+          </Tooltip>
+          <Tooltip content="Gửi file" side="top">
+            <button
+              type="button"
+              disabled={attachDisabled}
+              onClick={() => fileInputRef.current?.click()}
+              aria-label="Gửi file"
+              className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-xl border border-gray-200 text-gray-500 transition hover:border-brand-300 hover:text-brand-600 disabled:opacity-50 dark:border-gray-700"
+            >
+              <HiOutlineDocument size={18} aria-hidden />
             </button>
           </Tooltip>
           {accountId && onSendSticker ? (

@@ -139,6 +139,17 @@ const messengerSessionDefaults = {
   attachmentDrafts: [] as MessengerAttachmentDraft[],
   fastReplies: [] as MessengerFastReply[],
   uploadingAttachment: false,
+  voiceCallPending: false,
+  /** In-call overlay state (browser mic/cam) */
+  activeCall: null as null | {
+    callType: 0 | 1;
+    peerName?: string;
+    mediaReady?: boolean;
+    callId?: number | string;
+    startedAt: number;
+    conversationId?: number;
+    note?: string;
+  },
   mobilePanel: "accounts" as MessengerMobilePanel,
   error: null as string | null,
   conversationCache: {} as Record<number, ConversationCacheEntry>,
@@ -204,12 +215,42 @@ interface ZaloMessengerState {
   attachmentDrafts: MessengerAttachmentDraft[];
   fastReplies: MessengerFastReply[];
   uploadingAttachment: boolean;
+  /** Đang chờ BE/Zalo hoàn tất voice-call (ring) */
+  voiceCallPending: boolean;
+  activeCall: null | {
+    callType: 0 | 1;
+    peerName?: string;
+    mediaReady?: boolean;
+    callId?: number | string;
+    startedAt: number;
+    conversationId?: number;
+    note?: string;
+  };
   mobilePanel: MessengerMobilePanel;
   error: string | null;
   conversationCache: Record<number, ConversationCacheEntry>;
   messagesCache: Record<string, MessageCacheEntry>;
 
   setComposerText: (value: string) => void;
+  setVoiceCallPending: (pending: boolean) => void;
+  setActiveCall: (
+    call: null | {
+      callType: 0 | 1;
+      peerName?: string;
+      mediaReady?: boolean;
+      callId?: number | string;
+      startedAt: number;
+      conversationId?: number;
+      note?: string;
+    },
+  ) => void;
+  patchActiveCall: (
+    patch: Partial<{
+      mediaReady: boolean;
+      note: string;
+      callId: number | string;
+    }>,
+  ) => void;
   /** Cập nhật list UID tắt chatbot sau PATCH từ header chat 1-1 */
   setAccountChatbotDisabledUids: (
     accountId: number,
@@ -382,12 +423,22 @@ export const useZaloMessengerStore = create<ZaloMessengerState>((set, get) => ({
   attachmentDrafts: [],
   fastReplies: [],
   uploadingAttachment: false,
+  voiceCallPending: false,
+  activeCall: null,
   mobilePanel: "accounts",
   error: null,
   conversationCache: {},
   messagesCache: {},
 
   setComposerText: (composerText) => set({ composerText }),
+  setVoiceCallPending: (voiceCallPending) => set({ voiceCallPending }),
+  setActiveCall: (activeCall) => set({ activeCall }),
+  patchActiveCall: (patch) =>
+    set((state) =>
+      state.activeCall
+        ? { activeCall: { ...state.activeCall, ...patch } }
+        : state,
+    ),
 
   setAccountChatbotDisabledUids: (accountId, uids) =>
     set((state) => ({
@@ -414,11 +465,11 @@ export const useZaloMessengerStore = create<ZaloMessengerState>((set, get) => ({
       try {
         const link = await zaloMessengerService.uploadFile(file);
         uploadedCount += 1;
-        const { isImage } = detectAttachmentKind(file, link);
+        const { isImage, isVideo } = detectAttachmentKind(file, link);
         set((state) => ({
           attachmentDrafts: [
             ...state.attachmentDrafts,
-            { link, name: file.name, isImage },
+            { link, name: file.name, isImage, isVideo: Boolean(isVideo) },
           ],
         }));
       } catch (error) {
@@ -1618,7 +1669,9 @@ export const useZaloMessengerStore = create<ZaloMessengerState>((set, get) => ({
         clientMsgId: generateClientMsgId(),
         message_details: quoteDetails,
         phone_number: null,
-        ...(chatType === "send-file" ? { file_name: file.name } : {}),
+        ...(chatType === "send-file" || chatType === "send-video"
+          ? { file_name: file.name }
+          : {}),
       });
     }
 

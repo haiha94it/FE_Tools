@@ -235,6 +235,81 @@ export function RecommendedContactContent({
   );
 }
 
+/** Bubble log cuộc gọi Zalo — chỉ hiển thị, không callback / gọi lại */
+export function CallLogMessageContent({
+  title,
+  subline,
+  durationSec = 0,
+  isVideo = false,
+  status,
+  own,
+}: {
+  title?: string;
+  subline?: string;
+  durationSec?: number;
+  isVideo?: boolean;
+  /** answered_* | missed_* | cancelled_* | declined_* | no_answer_* | busy | ... */
+  status?: string;
+  own: boolean;
+}) {
+  const sec = Math.max(0, Math.floor(Number(durationSec) || 0));
+  const m = Math.floor(sec / 60);
+  const r = sec % 60;
+  const timeLabel = sec > 0 ? `${m}:${String(r).padStart(2, "0")}` : null;
+  const st = (status || "").toLowerCase();
+  const isMiss =
+    st.includes("miss") ||
+    st.includes("cancel") ||
+    st.includes("declin") ||
+    st.includes("no_answer") ||
+    st.includes("busy") ||
+    (!timeLabel && !st.startsWith("answered"));
+
+  const headline =
+    title?.trim() && title !== "sendBubbleMessage" && title !== "Cuộc gọi"
+      ? title
+      : isVideo
+        ? "Cuộc gọi video"
+        : "Cuộc gọi thoại";
+
+  const detail =
+    subline?.trim() ||
+    (timeLabel ? `Thời lượng ${timeLabel}` : isMiss ? "Không kết nối" : "");
+
+  const iconBg = own
+    ? isMiss
+      ? "bg-white/15 text-white"
+      : "bg-white/15 text-white"
+    : isMiss
+      ? "bg-rose-50 text-rose-600 dark:bg-rose-500/15 dark:text-rose-400"
+      : "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400";
+
+  const icon = isVideo ? (isMiss ? "📹" : "📹") : isMiss ? "📵" : "📞";
+
+  return (
+    <div
+      className={`flex min-w-[210px] max-w-[300px] items-center gap-3 rounded-xl border px-3 py-2.5 ${
+        own
+          ? "border-white/25 bg-white/10"
+          : "border-gray-100 bg-gray-50 dark:border-gray-700 dark:bg-gray-900/40"
+      }`}
+      aria-label={detail ? `${headline}. ${detail}` : headline}
+    >
+      <span
+        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-lg ${iconBg}`}
+      >
+        {icon}
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-medium leading-snug">{headline}</p>
+        {detail ? (
+          <p className="mt-0.5 text-xs opacity-80">{detail}</p>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 export function SystemTipContent({
   text,
   iconUrl,
@@ -664,6 +739,7 @@ export function isRichMessageType(message: DisplayMessage): boolean {
     action === "location" ||
     action === "ecard" ||
     action === "recommended" ||
+    action === "calltime" ||
     action === "system" ||
     action === "voice" ||
     action === "video" ||
