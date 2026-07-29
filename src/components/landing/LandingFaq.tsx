@@ -2,13 +2,42 @@
 
 import { LANDING_FAQ } from "@/components/landing/landing-data";
 import LandingReveal from "@/components/landing/LandingReveal";
-import { useState } from "react";
+import { useGSAP } from "@gsap/react";
+import gsap from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { useRef, useState } from "react";
+
+gsap.registerPlugin(ScrollTrigger);
 
 export default function LandingFaq() {
   const [openIndex, setOpenIndex] = useState<number | null>(0);
+  const listRef = useRef<HTMLDivElement>(null);
+
+  // GSAP Stagger Entrance cho các câu hỏi FAQ
+  useGSAP(() => {
+    if (!listRef.current) return;
+
+    const items = listRef.current.children;
+    gsap.fromTo(
+      items,
+      { y: 30, opacity: 0 },
+      {
+        y: 0,
+        opacity: 1,
+        duration: 0.6,
+        stagger: 0.08,
+        ease: "power3.out",
+        scrollTrigger: {
+          trigger: listRef.current,
+          start: "top 85%",
+          toggleActions: "play none none reverse",
+        },
+      }
+    );
+  }, []);
 
   return (
-    <section id="faq" className="landing-section-alt py-16 sm:py-20 lg:py-24">
+    <section id="faq" className="landing-section-alt py-16 sm:py-20 lg:py-24 bg-white dark:bg-gray-950">
       <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
         <LandingReveal className="text-center" variant="up">
           <p className="landing-eyebrow text-sm font-semibold uppercase tracking-wider">FAQ</p>
@@ -20,17 +49,17 @@ export default function LandingFaq() {
           </p>
         </LandingReveal>
 
-        <LandingReveal className="mt-10 space-y-3" variant="up" delay={80}>
+        <div ref={listRef} className="mt-10 space-y-3.5">
           {LANDING_FAQ.map((item, index) => {
             const isOpen = openIndex === index;
             return (
               <div
                 key={item.q}
-                className="landing-card overflow-hidden transition-shadow duration-200 hover:shadow-md"
+                className="landing-card overflow-hidden transition-all duration-300 hover:shadow-lg border border-gray-200/80 dark:border-gray-800"
               >
                 <button
                   type="button"
-                  className="flex w-full cursor-pointer items-center justify-between gap-4 px-5 py-4 text-left"
+                  className="flex w-full cursor-pointer items-center justify-between gap-4 px-5 py-4.5 text-left"
                   aria-expanded={isOpen}
                   onClick={() => setOpenIndex(isOpen ? null : index)}
                 >
@@ -38,7 +67,7 @@ export default function LandingFaq() {
                     {item.q}
                   </span>
                   <span
-                    className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-gray-200 text-gray-500 transition-transform duration-200 dark:border-gray-700 dark:text-gray-400 ${
+                    className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-gray-200 text-gray-500 transition-transform duration-300 dark:border-gray-700 dark:text-gray-400 ${
                       isOpen ? "rotate-180 bg-brand-50 text-brand-600 dark:bg-brand-500/15 dark:text-brand-300" : ""
                     }`}
                     aria-hidden
@@ -54,7 +83,7 @@ export default function LandingFaq() {
                   }`}
                 >
                   <div className="overflow-hidden">
-                    <p className="landing-lead border-t border-gray-100 px-5 pb-4 pt-2 text-sm leading-relaxed dark:border-gray-800">
+                    <p className="landing-lead border-t border-gray-100 px-5 pb-4 pt-2.5 text-sm leading-relaxed dark:border-gray-800">
                       {item.a}
                     </p>
                   </div>
@@ -62,7 +91,7 @@ export default function LandingFaq() {
               </div>
             );
           })}
-        </LandingReveal>
+        </div>
       </div>
     </section>
   );
