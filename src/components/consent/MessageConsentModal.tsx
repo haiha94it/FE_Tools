@@ -19,6 +19,7 @@ import type {
   ConsentEntityType,
   MessageProcessingTerms,
 } from "@/types/consent";
+import { CONSENT_CONFIRM_SYNC_TEXT } from "@/types/consent";
 import { useRouter } from "next/navigation";
 import { memo, useCallback, useEffect, useState } from "react";
 import ConsentSignatureFullscreen from "./ConsentSignatureFullscreen";
@@ -293,10 +294,17 @@ function MessageConsentModal({
 
   const stepTitle =
     step === "agree"
-      ? "Đồng thuận xử lý tin nhắn Zalo"
+      ? null
       : step === "terms"
         ? terms?.title || "Điều khoản thỏa thuận"
         : "Thông tin & chữ ký";
+
+  const stepSubtitle =
+    step === "agree"
+      ? null
+      : step === "terms"
+        ? "Đọc kỹ điều khoản trước khi tiếp tục."
+        : "Điền thông tin, ký tay rồi bấm Ký và xác nhận. Hồ sơ sẽ chờ admin duyệt.";
 
   return (
     <>
@@ -312,35 +320,47 @@ function MessageConsentModal({
         />
 
         <div className="relative z-10 flex min-h-0 w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-theme-xl dark:border-gray-800 dark:bg-gray-900">
-          <div className="shrink-0 border-b border-gray-100 px-4 py-3 dark:border-gray-800 sm:px-5 sm:py-4">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <h2
-                  id="message-consent-title"
-                  className="text-base font-semibold text-gray-900 dark:text-white"
-                >
-                  {stepTitle}
-                </h2>
-                <p className="mt-1 text-sm leading-relaxed text-gray-500 dark:text-gray-400">
-                  {step === "agree"
-                    ? "Xác nhận hiểu rõ việc đồng bộ tin nhắn trước khi xem và ký hợp đồng."
-                    : step === "terms"
-                      ? "Đọc kỹ điều khoản trước khi tiếp tục."
-                      : "Điền thông tin, ký tay rồi bấm Ký và xác nhận. Hồ sơ sẽ chờ admin duyệt."}
-                </p>
+          {stepTitle || stepSubtitle || !mandatory ? (
+            <div className="shrink-0 border-b border-gray-100 px-4 py-3 dark:border-gray-800 sm:px-5 sm:py-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  {stepTitle ? (
+                    <h2
+                      id="message-consent-title"
+                      className="text-base font-semibold text-gray-900 dark:text-white"
+                    >
+                      {stepTitle}
+                    </h2>
+                  ) : (
+                    <h2 id="message-consent-title" className="sr-only">
+                      Xác nhận đồng bộ tin nhắn
+                    </h2>
+                  )}
+                  {stepSubtitle ? (
+                    <p
+                      className={`text-sm leading-relaxed text-gray-500 dark:text-gray-400 ${stepTitle ? "mt-1" : ""}`}
+                    >
+                      {stepSubtitle}
+                    </p>
+                  ) : null}
+                </div>
+                {!mandatory ? (
+                  <button
+                    type="button"
+                    onClick={handleClose}
+                    className="flex size-9 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-500 transition hover:bg-gray-200 hover:text-gray-800 dark:bg-gray-800 dark:hover:bg-gray-700 dark:hover:text-white"
+                    aria-label="Đóng"
+                  >
+                    ✕
+                  </button>
+                ) : null}
               </div>
-              {!mandatory ? (
-                <button
-                  type="button"
-                  onClick={handleClose}
-                  className="flex size-9 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-500 transition hover:bg-gray-200 hover:text-gray-800 dark:bg-gray-800 dark:hover:bg-gray-700 dark:hover:text-white"
-                  aria-label="Đóng"
-                >
-                  ✕
-                </button>
-              ) : null}
             </div>
-          </div>
+          ) : (
+            <h2 id="message-consent-title" className="sr-only">
+              Xác nhận đồng bộ tin nhắn
+            </h2>
+          )}
 
           {step === "form" ? (
             <div className="shrink-0 border-b border-gray-100 bg-gray-50/50 px-4 py-3 dark:border-gray-800 dark:bg-white/[0.01] sm:px-5">
@@ -389,13 +409,9 @@ function MessageConsentModal({
                       <span className="inline-flex items-center rounded-full bg-white/15 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-white/90 ring-1 ring-white/20">
                         Bước 1 / 3 · Xác nhận
                       </span>
-                      <h3 className="mt-2 text-lg font-semibold tracking-tight sm:text-xl">
-                        Bắt đầu thỏa thuận xử lý tin nhắn
-                      </h3>
-                      <p className="mt-1.5 text-sm leading-relaxed text-white/90">
+                      <p className="mt-2 text-sm leading-relaxed text-white/90">
                         Hệ thống cần bạn xác nhận trước khi mở trang hợp đồng và
-                        ký tay. Chỉ vài bước — sau khi admin duyệt bạn dùng chat
-                        bình thường.
+                        ký tay. Chỉ vài bước — bạn dùng chat bình thường.
                       </p>
                     </div>
                   </div>
@@ -475,13 +491,7 @@ function MessageConsentModal({
                       onChange={(e) => setAgreeChecked(e.target.checked)}
                       className="mt-0.5 size-5 shrink-0 cursor-pointer rounded border-gray-300 text-brand-600 focus:ring-brand-500"
                     />
-                    <span>
-                      Tôi hiểu rằng hệ thống sẽ đồng bộ và lưu trữ dữ liệu tin
-                      nhắn từ các nền tảng mạng xã hội về máy chủ của phần mềm,
-                      để phục vụ cho nhu cầu chăm sóc khách hàng và bán hàng của
-                      tôi. Và tôi muốn tiếp tục chuyển đến trang xem và ký hợp
-                      đồng.
-                    </span>
+                    <span>{CONSENT_CONFIRM_SYNC_TEXT}</span>
                   </label>
                   {!agreeChecked ? (
                     <p className="mt-3 text-xs font-medium text-gray-500 dark:text-gray-400">
@@ -825,35 +835,40 @@ function MessageConsentModal({
           />
         ) : null}
 
-      {
-        previewModalOpen && (
-          <Modal
-            isOpen={previewModalOpen}
-            onClose={() => setPreviewModalOpen(false)}
-            layer="top"
-            className="max-w-4xl p-6 sm:p-8"
-          >
-            <h3 className="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
-              Xem trước văn bản hợp đồng
-            </h3>
-            <div className="custom-scrollbar max-h-[60vh] overflow-y-auto rounded-xl border border-gray-200 p-4 dark:border-gray-800 bg-white dark:bg-gray-950">
-              {previewHtml ? (
-                <div
-                  className="dialog-quill text-sm leading-relaxed text-gray-700 dark:text-gray-300"
-                  dangerouslySetInnerHTML={{ __html: previewHtml }}
-                />
-              ) : (
-                <p className="text-gray-500">Nội dung trống</p>
-              )}
-            </div>
-            <div className="mt-6 flex justify-end">
-              <Button size="sm" onClick={() => setPreviewModalOpen(false)}>
-                Đóng
-              </Button>
-            </div>
-          </Modal>
-        )
-      }
+      {previewModalOpen ? (
+        <Modal
+          isOpen={previewModalOpen}
+          onClose={() => setPreviewModalOpen(false)}
+          layer="top"
+          className="max-w-4xl p-6 sm:p-8"
+        >
+          <h3 className="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
+            Xem trước văn bản hợp đồng
+          </h3>
+          <div className="custom-scrollbar max-h-[60vh] overflow-y-auto rounded-xl border border-gray-200 p-4 dark:border-gray-800 bg-white dark:bg-gray-950">
+            {previewHtml ? (
+              // Chưa ký: 2 ô trống; sau ký admin/PDF dùng ✓ / [x]
+              <ConsentTermsViewer
+                bodyHtml={previewHtml}
+                hasBodyHtml
+                companyName={terms?.company_name}
+                companyTaxCode={terms?.company_tax_code}
+                companyAddress={terms?.company_address}
+                companySignatureUrl={terms?.company_signature_url}
+                userName={fullName.trim() || undefined}
+                showPartyBPlaceholder
+              />
+            ) : (
+              <p className="text-gray-500">Nội dung trống</p>
+            )}
+          </div>
+          <div className="mt-6 flex justify-end">
+            <Button size="sm" onClick={() => setPreviewModalOpen(false)}>
+              Đóng
+            </Button>
+          </div>
+        </Modal>
+      ) : null}
     </>
   );
 }

@@ -223,3 +223,10 @@ export const CONSENT_PDF_MAX_BYTES = 20 * 1024 * 1024;
 
 export const CONSENT_EMPLOYEE_WAIT_MANAGER_DEFAULT =
   "Tài khoản quản lý chưa hoàn tất thỏa thuận xử lý tin nhắn Zalo. Vui lòng báo quản lý ký và được duyệt thỏa thuận để bạn được sử dụng tin nhắn.";
+
+/** Xác nhận Bên B (HĐ) — PDF + preview. Step 1 wizard: câu đồng bộ riêng. */
+export const CONSENT_CONFIRM_SYNC_TEXT =
+  "Tôi hiểu rằng hệ thống sẽ đồng bộ và lưu trữ dữ liệu tin nhắn từ các nền tảng mạng xã hội về máy chủ của phần mềm, để phục vụ cho nhu cầu chăm sóc khách hàng và bán hàng của tôi. Và tôi muốn tiếp tục chuyển đến trang xem và ký hợp đồng.";
+
+export const CONSENT_CONFIRM_TERMS_TEXT =
+  "Tôi đã đọc, hiểu rõ và đồng ý với toàn bộ nội dung Thỏa thuận trong hợp đồng này.";

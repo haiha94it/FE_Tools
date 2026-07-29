@@ -6,6 +6,7 @@ import {
   sanitizeConsentHtml,
 } from "@/lib/consent-utils";
 import type { ConsentDisplayMode } from "@/types/consent";
+import { CONSENT_CONFIRM_TERMS_TEXT } from "@/types/consent";
 import { memo, useEffect, useState } from "react";
 import { useMediaQuery } from "@/hooks/use-media-query";
 
@@ -135,7 +136,7 @@ function ConsentTermsViewer({
         </div>
       ) : null}
 
-      {/* Khối Xác nhận đồng ý Bên B */}
+      {/* Khối Xác nhận đồng ý Bên B — chỉ dòng đồng ý HĐ */}
       <div className={`mb-4 rounded-xl border p-4 transition ${
         isEditableCheckbox
           ? checked
@@ -147,26 +148,26 @@ function ConsentTermsViewer({
           Xác nhận đồng ý Bên B
         </p>
         {isEditableCheckbox ? (
-          <label className="mt-1.5 text-sm font-normal text-gray-900 dark:text-white flex items-start gap-2.5 cursor-pointer select-none">
+          <label className="mt-1.5 flex cursor-pointer select-none items-start gap-2.5 text-sm font-normal text-gray-900 dark:text-white">
             <input
               type="checkbox"
               id="accept-terms-internal-checkbox"
               checked={checked}
               onChange={(e) => onChange?.(e.target.checked)}
-              className="mt-0.5 size-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500 cursor-pointer"
+              className="mt-0.5 size-4 shrink-0 cursor-pointer rounded border-gray-300 text-brand-600 focus:ring-brand-500"
             />
-            <span>Tôi đã đọc, hiểu rõ và đồng ý với toàn bộ nội dung Thỏa thuận trong hợp đồng này.</span>
+            <span>{CONSENT_CONFIRM_TERMS_TEXT}</span>
           </label>
         ) : (
-          <p className="mt-1.5 text-sm font-normal text-gray-900 dark:text-white flex items-start gap-2.5">
+          <p className="mt-1.5 flex items-start gap-2.5 text-sm font-normal text-gray-900 dark:text-white">
             {sigB ? (
-              <span className="inline-flex size-4 shrink-0 items-center justify-center rounded border border-brand-500 bg-brand-500 text-white text-[10px] font-bold">
+              <span className="inline-flex size-4 shrink-0 items-center justify-center rounded border border-brand-500 bg-brand-500 text-[10px] font-bold text-white">
                 ✓
               </span>
             ) : (
               <span className="inline-flex size-4 shrink-0 rounded border border-gray-300 bg-white dark:border-gray-600 dark:bg-gray-800" />
             )}
-            <span>Tôi đã đọc, hiểu rõ và đồng ý với toàn bộ nội dung Thỏa thuận trong hợp đồng này.</span>
+            <span>{CONSENT_CONFIRM_TERMS_TEXT}</span>
           </p>
         )}
       </div>
