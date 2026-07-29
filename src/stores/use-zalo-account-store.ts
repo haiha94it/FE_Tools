@@ -28,8 +28,59 @@ function canCurrentUserManageNick(): boolean {
   return canManageNickCrud(useAuthStore.getState().user);
 }
 
+/** State theo user — clear khi logout / đổi tài khoản SPA */
+const zaloAccountSessionDefaults = {
+  accounts: [] as ZaloAccount[],
+  /** user.id sở hữu list hiện tại — khác user → force refetch */
+  accountsOwnerUserId: null as number | string | null,
+  selectedIds: [] as number[],
+  search: "",
+  showSensitiveInfo: false,
+  isLoading: false,
+  error: null as string | null,
+  checkingIds: [] as number[],
+  checkTaskId: null as string | number | null,
+  editingAccountId: null as number | null,
+  deletingAccountId: null as number | null,
+  isEditOpen: false,
+  editAccount: null as ZaloAccount | null,
+  editNote: "",
+  editPassword: "",
+  editProxyId: null as number | null,
+  proxies: [] as ZaloProxyItem[],
+  isLoadingProxies: false,
+  isQrOpen: false,
+  qrImage: null as string | null,
+  qrCountdown: 0,
+  qrProxy: "",
+  qrAccountId: null as number | null,
+  cookieTaskId: null as string | number | null,
+  cookieLoading: false,
+  loadingToggleAllMessage: false,
+  loadingToggleMessageId: null as number | null,
+  loadingToggleChatbotId: null as number | null,
+  loadingToggleChatbotReactionId: null as number | null,
+  deleteConfirm: null as { ids: number[] } | null,
+  loadingChatbotDisabledFriendsAccountIds: [] as number[],
+  savingChatbotDisabledFriendsAccountIds: [] as number[],
+  groupsByAccountId: {} as Record<
+    number,
+    { results: ZaloAccountGroup[]; count: number; page: number }
+  >,
+  loadingGroupAccountIds: [] as number[],
+  groupErrorsByAccountId: {} as Record<number, string>,
+  groupMembersByGroupId: {} as Record<number, ZaloGroupMember[]>,
+  loadingGroupMemberIds: [] as number[],
+  scanningGroupMemberIds: [] as number[],
+  groupMemberErrorsByGroupId: {} as Record<number, string>,
+  groupScanTaskIdsByAccountId: {} as Record<number, string | number>,
+  groupMemberScanTaskIdsByGroupId: {} as Record<number, string | number>,
+};
+
 interface ZaloAccountState {
   accounts: ZaloAccount[];
+  /** user.id lúc load list — logout/đổi user thì null hoặc lệch → refetch */
+  accountsOwnerUserId: number | string | null;
   selectedIds: number[];
   search: string;
   showSensitiveInfo: boolean;
@@ -136,71 +187,52 @@ interface ZaloAccountState {
   fetchGroupMembers: (groupId: number) => Promise<void>;
   scanGroupMembers: (accountId: number, groupId: number) => Promise<boolean>;
   pollGroupMemberScanResult: (groupId: number) => Promise<void>;
+
+  /** SPA logout / đổi user — xóa list nick + state modal */
+  resetSession: () => void;
 }
 
 
 export const useZaloAccountStore = create<ZaloAccountState>((set, get) => ({
-  accounts: [],
-  selectedIds: [],
-  search: "",
-  showSensitiveInfo: false,
-  isLoading: false,
-  error: null,
+  ...zaloAccountSessionDefaults,
 
-  checkingIds: [],
-  checkTaskId: null,
-
-  editingAccountId: null,
-  deletingAccountId: null,
-
-  isEditOpen: false,
-  editAccount: null,
-  editNote: "",
-  editPassword: "",
-  editProxyId: null,
-  proxies: [],
-  isLoadingProxies: false,
-
-  isQrOpen: false,
-  qrImage: null,
-  qrCountdown: 0,
-  qrProxy: "",
-  qrAccountId: null,
-
-  cookieTaskId: null,
-  cookieLoading: false,
-
-  loadingToggleAllMessage: false,
-  loadingToggleMessageId: null,
-  loadingToggleChatbotId: null,
-  loadingToggleChatbotReactionId: null,
-
-  deleteConfirm: null,
-
-  loadingChatbotDisabledFriendsAccountIds: [],
-  savingChatbotDisabledFriendsAccountIds: [],
-
-  groupsByAccountId: {},
-  loadingGroupAccountIds: [],
-  groupErrorsByAccountId: {},
-  groupMembersByGroupId: {},
-  loadingGroupMemberIds: [],
-  scanningGroupMemberIds: [],
-  groupMemberErrorsByGroupId: {},
-  groupScanTaskIdsByAccountId: {},
-  groupMemberScanTaskIdsByGroupId: {},
+  resetSession: () => {
+    set({ ...zaloAccountSessionDefaults });
+  },
 
   fetchAccounts: async (options = {}) => {
-    const force = options.force === true;
-    // Đã có list + không force → không gọi lại (Strict Mode / re-visit)
-    if (!force && get().accounts.length > 0 && !get().isLoading) {
+    const userId = useAuthStore.getState().user?.id ?? null;
+    const ownerId = get().accountsOwnerUserId;
+    // Đổi user SPA mà chưa clear → bắt buộc load lại (tránh list nick user cũ)
+    const userChanged =
+      ownerId != null &&
+      userId != null &&
+      String(ownerId) !== String(userId);
+    const force = options.force === true || userChanged;
+    // Đã có list + cùng user + không force → không gọi lại (Strict Mode / re-visit)
+    const sameOwner =
+      ownerId != null &&
+      userId != null &&
+      String(ownerId) === String(userId);
+    if (!force && get().accounts.length > 0 && sameOwner && !get().isLoading) {
       return;
+    }
+    // Đổi user: xóa list cũ ngay (tránh flash nick user trước)
+    if (userChanged) {
+      set({
+        accounts: [],
+        selectedIds: [],
+        accountsOwnerUserId: null,
+      });
     }
     await dedupeInflight("zalo-account:fetchAccounts", () =>
       runAsyncAction(
         async () => {
           const accounts = await fetchAccessibleAccounts();
-          set({ accounts });
+          set({
+            accounts,
+            accountsOwnerUserId: useAuthStore.getState().user?.id ?? null,
+          });
         },
         set,
       ),

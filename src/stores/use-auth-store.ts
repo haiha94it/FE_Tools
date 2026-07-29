@@ -215,7 +215,7 @@ export const useAuthStore = create<AuthState>()(
           // ignore
         }
 
-        // SPA không F5: xóa state theo user (messenger/consent/team) ngay lập tức
+        // SPA không F5: xóa state theo user (messenger/accounts/consent/team)
         try {
           const { useZaloMessengerStore } = await import(
             "@/stores/use-zalo-messenger-store"
@@ -223,6 +223,14 @@ export const useAuthStore = create<AuthState>()(
           useZaloMessengerStore.getState().resetSession();
         } catch {
           // ignore — vẫn clear auth bên dưới
+        }
+        try {
+          const { useZaloAccountStore } = await import(
+            "@/stores/use-zalo-account-store"
+          );
+          useZaloAccountStore.getState().resetSession();
+        } catch {
+          // ignore
         }
         useConsentStore.getState().reset();
         useTeamCollaborationStore.setState({
