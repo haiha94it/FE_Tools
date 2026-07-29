@@ -58,8 +58,8 @@ export default function ResourceView() {
     if (!canManage) return;
     if (
       !(await confirm({
-        title: "Xóa banner",
-        message: `Xóa banner "${item.content}"?`,
+        title: "Xóa tiện ích",
+        message: `Xóa tiện ích "${item.content}"?`,
         confirmText: "Xóa",
         variant: "danger",
       }))
@@ -68,7 +68,7 @@ export default function ResourceView() {
     }
     try {
       await deleteResource(item.id);
-      toast.success("Đã xóa banner.");
+      toast.success("Đã xóa tiện ích.");
     } catch (error) {
       toast.error(getApiErrorMessage(error));
     }
@@ -126,14 +126,14 @@ export default function ResourceView() {
               Khám phá công cụ &amp; giải pháp
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/85">
-              Banner nổi bật và danh sách sản phẩm ứng dụng — liên kết nhanh tới tài liệu,
-              dịch vụ và tiện ích hỗ trợ vận hành Zalo.
+              Tiện ích nổi bật và danh sách sản phẩm ứng dụng — liên kết nhanh tới tài liệu,
+              dịch vụ và công cụ hỗ trợ vận hành Zalo.
             </p>
           </div>
           <div className="flex shrink-0 gap-3 self-start sm:self-center">
             <div className="min-w-[72px] rounded-xl bg-white/10 px-4 py-3 text-center backdrop-blur-sm">
               <p className="text-2xl font-bold tabular-nums">{resources.length}</p>
-              <p className="text-theme-xs text-white/80">Banner</p>
+              <p className="text-theme-xs text-white/80">Tiện ích</p>
             </div>
             <div className="min-w-[72px] rounded-xl bg-white/10 px-4 py-3 text-center backdrop-blur-sm">
               <p className="text-2xl font-bold tabular-nums">{productApps.length}</p>
@@ -157,7 +157,7 @@ export default function ResourceView() {
             </span>
             <div>
               <h2 className="text-base font-semibold text-gray-900 dark:text-white/90">
-                Banner nổi bật
+                Tiện ích nổi bật
               </h2>
               <p className="text-theme-xs text-gray-500 dark:text-gray-400">
                 Cuộn ngang để xem thêm
@@ -167,7 +167,7 @@ export default function ResourceView() {
           {canManage ? (
             <Button size="sm" onClick={openCreateResource}>
               <HiOutlinePlus className="mr-1" size={14} />
-              Thêm banner
+              Thêm tiện ích
             </Button>
           ) : null}
         </div>

@@ -50,7 +50,9 @@ export default function ResourceFormModal({
         content: trimmedContent,
         link: trimmedLink,
       });
-      toast.success(editingItem ? "Đã cập nhật banner." : "Đã thêm banner.");
+      toast.success(
+        editingItem ? "Đã cập nhật tiện ích." : "Đã thêm tiện ích.",
+      );
       onClose();
     } catch (error) {
       toast.error(getApiErrorMessage(error));
@@ -66,10 +68,10 @@ export default function ResourceFormModal({
           </span>
           <div>
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-              {editingItem ? "Sửa banner" : "Thêm banner"}
+              {editingItem ? "Sửa tiện ích" : "Thêm tiện ích"}
             </h3>
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              Hiển thị trên carousel tài nguyên
+              Hiển thị trên carousel tiện ích
             </p>
           </div>
         </div>

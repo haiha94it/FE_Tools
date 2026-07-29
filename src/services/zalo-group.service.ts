@@ -13,6 +13,7 @@ import {
   normalizeZaloGroupList,
 } from "@/lib/zalo-contacts-utils";
 import api from "@/lib/axios";
+import { dedupeInflight } from "@/lib/inflight";
 import type {
   GroupMemberTaskResponse,
   PaginatedResponse,
@@ -60,15 +61,18 @@ export const zaloGroupService = {
   async fetchDetails(groups: ZaloGroupItem[]): Promise<ZaloGroupItem[]> {
     const idGroups = buildGroupFetchPayload(groups as unknown[]);
     if (!idGroups.length) return [];
-    const response = await api.post(API_ZALO_GROUP.FETCH_DETAILS, {
-      id_groups: idGroups,
+    const key = `group:fetchs:${[...idGroups].sort((a, b) => a - b).join(",")}`;
+    return dedupeInflight(key, async () => {
+      const response = await api.post(API_ZALO_GROUP.FETCH_DETAILS, {
+        id_groups: idGroups,
+      });
+      const details = normalizeZaloGroupList(
+        extractFetchedContacts<unknown>(response.data),
+      );
+      return details.length
+        ? details
+        : normalizeZaloGroupList(groups as unknown[]);
     });
-    const details = normalizeZaloGroupList(
-      extractFetchedContacts<unknown>(response.data),
-    );
-    return details.length
-      ? details
-      : normalizeZaloGroupList(groups as unknown[]);
   },
 
   async startScan(accountIds: number[]): Promise<string | number | null> {

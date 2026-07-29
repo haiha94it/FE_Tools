@@ -40,8 +40,8 @@ export default function ResourceCarousel({
     return (
       <div className="flex min-h-[180px] items-center justify-center rounded-2xl border border-dashed border-gray-200 bg-gradient-to-br from-brand-50/40 to-white px-6 dark:border-gray-700 dark:from-brand-500/5 dark:to-transparent">
         <p className="text-center text-sm text-gray-500 dark:text-gray-400">
-          Chưa có banner tài nguyên nào.
-          {isAdmin ? " Bấm Thêm banner để tạo mục đầu tiên." : null}
+          Chưa có tiện ích nào.
+          {isAdmin ? " Bấm Thêm tiện ích để tạo mục đầu tiên." : null}
         </p>
       </div>
     );

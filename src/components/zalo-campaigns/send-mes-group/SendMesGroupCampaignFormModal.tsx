@@ -514,6 +514,9 @@ export default function SendMesGroupCampaignFormModal({
                 uploadingImage={uploadingImage}
                 disabled={saving}
                 showImages={false}
+                // Nhóm: không [gender]/[name] — chỉ icon ngẫu nhiên + mẫu chào nhóm
+                placeholders={[{ key: "[r]", label: "Icon ngẫu nhiên" }]}
+                defaultTemplate="Xin chào cả nhóm! Chúc mọi người một ngày thật vui vẻ và tràn đầy năng lượng."
                 onContentsChange={setContents}
                 onImagesChange={setImages}
                 onUploadImage={handleUploadImage}

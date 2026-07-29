@@ -1,5 +1,6 @@
 import { getChatbotAccountKeys } from "@/lib/chatbot-utils";
 import { handleApiError } from "@/lib/errors";
+import { dedupeInflight } from "@/lib/inflight";
 import { toast } from "@/lib/toast";
 import { chatbotService } from "@/services/chatbot.service";
 import { runAsyncAction } from "@/stores/helpers/async-actions";
@@ -82,55 +83,65 @@ export const useChatbotStore = create<ChatbotState>((set, get) => ({
 
   fetchChatbots: async (options) => {
     const silent = options?.silent ?? false;
-    if (!silent) set({ isLoading: true, error: null });
+    return dedupeInflight(
+      `chatbot:list:${silent ? "silent" : "full"}`,
+      async () => {
+        if (!silent) set({ isLoading: true, error: null });
 
-    try {
-      const data = await chatbotService.listChatbots();
-      const selectedId = get().selectedChatbotId;
-      const selectedChatbot =
-        selectedId != null
-          ? (data.results.find((item) => item.id === selectedId) ??
-            get().selectedChatbot)
-          : get().selectedChatbot;
+        try {
+          const data = await chatbotService.listChatbots();
+          const selectedId = get().selectedChatbotId;
+          const selectedChatbot =
+            selectedId != null
+              ? (data.results.find((item) => item.id === selectedId) ??
+                get().selectedChatbot)
+              : get().selectedChatbot;
 
-      set({
-        chatbots: data.results,
-        count: data.count,
-        maxChatbots: data.maxChatbots,
-        selectedChatbot,
-        isLoading: false,
-        error: null,
-      });
-    } catch (error) {
-      const messages = handleApiError(error, { silent });
-      set({
-        isLoading: false,
-        error: messages[0] ?? "Không tải được danh sách kịch bản.",
-      });
-    }
+          set({
+            chatbots: data.results,
+            count: data.count,
+            maxChatbots: data.maxChatbots,
+            selectedChatbot,
+            isLoading: false,
+            error: null,
+          });
+        } catch (error) {
+          const messages = handleApiError(error, { silent });
+          set({
+            isLoading: false,
+            error: messages[0] ?? "Không tải được danh sách kịch bản.",
+          });
+        }
+      },
+    );
   },
 
   fetchChatbotDetail: async (id, options) => {
     const silent = options?.silent ?? false;
-    if (!silent) set({ isDetailLoading: true, error: null });
+    return dedupeInflight(
+      `chatbot:detail:${id}:${silent ? "silent" : "full"}`,
+      async () => {
+        if (!silent) set({ isDetailLoading: true, error: null });
 
-    try {
-      const chatbot = await chatbotService.getChatbot(id);
-      set((state) => ({
-        selectedChatbotId: id,
-        selectedChatbot: chatbot,
-        isDetailLoading: false,
-        chatbots: state.chatbots.some((item) => item.id === id)
-          ? state.chatbots.map((item) => (item.id === id ? chatbot : item))
-          : state.chatbots,
-      }));
-    } catch (error) {
-      const messages = handleApiError(error, { silent });
-      set({
-        isDetailLoading: false,
-        error: messages[0] ?? "Không tải được chi tiết kịch bản.",
-      });
-    }
+        try {
+          const chatbot = await chatbotService.getChatbot(id);
+          set((state) => ({
+            selectedChatbotId: id,
+            selectedChatbot: chatbot,
+            isDetailLoading: false,
+            chatbots: state.chatbots.some((item) => item.id === id)
+              ? state.chatbots.map((item) => (item.id === id ? chatbot : item))
+              : state.chatbots,
+          }));
+        } catch (error) {
+          const messages = handleApiError(error, { silent });
+          set({
+            isDetailLoading: false,
+            error: messages[0] ?? "Không tải được chi tiết kịch bản.",
+          });
+        }
+      },
+    );
   },
 
   createChatbot: async () => {
