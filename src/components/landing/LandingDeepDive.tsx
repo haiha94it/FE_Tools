@@ -1,7 +1,11 @@
+"use client";
+
 import { LANDING_DEEP_DIVES } from "@/components/landing/landing-data";
 import { IconCheck } from "@/components/landing/LandingIcons";
-import LandingReveal from "@/components/landing/LandingReveal";
+import { useGSAP } from "@gsap/react";
+import { gsap, ScrollTrigger } from "@/lib/gsap-config";
 import Image from "next/image";
+import { useRef } from "react";
 
 const BADGE_TONE = {
   success:
@@ -13,42 +17,77 @@ const BADGE_TONE = {
 } as const;
 
 export default function LandingDeepDive() {
+  const sectionRef = useRef<HTMLElement>(null);
+
+  useGSAP(() => {
+    if (!sectionRef.current) return;
+
+    const rows = sectionRef.current.querySelectorAll<HTMLElement>(".deep-dive-row");
+
+    rows.forEach((row) => {
+      const textCol = row.querySelector(".deep-dive-text");
+      const imgCol = row.querySelector(".deep-dive-img");
+      const isReverse = row.classList.contains("is-reverse");
+
+      const tl = gsap.timeline({
+        scrollTrigger: {
+          trigger: row,
+          start: "top 80%", // Kích hoạt khi từng row xuất hiện 80% viewport
+          toggleActions: "play none none reverse",
+        },
+      });
+
+      if (textCol) {
+        tl.fromTo(
+          textCol,
+          { x: isReverse ? 40 : -40, opacity: 0, filter: "blur(8px)" },
+          { x: 0, opacity: 1, filter: "blur(0px)", duration: 0.8, ease: "power3.out" }
+        );
+      }
+
+      if (imgCol) {
+        tl.fromTo(
+          imgCol,
+          { x: isReverse ? -40 : 40, opacity: 0, scale: 0.94, filter: "blur(8px)" },
+          { x: 0, opacity: 1, scale: 1, filter: "blur(0px)", duration: 0.8, ease: "power3.out" },
+          "-=0.6"
+        );
+      }
+    });
+  }, { scope: sectionRef });
+
   return (
-    <section id="chi-tiet" className="py-16 sm:py-20 lg:py-24 bg-white dark:bg-gray-950">
+    <section ref={sectionRef} id="chi-tiet" className="py-16 sm:py-20 lg:py-24 bg-white dark:bg-gray-950">
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-        <LandingReveal className="mx-auto max-w-2xl text-center" variant="up">
+        <div className="mx-auto max-w-2xl text-center">
           <p className="landing-eyebrow text-sm font-semibold uppercase tracking-wider text-brand-600 dark:text-brand-400">
             Chi tiết
           </p>
-          <h2 className="landing-title mt-2 text-2xl font-bold tracking-tight sm:text-3xl">
+          <h2 className="landing-title mt-2 text-2xl font-bold tracking-tight sm:text-3xl text-gray-900 dark:text-white">
             Đi sâu vào từng module cốt lõi
           </h2>
-          <p className="landing-lead mt-3 text-base">
+          <p className="landing-lead mt-3 text-base text-gray-600 dark:text-gray-400">
             Mỗi tính năng được thiết kế tỉ mỉ để tối ưu hiệu suất cho team của bạn.
           </p>
-        </LandingReveal>
+        </div>
 
-        <div className="mt-16 space-y-16 sm:space-y-24">
+        <div className="mt-16 space-y-20 sm:space-y-28">
           {LANDING_DEEP_DIVES.map((item) => (
             <div
               key={item.id}
-              className={`flex flex-col items-center gap-8 lg:flex-row lg:gap-14 ${
-                item.reverse ? "lg:flex-row-reverse" : ""
+              className={`deep-dive-row flex flex-col items-center gap-10 lg:flex-row lg:gap-16 ${
+                item.reverse ? "is-reverse lg:flex-row-reverse" : ""
               }`}
             >
-              <LandingReveal
-                variant={item.reverse ? "right" : "left"}
-                className="w-full lg:w-1/2"
-              >
-                <span
-                  className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${BADGE_TONE[item.tone]}`}
-                >
+              {/* Cột chữ */}
+              <div className="deep-dive-text w-full lg:w-1/2">
+                <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${BADGE_TONE[item.tone]}`}>
                   {item.badge}
                 </span>
-                <h3 className="landing-title mt-3 text-xl font-bold leading-snug sm:text-2xl">
+                <h3 className="landing-title mt-3 text-xl font-bold leading-snug sm:text-2xl text-gray-900 dark:text-white">
                   {item.title}
                 </h3>
-                <p className="landing-lead mt-3 text-sm leading-relaxed sm:text-base">
+                <p className="landing-lead mt-3 text-sm leading-relaxed sm:text-base text-gray-600 dark:text-gray-400">
                   {item.description}
                 </p>
                 <ul className="mt-6 space-y-2.5">
@@ -61,14 +100,11 @@ export default function LandingDeepDive() {
                     </li>
                   ))}
                 </ul>
-              </LandingReveal>
+              </div>
 
-              <LandingReveal
-                variant={item.reverse ? "left" : "right"}
-                delay={100}
-                className="w-full lg:w-1/2"
-              >
-                <div className="landing-card overflow-hidden shadow-xl shadow-brand-500/10">
+              {/* Cột ảnh mockup */}
+              <div className="deep-dive-img w-full lg:w-1/2">
+                <div className="landing-card overflow-hidden rounded-2xl border border-gray-100 dark:border-gray-800 shadow-xl shadow-gray-200/50 dark:shadow-black/40">
                   <div className="relative aspect-[4/3] w-full bg-gray-100 dark:bg-gray-800">
                     <Image
                       src={item.image}
@@ -79,7 +115,7 @@ export default function LandingDeepDive() {
                     />
                   </div>
                 </div>
-              </LandingReveal>
+              </div>
             </div>
           ))}
         </div>

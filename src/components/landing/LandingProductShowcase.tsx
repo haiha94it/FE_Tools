@@ -7,11 +7,8 @@ import {
 import LandingShowcasePanels from "@/components/landing/LandingShowcasePanels";
 import { IconCheck } from "@/components/landing/LandingIcons";
 import { useGSAP } from "@gsap/react";
-import gsap from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { gsap, ScrollTrigger } from "@/lib/gsap-config";
 import { useRef, useState } from "react";
-
-gsap.registerPlugin(ScrollTrigger);
 
 const TAB_IDS: ShowcaseTabId[] = ["messenger", "campaigns", "shop", "accounts"];
 
@@ -19,7 +16,7 @@ export default function LandingProductShowcase() {
   const [activeTab, setActiveTab] = useState<ShowcaseTabId>("messenger");
   const sectionRef = useRef<HTMLDivElement>(null);
   const textContainerRef = useRef<HTMLDivElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
+
 
   const tab = LANDING_SHOWCASE_TABS.find((t) => t.id === activeTab)!;
 
@@ -34,13 +31,13 @@ export default function LandingProductShowcase() {
       scrollTrigger: {
         trigger: sectionRef.current,
         start: "top top",
-        // Quãng đường cuộn dài (3000px) đảm bảo người dùng phải cuộn từ từ qua từng Tab
-        end: `+=${totalTabs * 800}`, 
-        pin: true, // Ghim chặt section này tại vị trí top top
-        scrub: 0.5, // Cuộn mượt đầm tay
+        end: `+=${totalTabs * 800}`,
+        pin: true,
+        pinSpacing: false, // Giữ stacking card effect — parent đã skip pin section này
+        scrub: 0.5,
         anticipatePin: 1,
         onUpdate: (self) => {
-          // Tính toán chính xác tab đang active dựa trên tiến trình cuộn (progress từ 0 -> 1)
+          // Tính tab active dựa trên tiến trình cuộn (progress 0 → 1)
           const rawIndex = Math.floor(self.progress * totalTabs);
           const index = Math.min(Math.max(rawIndex, 0), totalTabs - 1);
           const currentTab = TAB_IDS[index];
@@ -55,27 +52,15 @@ export default function LandingProductShowcase() {
     };
   }, { scope: sectionRef });
 
-  // 2. HIỆU ỨNG CHUYỂN TẠO CẢM GIÁC SLIDER (Morph/Slide Transition)
+  // 2. Hiệu ứng chuyển text khi đổi tab — Panel do ShowcasePanels tự animate
   useGSAP(() => {
-    if (!textContainerRef.current || !panelRef.current) return;
+    if (!textContainerRef.current) return;
 
-    const ctx = gsap.context(() => {
-      // Animate Text Side
-      gsap.fromTo(
-        textContainerRef.current,
-        { opacity: 0, y: 15, filter: "blur(6px)" },
-        { opacity: 1, y: 0, filter: "blur(0px)", duration: 0.35, ease: "power2.out" }
-      );
-
-      // Animate Image/Mockup Panel Side
-      gsap.fromTo(
-        panelRef.current,
-        { opacity: 0, scale: 0.96, filter: "blur(8px)" },
-        { opacity: 1, scale: 1, filter: "blur(0px)", duration: 0.4, ease: "power3.out" }
-      );
-    });
-
-    return () => ctx.revert();
+    gsap.fromTo(
+      textContainerRef.current,
+      { opacity: 0, y: 15, filter: "blur(6px)" },
+      { opacity: 1, y: 0, filter: "blur(0px)", duration: 0.35, ease: "power2.out" }
+    );
   }, [activeTab]);
 
   return (
@@ -141,7 +126,7 @@ export default function LandingProductShowcase() {
           </div>
 
           {/* Cột phải: Panel hình ảnh / Mockup */}
-          <div ref={panelRef} className="landing-showcase-panel will-change-transform">
+          <div className="landing-showcase-panel will-change-transform">
             <LandingShowcasePanels tabId={activeTab} />
           </div>
         </div>

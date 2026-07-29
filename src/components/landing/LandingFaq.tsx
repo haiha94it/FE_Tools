@@ -3,14 +3,12 @@
 import { LANDING_FAQ } from "@/components/landing/landing-data";
 import LandingReveal from "@/components/landing/LandingReveal";
 import { useGSAP } from "@gsap/react";
-import gsap from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { gsap, ScrollTrigger } from "@/lib/gsap-config";
 import { useRef, useState } from "react";
-
-gsap.registerPlugin(ScrollTrigger);
 
 export default function LandingFaq() {
   const [openIndex, setOpenIndex] = useState<number | null>(0);
+  const sectionRef = useRef<HTMLElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
   // GSAP Stagger Entrance cho các câu hỏi FAQ
@@ -34,10 +32,10 @@ export default function LandingFaq() {
         },
       }
     );
-  }, []);
+  }, { scope: sectionRef });
 
   return (
-    <section id="faq" className="landing-section-alt py-16 sm:py-20 lg:py-24 bg-white dark:bg-gray-950">
+    <section ref={sectionRef} id="faq" className="landing-section-alt py-16 sm:py-20 lg:py-24 bg-white dark:bg-gray-950">
       <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
         <LandingReveal className="text-center" variant="up">
           <p className="landing-eyebrow text-sm font-semibold uppercase tracking-wider">FAQ</p>

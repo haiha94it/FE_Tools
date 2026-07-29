@@ -1,12 +1,9 @@
 "use client";
 
 import { useGSAP } from "@gsap/react";
-import gsap from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { gsap, ScrollTrigger } from "@/lib/gsap-config";
 import type { ElementType, ReactNode } from "react";
 import { useRef } from "react";
-
-gsap.registerPlugin(ScrollTrigger);
 
 type RevealVariant = "up" | "fade" | "scale" | "left" | "right";
 

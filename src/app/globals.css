@@ -185,12 +185,19 @@
     --scrollbar-thumb-hover: rgba(70, 95, 255, 0.42);
     --scrollbar-track: transparent;
     --scrollbar-fg: rgba(152, 162, 179, 0.35);
+    /* Nav scrolled state — tương thích dark mode */
+    --nav-scrolled-bg: rgba(255, 255, 255, 0.82);
+    --nav-scrolled-border: rgba(255, 255, 255, 0.25);
+    --nav-scrolled-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.08);
   }
 
   .dark {
     --scrollbar-thumb: rgba(152, 162, 179, 0.22);
     --scrollbar-thumb-hover: rgba(117, 146, 255, 0.48);
     --scrollbar-fg: rgba(152, 162, 179, 0.22);
+    --nav-scrolled-bg: rgba(3, 7, 18, 0.85);
+    --nav-scrolled-border: rgba(255, 255, 255, 0.08);
+    --nav-scrolled-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.4);
   }
 
   *,

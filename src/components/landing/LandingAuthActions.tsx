@@ -1,7 +1,6 @@
 "use client";
 
 import { useAuthStore } from "@/stores/use-auth-store";
-import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import Link from "next/link";
 import { useRef } from "react";
@@ -36,10 +35,6 @@ function WorldClassGsapButton({
 
   // Khởi tạo animation từng ký tự nhảy sóng
   const chars = label.split("");
-
-  useGSAP(() => {
-    if (!btnRef.current) return;
-  }, []);
 
   const handleMouseEnter = () => {
     if (!btnRef.current) return;

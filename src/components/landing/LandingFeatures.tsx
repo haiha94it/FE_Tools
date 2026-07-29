@@ -4,11 +4,8 @@ import { LANDING_FEATURES } from "@/components/landing/landing-data";
 import { LandingFeatureIcon } from "@/components/landing/LandingIcons";
 import LandingReveal from "@/components/landing/LandingReveal";
 import { useGSAP } from "@gsap/react";
-import gsap from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { gsap, ScrollTrigger } from "@/lib/gsap-config";
 import { useRef } from "react";
-
-gsap.registerPlugin(ScrollTrigger);
 
 const TONE_CLASSES = {
   brand: "bg-brand-50 text-brand-600 dark:bg-brand-500/15 dark:text-brand-300",
@@ -20,6 +17,7 @@ const TONE_CLASSES = {
 } as const;
 
 export default function LandingFeatures() {
+  const sectionRef = useRef<HTMLElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
 
   // GSAP Stagger Grid Entrance cho Feature Cards
@@ -44,10 +42,10 @@ export default function LandingFeatures() {
         },
       }
     );
-  }, []);
+  }, { scope: sectionRef });
 
   return (
-    <section id="tinh-nang" className="py-16 sm:py-20 lg:py-24">
+    <section ref={sectionRef} id="tinh-nang" className="py-16 sm:py-20 lg:py-24">
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <LandingReveal className="mx-auto max-w-2xl text-center" variant="up">
           <p className="landing-eyebrow text-sm font-semibold uppercase tracking-wider">

@@ -14,11 +14,8 @@ import LandingStats from "@/components/landing/LandingStats";
 import LandingTestimonials from "@/components/landing/LandingTestimonials";
 import LandingUseCases from "@/components/landing/LandingUseCases";
 import { useGSAP } from "@gsap/react";
-import gsap from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { gsap, ScrollTrigger } from "@/lib/gsap-config";
 import { useRef } from "react";
-
-gsap.registerPlugin(ScrollTrigger);
 
 export default function LandingPage() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -39,14 +36,16 @@ export default function LandingPage() {
       if (isShowcaseSection) scrollLength = "+=350%";
 
       // 1. Cố định Section khi cuộn tới
-      ScrollTrigger.create({
-        trigger: target,
-        start: "top top",
-        end: scrollLength,
-        pin: true,
-        pinSpacing: isFaqSection ? true : false,
-        scrub: 1.5,
-      });
+      // Showcase tự pin bên trong (ProductShowcase) — parent KHÔNG pin để tránh double-pin
+      if (!isShowcaseSection) {
+        ScrollTrigger.create({
+          trigger: target,
+          start: "top top",
+          end: scrollLength,
+          pin: true,
+          pinSpacing: isFaqSection ? true : false,
+        });
+      }
 
       // 2. TẠO CHIỀU SÂU: Section cũ chui về sau & mờ đi khi Section tiếp theo trồi lên đè lên nó
       if (!isLastSection) {

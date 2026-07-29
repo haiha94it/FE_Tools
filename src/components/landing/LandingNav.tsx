@@ -6,12 +6,9 @@ import { IconClose, IconMenu } from "@/components/landing/LandingIcons";
 import LandingThemeToggle from "@/components/landing/LandingThemeToggle";
 import { APP_NAME } from "@/constants/brand";
 import { useGSAP } from "@gsap/react";
-import gsap from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { gsap, ScrollTrigger } from "@/lib/gsap-config";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-
-gsap.registerPlugin(ScrollTrigger);
 
 const SECTION_IDS = LANDING_NAV_LINKS.map((l) => l.href.replace("#", ""));
 
@@ -32,6 +29,7 @@ export default function LandingNav() {
   const mobilePanelRef = useRef<HTMLDivElement>(null);
 
   const lastScrollY = useRef(0);
+  const mobileOpenRef = useRef(mobileOpen);
 
   // 1. Intersection Observer theo dõi active section
   useEffect(() => {
@@ -63,6 +61,11 @@ export default function LandingNav() {
     };
   }, [mobileOpen]);
 
+  // Sync mobileOpen ref để scroll handler không phải tái tạo ScrollTrigger
+  useEffect(() => {
+    mobileOpenRef.current = mobileOpen;
+  }, [mobileOpen]);
+
   // 3. GSAP SCROLLTRIGGER DIRECT FLIGHT ULTRA-SLOW MOTION
   useGSAP(() => {
     if (!navBarRef.current || !rightDockRef.current || !navListRef.current) return;
@@ -89,10 +92,10 @@ export default function LandingNav() {
         paddingRight: "1.25rem",
         borderRadius: "9999px",
         marginTop: "0.5rem",
-        backgroundColor: "rgba(255, 255, 255, 0.82)",
-        borderColor: "rgba(255, 255, 255, 0.25)",
+        backgroundColor: "var(--nav-scrolled-bg)",
+        borderColor: "var(--nav-scrolled-border)",
         backdropFilter: "blur(16px)",
-        boxShadow: "0 10px 30px -10px rgba(0, 0, 0, 0.08)",
+        boxShadow: "var(--nav-scrolled-shadow)",
         ease: "none",
       },
       0
@@ -159,7 +162,7 @@ export default function LandingNav() {
       const currentY = window.scrollY;
       const delta = currentY - lastScrollY.current;
 
-      if (currentY > 1250 && delta > 8 && !mobileOpen) {
+      if (currentY > 1250 && delta > 8 && !mobileOpenRef.current) {
         gsap.to(headerRef.current, {
           yPercent: -120,
           duration: 0.35,
@@ -178,7 +181,7 @@ export default function LandingNav() {
 
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
-  }, [mobileOpen]);
+  }, []);
 
   // 4. GSAP Logic: Active LED Indicator Slide cho Header Menu
   useGSAP(() => {

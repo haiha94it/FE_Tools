@@ -4,11 +4,8 @@ import { LANDING_USE_CASES } from "@/components/landing/landing-data";
 import { LandingFeatureIcon } from "@/components/landing/LandingIcons";
 import LandingReveal from "@/components/landing/LandingReveal";
 import { useGSAP } from "@gsap/react";
-import gsap from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { gsap, ScrollTrigger } from "@/lib/gsap-config";
 import { useRef } from "react";
-
-gsap.registerPlugin(ScrollTrigger);
 
 const TONE_CLASSES = {
   brand: "bg-brand-50 text-brand-600 dark:bg-brand-500/15 dark:text-brand-300",
