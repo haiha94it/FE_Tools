@@ -1,6 +1,11 @@
+"use client";
+
 import { LANDING_FEATURES } from "@/components/landing/landing-data";
 import { LandingFeatureIcon } from "@/components/landing/LandingIcons";
 import LandingReveal from "@/components/landing/LandingReveal";
+import { useGSAP } from "@gsap/react";
+import { gsap, ScrollTrigger } from "@/lib/gsap-config";
+import { useRef } from "react";
 
 const TONE_CLASSES = {
   brand: "bg-brand-50 text-brand-600 dark:bg-brand-500/15 dark:text-brand-300",
@@ -12,8 +17,35 @@ const TONE_CLASSES = {
 } as const;
 
 export default function LandingFeatures() {
+  const sectionRef = useRef<HTMLElement>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
+
+  // GSAP Stagger Grid Entrance cho Feature Cards
+  useGSAP(() => {
+    if (!gridRef.current) return;
+
+    const cards = gridRef.current.querySelectorAll(".feature-card-item");
+    gsap.fromTo(
+      cards,
+      { y: 40, opacity: 0, scale: 0.96 },
+      {
+        y: 0,
+        opacity: 1,
+        scale: 1,
+        duration: 0.7,
+        stagger: 0.08,
+        ease: "power3.out",
+        scrollTrigger: {
+          trigger: gridRef.current,
+          start: "top 85%",
+          toggleActions: "play none none reverse",
+        },
+      }
+    );
+  }, { scope: sectionRef });
+
   return (
-    <section id="tinh-nang" className="py-16 sm:py-20 lg:py-24">
+    <section ref={sectionRef} id="tinh-nang" className="py-16 sm:py-20 lg:py-24">
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <LandingReveal className="mx-auto max-w-2xl text-center" variant="up">
           <p className="landing-eyebrow text-sm font-semibold uppercase tracking-wider">
@@ -27,14 +59,11 @@ export default function LandingFeatures() {
           </p>
         </LandingReveal>
 
-        <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <div ref={gridRef} className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {LANDING_FEATURES.map((feature, index) => (
-            <LandingReveal
+            <article
               key={feature.title}
-              as="article"
-              delay={index * 80}
-              variant="up"
-              className={`landing-card landing-card-pro group p-6 ${
+              className={`feature-card-item landing-card landing-card-pro group p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-brand-500/10 ${
                 index === 0 ? "landing-card-featured sm:col-span-2 lg:col-span-1" : ""
               }`}
             >
@@ -47,7 +76,7 @@ export default function LandingFeatures() {
               <p className="landing-lead mt-2 text-sm leading-relaxed">
                 {feature.description}
               </p>
-            </LandingReveal>
+            </article>
           ))}
         </div>
       </div>

@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useGSAP } from "@gsap/react";
+import { gsap, ScrollTrigger } from "@/lib/gsap-config";
+import { useMemo, useRef, useState } from "react";
 
 interface LandingCountUpProps {
   value: string;
-  /** Bắt đầu đếm khi section vào viewport */
   active?: boolean;
   className?: string;
 }
@@ -18,11 +19,7 @@ type ParsedStat = {
 };
 
 function parseStatValue(raw: string): ParsedStat {
-  if (raw === "24/7") {
-    return { prefix: "", target: 0, suffix: "", decimals: 0, staticValue: raw };
-  }
-
-  if (!/\d/.test(raw)) {
+  if (raw === "24/7" || !/\d/.test(raw)) {
     return { prefix: "", target: 0, suffix: "", decimals: 0, staticValue: raw };
   }
 
@@ -41,15 +38,11 @@ function parseStatValue(raw: string): ParsedStat {
   };
 }
 
-function easeOutCubic(t: number): number {
-  return 1 - (1 - t) ** 3;
-}
-
 function formatStat(
   prefix: string,
   current: number,
   suffix: string,
-  decimals: number,
+  decimals: number
 ): string {
   return `${prefix}${current.toFixed(decimals)}${suffix}`;
 }
@@ -61,66 +54,38 @@ export default function LandingCountUp({
 }: LandingCountUpProps) {
   const parsed = useMemo(() => parseStatValue(value), [value]);
   const [display, setDisplay] = useState(value);
-  const hasAnimatedRef = useRef(false);
-  const rafRef = useRef<number | null>(null);
+  const spanRef = useRef<HTMLSpanElement>(null);
 
-  useEffect(() => {
-    if (!active) return;
-
-    if (parsed.staticValue !== null) {
-      setDisplay(parsed.staticValue);
+  useGSAP(() => {
+    if (!active || parsed.staticValue !== null || !spanRef.current) {
+      if (parsed.staticValue !== null) setDisplay(parsed.staticValue);
       return;
     }
 
-    if (hasAnimatedRef.current) {
-      setDisplay(value);
-      return;
-    }
-
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      setDisplay(value);
-      hasAnimatedRef.current = true;
-      return;
-    }
-
-    hasAnimatedRef.current = true;
-    const duration = 1400;
-    let start: number | null = null;
-
-    const tick = (timestamp: number) => {
-      if (start === null) start = timestamp;
-      const progress = Math.min((timestamp - start) / duration, 1);
-      const current = parsed.target * easeOutCubic(progress);
-      setDisplay(
-        formatStat(parsed.prefix, current, parsed.suffix, parsed.decimals),
-      );
-
-      if (progress < 1) {
-        rafRef.current = requestAnimationFrame(tick);
-      } else {
+    const obj = { val: 0 };
+    gsap.to(obj, {
+      val: parsed.target,
+      duration: 1.4,
+      ease: "power2.out",
+      scrollTrigger: {
+        trigger: spanRef.current,
+        start: "top 90%",
+        toggleActions: "play none none none",
+      },
+      onUpdate: () => {
+        setDisplay(
+          formatStat(parsed.prefix, obj.val, parsed.suffix, parsed.decimals)
+        );
+      },
+      onComplete: () => {
         setDisplay(value);
-      }
-    };
-
-    setDisplay(formatStat(parsed.prefix, 0, parsed.suffix, parsed.decimals));
-    rafRef.current = requestAnimationFrame(tick);
-
-    return () => {
-      if (rafRef.current !== null) {
-        cancelAnimationFrame(rafRef.current);
-      }
-    };
-  }, [
-    active,
-    value,
-    parsed.staticValue,
-    parsed.prefix,
-    parsed.target,
-    parsed.suffix,
-    parsed.decimals,
-  ]);
+      },
+    });
+  }, [value, active, parsed]);
 
   return (
-    <span className={`tabular-nums ${className}`}>{display}</span>
+    <span ref={spanRef} className={`tabular-nums ${className}`}>
+      {display}
+    </span>
   );
 }
