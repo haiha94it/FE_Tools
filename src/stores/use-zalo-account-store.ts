@@ -13,6 +13,7 @@ import { fetchAccessibleAccounts } from "@/lib/fetch-accessible-accounts";
 import { canManageNickCrud } from "@/lib/team-collaboration-utils";
 import { useAuthStore } from "@/stores/use-auth-store";
 import { zaloAccountService } from "@/services/zalo-account.service";
+import type { FriendAutomationPage } from "@/services/zalo-account.service";
 import { zaloProxyService } from "@/services/zalo-proxy.service";
 import type { ZaloProxyItem } from "@/types/zalo-proxy";
 import { runAsyncAction } from "@/stores/helpers/async-actions";
@@ -112,11 +113,21 @@ interface ZaloAccountState {
 
   loadingChatbotDisabledFriendsAccountIds: number[];
   savingChatbotDisabledFriendsAccountIds: number[];
-  fetchChatbotDisabledFriends: (accountId: number | string) => Promise<{ chatbot_disabled_friend_uids: string[]; friends: any[] } | null>;
+  fetchChatbotDisabledFriends: (
+    accountId: number | string,
+  ) => Promise<FriendAutomationPage | null>;
   saveChatbotDisabledFriends: (accountId: number | string, disabledUids: string[]) => Promise<boolean>;
   patchChatbotDisabledFriends: (
     accountId: number | string,
-    action: "add" | "remove" | "disable_all" | "enable_all",
+    action:
+      | "add"
+      | "remove"
+      | "disable_all"
+      | "enable_all"
+      | "pause_reminder"
+      | "resume_reminder"
+      | "pause_reminder_all"
+      | "resume_reminder_all",
     uids?: string[],
   ) => Promise<string[] | null>;
 

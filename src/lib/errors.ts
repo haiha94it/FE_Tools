@@ -238,12 +238,20 @@ export function handleApiError(
   }
 
   if (process.env.NODE_ENV === "development" && axios.isAxiosError(error)) {
-    console.error("[API Error]", {
-      url: error.config?.url,
-      status: error.response?.status,
-      data: error.response?.data,
-      messages,
-    });
+    console.warn(
+      "[API Error]",
+      [
+        error.config?.method?.toUpperCase(),
+        error.config?.url,
+        error.response?.status ? `HTTP ${error.response.status}` : undefined,
+        error.code,
+        error.message,
+        messages.join(" | "),
+      ]
+        .filter(Boolean)
+        .join(" · "),
+      error.response?.data ?? null,
+    );
   }
 
   return messages;

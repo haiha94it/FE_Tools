@@ -11,6 +11,8 @@ import { useZaloAccountStore } from "@/stores/use-zalo-account-store";
 import type { ZaloAccount } from "@/types/zalo-account";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  FiBell,
+  FiBellOff,
   FiCpu,
   FiDownload,
   FiLoader,
@@ -23,7 +25,7 @@ import {
 } from "react-icons/fi";
 
 interface ZaloFriendItem {
-  id: number;
+  id?: number;
   name?: string;
   alias_name?: string;
   avatar?: string;
@@ -31,6 +33,8 @@ interface ZaloFriendItem {
   sdob?: string;
   uid: string;
   is_friend?: boolean;
+  is_chatbot_disabled?: boolean;
+  is_reminder_paused?: boolean;
 }
 
 interface ChatbotDisabledFriendInfo {
@@ -106,6 +110,7 @@ export default function ChatbotDisabledFriendsDialog({
   const [loadingFriends, setLoadingFriends] = useState(false);
   const [loadingConfig, setLoadingConfig] = useState(false);
   const [disabledUids, setDisabledUids] = useState<string[]>([]);
+  const [reminderPausedUids, setReminderPausedUids] = useState<string[]>([]);
   const [disabledFriendExtras, setDisabledFriendExtras] = useState<
     ChatbotDisabledFriendInfo[]
   >([]);
@@ -125,6 +130,10 @@ export default function ChatbotDisabledFriendsDialog({
     loadingConfig ||
     loadingAccountIds.includes(account.id);
   const disabledUidSet = useMemo(() => new Set(disabledUids), [disabledUids]);
+  const reminderPausedUidSet = useMemo(
+    () => new Set(reminderPausedUids),
+    [reminderPausedUids],
+  );
   const pendingUidSet = useMemo(() => new Set(pendingUids), [pendingUids]);
   const hasSearchKeyword = Boolean(debouncedSearch.trim());
   const anyPending = bulkPending || pendingUids.length > 0;
@@ -266,6 +275,40 @@ export default function ChatbotDisabledFriendsDialog({
     }
   }, [account.id, applyDisabledUids, failToast, patchChatbotDisabledFriends]);
 
+  const handlePauseAllReminders = useCallback(async () => {
+    setBulkPending(true);
+    try {
+      const data = await zaloAccountService.patchChatbotDisabledFriends(
+        account.id,
+        "pause_reminder_all",
+      );
+      setReminderPausedUids(data.reminder_paused_friend_uids ?? []);
+      applyDisabledUids(data.chatbot_disabled_friend_uids ?? []);
+      toast.success("Đã dừng chức năng nhắc nhở cho tất cả khách hàng.");
+    } catch {
+      failToast("Không thể dừng chức năng nhắc nhở cho tất cả khách hàng.");
+    } finally {
+      setBulkPending(false);
+    }
+  }, [account.id, applyDisabledUids, failToast]);
+
+  const handleResumeAllReminders = useCallback(async () => {
+    setBulkPending(true);
+    try {
+      const data = await zaloAccountService.patchChatbotDisabledFriends(
+        account.id,
+        "resume_reminder_all",
+      );
+      setReminderPausedUids(data.reminder_paused_friend_uids ?? []);
+      applyDisabledUids(data.chatbot_disabled_friend_uids ?? []);
+      toast.success("Đã bật chức năng nhắc nhở cho tất cả khách hàng.");
+    } catch {
+      failToast("Không thể bật chức năng nhắc nhở cho tất cả khách hàng.");
+    } finally {
+      setBulkPending(false);
+    }
+  }, [account.id, applyDisabledUids, failToast]);
+
   const setAutoReplyForUid = useCallback(
     async (uid: string, enabled: boolean) => {
       if (pendingUidSet.has(uid) || bulkPending) return;
@@ -279,8 +322,8 @@ export default function ChatbotDisabledFriendsDialog({
         if (!nextUids) {
           failToast(
             enabled
-              ? "Không bật lại chatbot cho bạn bè này."
-              : "Không tắt chatbot cho bạn bè này.",
+              ? "Không thể bật chatbot cho khách hàng này."
+              : "Không thể tắt chatbot cho khách hàng này.",
           );
           return;
         }
@@ -295,6 +338,39 @@ export default function ChatbotDisabledFriendsDialog({
       bulkPending,
       failToast,
       patchChatbotDisabledFriends,
+      pendingUidSet,
+      setPendingUid,
+    ],
+  );
+
+  const setReminderForUid = useCallback(
+    async (uid: string, enabled: boolean) => {
+      if (pendingUidSet.has(uid) || bulkPending) return;
+
+      setPendingUid(uid, true);
+      try {
+        const data = await zaloAccountService.patchChatbotDisabledFriends(
+          account.id,
+          enabled ? "resume_reminder" : "pause_reminder",
+          [uid],
+        );
+        setReminderPausedUids(data.reminder_paused_friend_uids ?? []);
+        applyDisabledUids(data.chatbot_disabled_friend_uids ?? []);
+      } catch {
+        failToast(
+          enabled
+            ? "Không thể bật chức năng nhắc nhở cho khách hàng này."
+            : "Không thể dừng chức năng nhắc nhở cho khách hàng này.",
+        );
+      } finally {
+        setPendingUid(uid, false);
+      }
+    },
+    [
+      account.id,
+      applyDisabledUids,
+      bulkPending,
+      failToast,
       pendingUidSet,
       setPendingUid,
     ],
@@ -334,11 +410,12 @@ export default function ChatbotDisabledFriendsDialog({
       }
 
       const disabledFromApi = res.chatbot_disabled_friend_uids ?? [];
-      const extras = res.friends ?? [];
+      const reminderPausedFromApi = res.reminder_paused_friend_uids ?? [];
 
       setDisabledUids(disabledFromApi);
-      setDisabledFriendExtras(extras);
-      return extras;
+      setReminderPausedUids(reminderPausedFromApi);
+      setDisabledFriendExtras([]);
+      return [];
     } catch {
       setLoadError("Không tải được cấu hình chatbot theo bạn bè.");
       setDisabledUids([]);
@@ -449,7 +526,7 @@ export default function ChatbotDisabledFriendsDialog({
                 Công tắc BẬT
               </p>
               <p className="text-gray-500 mt-0.5">
-                Chatbot tự trả lời tin nhắn bạn bè này (lưu ngay).
+                Chatbot tự trả lời tin nhắn của khách hàng này (lưu ngay).
               </p>
             </div>
             <div className="rounded-lg bg-warning-50/50 p-2.5 border border-warning-100 dark:bg-warning-500/5 dark:border-warning-500/10">
@@ -457,7 +534,7 @@ export default function ChatbotDisabledFriendsDialog({
                 Công tắc TẮT
               </p>
               <p className="text-gray-500 mt-0.5">
-                Chatbot bỏ qua bạn bè này (lưu ngay).
+                Chatbot không tự trả lời khách hàng này (lưu ngay).
               </p>
             </div>
           </div>
@@ -548,6 +625,24 @@ export default function ChatbotDisabledFriendsDialog({
               <Button
                 variant="outline"
                 size="sm"
+                className="!px-2 !py-1 !text-xs shrink-0 !text-violet-600 hover:!bg-violet-50"
+                onClick={() => void handlePauseAllReminders()}
+                disabled={bulkPending}
+              >
+                <FiBellOff size={12} /> Dừng nhắc nhở tất cả
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="!px-2 !py-1 !text-xs shrink-0 !text-violet-600 hover:!bg-violet-50"
+                onClick={() => void handleResumeAllReminders()}
+                disabled={bulkPending}
+              >
+                <FiBell size={12} /> Bật nhắc nhở tất cả
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
                 className="!px-2 !py-1 !text-xs shrink-0 !text-brand-600 hover:!bg-brand-50"
                 onClick={() => void reloadAll()}
                 disabled={isLoading || anyPending}
@@ -590,6 +685,7 @@ export default function ChatbotDisabledFriendsDialog({
           <ul className="space-y-2">
             {friends.map((friend) => {
               const autoReplyEnabled = isAutoReplyEnabled(friend.uid);
+              const reminderEnabled = !reminderPausedUidSet.has(friend.uid);
               const label = getZaloFriendLabel(friend);
               const uidPending = pendingUidSet.has(friend.uid);
               const switchDisabled = uidPending || bulkPending;
@@ -627,7 +723,7 @@ export default function ChatbotDisabledFriendsDialog({
                       </p>
                     </div>
 
-                    <div className="flex shrink-0 items-center gap-3.5 pl-2">
+                    <div className="flex shrink-0 items-center gap-3 pl-2">
                       <div className="text-right shrink-0">
                         <span
                           className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${
@@ -653,8 +749,26 @@ export default function ChatbotDisabledFriendsDialog({
                       <Switch
                         checked={autoReplyEnabled}
                         disabled={switchDisabled}
+                        ariaLabel={`Chatbot tự trả lời cho ${label}`}
                         onChange={(nextVal) => {
                           void setAutoReplyForUid(friend.uid, nextVal);
+                        }}
+                      />
+                      <div className="h-8 w-px bg-gray-200 dark:bg-gray-700" />
+                      <div className="text-right">
+                        <p className="text-[10px] font-semibold text-gray-600 dark:text-white">
+                          Nhắc nhở
+                        </p>
+                        <p className="text-[9px] text-gray-400">
+                          {reminderEnabled ? "Đang bật" : "Tạm dừng"}
+                        </p>
+                      </div>
+                      <Switch
+                        checked={reminderEnabled}
+                        disabled={switchDisabled}
+                        ariaLabel={`Chức năng nhắc nhở cho ${label}`}
+                        onChange={(nextVal) => {
+                          void setReminderForUid(friend.uid, nextVal);
                         }}
                       />
                     </div>

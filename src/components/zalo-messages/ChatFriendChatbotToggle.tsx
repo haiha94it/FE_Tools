@@ -10,8 +10,8 @@ import { zaloAccountService } from "@/services/zalo-account.service";
 import { useZaloAccountStore } from "@/stores/use-zalo-account-store";
 import { useZaloMessengerStore } from "@/stores/use-zalo-messenger-store";
 import type { MessengerConversation } from "@/types/zalo-messenger";
-import { memo, useCallback, useMemo, useState } from "react";
-import { FiCpu } from "react-icons/fi";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { FiClock, FiCpu } from "react-icons/fi";
 
 interface ChatFriendChatbotToggleProps {
   accountId: number;
@@ -34,6 +34,11 @@ function ChatFriendChatbotToggle({
   );
 
   const [pending, setPending] = useState(false);
+  const [reminderPending, setReminderPending] = useState(false);
+  const [reminderEnabled, setReminderEnabled] = useState(true);
+  const [chatbotEnabledByUid, setChatbotEnabledByUid] = useState<
+    Record<string, boolean>
+  >({});
 
   const friendUid = resolveChatFriendUid(conversation.friend);
   const accountChatbotOn = isZaloChatbotEnabled({
@@ -45,9 +50,10 @@ function ChatFriendChatbotToggle({
     return new Set(list.map(String));
   }, [account?.chatbot_disabled_friend_uids]);
 
-  // Switch ON = bot được phép trả lời bạn này
+  // Friend API là SSOT; list account chỉ làm fallback trước khi request hoàn tất.
   const botEnabledForFriend =
-    Boolean(friendUid) && !disabledUidSet.has(friendUid);
+    Boolean(friendUid) &&
+    (chatbotEnabledByUid[friendUid] ?? !disabledUidSet.has(friendUid));
 
   const handleToggle = useCallback(
     async (enabled: boolean) => {
@@ -61,6 +67,10 @@ function ChatFriendChatbotToggle({
           [friendUid],
         );
         const nextUids = data.chatbot_disabled_friend_uids ?? [];
+        setChatbotEnabledByUid((current) => ({
+          ...current,
+          [friendUid]: !new Set(nextUids).has(friendUid),
+        }));
         setMessengerDisabledUids(accountId, nextUids);
         // Sync /zalo-accounts store nếu đã load
         useZaloAccountStore.setState((state) => ({
@@ -72,8 +82,8 @@ function ChatFriendChatbotToggle({
         }));
         toast.success(
           enabled
-            ? "Đã bật chatbot cho bạn này."
-            : "Đã tắt chatbot — chat thủ công.",
+            ? "Đã bật chatbot cho khách hàng này."
+            : "Đã tắt chatbot cho khách hàng này. Bạn có thể tiếp tục tư vấn thủ công.",
         );
       } catch (error) {
         toast.error(getApiErrorMessage(error));
@@ -84,48 +94,106 @@ function ChatFriendChatbotToggle({
     [accountChatbotOn, accountId, friendUid, pending, setMessengerDisabledUids],
   );
 
+  useEffect(() => {
+    if (!friendUid || !accountChatbotOn) return;
+    let cancelled = false;
+    void zaloAccountService
+      .getChatbotDisabledFriends(accountId, {
+        uid: friendUid,
+      })
+      .then((page) => {
+        if (cancelled) return;
+        const friend = page.results[0];
+        setChatbotEnabledByUid((current) => ({
+          ...current,
+          [friendUid]: friend ? !friend.is_chatbot_disabled : true,
+        }));
+        setReminderEnabled(friend ? !friend.is_reminder_paused : true);
+      })
+      .catch((error) => {
+        if (!cancelled) toast.error(getApiErrorMessage(error));
+      })
+    return () => {
+      cancelled = true;
+    };
+  }, [accountChatbotOn, accountId, friendUid]);
+
+  const handleReminderToggle = useCallback(
+    async (enabled: boolean) => {
+      if (!friendUid || reminderPending || !accountChatbotOn) return;
+      setReminderPending(true);
+      try {
+        const data = await zaloAccountService.patchChatbotDisabledFriends(
+          accountId,
+          enabled ? "resume_reminder" : "pause_reminder",
+          [friendUid],
+        );
+        setReminderEnabled(
+          !new Set(data.reminder_paused_friend_uids ?? []).has(friendUid),
+        );
+        toast.success(
+          enabled
+            ? "Đã bật chức năng nhắc nhở cho khách hàng này."
+            : "Đã dừng chức năng nhắc nhở cho khách hàng này.",
+        );
+      } catch (error) {
+        toast.error(getApiErrorMessage(error));
+      } finally {
+        setReminderPending(false);
+      }
+    },
+    [accountChatbotOn, accountId, friendUid, reminderPending],
+  );
+
   if (!friendUid || !accountChatbotOn) {
     return null;
   }
 
   return (
-    <Tooltip
-      content={
-        botEnabledForFriend
-          ? "Chatbot đang bật cho bạn này — bấm để tắt (chat thủ công)"
-          : "Chatbot đang tắt cho bạn này — bấm để bật auto-reply"
-      }
-      side="bottom"
-    >
-      <div
-        className={`inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border px-2 transition ${
+    <div className="flex items-center gap-1.5">
+      <Tooltip
+        content={
           botEnabledForFriend
-            ? "border-brand-200 bg-brand-50/80 dark:border-brand-500/30 dark:bg-brand-500/10"
-            : "border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900"
-        }`}
+            ? "Chatbot đang bật cho khách hàng này — bấm để tắt"
+            : "Chatbot đang tắt cho khách hàng này — bấm để bật"
+        }
+        side="bottom"
       >
-        <FiCpu
-          size={14}
-          className={
-            botEnabledForFriend
-              ? "text-brand-600 dark:text-brand-400"
-              : "text-gray-400"
-          }
-          aria-hidden
-        />
-        <span className="hidden text-[11px] font-medium text-gray-600 sm:inline dark:text-gray-300">
-          Bot
-        </span>
-        <Switch
-          key={`chat-bot-${accountId}-${friendUid}-${botEnabledForFriend}`}
-          checked={botEnabledForFriend}
-          disabled={pending}
-          onChange={(checked) => {
-            void handleToggle(checked);
-          }}
-        />
-      </div>
-    </Tooltip>
+        <div className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-brand-200 bg-brand-50/80 px-2 dark:border-brand-500/30 dark:bg-brand-500/10">
+          <FiCpu size={14} className="text-brand-600 dark:text-brand-400" aria-hidden />
+          <span className="hidden text-[11px] font-medium text-gray-700 sm:inline dark:text-white">
+            Bot
+          </span>
+          <Switch
+            checked={botEnabledForFriend}
+            disabled={pending}
+            ariaLabel="Bật hoặc tắt chatbot cho bạn đang mở"
+            onChange={(checked) => void handleToggle(checked)}
+          />
+        </div>
+      </Tooltip>
+      <Tooltip
+        content={
+          reminderEnabled
+            ? "Chức năng nhắc nhở đang bật — bấm để dừng"
+            : "Chức năng nhắc nhở đang dừng — bấm để bật lại"
+        }
+        side="bottom"
+      >
+        <div className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-violet-200 bg-violet-50/80 px-2 dark:border-violet-500/30 dark:bg-violet-500/10">
+          <FiClock size={14} className="text-violet-600 dark:text-violet-400" aria-hidden />
+          <span className="hidden text-[11px] font-medium text-gray-700 sm:inline dark:text-white">
+            Nhắc nhở
+          </span>
+          <Switch
+            checked={reminderEnabled}
+            disabled={reminderPending}
+            ariaLabel="Bật hoặc tắt chức năng nhắc nhở cho khách hàng đang mở"
+            onChange={(checked) => void handleReminderToggle(checked)}
+          />
+        </div>
+      </Tooltip>
+    </div>
   );
 }
 

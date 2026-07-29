@@ -1,4 +1,5 @@
 import { API_ZALO_ACCOUNT, API_ZALO_GROUP } from "@/config/api";
+import { unwrapPaginatedPayload } from "@/lib/campaign-service";
 import { unwrapApiBody } from "@/lib/api-response";
 import api from "@/lib/axios";
 import { extractZaloAccounts } from "@/lib/zalo-account-utils";
@@ -10,6 +11,24 @@ import type {
   ZaloAccountCheckResultResponse,
   ZaloAccountCheckTaskResponse,
 } from "@/types/zalo-account";
+import type { PaginatedResponse } from "@/types/api";
+
+export interface FriendAutomationItem {
+  id?: number;
+  uid: string;
+  name?: string;
+  alias_name?: string;
+  avatar?: string;
+  is_chatbot_disabled: boolean;
+  is_reminder_paused: boolean;
+  last_interaction?: string | null;
+}
+
+export interface FriendAutomationPage extends PaginatedResponse<FriendAutomationItem> {
+  account_id?: number;
+  chatbot_disabled_friend_uids: string[];
+  reminder_paused_friend_uids: string[];
+}
 
 /**
  * ZaloCN /accounts — dùng API chính + token login (/api/users/login).
@@ -116,13 +135,19 @@ export const zaloAccountService = {
 
   async getChatbotDisabledFriends(
     accountId: number | string,
-  ): Promise<{ chatbot_disabled_friend_uids: string[]; friends: any[] }> {
+    params?: { page?: number; number_per_page?: number; name?: string; uid?: string },
+  ): Promise<FriendAutomationPage> {
     const response = await api.get(
       API_ZALO_ACCOUNT.CHATBOT_DISABLED_FRIENDS(accountId),
+      { params },
     );
-    return unwrapApiBody<{ chatbot_disabled_friend_uids: string[]; friends: any[] }>(
-      response.data,
-    );
+    const body = unwrapApiBody<FriendAutomationPage>(response.data);
+    return {
+      ...unwrapPaginatedPayload<FriendAutomationItem>(body),
+      account_id: body.account_id,
+      chatbot_disabled_friend_uids: body.chatbot_disabled_friend_uids ?? [],
+      reminder_paused_friend_uids: body.reminder_paused_friend_uids ?? [],
+    };
   },
 
   async saveChatbotDisabledFriends(
@@ -137,14 +162,28 @@ export const zaloAccountService = {
 
   async patchChatbotDisabledFriends(
     accountId: number | string,
-    action: "add" | "remove" | "disable_all" | "enable_all",
+    action:
+      | "add"
+      | "remove"
+      | "disable_all"
+      | "enable_all"
+      | "pause_reminder"
+      | "resume_reminder"
+      | "pause_reminder_all"
+      | "resume_reminder_all",
     uids?: string[],
-  ): Promise<{ chatbot_disabled_friend_uids: string[] }> {
+  ): Promise<{
+    chatbot_disabled_friend_uids: string[];
+    reminder_paused_friend_uids: string[];
+  }> {
     const response = await api.patch(
       API_ZALO_ACCOUNT.CHATBOT_DISABLED_FRIENDS(accountId),
       { action, chatbot_disabled_friend_uids: uids },
     );
-    return unwrapApiBody<{ chatbot_disabled_friend_uids: string[] }>(response.data);
+    return unwrapApiBody<{
+      chatbot_disabled_friend_uids: string[];
+      reminder_paused_friend_uids: string[];
+    }>(response.data);
   },
 
   async fetchFriends(
@@ -155,9 +194,11 @@ export const zaloAccountService = {
       all_friend?: boolean;
       name?: string;
     },
-  ): Promise<any> {
+  ): Promise<PaginatedResponse<FriendAutomationItem>> {
     const response = await api.get("/api/friend/", { params });
-    return response.data;
+    return unwrapPaginatedPayload<FriendAutomationItem>(
+      unwrapApiBody(response.data),
+    );
   },
 
   async fetchGroupsByAccount(

@@ -131,6 +131,7 @@ function MessageContent({
       <GroupMediaGrid
         items={group.items}
         totalItems={group.totalItems}
+        own={own}
         onOpenPreview={onOpenPreview}
       />
     ) : (
@@ -481,7 +482,11 @@ export function MessageList({
                   <div
                     className={`relative w-full min-w-0 max-w-full overflow-hidden shadow-sm ${
                       isGroupMedia
-                        ? "w-full overflow-hidden max-md:rounded-xl max-md:border-0 max-md:bg-transparent max-md:p-0 max-md:shadow-none md:rounded-2xl md:border md:border-gray-100 md:bg-white md:p-1.5 dark:md:border-gray-700 dark:md:bg-gray-800"
+                        ? `w-full overflow-hidden max-md:rounded-xl max-md:border-0 max-md:p-0 max-md:shadow-none md:rounded-2xl md:border md:p-1.5 ${
+                            own
+                              ? "bg-gradient-to-br from-brand-500 to-brand-600 text-white md:border-brand-500 dark:md:border-brand-400"
+                              : "max-md:bg-transparent md:border-gray-100 md:bg-white dark:md:border-gray-700 dark:md:bg-gray-800"
+                          }`
                         : "rounded-2xl px-3.5 py-2"
                     } ${
                       !isGroupMedia &&

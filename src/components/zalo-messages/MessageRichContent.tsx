@@ -667,13 +667,16 @@ function GroupMediaTile({
   );
 }
 
+/** Hiển thị album theo lưới và đồng bộ màu nhãn với chiều gửi tin nhắn. */
 export function GroupMediaGrid({
   items,
   totalItems,
+  own,
   onOpenPreview,
 }: {
   items: MessengerGroupMediaItem[];
   totalItems: number;
+  own: boolean;
   onOpenPreview: (preview: MessageMediaPreviewItem) => void;
 }) {
   const maxVisible = 9;
@@ -690,7 +693,11 @@ export function GroupMediaGrid({
   return (
     <div className={GROUP_MEDIA_ALBUM_CLASS}>
       {showMobileMeta ? (
-        <p className="mb-1.5 flex items-center justify-between px-0.5 text-[11px] font-medium text-gray-500 md:hidden dark:text-gray-400">
+        <p
+          className={`mb-1.5 flex items-center justify-between px-0.5 text-[11px] font-medium md:hidden ${
+            own ? "text-white/90" : "text-gray-500 dark:text-gray-400"
+          }`}
+        >
           <span>Album</span>
           <span>
             {totalItems} mục
