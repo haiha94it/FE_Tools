@@ -7,6 +7,7 @@ import {
   unwrapPaginatedPayload,
 } from "@/lib/campaign-service";
 import { parseUploadedFileLink } from "@/lib/zalo-messenger-send-utils";
+import { dedupeInflight } from "@/lib/inflight";
 import api from "@/lib/axios";
 import type { PaginatedResponse } from "@/types/api";
 import type {
@@ -129,21 +130,29 @@ export const zaloSendMessMemberGrCampaignService = {
     accountIds: number[];
     groupGlobalId: string;
   }): Promise<SendMessMemberGrGroupMember[]> {
-    const accountIds = Array.from(new Set(options.accountIds)).filter(
-      (id) => Number.isFinite(id) && id > 0,
-    );
+    const accountIds = Array.from(new Set(options.accountIds))
+      .filter((id) => Number.isFinite(id) && id > 0)
+      .sort((a, b) => a - b);
     const groupGlobalId = options.groupGlobalId.trim();
     if (!accountIds.length || !groupGlobalId) return [];
 
-    const response = await api.post(API_ZALO_SEND_MESS_MEMBER_GR_CAMPAIGN.MEMBERS, {
-      id_accounts: accountIds,
-      group_global_id: groupGlobalId,
-    });
+    return dedupeInflight(
+      `campaign:mess-member-group:members:${accountIds.join(",")}:${groupGlobalId}`,
+      async () => {
+        const response = await api.post(
+          API_ZALO_SEND_MESS_MEMBER_GR_CAMPAIGN.MEMBERS,
+          {
+            id_accounts: accountIds,
+            group_global_id: groupGlobalId,
+          },
+        );
 
-    const rawList = Array.isArray(response.data) ? response.data : [];
-    return rawList
-      .map(mapGroupMember)
-      .filter((item): item is SendMessMemberGrGroupMember => item != null);
+        const rawList = Array.isArray(response.data) ? response.data : [];
+        return rawList
+          .map(mapGroupMember)
+          .filter((item): item is SendMessMemberGrGroupMember => item != null);
+      },
+    );
   },
 
   async fetchResults(options: {

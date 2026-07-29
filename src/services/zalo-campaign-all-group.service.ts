@@ -1,5 +1,6 @@
 import { API_CAMPAIGN_ALL_GROUP } from "@/config/api";
 import api from "@/lib/axios";
+import { dedupeInflight } from "@/lib/inflight";
 import type { CampaignCommonGroupItem } from "@/types/zalo-campaign-common-group";
 
 function asOptionalString(value: unknown): string | undefined {
@@ -75,20 +76,27 @@ export async function fetchCampaignCommonGroups(options: {
   accountIds: number[];
   keyword?: string;
 }): Promise<CampaignCommonGroupItem[]> {
-  const accountIds = Array.from(new Set(options.accountIds)).filter(
-    (id) => Number.isFinite(id) && id > 0,
-  );
+  const accountIds = Array.from(new Set(options.accountIds))
+    .filter((id) => Number.isFinite(id) && id > 0)
+    .sort((a, b) => a - b);
   if (!accountIds.length) return [];
 
-  const response = await api.post(API_CAMPAIGN_ALL_GROUP, {
-    id_accounts: accountIds,
-    keyword: options.keyword?.trim() ?? "",
-  });
+  const keyword = options.keyword?.trim() ?? "";
+  // Strict Mode / multi-effect: 1 HTTP cho cùng nick+keyword
+  return dedupeInflight(
+    `campaign:all-group:${accountIds.join(",")}:${keyword}`,
+    async () => {
+      const response = await api.post(API_CAMPAIGN_ALL_GROUP, {
+        id_accounts: accountIds,
+        keyword,
+      });
 
-  const rawList = Array.isArray(response.data) ? response.data : [];
-  const items = rawList
-    .map(mapCommonGroup)
-    .filter((item): item is CampaignCommonGroupItem => item != null);
+      const rawList = Array.isArray(response.data) ? response.data : [];
+      const items = rawList
+        .map(mapCommonGroup)
+        .filter((item): item is CampaignCommonGroupItem => item != null);
 
-  return items.sort((a, b) => a.name.localeCompare(b.name, "vi"));
+      return items.sort((a, b) => a.name.localeCompare(b.name, "vi"));
+    },
+  );
 }

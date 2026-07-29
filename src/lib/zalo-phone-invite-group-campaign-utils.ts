@@ -4,7 +4,10 @@ import type {
   PhoneInviteGroupItem,
 } from "@/types/zalo-phone-invite-group-campaign";
 import type { ZaloAccount } from "@/types/zalo-account";
-import { isZaloAccountActive } from "@/lib/zalo-account-utils";
+import {
+  isZaloAccountActive,
+  meetsZaloProxyRequirement,
+} from "@/lib/zalo-account-utils";
 
 export {
   formatCampaignStartTime,
@@ -112,8 +115,15 @@ export function getGroupAvatar(group: PhoneInviteGroupItem): string | undefined 
   return group.avt?.trim() || group.avatar?.trim() || undefined;
 }
 
-export function isZaloAccountRunnable(account: ZaloAccount): boolean {
-  return isZaloAccountActive(account) && account.proxy?.status === true;
+/** Admin/saler bypass proxy — nick proxy=null vẫn chạy (khớp BE _user_bypasses_proxy). */
+export function isZaloAccountRunnable(
+  account: ZaloAccount,
+  canSkipProxy = false,
+): boolean {
+  return (
+    isZaloAccountActive(account) &&
+    meetsZaloProxyRequirement(account, canSkipProxy)
+  );
 }
 
 /** BE: mọi nick phải đã join nhóm trong group_invite */

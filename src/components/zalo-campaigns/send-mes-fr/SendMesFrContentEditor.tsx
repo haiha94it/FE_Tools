@@ -8,6 +8,8 @@ import Image from "next/image";
 import { useRef, useState } from "react";
 import { HiOutlinePhotograph, HiOutlinePlus, HiOutlineTrash } from "react-icons/hi";
 
+export type ContentPlaceholder = { key: string; label: string };
+
 interface SendMesFrContentEditorProps {
   contents: string[];
   images: string[];
@@ -16,16 +18,20 @@ interface SendMesFrContentEditorProps {
   disabled?: boolean;
   /** false khi form dùng CampaignAttachmentFields riêng */
   showImages?: boolean;
+  /** Override token gợi ý — mặc định gender/name/[r] (bạn bè). Nhóm: chỉ [r] hoặc [] */
+  placeholders?: ContentPlaceholder[];
+  /** Nội dung nút Mẫu */
+  defaultTemplate?: string;
   onContentsChange: (contents: string[]) => void;
   onImagesChange: (images: string[]) => void;
   onUploadImage: (file: File) => Promise<string | null>;
 }
 
-const PLACEHOLDERS = [
+const DEFAULT_PLACEHOLDERS: ContentPlaceholder[] = [
   { key: "[gender]", label: "Giới tính" },
   { key: "[name]", label: "Tên" },
   { key: "[r]", label: "Icon ngẫu nhiên" },
-] as const;
+];
 
 const MAX_IMAGES = 2;
 const MAX_CONTENT_LENGTH = 2000;
@@ -41,6 +47,8 @@ export default function SendMesFrContentEditor({
   uploadingImage,
   disabled = false,
   showImages = true,
+  placeholders = DEFAULT_PLACEHOLDERS,
+  defaultTemplate = DEFAULT_TEMPLATE,
   onContentsChange,
   onImagesChange,
   onUploadImage,
@@ -100,7 +108,7 @@ export default function SendMesFrContentEditor({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-2">
-        {PLACEHOLDERS.map((item) => (
+        {placeholders.map((item) => (
           <button
             key={item.key}
             type="button"
@@ -114,7 +122,7 @@ export default function SendMesFrContentEditor({
         <button
           type="button"
           disabled={disabled}
-          onClick={() => setDraft(DEFAULT_TEMPLATE)}
+          onClick={() => setDraft(defaultTemplate)}
           className="rounded-full border border-gray-200 px-3 py-1 text-theme-xs font-medium text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300"
         >
           Mẫu

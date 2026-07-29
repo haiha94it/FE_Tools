@@ -5,7 +5,10 @@ import type {
   SendMessPhoneResultStatus,
 } from "@/types/zalo-send-mess-phone-campaign";
 import type { ZaloAccount } from "@/types/zalo-account";
-import { isZaloAccountActive } from "@/lib/zalo-account-utils";
+import {
+  isZaloAccountActive,
+  meetsZaloProxyRequirement,
+} from "@/lib/zalo-account-utils";
 
 export {
   formatCampaignStartTime,
@@ -125,8 +128,15 @@ export function normalizePhoneNumbers(
   return value;
 }
 
-export function isZaloAccountRunnable(account: ZaloAccount): boolean {
-  return isZaloAccountActive(account) && account.proxy?.status === true;
+/** Admin/saler bypass proxy — nick proxy=null vẫn chạy (khớp BE). */
+export function isZaloAccountRunnable(
+  account: ZaloAccount,
+  canSkipProxy = false,
+): boolean {
+  return (
+    isZaloAccountActive(account) &&
+    meetsZaloProxyRequirement(account, canSkipProxy)
+  );
 }
 
 export function getSendMessPhoneMediaUrl(path: string): string {

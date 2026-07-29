@@ -342,6 +342,7 @@ export default function SendMessMemberGrCampaignFormModal({
       return;
     }
     void loadGroups(selectedAccountIds, undefined, { silentEmpty: true });
+    // selectedKey ổn định theo sort ids — tránh double dep selectedAccountIds + selectedKey
   }, [open, selectedKey, editingCampaign?.id, loadGroups, selectedAccountIds, editingCampaign]);
 
   useEffect(() => {
@@ -350,6 +351,7 @@ export default function SendMessMemberGrCampaignFormModal({
       return;
     }
     void loadMembers(selectedAccountIds, selectedGroupGlobalId);
+    // Strict Mode: service fetchGroupMembers đã dedupeInflight
   }, [open, selectedKey, selectedGroupGlobalId, loadMembers, selectedAccountIds]);
 
   const handleScanGroupResult = useCallback(

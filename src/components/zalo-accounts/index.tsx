@@ -33,7 +33,7 @@ function handleLoginQrMessage(
     setQrImage: (v: string | null) => void;
     setQrCountdown: (v: number) => void;
     closeQr: () => void;
-    fetchAccounts: () => Promise<void>;
+    fetchAccounts: (options?: { force?: boolean }) => Promise<void>;
     isRelogin: boolean;
   },
 ) {
@@ -59,10 +59,11 @@ function handleLoginQrMessage(
     actions.closeQr();
     if (type === "success") {
       toast.success(toastMessage);
+      // force: bypass cache store — list đã có data thì fetchAccounts() no-op
+      void actions.fetchAccounts({ force: true });
     } else {
       toast.warning(toastMessage);
     }
-    void actions.fetchAccounts();
   }
 }
 

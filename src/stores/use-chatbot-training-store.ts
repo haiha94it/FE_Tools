@@ -1,4 +1,5 @@
 import { handleApiError } from "@/lib/errors";
+import { dedupeInflight } from "@/lib/inflight";
 import { toast } from "@/lib/toast";
 import { chatbotService } from "@/services/chatbot.service";
 import { useChatbotReminderStore } from "@/stores/use-chatbot-reminder-store";
@@ -126,35 +127,47 @@ export const useChatbotTrainingStore = create<ChatbotTrainingState>(
       }
 
       const silent = options?.silent ?? false;
-      if (!silent) set({ isLoadingTraining: true });
+      const { trainingSearch, categoryFilter, page, pageSize } = get();
+      const search = trainingSearch.trim();
+      const key = [
+        "chatbot:training-data",
+        chatbotId,
+        page,
+        pageSize,
+        search,
+        categoryFilter ?? "all",
+        silent ? "silent" : "full",
+      ].join(":");
 
-      try {
-        const { trainingSearch, categoryFilter, page, pageSize } = get();
-        const params: {
-          chatbot_id: number;
-          page: number;
-          number_per_page: number;
-          search?: string;
-          category_id?: number;
-        } = {
-          chatbot_id: chatbotId,
-          page,
-          number_per_page: pageSize,
-        };
-        const search = trainingSearch.trim();
-        if (search) params.search = search;
-        if (categoryFilter != null) params.category_id = categoryFilter;
+      return dedupeInflight(key, async () => {
+        if (!silent) set({ isLoadingTraining: true });
 
-        const data = await chatbotService.listTrainingData(params);
-        set({
-          trainingData: data.results,
-          trainingCount: data.count,
-          isLoadingTraining: false,
-        });
-      } catch (error) {
-        handleApiError(error, { silent });
-        set({ isLoadingTraining: false, trainingData: [], trainingCount: 0 });
-      }
+        try {
+          const params: {
+            chatbot_id: number;
+            page: number;
+            number_per_page: number;
+            search?: string;
+            category_id?: number;
+          } = {
+            chatbot_id: chatbotId,
+            page,
+            number_per_page: pageSize,
+          };
+          if (search) params.search = search;
+          if (categoryFilter != null) params.category_id = categoryFilter;
+
+          const data = await chatbotService.listTrainingData(params);
+          set({
+            trainingData: data.results,
+            trainingCount: data.count,
+            isLoadingTraining: false,
+          });
+        } catch (error) {
+          handleApiError(error, { silent });
+          set({ isLoadingTraining: false, trainingData: [], trainingCount: 0 });
+        }
+      });
     },
 
     createTrainingData: async (payload) => {
@@ -267,14 +280,19 @@ export const useChatbotTrainingStore = create<ChatbotTrainingState>(
         return;
       }
       const silent = options?.silent ?? false;
-      if (!silent) set({ isLoadingCategories: true });
-      try {
-        const categories = await chatbotService.listCategories(chatbotId);
-        set({ categories, isLoadingCategories: false });
-      } catch (error) {
-        handleApiError(error, { silent });
-        set({ isLoadingCategories: false, categories: [] });
-      }
+      return dedupeInflight(
+        `chatbot:categories:${chatbotId}:${silent ? "silent" : "full"}`,
+        async () => {
+          if (!silent) set({ isLoadingCategories: true });
+          try {
+            const categories = await chatbotService.listCategories(chatbotId);
+            set({ categories, isLoadingCategories: false });
+          } catch (error) {
+            handleApiError(error, { silent });
+            set({ isLoadingCategories: false, categories: [] });
+          }
+        },
+      );
     },
 
     createCategory: async (payload) => {
@@ -346,19 +364,24 @@ export const useChatbotTrainingStore = create<ChatbotTrainingState>(
 
     fetchImages: async (options) => {
       const silent = options?.silent ?? false;
-      if (!silent) set({ isLoadingImages: true });
-      try {
-        const data = await chatbotService.listTrainingImages();
-        set({
-          images: data.results,
-          imageCount: data.count,
-          maxUpload: data.maxUpload,
-          isLoadingImages: false,
-        });
-      } catch (error) {
-        handleApiError(error, { silent });
-        set({ isLoadingImages: false });
-      }
+      return dedupeInflight(
+        `chatbot:training-images:${silent ? "silent" : "full"}`,
+        async () => {
+          if (!silent) set({ isLoadingImages: true });
+          try {
+            const data = await chatbotService.listTrainingImages();
+            set({
+              images: data.results,
+              imageCount: data.count,
+              maxUpload: data.maxUpload,
+              isLoadingImages: false,
+            });
+          } catch (error) {
+            handleApiError(error, { silent });
+            set({ isLoadingImages: false });
+          }
+        },
+      );
     },
 
     uploadImages: async (files) => {

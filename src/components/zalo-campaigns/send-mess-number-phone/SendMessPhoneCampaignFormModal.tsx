@@ -28,8 +28,10 @@ import {
   splitLines,
 } from "@/lib/zalo-send-mess-phone-campaign-utils";
 import { getApiErrorMessage } from "@/lib/errors";
+import { canSkipZaloProxyRequirement } from "@/lib/map-auth-user";
 import { toast } from "@/lib/toast";
 import { zaloSendMessPhoneCampaignService } from "@/services/zalo-send-mess-phone-campaign.service";
+import { useAuthStore } from "@/stores/use-auth-store";
 import { useZaloSendMessPhoneCampaignStore } from "@/stores/use-zalo-send-mess-phone-campaign-store";
 import SendMessPhoneContentEditor from "./SendMessPhoneContentEditor";
 import type {
@@ -77,6 +79,8 @@ export default function SendMessPhoneCampaignFormModal({
     (s) => s.createOrEditCampaign,
   );
   const saving = useZaloSendMessPhoneCampaignStore((s) => s.saving);
+  const user = useAuthStore((s) => s.user);
+  const canSkipProxy = canSkipZaloProxyRequirement(user);
 
   const [name, setName] = useState("");
   const [delayTime, setDelayTime] = useState("350");
@@ -102,8 +106,8 @@ export default function SendMessPhoneCampaignFormModal({
     : true;
 
   const runnableAccounts = useMemo(
-    () => accounts.filter(isZaloAccountRunnable),
-    [accounts],
+    () => accounts.filter((a) => isZaloAccountRunnable(a, canSkipProxy)),
+    [accounts, canSkipProxy],
   );
 
   const phoneLineCount = splitLines(phoneNumbers).length;

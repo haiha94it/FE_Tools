@@ -27,8 +27,10 @@ import {
   splitLines,
 } from "@/lib/zalo-phone-invite-group-campaign-utils";
 import { getApiErrorCode, getApiErrorMessage } from "@/lib/errors";
+import { canSkipZaloProxyRequirement } from "@/lib/map-auth-user";
 import { toast } from "@/lib/toast";
 import { zaloPhoneInviteGroupCampaignService } from "@/services/zalo-phone-invite-group-campaign.service";
+import { useAuthStore } from "@/stores/use-auth-store";
 import { useZaloPhoneInviteGroupCampaignStore } from "@/stores/use-zalo-phone-invite-group-campaign-store";
 import type {
   PhoneInviteGroupCampaign,
@@ -78,6 +80,8 @@ export default function PhoneInviteGroupCampaignFormModal({
     (s) => s.createOrEditCampaign,
   );
   const saving = useZaloPhoneInviteGroupCampaignStore((s) => s.saving);
+  const user = useAuthStore((s) => s.user);
+  const canSkipProxy = canSkipZaloProxyRequirement(user);
 
   const [name, setName] = useState("");
   const [delayTime, setDelayTime] = useState("350");
@@ -99,8 +103,8 @@ export default function PhoneInviteGroupCampaignFormModal({
   const loadSeqRef = useRef(0);
 
   const runnableAccounts = useMemo(
-    () => accounts.filter(isZaloAccountRunnable),
-    [accounts],
+    () => accounts.filter((a) => isZaloAccountRunnable(a, canSkipProxy)),
+    [accounts, canSkipProxy],
   );
 
   const phoneLineCount = splitLines(phoneNumbers).length;
