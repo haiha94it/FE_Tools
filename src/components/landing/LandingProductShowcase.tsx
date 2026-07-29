@@ -24,7 +24,7 @@ export default function LandingProductShowcase() {
             Xem giao diện thực tế từng module
           </h2>
           <p className="landing-lead mt-3 text-base">
-            Chọn module để xem preview — mỗi phần là một công cụ hoàn chỉnh trong CAREVIPPRO.
+            Chọn module để xem preview — mỗi phần là một công cụ hoàn chỉnh trong CSKH tự động.
           </p>
         </LandingReveal>
 

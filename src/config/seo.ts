@@ -9,7 +9,7 @@ export function getSiteUrl(): string {
     return `https://${process.env.VERCEL_URL}`;
   }
 
-  return "http://localhost:3000";
+  return "https://cskh.tudongai.com";
 }
 
 export const SITE_NAME = APP_NAME;
@@ -17,10 +17,10 @@ export const SITE_NAME = APP_NAME;
 export const SITE_TAGLINE = "Quản trị Zalo thông minh cho doanh nghiệp";
 
 export const DEFAULT_DESCRIPTION =
-  "CAREVIPPRO — quản lý Zalo thông minh. Tích hợp AI tự động hóa chiến dịch marketing cho doanh nghiệp. Vận hành quản lý sale & marketing trên một giao diện thân thiện";
+  "CSKH tự động — quản lý Zalo thông minh. Tích hợp AI tự động hóa chiến dịch marketing cho doanh nghiệp. Vận hành quản lý sale & marketing trên một giao diện thân thiện";
 
 export const DEFAULT_KEYWORDS = [
-  "CAREVIPPRO",
+  "CSKH tự động",
   "quản trị Zalo",
   "Zalo marketing",
   "tin nhắn Zalo",
@@ -34,9 +34,9 @@ export const DEFAULT_KEYWORDS = [
 ] as const;
 
 export const OG_IMAGE = {
-  url: "/images/logo/logo.png",
-  width: 300,
-  height: 80,
+  url: "/images/logo/mockup 0.png",
+  width: 1200,
+  height: 630,
   alt: `${APP_NAME} — ${SITE_TAGLINE}`,
 } as const;
 

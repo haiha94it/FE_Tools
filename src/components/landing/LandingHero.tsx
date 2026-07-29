@@ -32,7 +32,7 @@ export default function LandingHero() {
           </h1>
 
           <p className="landing-hero-enter landing-hero-enter-3 landing-lead mt-5 text-base leading-relaxed sm:text-lg">
-            CAREVIPPRO giúp team sale và marketing quản lý tài khoản, chat khách,
+            CSKH tự động giúp team sale và marketing quản lý tài khoản, chat khách,
             chạy chiến dịch và bán hàng — không cần chuyển đổi giữa nhiều công cụ.
           </p>
 

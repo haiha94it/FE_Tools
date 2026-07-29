@@ -21,7 +21,7 @@ export default function LandingUseCases() {
             Giải pháp cho từng vai trò trong team
           </h2>
           <p className="landing-lead mt-3 text-base">
-            Dù bạn là sale, marketing hay quản lý — CAREVIPPRO có workflow phù hợp.
+            Dù bạn là sale, marketing hay quản lý — CSKH tự động có workflow phù hợp.
           </p>
         </LandingReveal>
 
@@ -54,7 +54,7 @@ export default function LandingUseCases() {
                 </div>
                 <div className="rounded-xl bg-emerald-50/80 px-3 py-2.5 dark:bg-emerald-500/10">
                   <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">
-                    CAREVIPPRO
+                    CSKH tự động
                   </p>
                   <p className="mt-0.5 text-sm text-gray-700 dark:text-gray-300">{item.solution}</p>
                 </div>

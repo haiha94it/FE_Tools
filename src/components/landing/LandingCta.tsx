@@ -21,7 +21,7 @@ export default function LandingCta() {
               Sẵn sàng tăng tốc vận hành Zalo?
             </h2>
             <p className="relative mx-auto mt-3 max-w-lg text-sm text-slate-300 sm:text-base">
-              Tham gia CAREVIPPRO hôm nay — quản lý tài khoản, chat và chiến dịch trên một
+              Tham gia CSKH tự động hôm nay — quản lý tài khoản, chat và chiến dịch trên một
               nền tảng thống nhất.
             </p>
 

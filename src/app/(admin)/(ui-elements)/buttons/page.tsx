@@ -6,9 +6,9 @@ import { Metadata } from "next";
 import React from "react";
 
 export const metadata: Metadata = {
-  title: "Next.js Buttons | CAREVIPPRO",
+  title: "Next.js Buttons | CSKH tự động",
   description:
-    "This is Next.js Buttons page for CAREVIPPRO",
+    "This is Next.js Buttons page for CSKH tự động",
 };
 
 export default function Buttons() {

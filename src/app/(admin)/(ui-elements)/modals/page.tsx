@@ -8,9 +8,9 @@ import { Metadata } from "next";
 import React from "react";
 
 export const metadata: Metadata = {
-  title: "Next.js Modals | CAREVIPPRO",
+  title: "Next.js Modals | CSKH tự động",
   description:
-    "This is Next.js Modals page for CAREVIPPRO",
+    "This is Next.js Modals page for CSKH tự động",
   // other metadata
 };
 

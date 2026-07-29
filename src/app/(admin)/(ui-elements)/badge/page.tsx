@@ -5,9 +5,9 @@ import { Metadata } from "next";
 import React from "react";
 
 export const metadata: Metadata = {
-  title: "Next.js Badge | CAREVIPPRO",
+  title: "Next.js Badge | CSKH tự động",
   description:
-    "This is Next.js Badge page for CAREVIPPRO",
+    "This is Next.js Badge page for CSKH tự động",
   // other metadata
 };
 

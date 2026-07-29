@@ -142,10 +142,9 @@ export function createRootMetadata(): Metadata {
     },
     icons: {
       icon: [
-        { url: "/images/logo/logo-icon.png", type: "image/png" },
-        { url: "/images/logo/logo-icon.svg", type: "image/svg+xml" },
+        { url: "/images/logo/favicon.png", type: "image/png" },
       ],
-      apple: "/images/logo/logo-icon.png",
+      apple: "/images/logo/favicon.png",
     },
     category: "technology",
   };

@@ -5,9 +5,9 @@ import { Metadata } from "next";
 import React from "react";
 
 export const metadata: Metadata = {
-  title: "Next.js Alerts | CAREVIPPRO",
+  title: "Next.js Alerts | CSKH tự động",
   description:
-    "This is Next.js Alerts page for CAREVIPPRO",
+    "This is Next.js Alerts page for CSKH tự động",
   // other metadata
 };
 

@@ -24,9 +24,9 @@ export default function UserDropdown() {
     setIsOpen(false);
   }
 
-  const handleLogout = async () => {
+  const handleLogout = () => {
     closeDropdown();
-    await logout();
+    void logout();
     router.replace("/signin");
   };
 

@@ -207,38 +207,47 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logout: async () => {
-        set({ isLoading: true });
+        // Ngắt kết nối websocket & bắn API logout ngầm
         try {
           useWebSocketStore.getState().disconnect();
-          await authService.logout();
-        } finally {
-          // SPA không F5: phải xóa state theo user (messenger/consent/team)
-          // nếu không user sau vẫn thấy nick Zalo của user trước.
-          // Dynamic import tránh circular: messenger store cũng import auth.
-          try {
-            const { useZaloMessengerStore } = await import(
-              "@/stores/use-zalo-messenger-store"
-            );
-            useZaloMessengerStore.getState().resetSession();
-          } catch {
-            // ignore — vẫn clear auth bên dưới
-          }
-          useConsentStore.getState().reset();
-          useTeamCollaborationStore.setState({
-            campaignPermissions: null,
-            assignedAccounts: [],
-            permissionsLoaded: false,
-            accountsLoaded: false,
-          });
-          lastFetchProfileAt = 0;
-          set({
-            user: null,
-            isAuthenticated: false,
-            isCareReady: false,
-            isLoading: false,
-            error: null,
-          });
+          void authService.logout();
+        } catch {
+          // ignore
         }
+
+        // SPA không F5: xóa state theo user (messenger/consent/team) ngay lập tức
+        try {
+          const { useZaloMessengerStore } = await import(
+            "@/stores/use-zalo-messenger-store"
+          );
+          useZaloMessengerStore.getState().resetSession();
+        } catch {
+          // ignore — vẫn clear auth bên dưới
+        }
+        useConsentStore.getState().reset();
+        useTeamCollaborationStore.setState({
+          campaignPermissions: null,
+          assignedAccounts: [],
+          permissionsLoaded: false,
+          accountsLoaded: false,
+        });
+        lastFetchProfileAt = 0;
+
+        // Reset Auth State & Xóa localStorage persister
+        if (typeof window !== "undefined") {
+          try {
+            localStorage.removeItem("zalo-admin-auth");
+          } catch {
+            // ignore
+          }
+        }
+        set({
+          user: null,
+          isAuthenticated: false,
+          isCareReady: false,
+          isLoading: false,
+          error: null,
+        });
       },
 
       clearError: () => set({ error: null }),

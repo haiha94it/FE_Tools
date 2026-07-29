@@ -5,9 +5,9 @@ import { Metadata } from "next";
 import React from "react";
 
 export const metadata: Metadata = {
-  title: "Next.js Profile | CAREVIPPRO",
+  title: "Next.js Profile | CSKH tự động",
   description:
-    "This is Next.js Profile page for CAREVIPPRO",
+    "This is Next.js Profile page for CSKH tự động",
 };
 
 export default function Profile() {

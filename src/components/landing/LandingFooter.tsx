@@ -12,12 +12,12 @@ export default function LandingFooter() {
         <div className="flex flex-col gap-8 sm:flex-row sm:items-start sm:justify-between">
           <div className="max-w-xs">
             <Link href="/" className="inline-block cursor-pointer">
-              <Image
-                src="/images/logo/logo.png"
+              <img
+                src="/images/logo/logobanner.png"
                 alt={APP_NAME}
-                width={130}
-                height={34}
-                className="h-8 w-auto"
+                width={140}
+                height={36}
+                className="h-8 w-auto transition-transform duration-300 hover:scale-[1.02] sm:h-9 object-contain"
               />
             </Link>
             <p className="landing-lead mt-3 text-sm leading-relaxed">

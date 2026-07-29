@@ -1,5 +1,5 @@
-/** Tên thương hiệu hiển thị — tạm dùng CAREVIPPRO */
-export const APP_NAME = "CSKH";
+/** Tên thương hiệu hiển thị */
+export const APP_NAME = "CSKH tự động";
 
 /** Tên pháp lý trong điều khoản đăng ký — đồng bộ ZaloCN (titleIntruc) */
 export const LEGAL_BRAND_NAME = "Chốt Nhanh";
