@@ -22,7 +22,7 @@ export default function LandingHero() {
         <div className="max-w-xl">
           <div className="landing-badge-pulse landing-hero-enter landing-hero-enter-1 mb-5 inline-flex items-center gap-2 rounded-full border border-brand-200 bg-brand-50/90 px-3 py-1 text-xs font-semibold text-brand-700 backdrop-blur-sm dark:border-brand-500/30 dark:bg-brand-500/10 dark:text-brand-300">
             <span className="landing-badge-dot h-1.5 w-1.5 rounded-full bg-brand-500" />
-            Nền tảng quản trị Zalo cho doanh nghiệp
+            Nền tảng quản trị Zalo
           </div>
 
           <h1 className="landing-hero-enter landing-hero-enter-2 landing-title text-3xl font-bold tracking-tight sm:text-4xl lg:text-[2.75rem] lg:leading-[1.15]">
