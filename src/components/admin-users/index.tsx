@@ -7,7 +7,6 @@ import { confirm } from "@/lib/confirm";
 import { getApiErrorMessage } from "@/lib/errors";
 import { canAccessUserAdmin } from "@/lib/map-auth-user";
 import { toast } from "@/lib/toast";
-import { consentService } from "@/services/consent.service";
 import { zaloUserAdminService } from "@/services/zalo-user-admin.service";
 import { useAuthStore } from "@/stores/use-auth-store";
 import { useZaloUserAdminStore } from "@/stores/use-zalo-user-admin-store";
@@ -20,7 +19,6 @@ import CreateUserModal from "./CreateUserModal";
 import EditUserModal from "./EditUserModal";
 import ExportExcelModal from "./ExportExcelModal";
 import FilterUsersModal from "./FilterUsersModal";
-import UserConsentDetailDrawer from "./UserConsentDetailDrawer";
 
 export default function AdminUsersView() {
   const router = useRouter();
@@ -36,7 +34,6 @@ export default function AdminUsersView() {
   const pageSize = useZaloUserAdminStore((s) => s.pageSize);
   const keyword = useZaloUserAdminStore((s) => s.keyword);
   const permissionFilter = useZaloUserAdminStore((s) => s.permissionFilter);
-  const messageProcessingStatusFilter = useZaloUserAdminStore((s) => s.messageProcessingStatusFilter);
   const startDate = useZaloUserAdminStore((s) => s.startDate);
   const endDate = useZaloUserAdminStore((s) => s.endDate);
   const dateFilterEnabled = useZaloUserAdminStore((s) => s.dateFilterEnabled);
@@ -64,11 +61,7 @@ export default function AdminUsersView() {
   const [editingUser, setEditingUser] = useState<ManagedUser | null>(null);
   const [filterOpen, setFilterOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
-  const [consentUser, setConsentUser] = useState<ManagedUser | null>(null);
-  const [consentOpen, setConsentOpen] = useState(false);
   const [activatingId, setActivatingId] = useState<number | null>(null);
-  /** Đang approve/reject HĐ từ list */
-  const [consentActingId, setConsentActingId] = useState<number | null>(null);
   /** Cột mật khẩu ẩn mặc định; bật bằng nút trên toolbar */
   const [showPasswordColumn, setShowPasswordColumn] = useState(false);
 
@@ -184,77 +177,6 @@ export default function AdminUsersView() {
     }
   };
 
-  /** §5.3b — Duyệt HĐ pending từ list */
-  const handleApproveConsent = async (row: ManagedUser) => {
-    if (
-      !(await confirm({
-        title: "Duyệt thỏa thuận?",
-        message: `Duyệt HĐ xử lý tin nhắn cho "${row.username}"? User sẽ dùng được chat.`,
-        confirmText: "Duyệt",
-      }))
-    ) {
-      return;
-    }
-    setConsentActingId(row.id);
-    try {
-      await consentService.adminApprove(row.id);
-      toast.success(`Đã duyệt thỏa thuận của "${row.username}".`);
-      void fetchUsers({ silent: true });
-    } catch (error) {
-      toast.error(getApiErrorMessage(error));
-    } finally {
-      setConsentActingId(null);
-    }
-  };
-
-  /** §5.3b — Từ chối HĐ pending từ list (reason optional) */
-  const handleRejectConsent = async (row: ManagedUser) => {
-    if (
-      !(await confirm({
-        title: "Từ chối thỏa thuận?",
-        message: `Từ chối hồ sơ của "${row.username}"? User có thể tạo / ký lại.`,
-        confirmText: "Từ chối",
-        variant: "danger",
-      }))
-    ) {
-      return;
-    }
-    setConsentActingId(row.id);
-    try {
-      await consentService.adminReject(row.id, { reason: "" });
-      toast.success(`Đã từ chối hồ sơ của "${row.username}".`);
-      void fetchUsers({ silent: true });
-    } catch (error) {
-      toast.error(getApiErrorMessage(error));
-    } finally {
-      setConsentActingId(null);
-    }
-  };
-
-  /** Thu hồi thỏa thuận (xóa hồ sơ) để user ký lại */
-  const handleRevokeConsent = async (row: ManagedUser) => {
-    if (
-      !(await confirm({
-        title: "Thu hồi thỏa thuận?",
-        message: `Thu hồi thỏa thuận của "${row.username}"? User sẽ bị chặn chat và bắt buộc ký lại thỏa thuận mới.`,
-        confirmText: "Thu hồi",
-        variant: "danger",
-      }))
-    ) {
-      return;
-    }
-    setConsentActingId(row.id);
-    try {
-      await consentService.adminRevoke(row.id);
-      toast.success(`Đã thu hồi thỏa thuận của "${row.username}".`);
-      void fetchUsers({ silent: true });
-    } catch (error) {
-      toast.error(getApiErrorMessage(error));
-    } finally {
-      setConsentActingId(null);
-    }
-  };
-
   if (!canAccess) {
     return null;
   }
@@ -298,7 +220,6 @@ export default function AdminUsersView() {
           onClearFilters={() =>
             applyFilters({
               permission: "all",
-              messageProcessingStatus: "all",
               enabled: false,
               startDate: null,
               endDate: null,
@@ -320,14 +241,6 @@ export default function AdminUsersView() {
           onDelete={(row) => void handleDelete(row)}
           onActivate={(row) => void handleActivate(row)}
           onToggleLock={(row) => void handleToggleLock(row)}
-          onViewConsent={(row) => {
-            setConsentUser(row);
-            setConsentOpen(true);
-          }}
-          consentActingId={consentActingId}
-          onApproveConsent={(row) => void handleApproveConsent(row)}
-          onRejectConsent={(row) => void handleRejectConsent(row)}
-          onRevokeConsent={(row) => void handleRevokeConsent(row)}
         />
       </div>
 
@@ -347,7 +260,6 @@ export default function AdminUsersView() {
       <FilterUsersModal
         open={filterOpen}
         permission={permissionFilter}
-        messageProcessingStatus={messageProcessingStatusFilter}
         dateEnabled={dateFilterEnabled}
         startDate={startDate}
         endDate={endDate}
@@ -356,15 +268,6 @@ export default function AdminUsersView() {
         onApply={(payload) => applyFilters(payload)}
       />
       <ExportExcelModal open={exportOpen} onClose={() => setExportOpen(false)} />
-      <UserConsentDetailDrawer
-        open={consentOpen}
-        user={consentUser}
-        onClose={() => {
-          setConsentOpen(false);
-          setConsentUser(null);
-        }}
-        onUpdated={() => void fetchUsers({ silent: true })}
-      />
     </div>
   );
 }

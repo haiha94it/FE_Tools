@@ -10,7 +10,6 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import AlertSettingsPanel from "./panels/AlertSettingsPanel";
 import CommunitySettingsPanel from "./panels/CommunitySettingsPanel";
-import ConsentSettingsPanel from "./panels/ConsentSettingsPanel";
 import DecreeSettingsPanel from "./panels/DecreeSettingsPanel";
 import ExpirationSettingsPanel from "./panels/ExpirationSettingsPanel";
 import FirstLoginSettingsPanel from "./panels/FirstLoginSettingsPanel";
@@ -25,7 +24,6 @@ const TABS: { key: AdminSettingsTabKey; label: string }[] = [
   { key: "register", label: "Thông báo đăng ký" },
   { key: "first-login", label: "Đăng nhập lần đầu" },
   { key: "decree", label: "Thông tư nghị định" },
-  { key: "consent", label: "Đồng thuận tin nhắn" },
 ];
 
 function renderPanel(tab: AdminSettingsTabKey) {
@@ -44,8 +42,6 @@ function renderPanel(tab: AdminSettingsTabKey) {
       return <FirstLoginSettingsPanel />;
     case "decree":
       return <DecreeSettingsPanel />;
-    case "consent":
-      return <ConsentSettingsPanel />;
     default:
       return null;
   }

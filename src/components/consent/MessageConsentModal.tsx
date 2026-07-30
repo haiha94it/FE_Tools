@@ -21,7 +21,7 @@ import type {
 } from "@/types/consent";
 import { CONSENT_CONFIRM_SYNC_TEXT } from "@/types/consent";
 import { useRouter } from "next/navigation";
-import { memo, useCallback, useEffect, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import ConsentSignatureFullscreen from "./ConsentSignatureFullscreen";
 import ConsentSignaturePad, {
   type ConsentSignatureValue,
@@ -57,7 +57,6 @@ function MessageConsentModal({
   onSubmitted,
 }: MessageConsentModalProps) {
   const router = useRouter();
-  const applyStatus = useConsentStore((s) => s.applyStatus);
   const consentStatus = useConsentStore((s) => s.status);
   const authUser = useAuthStore((s) => s.user);
 
@@ -92,6 +91,7 @@ function MessageConsentModal({
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewHtml, setPreviewHtml] = useState<string | null>(null);
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
+  const requestId = useRef("");
 
   const applyFormDefaults = useCallback(() => {
     const defaults = resolveConsentFormDefaults(consentStatus, authUser);
@@ -120,6 +120,7 @@ function MessageConsentModal({
 
   useEffect(() => {
     if (!open) return;
+    requestId.current = crypto.randomUUID();
     setStep("agree");
     applyFormDefaults();
     setTerms(null);
@@ -246,8 +247,9 @@ function MessageConsentModal({
     setSubmitting(true);
     setError(null);
     try {
-      const result = await consentService.sign(
+      await consentService.sign(
         buildConsentAgreementPayload({
+          requestId: requestId.current,
           fullName,
           email,
           phone,
@@ -268,12 +270,7 @@ function MessageConsentModal({
           },
         }),
       );
-      if (result.status) {
-        applyStatus(result.status);
-      }
-      toast.success(
-        result.message?.trim() || "Hồ sơ đang chờ duyệt.",
-      );
+      toast.success("Đã gửi hồ sơ chờ duyệt.");
       onSubmitted?.();
       onClose?.();
     } catch (err) {
@@ -560,7 +557,7 @@ function MessageConsentModal({
                       </div>
                       <div>
                         <Label htmlFor="consent-email">
-                          Email <span className="text-error-500">*</span>
+                          Email
                         </Label>
                         <Input
                           id="consent-email"
@@ -589,7 +586,7 @@ function MessageConsentModal({
                       </div>
                       <div className="sm:col-span-2">
                         <Label htmlFor="consent-address">
-                          Địa chỉ <span className="text-error-500">*</span>
+                          Địa chỉ
                         </Label>
                         <Input
                           id="consent-address"
@@ -668,7 +665,7 @@ function MessageConsentModal({
                       </div>
                       <div>
                         <Label htmlFor="consent-email">
-                          Email liên hệ <span className="text-error-500">*</span>
+                          Email liên hệ
                         </Label>
                         <Input
                           id="consent-email"
@@ -681,7 +678,7 @@ function MessageConsentModal({
                       </div>
                       <div className="sm:col-span-2">
                         <Label htmlFor="consent-address">
-                          Địa chỉ công ty / HKD <span className="text-error-500">*</span>
+                          Địa chỉ công ty / HKD
                         </Label>
                         <Input
                           id="consent-address"

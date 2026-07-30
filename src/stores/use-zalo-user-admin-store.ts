@@ -15,7 +15,6 @@ interface ZaloUserAdminState {
   pageSize: number;
   keyword: string;
   permissionFilter: UserPermissionFilter;
-  messageProcessingStatusFilter: string;
   startDate: Date | null;
   endDate: Date | null;
   dateFilterEnabled: boolean;
@@ -46,7 +45,6 @@ interface ZaloUserAdminState {
     enabled: boolean;
     startDate: Date | null;
     endDate: Date | null;
-    messageProcessingStatus: string;
   }) => void;
   setActiveTab: (tab: "users" | "logs") => void;
   setActivityPage: (page: number) => void;
@@ -60,7 +58,6 @@ export const useZaloUserAdminStore = create<ZaloUserAdminState>((set, get) => ({
   pageSize: 50,
   keyword: "",
   permissionFilter: "all",
-  messageProcessingStatusFilter: "all",
   startDate: null,
   endDate: null,
   dateFilterEnabled: false,
@@ -86,7 +83,7 @@ export const useZaloUserAdminStore = create<ZaloUserAdminState>((set, get) => ({
       state.dateFilterEnabled && state.endDate ? toIsoDate(state.endDate) : "";
     // Strict Mode + cùng filter/page → 1 HTTP get-all-account
     return dedupeInflight(
-      `user-admin:fetchUsers:${state.page}:${state.pageSize}:${state.keyword}:${state.permissionFilter}:${state.messageProcessingStatusFilter}:${start}:${end}:${silent ? "silent" : "full"}`,
+      `user-admin:fetchUsers:${state.page}:${state.pageSize}:${state.keyword}:${state.permissionFilter}:${start}:${end}:${silent ? "silent" : "full"}`,
       async () => {
         if (!silent) set({ loading: true, error: null });
         try {
@@ -97,7 +94,6 @@ export const useZaloUserAdminStore = create<ZaloUserAdminState>((set, get) => ({
             permission: state.permissionFilter,
             startDate: start || undefined,
             endDate: end || undefined,
-            messageProcessingStatus: state.messageProcessingStatusFilter !== "all" ? state.messageProcessingStatusFilter : undefined,
           });
           set({
             users: response.results,
@@ -172,10 +168,9 @@ export const useZaloUserAdminStore = create<ZaloUserAdminState>((set, get) => ({
     void get().fetchUsers();
   },
 
-  applyFilters: ({ permission, enabled, startDate, endDate, messageProcessingStatus }) => {
+  applyFilters: ({ permission, enabled, startDate, endDate }) => {
     set({
       permissionFilter: permission,
-      messageProcessingStatusFilter: messageProcessingStatus,
       dateFilterEnabled: enabled,
       startDate,
       endDate,

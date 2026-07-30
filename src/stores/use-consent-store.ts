@@ -8,14 +8,11 @@ function statusKeepsWizardOpen(
   status: MessageProcessingConsentStatus,
 ): boolean {
   if (!status.system_activated) return false;
-  // NV không bao giờ wizard
   if (status.is_employee) return false;
-  const s = status.status || "none";
-  // pending/approved: đóng wizard; rejected/none: giữ force nếu đang mở ký lại
-  if (s === "pending_approval" || s === "approved") return false;
-  if (status.show_pending_status) return false;
-  if (typeof status.need_wizard === "boolean") return status.need_wizard;
-  return s === "none" || s === "rejected";
+  return (
+    status.need_wizard &&
+    (status.status === "none" || status.status === "rejected")
+  );
 }
 
 type ConsentState = {
@@ -27,7 +24,6 @@ type ConsentState = {
   fetchStatus: (options?: {
     force?: boolean;
   }) => Promise<MessageProcessingConsentStatus | null>;
-  applyStatus: (status: MessageProcessingConsentStatus) => void;
   openConsentWizard: () => void;
   closeConsentWizard: () => void;
   reset: () => void;
@@ -64,16 +60,6 @@ export const useConsentStore = create<ConsentState>((set, get) => ({
       });
       return null;
     }
-  },
-
-  applyStatus: (status) => {
-    set({
-      status,
-      forceWizardOpen: statusKeepsWizardOpen(status)
-        ? get().forceWizardOpen
-        : false,
-      statusError: null,
-    });
   },
 
   openConsentWizard: () => set({ forceWizardOpen: true }),

@@ -62,5 +62,4 @@ export type AdminSettingsTabKey =
   | "logo"
   | "register"
   | "first-login"
-  | "decree"
-  | "consent";
+  | "decree";

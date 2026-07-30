@@ -32,11 +32,6 @@ interface AdminUsersTableProps {
   onDelete: (user: ManagedUser) => void;
   onActivate: (user: ManagedUser) => void;
   onToggleLock: (user: ManagedUser) => void;
-  onViewConsent: (user: ManagedUser) => void;
-  consentActingId?: number | null;
-  onApproveConsent?: (user: ManagedUser) => void;
-  onRejectConsent?: (user: ManagedUser) => void;
-  onRevokeConsent?: (user: ManagedUser) => void;
 }
 
 const PAGE_SIZE_OPTIONS = [50, 100, 200];
@@ -93,11 +88,6 @@ export default function AdminUsersTable({
   onDelete,
   onActivate,
   onToggleLock,
-  onViewConsent,
-  consentActingId = null,
-  onApproveConsent,
-  onRejectConsent,
-  onRevokeConsent,
 }: AdminUsersTableProps) {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const isEmpty = mode === "users" ? users.length === 0 : logs.length === 0;
@@ -223,12 +213,6 @@ export default function AdminUsersTable({
                   >
                     TK
                   </TableCell>
-                  <TableCell isHeader className={`${headerClass} min-w-[7rem]`}>
-                    HĐ tin nhắn
-                  </TableCell>
-                  <TableCell isHeader className={`${headerClass} min-w-[8rem]`}>
-                    Thời điểm gửi
-                  </TableCell>
                   <TableCell isHeader className={headerClass}>
                     Ngày tạo
                   </TableCell>
@@ -259,11 +243,6 @@ export default function AdminUsersTable({
                     onDelete={onDelete}
                     onActivate={onActivate}
                     onToggleLock={onToggleLock}
-                    onViewConsent={onViewConsent}
-                    consentActing={consentActingId === user.id}
-                    onApproveConsent={onApproveConsent}
-                    onRejectConsent={onRejectConsent}
-                    onRevokeConsent={onRevokeConsent}
                   />
                 ))}
               </TableBody>

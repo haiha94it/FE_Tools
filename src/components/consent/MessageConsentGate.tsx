@@ -28,7 +28,6 @@ function useMessageConsentStatus(options?: { fetchOnMount?: boolean }) {
   const statusLoading = useConsentStore((s) => s.statusLoading);
   const forceWizardOpen = useConsentStore((s) => s.forceWizardOpen);
   const fetchStatus = useConsentStore((s) => s.fetchStatus);
-  const applyStatus = useConsentStore((s) => s.applyStatus);
   const closeConsentWizard = useConsentStore((s) => s.closeConsentWizard);
   const openConsentWizard = useConsentStore((s) => s.openConsentWizard);
 
@@ -44,7 +43,6 @@ function useMessageConsentStatus(options?: { fetchOnMount?: boolean }) {
     statusLoading,
     forceWizardOpen,
     fetchStatus,
-    applyStatus,
     closeConsentWizard,
     openConsentWizard,
   };
@@ -134,8 +132,7 @@ export function MessageConsentBanner() {
         role="status"
       >
         <p className="font-medium leading-relaxed">
-          {status.pending_message?.trim() ||
-            "Hồ sơ đang chờ duyệt. Bạn chưa thể dùng tin nhắn."}
+          Hồ sơ đang chờ duyệt. Bạn chưa thể dùng tin nhắn.
         </p>
         {status.submitted_at ? (
           <p className="mt-1 text-xs opacity-90">
@@ -261,8 +258,7 @@ function MessageConsentGate() {
                   Đang chờ duyệt
                 </p>
                 <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
-                  {status.pending_message?.trim() ||
-                    "Hồ sơ đang chờ admin duyệt. Chat bị tạm khóa."}
+                  Hồ sơ đang chờ duyệt. Chat bị tạm khóa.
                 </p>
               </>
             ) : showRejected ? (

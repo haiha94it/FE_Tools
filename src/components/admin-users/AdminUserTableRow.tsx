@@ -4,26 +4,17 @@ import AvatarText from "@/components/ui/avatar/AvatarText";
 import Badge from "@/components/ui/badge/Badge";
 import { TableCell, TableRow } from "@/components/ui/table";
 import {
-  consentStatusLabel,
-  formatConsentDateTime,
-  normalizeConsentStatus,
-} from "@/lib/consent-utils";
-import {
   formatManagedUserDate,
   getManagedUserPermissionBadgeColor,
   getManagedUserPermissionLabel,
 } from "@/lib/zalo-user-admin-utils";
 import type { ManagedUser } from "@/types/zalo-user-admin";
 import {
-  HiOutlineCheck,
   HiOutlineCheckCircle,
-  HiOutlineDocumentText,
   HiOutlineLockClosed,
   HiOutlineLockOpen,
   HiOutlinePencil,
   HiOutlineTrash,
-  HiOutlineX,
-  HiOutlineMinusCircle,
 } from "react-icons/hi";
 import AdminIconButton from "./AdminIconButton";
 
@@ -45,16 +36,10 @@ interface AdminUserTableRowProps {
   permissionFilter: string;
   showPassword: boolean;
   isActivating: boolean;
-  consentActing?: boolean;
   onEdit: (user: ManagedUser) => void;
   onDelete: (user: ManagedUser) => void;
   onActivate: (user: ManagedUser) => void;
   onToggleLock: (user: ManagedUser) => void;
-  onViewConsent: (user: ManagedUser) => void;
-  /** §5.3b — chỉ pending_approval */
-  onApproveConsent?: (user: ManagedUser) => void;
-  onRejectConsent?: (user: ManagedUser) => void;
-  onRevokeConsent?: (user: ManagedUser) => void;
 }
 
 export default function AdminUserTableRow({
@@ -63,34 +48,15 @@ export default function AdminUserTableRow({
   permissionFilter,
   showPassword,
   isActivating,
-  consentActing = false,
   onEdit,
   onDelete,
   onActivate,
   onToggleLock,
-  onViewConsent,
-  onApproveConsent,
-  onRejectConsent,
-  onRevokeConsent,
 }: AdminUserTableRowProps) {
   const displayName = user.fullname || user.username;
   const passwordValue =
     permissionFilter === "no_active" ? user.password : user.raw_password;
   const lockLabel = user.is_locked ? "Mở khóa tài khoản" : "Khóa tài khoản";
-  const consentStatus = normalizeConsentStatus(
-    user.message_processing_status ??
-      (user.message_processing_signed ? "approved" : "none"),
-  );
-  const consentBadgeColor =
-    consentStatus === "approved"
-      ? "success"
-      : consentStatus === "pending_approval"
-        ? "warning"
-        : consentStatus === "rejected"
-          ? "error"
-          : "light";
-  const isPendingConsent = consentStatus === "pending_approval";
-  const rejectReason = user.message_processing_reject_reason?.trim() || null;
 
   return (
     <TableRow className="group transition hover:bg-gray-50/80 dark:hover:bg-white/[0.02]">
@@ -132,27 +98,6 @@ export default function AdminUserTableRow({
       <TableCell className={`${cellClass} min-w-[4.5rem] whitespace-nowrap text-center tabular-nums`}>
         {user.account_count ?? 0} / {user.account_limit ?? 0}
       </TableCell>
-      <TableCell className={cellClass}>
-        <div className="flex min-w-[7rem] flex-col gap-0.5">
-          <Badge size="sm" color={consentBadgeColor}>
-            {consentStatusLabel(consentStatus)}
-          </Badge>
-          {consentStatus === "rejected" && rejectReason ? (
-            <span
-              className="line-clamp-2 max-w-[12rem] text-theme-xs text-error-600 dark:text-error-400"
-              title={rejectReason}
-            >
-              {rejectReason}
-            </span>
-          ) : null}
-        </div>
-      </TableCell>
-      <TableCell className={`${cellClass} whitespace-nowrap`}>
-        {formatConsentDateTime(
-          user.message_processing_submitted_at ||
-            user.message_processing_signed_at,
-        )}
-      </TableCell>
       <TableCell className={`${cellClass} whitespace-nowrap`}>
         {formatManagedUserDate(user.created_at)}
       </TableCell>
@@ -172,15 +117,6 @@ export default function AdminUserTableRow({
       </TableCell>
       <TableCell className="sticky right-0 z-[1] bg-white px-4 py-3 shadow-[-6px_0_12px_-6px_rgba(0,0,0,0.06)] group-hover:bg-gray-50/80 dark:bg-gray-900 dark:shadow-[-6px_0_12px_-6px_rgba(0,0,0,0.3)] dark:group-hover:bg-white/[0.02]">
         <div className="flex items-center gap-1.5">
-          <AdminIconButton
-            label="Chi tiết đồng thuận"
-            side="left"
-            className={iconBtnClass}
-            onClick={() => onViewConsent(user)}
-          >
-            <HiOutlineDocumentText size={15} />
-          </AdminIconButton>
-
           <AdminIconButton
             label="Sửa thông tin"
             side="left"

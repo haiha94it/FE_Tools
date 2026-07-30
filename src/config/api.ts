@@ -323,7 +323,7 @@ export const VIDEO_CREATOR_BASE = "/zalo-campaigns/post-video";
 /**
  * Đồng thuận xử lý tin nhắn Zalo — Carev2_BE consent.urls
  * Base: /api/consent/
- * Flow: ký submit → pending → admin duyệt (không OTP / không revoke).
+ * ChotCare chỉ proxy API user; cấu hình và duyệt nằm tại Manage.
  */
 export const API_CONSENT = {
   STATUS: "/api/consent/message-processing/status/",
@@ -331,19 +331,6 @@ export const API_CONSENT = {
   PREVIEW: "/api/consent/message-processing/preview/",
   SIGN: "/api/consent/message-processing/sign/",
   PDF: "/api/consent/message-processing/pdf/",
-  ADMIN_SETUP: "/api/consent/admin/setup/",
-  ADMIN_ACTIVATE: "/api/consent/admin/activate/",
-  ADMIN_DEACTIVATE: "/api/consent/admin/deactivate/",
-  adminUserContract: (userId: number | string) =>
-    `/api/consent/admin/users/${userId}/contract/`,
-  adminUserPdf: (userId: number | string) =>
-    `/api/consent/admin/users/${userId}/pdf/`,
-  adminUserApprove: (userId: number | string) =>
-    `/api/consent/admin/users/${userId}/approve/`,
-  adminUserReject: (userId: number | string) =>
-    `/api/consent/admin/users/${userId}/reject/`,
-  adminUserRevoke: (userId: number | string) =>
-    `/api/consent/admin/users/${userId}/revoke/`,
 } as const;
 
 /** Mini Shop / cửa hàng — đồng bộ ZaloCN minishop, shoplinkhome, showproduct */

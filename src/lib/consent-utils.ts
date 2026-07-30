@@ -14,7 +14,6 @@ import {
   CONSENT_CHAT_REQUIRED,
   CONSENT_EMPLOYEE_WAIT_MANAGER_DEFAULT,
   CONSENT_MANAGER_REQUIRED,
-  CONSENT_PDF_MAX_BYTES,
   CONSENT_PENDING_APPROVAL,
   CONSENT_REJECTED,
 } from "@/types/consent";
@@ -287,23 +286,6 @@ export function isQuillHtmlEmpty(html?: string | null): boolean {
   return text.length === 0;
 }
 
-export function validateConsentPdfFile(file: File): string | null {
-  const name = file.name.toLowerCase();
-  if (!name.endsWith(".pdf") && file.type !== "application/pdf") {
-    return "Chỉ chấp nhận file PDF (.pdf).";
-  }
-  if (file.size > CONSENT_PDF_MAX_BYTES) {
-    return "File PDF tối đa 20MB.";
-  }
-  return null;
-}
-
-export function formatConsentFileSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
 /** Họ tên: ≥ 2 ký tự sau trim */
 export function isConsentFullNameValid(name?: string | null): boolean {
   return (name ?? "").trim().length >= 2;
@@ -324,10 +306,6 @@ export function isConsentEmailValid(email?: string | null): boolean {
   const raw = (email ?? "").trim();
   if (!raw) return false;
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(raw);
-}
-
-export function isConsentAddressValid(address?: string | null): boolean {
-  return (address ?? "").trim().length >= 3;
 }
 
 export function normalizeConsentStatus(
@@ -354,10 +332,7 @@ export function consentNeedsWizard(
   if (!status) return false;
   if (!status.system_activated) return false;
   if (consentIsEmployee(status)) return false;
-  if (typeof status.need_wizard === "boolean") return status.need_wizard;
-  if (typeof status.need_sign === "boolean") return status.need_sign;
-  const s = normalizeConsentStatus(status.status);
-  return s === "none" || s === "rejected" || s === "";
+  return status.need_wizard;
 }
 
 /** NV: QL chưa có HĐ / chưa đủ điều kiện chat */
@@ -366,9 +341,6 @@ export function consentShowWaitManager(
 ): boolean {
   if (!status?.system_activated) return false;
   if (!consentIsEmployee(status)) return false;
-  if (typeof status.show_wait_manager === "boolean") {
-    return status.show_wait_manager;
-  }
   if (consentCanUseChat(status)) return false;
   return (
     !consentShowPending(status) &&
@@ -376,17 +348,15 @@ export function consentShowWaitManager(
   );
 }
 
-/** Copy NV — ưu tiên employee_message / manager_message */
 export function consentEmployeeMessage(
   status: MessageProcessingConsentStatus | null | undefined,
 ): string {
-  const msg =
-    status?.employee_message?.trim() ||
-    status?.manager_message?.trim() ||
-    status?.pending_message?.trim() ||
-    status?.rejected_message?.trim() ||
-    "";
-  if (msg) return msg;
+  if (status?.status === "pending_approval") {
+    return "Thỏa thuận của quản lý đang chờ duyệt. Bạn sẽ dùng được tin nhắn sau khi hồ sơ được duyệt.";
+  }
+  if (status?.status === "rejected") {
+    return "Thỏa thuận của quản lý chưa được duyệt. Vui lòng báo quản lý ký lại.";
+  }
   return CONSENT_EMPLOYEE_WAIT_MANAGER_DEFAULT;
 }
 
@@ -401,24 +371,9 @@ export function resolveConsentFormDefaults(
 ): { fullName: string; email: string; phone: string } {
   const d = status?.form_defaults;
   return {
-    fullName: (
-      d?.full_name ||
-      status?.default_full_name ||
-      authUser?.name ||
-      ""
-    ).trim(),
-    email: (
-      d?.email ||
-      status?.default_email ||
-      authUser?.email ||
-      ""
-    ).trim(),
-    phone: (
-      d?.phone ||
-      status?.default_phone ||
-      authUser?.phone ||
-      ""
-    ).trim(),
+    fullName: (d?.full_name || authUser?.name || "").trim(),
+    email: (d?.email || authUser?.email || "").trim(),
+    phone: (d?.phone || authUser?.phone || "").trim(),
   };
 }
 
@@ -427,17 +382,13 @@ export function consentCanUseChat(
 ): boolean {
   if (!status) return true;
   if (!status.system_activated) return true;
-  if (typeof status.can_use_chat === "boolean") return status.can_use_chat;
-  return normalizeConsentStatus(status.status) === "approved";
+  return status.can_use_chat;
 }
 
 export function consentShowPending(
   status: MessageProcessingConsentStatus | null | undefined,
 ): boolean {
   if (!status?.system_activated) return false;
-  if (typeof status.show_pending_status === "boolean") {
-    return status.show_pending_status;
-  }
   return normalizeConsentStatus(status.status) === "pending_approval";
 }
 
@@ -445,24 +396,7 @@ export function consentShowRejected(
   status: MessageProcessingConsentStatus | null | undefined,
 ): boolean {
   if (!status?.system_activated) return false;
-  if (typeof status.show_rejected_status === "boolean") {
-    return status.show_rejected_status;
-  }
   return normalizeConsentStatus(status.status) === "rejected";
-}
-
-export function consentStatusLabel(status?: ConsentAgreementStatus | null): string {
-  switch (normalizeConsentStatus(status)) {
-    case "pending_approval":
-      return "Chờ duyệt";
-    case "approved":
-      return "Đã duyệt";
-    case "rejected":
-      return "Không duyệt";
-    case "none":
-    default:
-      return "Chưa ký";
-  }
 }
 
 export function validateConsentAgreementForm(input: {
@@ -484,20 +418,13 @@ export function validateConsentAgreementForm(input: {
       ? "Vui lòng nhập họ tên người đại diện"
       : "Vui lòng nhập họ tên đầy đủ";
   }
-  if (!isConsentEmailValid(input.email)) {
-    return input.entityType === "business"
-      ? "Vui lòng nhập email liên hệ hợp lệ"
-      : "Vui lòng nhập email hợp lệ";
+  if (input.email.trim() && !isConsentEmailValid(input.email)) {
+    return "Email không hợp lệ";
   }
   if (!isConsentPhoneValid(input.phone)) {
     return input.entityType === "business"
       ? "Vui lòng nhập số điện thoại liên hệ hợp lệ"
       : "Vui lòng nhập số điện thoại có Zalo hợp lệ";
-  }
-  if (!isConsentAddressValid(input.address)) {
-    return input.entityType === "business"
-      ? "Vui lòng nhập địa chỉ công ty / HKD"
-      : "Vui lòng nhập địa chỉ";
   }
   if (input.entityType === "business") {
     if (!input.companyName.trim()) return "Vui lòng nhập tên công ty / HKD";
@@ -507,6 +434,7 @@ export function validateConsentAgreementForm(input: {
 }
 
 export function buildConsentAgreementPayload(input: {
+  requestId: string;
   fullName: string;
   email: string;
   phone: string;
@@ -527,6 +455,7 @@ export function buildConsentAgreementPayload(input: {
   };
 }): ConsentAgreementPayload {
   const base: ConsentAgreementPayload = {
+    request_id: input.requestId,
     full_name: input.fullName.trim(),
     email: input.email.trim(),
     phone: input.phone.trim(),
@@ -545,7 +474,11 @@ export function buildConsentAgreementPayload(input: {
   if (input.entityType === "business") {
     base.company_name = input.companyName.trim();
     base.tax_code = input.taxCode.trim();
+    base.representative_name = input.fullName.trim();
     base.representative_title = input.representativeTitle.trim();
+    base.company_address = input.address.trim();
+    base.company_phone = input.phone.trim();
+    base.company_email = input.email.trim();
   }
 
   return base;
