@@ -66,33 +66,39 @@ export default function TeamCampaignNotificationCard() {
       title="Thông báo chiến dịch"
       desc="Chọn nick gửi và nhóm Zalo nhận thông báo chung khi chiến dịch có sự kiện mới."
     >
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(320px,0.8fr)]">
-        <div className="space-y-5">
-          <div className="flex items-start gap-3 rounded-2xl border border-brand-200 bg-brand-50/60 p-4 dark:border-brand-500/30 dark:bg-brand-500/10">
-            <HiOutlineBellAlert
-              className="mt-0.5 shrink-0 text-brand-600 dark:text-brand-400"
-              size={22}
-              aria-hidden
-            />
-            <p className="text-sm leading-relaxed text-gray-600 dark:text-gray-300">
-              Nick gửi phải đang tham gia nhóm nhận thông báo. Danh sách nhóm sẽ
-              thay đổi theo nick Zalo được chọn.
-            </p>
-          </div>
+      <div className="space-y-5">
+        <div className="flex items-start gap-3 rounded-xl border border-brand-200 bg-brand-50/60 px-4 py-3.5 dark:border-brand-500/30 dark:bg-brand-500/10">
+          <HiOutlineBellAlert
+            className="mt-0.5 shrink-0 text-brand-600 dark:text-brand-400"
+            size={21}
+            aria-hidden
+          />
+          <p className="text-sm leading-relaxed text-gray-600 dark:text-gray-300">
+            Nick gửi phải đang tham gia nhóm nhận thông báo. Danh sách nhóm sẽ
+            thay đổi theo nick Zalo được chọn.
+          </p>
+        </div>
 
-          <div>
-            <Label>Nick Zalo gửi thông báo</Label>
+        <div className="grid gap-5 lg:grid-cols-2">
+          <section className="rounded-xl border border-gray-200 bg-gray-50/50 p-4 dark:border-gray-700 dark:bg-white/[0.02]">
+            <div className="mb-3 flex items-center gap-2">
+              <span className="flex size-6 items-center justify-center rounded-full bg-brand-50 text-xs font-semibold text-brand-600 dark:bg-brand-500/15 dark:text-brand-400">
+                1
+              </span>
+              <Label className="mb-0">Nick Zalo gửi thông báo</Label>
+            </div>
+            <div className="custom-scrollbar h-64 overflow-y-auto rounded-xl border border-gray-200 bg-white p-2 dark:border-gray-700 dark:bg-gray-900">
             {accountsLoading ? (
-              <p className="py-6 text-center text-sm text-gray-500">
+              <p className="flex h-full items-center justify-center text-center text-sm text-gray-500">
                 Đang tải danh sách nick...
               </p>
             ) : accounts.length === 0 ? (
-              <p className="py-6 text-center text-sm text-gray-500">
+              <p className="flex h-full items-center justify-center px-4 text-center text-sm text-gray-500">
                 Chưa có nick hoạt động (checkpoint tắt
                 {canSkipProxy ? "" : ", proxy OK hoặc không gắn proxy"}).
               </p>
             ) : (
-              <div className="custom-scrollbar mt-2 max-h-56 space-y-2 overflow-y-auto rounded-xl border border-gray-200 p-2 dark:border-gray-700">
+              <div className="space-y-2">
                 {accounts.map((account) => {
                   const selected = selectedAccountId === account.id;
                   const name =
@@ -130,26 +136,31 @@ export default function TeamCampaignNotificationCard() {
                 })}
               </div>
             )}
-          </div>
-        </div>
+            </div>
+          </section>
 
-        <div className="space-y-5">
-          <div>
-            <Label>Nhóm Zalo nhận thông báo</Label>
+          <section className="rounded-xl border border-gray-200 bg-gray-50/50 p-4 dark:border-gray-700 dark:bg-white/[0.02]">
+            <div className="mb-3 flex items-center gap-2">
+              <span className="flex size-6 items-center justify-center rounded-full bg-brand-50 text-xs font-semibold text-brand-600 dark:bg-brand-500/15 dark:text-brand-400">
+                2
+              </span>
+              <Label className="mb-0">Nhóm Zalo nhận thông báo</Label>
+            </div>
+            <div className="custom-scrollbar h-64 overflow-y-auto rounded-xl border border-gray-200 bg-white p-2 dark:border-gray-700 dark:bg-gray-900">
             {groupsLoading ? (
-              <p className="py-6 text-center text-sm text-gray-500">
+              <p className="flex h-full items-center justify-center text-center text-sm text-gray-500">
                 Đang tải danh sách nhóm...
               </p>
             ) : !selectedAccountId ? (
-              <p className="py-6 text-center text-sm text-gray-500">
+              <p className="flex h-full items-center justify-center text-center text-sm text-gray-500">
                 Chọn nick Zalo trước để xem danh sách nhóm.
               </p>
             ) : groups.length === 0 ? (
-              <p className="py-6 text-center text-sm text-gray-500">
+              <p className="flex h-full items-center justify-center text-center text-sm text-gray-500">
                 Nick này chưa có nhóm đang tham gia.
               </p>
             ) : (
-              <div className="custom-scrollbar mt-2 max-h-72 space-y-2 overflow-y-auto rounded-xl border border-gray-200 p-2 dark:border-gray-700">
+              <div className="space-y-2">
                 {groups.map((group) => {
                   const selected = selectedGroupId === group.id;
                   return (
@@ -185,9 +196,12 @@ export default function TeamCampaignNotificationCard() {
                 })}
               </div>
             )}
-          </div>
+            </div>
+          </section>
+        </div>
 
-          <div className="flex items-center justify-between gap-4 rounded-xl border border-gray-200 px-4 py-3 dark:border-gray-700">
+        <div className="flex flex-col gap-4 rounded-xl border border-gray-200 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between dark:border-gray-700">
+          <div className="flex items-center justify-between gap-4 sm:flex-1">
             <div>
               <p className="text-sm font-medium text-gray-800 dark:text-white/90">
                 {active ? "Đang bật thông báo" : "Đang tắt thông báo"}
@@ -203,16 +217,15 @@ export default function TeamCampaignNotificationCard() {
             />
           </div>
 
-          <div className="flex justify-end">
-            <Button
-              onClick={() => void handleSave()}
-              disabled={
-                loading || saving || !selectedAccountId || !selectedGroupId
-              }
-            >
-              {saving ? "Đang lưu..." : "Lưu thiết lập"}
-            </Button>
-          </div>
+          <Button
+            className="w-full sm:w-auto"
+            onClick={() => void handleSave()}
+            disabled={
+              loading || saving || !selectedAccountId || !selectedGroupId
+            }
+          >
+            {saving ? "Đang lưu..." : "Lưu thiết lập"}
+          </Button>
         </div>
       </div>
     </ComponentCard>
