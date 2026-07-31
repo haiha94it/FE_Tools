@@ -376,6 +376,8 @@ export interface SendMessagePayload {
   chat_type: MessengerChatType;
   clientMsgId: string;
   attachment?: string | null;
+  /** Danh sách ảnh gửi chung trong một WS payload để BE tạo album. */
+  attachments?: string[];
   message_details?: Record<string, unknown> | null;
   mention_info?: MessengerMentionInfo[];
   file_name?: string;

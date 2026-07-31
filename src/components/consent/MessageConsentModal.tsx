@@ -180,6 +180,7 @@ function MessageConsentModal({
         entity_type: entityType,
         company_name: entityType === "business" ? companyName.trim() : undefined,
         tax_code: entityType === "business" ? taxCode.trim() : undefined,
+        representative_name: entityType === "business" ? fullName.trim() : undefined,
         representative_title: entityType === "business" ? representativeTitle.trim() : undefined,
         client_platform: "web_desktop",
       });

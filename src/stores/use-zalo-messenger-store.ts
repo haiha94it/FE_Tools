@@ -1621,6 +1621,7 @@ export const useZaloMessengerStore = create<ZaloMessengerState>((set, get) => ({
     return clientMsgId;
   },
 
+  /** Gộp nhiều ảnh thành một WS payload; file/video vẫn gửi riêng như cũ. */
   buildOutboundPayloads: (accountId, conversationId, options = {}) => {
     const state = get();
     const text = state.composerText.trim();
@@ -1650,6 +1651,26 @@ export const useZaloMessengerStore = create<ZaloMessengerState>((set, get) => ({
         message_details: quoteDetails,
         phone_number: null,
         ...(mentionInfo.length ? { mention_info: mentionInfo } : {}),
+      });
+      return payloads;
+    }
+
+    const shouldSendImageAlbum =
+      !quoteDetails &&
+      attachments.length > 1 &&
+      attachments.every((file) => file.isImage);
+
+    if (shouldSendImageAlbum) {
+      payloads.push({
+        id_account: accountId,
+        id_conversation: conversationId,
+        message: text,
+        attachments: attachments.map((file) => file.link),
+        chat_type: "send-message",
+        clientMsgId: generateClientMsgId(),
+        attachment: null,
+        message_details: null,
+        phone_number: null,
       });
       return payloads;
     }
