@@ -9,6 +9,14 @@ interface CheckboxProps {
   disabled?: boolean;
 }
 
+/**
+ * Checkbox component tùy chỉnh, hiển thị rõ ràng trên mọi nền sáng/tối.
+ * 
+ * @param checked Trạng thái tick hay không
+ * @param onChange Hàm xử lý sự kiện khi thay đổi trạng thái
+ * @param label Nhãn đi kèm checkbox (nếu có)
+ * @param disabled Vô hiệu hóa tương tác
+ */
 const Checkbox: React.FC<CheckboxProps> = ({
   label,
   checked,
@@ -27,7 +35,7 @@ const Checkbox: React.FC<CheckboxProps> = ({
         <input
           id={id}
           type="checkbox"
-          className={`w-5 h-5 appearance-none cursor-pointer dark:border-gray-700 border border-gray-300 checked:border-transparent rounded-md checked:bg-brand-500 disabled:opacity-60 
+          className={`w-5 h-5 appearance-none cursor-pointer bg-white dark:bg-gray-900 border border-gray-400 dark:border-gray-600 checked:border-transparent rounded-md checked:bg-brand-500 disabled:opacity-60 transition-all duration-150 hover:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 
           ${className}`}
           checked={checked}
           onChange={(e) => onChange(e.target.checked)}

@@ -427,6 +427,7 @@ export default function ZaloAccountsView() {
       />
 
       <AddAccountDialog
+        key={isQrOpen ? `open-${qrAccountId ?? "new"}` : "closed"}
         isOpen={isQrOpen}
         isRelogin={Boolean(qrAccountId)}
         qrProxy={qrProxy}

@@ -8,6 +8,7 @@ import {
   isZaloCheckTaskPending,
   resolveProxyString,
 } from "@/lib/zalo-account-utils";
+import { getZaloProxyDisplayValue } from "@/lib/zalo-proxy-utils";
 import { toast } from "@/lib/toast";
 import { fetchAccessibleAccounts } from "@/lib/fetch-accessible-accounts";
 import { canManageNickCrud } from "@/lib/team-collaboration-utils";
@@ -27,6 +28,26 @@ import { create } from "zustand";
 
 function canCurrentUserManageNick(): boolean {
   return canManageNickCrud(useAuthStore.getState().user);
+}
+
+/** Hạn proxy tự thêm: đúng 1 tháng lịch, kẹp ngày cuối tháng nếu cần. */
+function getOneMonthProxyExpiration(): string {
+  const now = new Date();
+  const targetYear =
+    now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
+  const targetMonth = (now.getMonth() + 1) % 12;
+  const lastDay = new Date(targetYear, targetMonth + 1, 0).getDate();
+  const target = new Date(
+    targetYear,
+    targetMonth,
+    Math.min(now.getDate(), lastDay),
+  );
+
+  return [
+    String(target.getDate()).padStart(2, "0"),
+    String(target.getMonth() + 1).padStart(2, "0"),
+    target.getFullYear(),
+  ].join("-");
 }
 
 /** State theo user — clear khi logout / đổi tài khoản SPA */
@@ -357,6 +378,20 @@ export const useZaloAccountStore = create<ZaloAccountState>((set, get) => ({
     }
     set({ cookieLoading: true, cookieTaskId: null, error: null });
     try {
+      const proxyValue = payload.proxy.trim();
+      const proxyExists = get().proxies.some(
+        (proxy) => getZaloProxyDisplayValue(proxy) === proxyValue,
+      );
+
+      if (proxyValue && !proxyExists) {
+        await zaloProxyService.create({
+          proxies: [proxyValue],
+          date_expiration: getOneMonthProxyExpiration(),
+        });
+        const proxies = await zaloProxyService.list();
+        set({ proxies });
+      }
+
       const taskId = await zaloAccountService.createByCookie(
         buildZaloCookieCreateBody(payload),
       );
@@ -559,7 +594,8 @@ export const useZaloAccountStore = create<ZaloAccountState>((set, get) => ({
 
   pollCookieResult: async () => {
     const { cookieTaskId } = get();
-    if (!cookieTaskId) return "failure";
+    // Modal/effect đang đóng sau SUCCESS có thể còn một poll đã lên lịch.
+    if (!cookieTaskId) return "pending";
 
     try {
       const status = await zaloAccountService.pollCookieCreateResult(

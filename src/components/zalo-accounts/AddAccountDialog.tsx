@@ -1,6 +1,7 @@
 "use client";
 
 import Label from "@/components/form/Label";
+import Input from "@/components/form/input/InputField";
 import TextArea from "@/components/form/input/TextArea";
 import Button from "@/components/ui/button/Button";
 import Alert from "@/components/ui/alert/Alert";
@@ -19,7 +20,7 @@ import {
 } from "@/lib/zalo-proxy-utils";
 import type { ZaloProxyItem } from "@/types/zalo-proxy";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 type AddMode = "qr" | "cookie";
 
@@ -58,10 +59,15 @@ export default function AddAccountDialog({
 }: AddAccountDialogProps) {
   const [addMode, setAddMode] = useState<AddMode>("qr");
   const [cookieInput, setCookieInput] = useState("");
+  const [manualProxyInput, setManualProxyInput] = useState("");
   const [cookieError, setCookieError] = useState<string | null>(null);
 
+  const activeMode: AddMode = isRelogin ? "qr" : addMode;
   const isCookieBusy = cookieLoading || Boolean(cookieTaskId);
   const hasProxy = Boolean(qrProxy.trim());
+  const hasCookieProxy = Boolean(manualProxyInput.trim() || qrProxy.trim());
+  const hasProxyForCurrentMode =
+    activeMode === "cookie" ? hasCookieProxy : hasProxy;
   const activeProxies = useMemo(() => getActiveZaloProxies(proxies), [proxies]);
 
   const selectedProxyId = useMemo(() => {
@@ -113,30 +119,33 @@ export default function AddAccountDialog({
     [cookieInput],
   );
 
-  const needsCookieProxy = Boolean(
-    !canSkipProxy &&
-      parsedPreview &&
+  const cookieMissingProxy = Boolean(
+    parsedPreview &&
       (parsedPreview.imei || parsedPreview.cookie) &&
       !parsedPreview.proxy.trim(),
   );
-
-  useEffect(() => {
-    if (!isOpen) {
-      setAddMode("qr");
-      setCookieInput("");
-      setCookieError(null);
-    }
-  }, [isOpen]);
-
-  useEffect(() => {
-    if (isRelogin) setAddMode("qr");
-  }, [isRelogin]);
+  const needsCookieProxy = !canSkipProxy && cookieMissingProxy;
+  const cookieProxyIsExternal = Boolean(
+    parsedPreview?.proxy.trim() &&
+      !proxies.some(
+        (item) =>
+          getZaloProxyDisplayValue(item) === parsedPreview.proxy.trim(),
+      ),
+  );
+  const manualProxyExists = Boolean(
+    manualProxyInput.trim() &&
+      proxies.some(
+        (item) =>
+          getZaloProxyDisplayValue(item) === manualProxyInput.trim(),
+      ),
+  );
 
   const handleProxySelect = (value: string) => {
     if (!value) {
       onQrProxyChange("");
       return;
     }
+    setManualProxyInput("");
     if (value.startsWith("__custom__")) {
       onQrProxyChange(value.replace("__custom__", ""));
       return;
@@ -148,7 +157,7 @@ export default function AddAccountDialog({
   const handleSubmitCookie = () => {
     const payloads = parseZaloCookieInput(cookieInput);
     const validation = getZaloCookieValidationMessage(payloads, {
-      fallbackProxy: qrProxy,
+      fallbackProxy: manualProxyInput.trim() || qrProxy,
       requireProxy: !canSkipProxy,
     });
 
@@ -160,7 +169,10 @@ export default function AddAccountDialog({
     const first = payloads[0];
     onSubmitCookie({
       ...first,
-      proxy: resolveZaloCookieProxy(first, qrProxy),
+      proxy: resolveZaloCookieProxy(
+        first,
+        manualProxyInput.trim() || qrProxy,
+      ),
     });
     setCookieError(null);
   };
@@ -198,11 +210,11 @@ export default function AddAccountDialog({
             Quản lý proxy
           </Link>
         </p>
-      ) : !canSkipProxy && !hasProxy ? (
+      ) : !canSkipProxy && !hasProxyForCurrentMode ? (
         <p className="mt-1.5 text-theme-xs text-error-500">
-          Bắt buộc chọn proxy trước khi tiếp tục.
+          Bắt buộc chọn hoặc nhập proxy trước khi tiếp tục.
         </p>
-      ) : canSkipProxy && !hasProxy ? (
+      ) : canSkipProxy && !hasProxyForCurrentMode ? (
         <p className="mt-1.5 text-theme-xs text-gray-500 dark:text-gray-400">
           Không bắt buộc với tài khoản quản trị/sale.
         </p>
@@ -221,7 +233,7 @@ export default function AddAccountDialog({
         {title}
       </h4>
       <p className="mb-6 text-sm text-gray-500 dark:text-gray-400">
-        {isRelogin || addMode === "qr"
+        {activeMode === "qr"
           ? "Chọn proxy (nếu có), rồi quét mã QR bằng app Zalo để đăng nhập."
           : "Dán dữ liệu cookie từ extension Chốt Nhanh. Có thể chọn proxy bổ sung nếu dòng cookie thiếu proxy."}
       </p>
@@ -230,7 +242,7 @@ export default function AddAccountDialog({
         <div className="mb-6 flex gap-2">
           <Button
             size="sm"
-            variant={addMode === "qr" ? "primary" : "outline"}
+            variant={activeMode === "qr" ? "primary" : "outline"}
             onClick={() => setAddMode("qr")}
             disabled={isCookieBusy}
           >
@@ -238,7 +250,7 @@ export default function AddAccountDialog({
           </Button>
           <Button
             size="sm"
-            variant={addMode === "cookie" ? "primary" : "outline"}
+            variant={activeMode === "cookie" ? "primary" : "outline"}
             onClick={() => setAddMode("cookie")}
             disabled={isCookieBusy}
           >
@@ -247,7 +259,7 @@ export default function AddAccountDialog({
         </div>
       )}
 
-      {(addMode === "qr" || isRelogin) && (
+      {activeMode === "qr" && (
         <div className="space-y-5">
           {proxySelect}
 
@@ -280,7 +292,7 @@ export default function AddAccountDialog({
         </div>
       )}
 
-      {addMode === "cookie" && !isRelogin && (
+      {activeMode === "cookie" && (
         <div className="space-y-5">
           <div>
             <Label>Dữ liệu cookie</Label>
@@ -298,7 +310,44 @@ export default function AddAccountDialog({
             />
           </div>
 
-          {needsCookieProxy ? proxySelect : null}
+          {cookieMissingProxy ? (
+            <div className="space-y-3">
+              {proxySelect}
+              <div className="flex items-center gap-3 text-xs text-gray-400 dark:text-gray-500">
+                <span className="h-px flex-1 bg-gray-200 dark:bg-gray-700" />
+                hoặc
+                <span className="h-px flex-1 bg-gray-200 dark:bg-gray-700" />
+              </div>
+              <div>
+                <Label>Nhập proxy mới</Label>
+                <Input
+                  type="text"
+                  value={manualProxyInput}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    setManualProxyInput(value);
+                    if (value.trim()) onQrProxyChange("");
+                    if (cookieError) setCookieError(null);
+                  }}
+                  placeholder="IP:Port:Username:Password"
+                  disabled={isCookieBusy}
+                  hint={
+                    manualProxyExists
+                      ? "Proxy này đã có trên hệ thống và sẽ được dùng lại."
+                      : "Proxy chưa có sẽ được tự động thêm với hạn dùng 1 tháng."
+                  }
+                />
+              </div>
+            </div>
+          ) : null}
+
+          {cookieProxyIsExternal ? (
+            <Alert
+              variant="info"
+              title="Proxy mới"
+              message="Proxy trong dòng cookie chưa có trên hệ thống. Hệ thống sẽ tự thêm proxy với hạn dùng 1 tháng trước khi thêm tài khoản."
+            />
+          ) : null}
 
           {cookieError && (
             <Alert variant="error" title="Lỗi" message={cookieError} />
@@ -318,7 +367,7 @@ export default function AddAccountDialog({
             disabled={
               isCookieBusy ||
               isLoadingProxies ||
-              (needsCookieProxy && !hasProxy)
+              (needsCookieProxy && !hasCookieProxy)
             }
           >
             {cookieLoading

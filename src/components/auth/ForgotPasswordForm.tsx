@@ -5,7 +5,7 @@ import Input from "@/components/form/input/InputField";
 import Label from "@/components/form/Label";
 import Button from "@/components/ui/button/Button";
 import { APP_NAME } from "@/constants/brand";
-import { validatePhone, validateUsername } from "@/lib/auth-validation";
+import { validateGmail, validateUsername } from "@/lib/auth-validation";
 import { useAuthStore } from "@/stores/use-auth-store";
 import Link from "next/link";
 import React, { useState } from "react";
@@ -17,8 +17,7 @@ export default function ForgotPasswordForm() {
   const clearError = useAuthStore((s) => s.clearError);
 
   const [username, setUsername] = useState("");
-  const [fullname, setFullname] = useState("");
-  const [phone, setPhone] = useState("");
+  const [mail, setMail] = useState("");
   const [fieldError, setFieldError] = useState<string | null>(null);
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -30,30 +29,24 @@ export default function ForgotPasswordForm() {
     setFieldError(null);
 
     const usernameError = validateUsername(username);
-    const phoneError = validatePhone(phone);
+    const mailError = validateGmail(mail);
 
-    if (usernameError || phoneError) {
-      setFieldError(usernameError || phoneError);
-      return;
-    }
-
-    if (!fullname.trim()) {
-      setFieldError("Vui lòng nhập họ và tên");
+    if (usernameError || mailError) {
+      setFieldError(usernameError || mailError);
       return;
     }
 
     try {
       const message = await resetPassword({
         username: username.trim(),
-        fullname: fullname.trim(),
-        phone_number: phone.trim(),
+        mail: mail.trim(),
       });
       setModalMessage(message);
       setModalOpen(true);
     } catch {
       setModalMessage(
         useAuthStore.getState().error ||
-          "Đã có lỗi xảy ra, vui lòng thử lại.",
+        "Đã có lỗi xảy ra, vui lòng thử lại.",
       );
       setModalOpen(true);
     }
@@ -97,24 +90,12 @@ export default function ForgotPasswordForm() {
 
             <div>
               <Label>
-                Họ và tên <span className="text-error-500">*</span>
+                Email đăng ký <span className="text-error-500">*</span>
               </Label>
               <Input
-                placeholder="Họ và tên đã đăng ký"
-                value={fullname}
-                onChange={(e) => setFullname(e.target.value)}
-                disabled={isLoading}
-              />
-            </div>
-
-            <div>
-              <Label>
-                Số điện thoại đăng ký <span className="text-error-500">*</span>
-              </Label>
-              <Input
-                placeholder="09xxxxxxxx"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
+                placeholder="Email của bạn"
+                value={mail}
+                onChange={(e) => setMail(e.target.value)}
                 disabled={isLoading}
               />
             </div>

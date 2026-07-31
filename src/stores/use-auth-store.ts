@@ -85,9 +85,9 @@ export const useAuthStore = create<AuthState>()(
           const result = await authService.resetPassword(payload);
           set({ isLoading: false, error: null });
           return (
-            result.message ||
             result.status ||
-            "Yêu cầu đã được gửi. Vui lòng kiểm tra thông tin."
+            (result.message && result.message !== "OK" ? result.message : "") ||
+            "Yêu cầu khôi phục mật khẩu đã được gửi thành công. Vui lòng kiểm tra email của bạn."
           );
         } catch (error) {
           const message = getApiErrorMessage(error);

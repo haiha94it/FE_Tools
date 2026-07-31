@@ -132,7 +132,7 @@ export function MessageConsentBanner() {
         role="status"
       >
         <p className="font-medium leading-relaxed">
-          Hồ sơ đang chờ duyệt. Bạn chưa thể dùng tin nhắn.
+          Hồ sơ đang chờ duyệt chậm nhất trong vòng 48h. Bạn chưa thể dùng tin nhắn.
         </p>
         {status.submitted_at ? (
           <p className="mt-1 text-xs opacity-90">

@@ -18,7 +18,6 @@ import {
   DocsIcon,
   DollarLineIcon,
   GroupIcon,
-  LockIcon,
   PaperPlaneIcon,
   ShootingStarIcon,
 } from "@/icons";
@@ -293,26 +292,10 @@ export default function AccountInfoView() {
 
         <ProfileCard
           title="Hỗ trợ tài khoản"
-          subtitle="Quên mật khẩu hoặc cần tài liệu?"
+          subtitle="Tài liệu và chính sách"
           className="lg:col-span-5"
         >
           <div className="divide-y divide-gray-50 dark:divide-gray-800/80">
-            <Link
-              href="/forgot-password"
-              prefetch={false}
-              className="group flex cursor-pointer items-center gap-3 px-4 py-2.5 transition hover:bg-gray-50/80 dark:hover:bg-white/[0.02] sm:px-5"
-            >
-              <LockIcon className="size-4 shrink-0 text-brand-500" />
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-gray-800 dark:text-white/90">
-                  Yêu cầu reset mật khẩu
-                </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Gửi yêu cầu khôi phục qua hệ thống
-                </p>
-              </div>
-              <ArrowRightIcon className="size-3.5 shrink-0 text-gray-300 group-hover:text-brand-500" />
-            </Link>
             <Link
               href="/dieu-khoan"
               prefetch={false}

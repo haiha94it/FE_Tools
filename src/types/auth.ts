@@ -89,8 +89,7 @@ export interface RegisterResponse {
 /** Quên mật khẩu — ZaloCN POST /api/users/reset-password/create */
 export interface ResetPasswordPayload {
   username: string;
-  fullname: string;
-  phone_number: string;
+  mail: string;
 }
 
 export interface ResetPasswordResponse {

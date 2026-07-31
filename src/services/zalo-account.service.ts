@@ -105,30 +105,41 @@ export const zaloAccountService = {
   async pollCookieCreateResult(
     taskId: string | number,
   ): Promise<"pending" | "success" | "failure"> {
-    const response = await api.post<{
+    type CookieCreatePoll = {
+      task_status?: string;
       status?: string;
+      message?: string;
       error?: string;
+      result?: {
+        success?: boolean;
+        message?: string;
+        error?: string;
+      };
       data?: { message?: string; error?: string };
-    }>(API_ZALO_ACCOUNT.CREATE_ACCOUNT_MANUAL_RESULT, { id_task: taskId });
+    };
 
-    const data = unwrapApiBody<{
-      status?: string;
-      error?: string;
-      data?: { message?: string; error?: string };
-    }>(response.data);
+    const response = await api.post<CookieCreatePoll>(
+      API_ZALO_ACCOUNT.CREATE_ACCOUNT_MANUAL_RESULT,
+      { id_task: taskId },
+    );
+    const data = unwrapApiBody<CookieCreatePoll>(response.data);
+    const taskStatus = (data.task_status ?? data.status)?.toUpperCase();
 
-    if (data.status === "PENDING" || data.status === "PROGRESS") {
+    if (taskStatus === "PENDING" || taskStatus === "PROGRESS") {
       return "pending";
     }
 
-    if (data.status === "SUCCESS") {
+    if (taskStatus === "SUCCESS" && data.result?.success !== false) {
       return "success";
     }
 
     const message =
+      data.result?.message ||
+      data.result?.error ||
       data.error ||
       data.data?.error ||
       data.data?.message ||
+      data.message ||
       "Thêm tài khoản bằng cookie thất bại.";
     throw new Error(message);
   },

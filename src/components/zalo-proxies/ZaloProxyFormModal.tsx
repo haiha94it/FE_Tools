@@ -1,11 +1,13 @@
 "use client";
 
 import Label from "@/components/form/Label";
+import DatePicker from "@/components/form/date-picker";
 import Input from "@/components/form/input/InputField";
 import TextArea from "@/components/form/input/TextArea";
 import Button from "@/components/ui/button/Button";
 import { Modal } from "@/components/ui/modal";
 import type { ZaloProxyItem } from "@/types/zalo-proxy";
+import { useCallback } from "react";
 
 interface ZaloProxyFormModalProps {
   isOpen: boolean;
@@ -35,6 +37,10 @@ export default function ZaloProxyFormModal({
   onSave,
 }: ZaloProxyFormModalProps) {
   const isEdit = Boolean(editingProxy);
+  const handleExpirationChange = useCallback(
+    (_: Date[], dateString: string) => onExpirationInputChange(dateString),
+    [onExpirationInputChange],
+  );
 
   return (
     <Modal
@@ -89,12 +95,14 @@ export default function ZaloProxyFormModal({
         </div>
 
         <div>
-          <Label>Ngày hết hạn</Label>
-          <Input
-            type="date"
-            value={expirationInput}
-            onChange={(e) => onExpirationInputChange(e.target.value)}
+          <DatePicker
+            id="zalo-proxy-expiration"
+            label="Ngày hết hạn"
+            placeholder="Chọn ngày hết hạn"
+            defaultDate={expirationInput || undefined}
+            onChange={handleExpirationChange}
             disabled={isSaving}
+            allowInput={false}
           />
         </div>
       </div>

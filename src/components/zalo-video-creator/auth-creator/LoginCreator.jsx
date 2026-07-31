@@ -450,21 +450,13 @@ export const LoginCreator = ({ setRfLogin, userInfor, visible, setVisible }) => 
                                 </label>
                             </div>
                             <p>
-                                - Bằng việc tích chọn vào ô đồng ý. Tôi đồng ý cho Chốt Nhanh
+                                Bằng việc tích chọn vào ô đồng ý. Tôi đồng ý cho Chốt Nhanh
                                 xử lý các dữ liệu mà tôi đã điền ở trên theo{' '}
                                 <a href="/dieu-khoan" target="_blank">
                                     thỏa thuận sử dụng dịch vụ
                                 </a>{' '}
                                 Chốt Nhanh và dữ liệu cho các chức năng trên các phần mềm Chốt
                                 Nhanh.
-                            </p>
-                            <p>
-                                - Đồng thời, tôi đồng ý để Chốt Nhanh thu thập, xử lý dữ liệu
-                                nhằm cho các mục đích hỗ trợ và chăm sóc khách hàng liên quan
-                                tới các sản phẩm, dịch vụ của Chốt Nhanh. Theo đây, tôi xác
-                                nhận và hiểu rõ các quyền hợp pháp của chủ thể dữ liệu theo
-                                quy định tại Nghị Định 13/2023/NĐ-CP về bảo vệ dữ liệu cá
-                                nhân.
                             </p>
                             <nav className="w-100 d-flex justify-content-center">
                                 <p style={{ fontStyle: 'italic' }}>

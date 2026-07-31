@@ -474,15 +474,16 @@ export function hasMorePages(links?: { next?: string | null } | null): boolean {
   return extractNextPage(links) !== null;
 }
 
-function messageDedupeKey(message: DisplayMessage): string {
-  if (message.msgId) return `msg:${message.msgId}`;
-  if (message.clientMsgId || message.cliMsgId) {
-    return `cli:${message.clientMsgId ?? message.cliMsgId}`;
-  }
+function messageDedupeKeys(message: DisplayMessage): string[] {
+  const keys: string[] = [];
+  if (message.msgId) keys.push(`msg:${message.msgId}`);
+  const cliMsgId = message.clientMsgId ?? message.cliMsgId;
+  if (cliMsgId) keys.push(`cli:${cliMsgId}`);
   if (message.id != null && !String(message.id).startsWith("optimistic_")) {
-    return `id:${message.id}`;
+    keys.push(`id:${message.id}`);
   }
-  return `fallback:${message.ts}-${getMessageText(message)}`;
+  if (!keys.length) keys.push(`fallback:${message.ts}-${getMessageText(message)}`);
+  return keys;
 }
 
 export function getMessageText(message: DisplayMessage): string {
@@ -535,13 +536,37 @@ export function resolveSenderAvatar(
 }
 
 export function dedupeMessages(messages: DisplayMessage[]): DisplayMessage[] {
-  const seen = new Set<string>();
-  return messages.filter((message) => {
-    const key = messageDedupeKey(message);
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
+  const result: DisplayMessage[] = [];
+  const indexByKey = new Map<string, number>();
+
+  for (const message of messages) {
+    const keys = messageDedupeKeys(message);
+    const existingIndex = keys
+      .map((key) => indexByKey.get(key))
+      .find((index): index is number => index !== undefined);
+
+    if (existingIndex === undefined) {
+      const index = result.push(message) - 1;
+      for (const key of keys) indexByKey.set(key, index);
+      continue;
+    }
+
+    const previous = result[existingIndex];
+    const merged = {
+      ...previous,
+      ...message,
+      sent_by: message.sent_by ?? previous.sent_by,
+    };
+    result[existingIndex] = merged;
+    for (const key of new Set([
+      ...messageDedupeKeys(previous),
+      ...messageDedupeKeys(merged),
+    ])) {
+      indexByKey.set(key, existingIndex);
+    }
+  }
+
+  return result;
 }
 
 export function sortMessagesChronologically(

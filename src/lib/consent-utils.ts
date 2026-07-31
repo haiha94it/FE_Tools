@@ -528,7 +528,7 @@ export function handleConsentChatRequired(error: unknown): boolean {
     toast.error(
       readConsentErrorMessage(
         error,
-        "Hồ sơ đang chờ duyệt. Bạn chưa thể dùng tin nhắn.",
+        "Hồ sơ đang chờ duyệt chậm nhất trong vòng 48h. Bạn chưa thể dùng tin nhắn.",
       ),
     );
     void store.fetchStatus({ force: true });

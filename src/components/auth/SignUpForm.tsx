@@ -243,7 +243,7 @@ export default function SignUpForm() {
                 </p>
               </div>
               <p className="mb-3 text-sm leading-6">
-                - Bằng việc tích chọn vào ô đồng ý. Tôi đồng ý cho Chốt Nhanh
+                Bằng việc tích chọn vào ô đồng ý. Tôi đồng ý cho Chốt Nhanh
                 xử lý các dữ liệu mà tôi đã điền ở trên theo{" "}
                 <Link
                   href="/dieu-khoan"
@@ -255,14 +255,7 @@ export default function SignUpForm() {
                 {LEGAL_BRAND_NAME} và dữ liệu cho các chức năng trên các phần
                 mềm Chốt Nhanh.
               </p>
-              <p className="text-sm leading-6">
-                - Đồng thời, tôi đồng ý để {LEGAL_BRAND_NAME} thu thập, xử lý
-                dữ liệu nhằm cho các mục đích hỗ trợ và chăm sóc khách hàng
-                liên quan tới các sản phẩm, dịch vụ của {LEGAL_BRAND_NAME}.
-                Theo đây, tôi xác nhận và hiểu rõ các quyền hợp pháp của chủ
-                thể dữ liệu theo quy định tại Nghị Định 13/2023/NĐ-CP về bảo vệ
-                dữ liệu cá nhân.
-              </p>
+
               <p className="mt-4 text-center text-sm italic text-gray-600 dark:text-gray-400">
                 Powered by {LEGAL_BRAND_NAME} Form.
               </p>

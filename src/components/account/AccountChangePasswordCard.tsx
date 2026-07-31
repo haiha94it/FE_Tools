@@ -1,6 +1,6 @@
 "use client";
 
-import Input from "@/components/form/input/InputField";
+import PasswordInput from "@/components/form/input/PasswordInput";
 import Button from "@/components/ui/button/Button";
 import { getApiErrorMessage } from "@/lib/errors";
 import { toast } from "@/lib/toast";
@@ -79,11 +79,12 @@ export default function AccountChangePasswordCard() {
             <span className="text-xs font-medium text-gray-700 sm:text-sm dark:text-gray-300">
               Mật khẩu hiện tại
             </span>
-            <Input
-              type="password"
+            <PasswordInput
+              name="current-password"
               value={oldPassword}
               onChange={(e) => setOldPassword(e.target.value)}
               placeholder="Nhập mật khẩu hiện tại"
+              autoComplete="current-password"
             />
           </label>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -91,22 +92,24 @@ export default function AccountChangePasswordCard() {
               <span className="text-xs font-medium text-gray-700 sm:text-sm dark:text-gray-300">
                 Mật khẩu mới
               </span>
-              <Input
-                type="password"
+              <PasswordInput
+                name="new-password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 placeholder="Tối thiểu 8 ký tự"
+                autoComplete="new-password"
               />
             </label>
             <label className="block space-y-1">
               <span className="text-xs font-medium text-gray-700 sm:text-sm dark:text-gray-300">
                 Nhập lại mật khẩu mới
               </span>
-              <Input
-                type="password"
+              <PasswordInput
+                name="confirm-password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="Xác nhận mật khẩu mới"
+                autoComplete="new-password"
               />
               {passwordMismatch ? (
                 <p className="text-xs text-error-600">Mật khẩu xác nhận chưa khớp.</p>
