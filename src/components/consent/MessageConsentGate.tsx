@@ -306,9 +306,8 @@ function MessageConsentGate() {
         </div>
       ) : null}
 
-      {!isEmployee ? (
+      {!isEmployee && wizardOpen ? (
         <MessageConsentModal
-          open={wizardOpen}
           mandatory={mandatoryWizard}
           onClose={
             mandatoryWizard ? undefined : () => closeConsentWizard()

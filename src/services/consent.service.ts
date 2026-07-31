@@ -60,7 +60,7 @@ export const consentService = {
   },
 
   async preview(
-    payload: Omit<ConsentAgreementPayload, "signature">,
+    payload: Omit<ConsentAgreementPayload, "request_id" | "signature">,
   ): Promise<{ body_html: string }> {
     const response = await api.post<{ body_html: string }>(
       API_CONSENT.PREVIEW,

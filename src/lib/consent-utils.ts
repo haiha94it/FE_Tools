@@ -407,11 +407,7 @@ export function validateConsentAgreementForm(input: {
   entityType: ConsentEntityType;
   companyName: string;
   taxCode: string;
-  representativeName: string;
   representativeTitle: string;
-  companyAddress: string;
-  companyPhone: string;
-  companyEmail: string;
 }): string | null {
   if (!isConsentFullNameValid(input.fullName)) {
     return input.entityType === "business"
@@ -442,11 +438,7 @@ export function buildConsentAgreementPayload(input: {
   entityType: ConsentEntityType;
   companyName: string;
   taxCode: string;
-  representativeName: string;
   representativeTitle: string;
-  companyAddress: string;
-  companyPhone: string;
-  companyEmail: string;
   signature: {
     dataUrl: string;
     width: number;

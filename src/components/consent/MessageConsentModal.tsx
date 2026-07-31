@@ -21,7 +21,7 @@ import type {
 } from "@/types/consent";
 import { CONSENT_CONFIRM_SYNC_TEXT } from "@/types/consent";
 import { useRouter } from "next/navigation";
-import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useRef, useState } from "react";
 import ConsentSignatureFullscreen from "./ConsentSignatureFullscreen";
 import ConsentSignaturePad, {
   type ConsentSignatureValue,
@@ -31,7 +31,6 @@ import ConsentTermsViewer from "./ConsentTermsViewer";
 type WizardStep = "agree" | "terms" | "form";
 
 interface MessageConsentModalProps {
-  open: boolean;
   /** false = có thể đóng (vd. rejected bấm ký lại) */
   mandatory?: boolean;
   onClose?: () => void;
@@ -51,7 +50,6 @@ const emptySignature = (): ConsentSignatureValue => ({
  * Không OTP.
  */
 function MessageConsentModal({
-  open,
   mandatory = true,
   onClose,
   onSubmitted,
@@ -59,6 +57,7 @@ function MessageConsentModal({
   const router = useRouter();
   const consentStatus = useConsentStore((s) => s.status);
   const authUser = useAuthStore((s) => s.user);
+  const defaults = resolveConsentFormDefaults(consentStatus, authUser);
 
   const [step, setStep] = useState<WizardStep>("agree");
   const [terms, setTerms] = useState<MessageProcessingTerms | null>(null);
@@ -66,17 +65,13 @@ function MessageConsentModal({
   const [termsError, setTermsError] = useState<string | null>(null);
 
   const [entityType, setEntityType] = useState<ConsentEntityType>("personal");
-  const [fullName, setFullName] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
+  const [fullName, setFullName] = useState(defaults.fullName);
+  const [email, setEmail] = useState(defaults.email);
+  const [phone, setPhone] = useState(defaults.phone);
   const [address, setAddress] = useState("");
   const [companyName, setCompanyName] = useState("");
   const [taxCode, setTaxCode] = useState("");
-  const [representativeName, setRepresentativeName] = useState("");
   const [representativeTitle, setRepresentativeTitle] = useState("");
-  const [companyAddress, setCompanyAddress] = useState("");
-  const [companyPhone, setCompanyPhone] = useState("");
-  const [companyEmail, setCompanyEmail] = useState("");
 
   const [signature, setSignature] = useState<ConsentSignatureValue>(emptySignature);
   const [importedPreview, setImportedPreview] = useState<string | null>(null);
@@ -91,7 +86,7 @@ function MessageConsentModal({
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewHtml, setPreviewHtml] = useState<string | null>(null);
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
-  const requestId = useRef("");
+  const requestId = useRef(crypto.randomUUID());
 
   const applyFormDefaults = useCallback(() => {
     const defaults = resolveConsentFormDefaults(consentStatus, authUser);
@@ -102,11 +97,7 @@ function MessageConsentModal({
     setAddress("");
     setCompanyName("");
     setTaxCode("");
-    setRepresentativeName("");
     setRepresentativeTitle("");
-    setCompanyAddress("");
-    setCompanyPhone("");
-    setCompanyEmail("");
     setSignature(emptySignature());
     setImportedPreview(null);
     setError(null);
@@ -117,15 +108,6 @@ function MessageConsentModal({
     setPreviewHtml(null);
     setPreviewModalOpen(false);
   }, [consentStatus, authUser]);
-
-  useEffect(() => {
-    if (!open) return;
-    requestId.current = crypto.randomUUID();
-    setStep("agree");
-    applyFormDefaults();
-    setTerms(null);
-    setTermsError(null);
-  }, [open, applyFormDefaults]);
 
   const loadTerms = useCallback(async () => {
     setLoadingTerms(true);
@@ -180,11 +162,7 @@ function MessageConsentModal({
       entityType,
       companyName,
       taxCode,
-      representativeName,
       representativeTitle,
-      companyAddress,
-      companyPhone,
-      companyEmail,
     });
     if (fieldError) {
       setError(fieldError);
@@ -229,11 +207,7 @@ function MessageConsentModal({
       entityType,
       companyName,
       taxCode,
-      representativeName,
       representativeTitle,
-      companyAddress,
-      companyPhone,
-      companyEmail,
     });
     if (fieldError) {
       setError(fieldError);
@@ -257,11 +231,7 @@ function MessageConsentModal({
           entityType,
           companyName,
           taxCode,
-          representativeName,
           representativeTitle,
-          companyAddress,
-          companyPhone,
-          companyEmail,
           signature: {
             dataUrl: signature.dataUrl,
             width: signature.width,
@@ -286,8 +256,6 @@ function MessageConsentModal({
     if (mandatory) return;
     onClose?.();
   };
-
-  if (!open) return null;
 
   const stepTitle =
     step === "agree"
