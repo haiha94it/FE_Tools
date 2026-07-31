@@ -7,7 +7,7 @@ import {
 } from "@/lib/consent-utils";
 import type { ConsentDisplayMode } from "@/types/consent";
 import { CONSENT_CONFIRM_TERMS_TEXT } from "@/types/consent";
-import { memo, useEffect, useState } from "react";
+import { memo, useState } from "react";
 import { useMediaQuery } from "@/hooks/use-media-query";
 
 interface ConsentTermsViewerProps {
@@ -17,14 +17,8 @@ interface ConsentTermsViewerProps {
   contractPdfUrl?: string | null;
   hasContractPdf?: boolean;
   displayMode?: ConsentDisplayMode;
-  companyName?: string;
-  companyTaxCode?: string;
-  companyAddress?: string;
-  /** 1 ảnh chữ ký + con dấu (ghép sẵn) */
-  companySignatureUrl?: string | null;
   userSignatureUrl?: string | null;
   userName?: string;
-  showPartyBPlaceholder?: boolean;
   checked?: boolean;
   onChange?: (checked: boolean) => void;
   isEditableCheckbox?: boolean;
@@ -38,20 +32,15 @@ function ConsentTermsViewer({
   contractPdfUrl,
   hasContractPdf,
   displayMode,
-  companyName,
-  companyTaxCode,
-  companyAddress,
-  companySignatureUrl,
   userSignatureUrl,
   userName,
-  showPartyBPlaceholder = false,
   checked = false,
   onChange,
   isEditableCheckbox = false,
   className = "",
 }: ConsentTermsViewerProps) {
   const isMobile = useMediaQuery("(max-width: 768px)");
-  const [sigBFailed, setSigBFailed] = useState(false);
+  const [failedSigB, setFailedSigB] = useState<string | null>(null);
   const mode = resolveConsentDisplayMode({
     display_mode: displayMode,
     has_body_html: hasBodyHtml,
@@ -63,14 +52,8 @@ function ConsentTermsViewer({
   const showPdf = mode === "pdf" || mode === "pdf_and_html";
   const showHtml = mode === "html" || mode === "pdf_and_html";
   const pdfUrl = resolveConsentMediaUrl(contractPdfUrl);
-  const sigA = resolveConsentMediaUrl(companySignatureUrl);
   const sigB = resolveConsentMediaUrl(userSignatureUrl);
   const safeHtml = sanitizeConsentHtml(bodyHtml);
-
-  // Đổi URL (vd. media 502 → data_url) phải reset lỗi load
-  useEffect(() => {
-    setSigBFailed(false);
-  }, [sigB]);
 
   return (
     <div className={`space-y-5 ${className}`.trim()}>
@@ -192,16 +175,16 @@ function ConsentTermsViewer({
           </div>
           <div className="flex-1 flex flex-col justify-end items-center">
             <div className="py-2 flex min-h-16 w-full items-center justify-center">
-              {sigB && !sigBFailed ? (
+              {sigB && failedSigB !== sigB ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   key={sigB}
                   src={sigB}
                   alt="Chữ ký bên B"
                   className="mx-auto h-16 w-auto max-w-full bg-white object-contain"
-                  onError={() => setSigBFailed(true)}
+                  onError={() => setFailedSigB(sigB)}
                 />
-              ) : sigB && sigBFailed ? (
+              ) : sigB ? (
                 <p className="text-xs text-error-600 dark:text-error-400">
                   Không tải được ảnh chữ ký
                 </p>

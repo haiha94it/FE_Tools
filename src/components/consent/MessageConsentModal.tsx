@@ -492,10 +492,6 @@ function MessageConsentModal({
                   contractPdfUrl={terms?.contract_pdf_url}
                   hasContractPdf={terms?.has_contract_pdf}
                   displayMode={terms?.display_mode}
-                  companyName={terms?.company_name}
-                  companyTaxCode={terms?.company_tax_code}
-                  companyAddress={terms?.company_address}
-                  companySignatureUrl={terms?.company_signature_url}
                   checked={acceptedTerms}
                   onChange={setAcceptedTerms}
                   isEditableCheckbox={true}
@@ -816,12 +812,8 @@ function MessageConsentModal({
               <ConsentTermsViewer
                 bodyHtml={previewHtml}
                 hasBodyHtml
-                companyName={terms?.company_name}
-                companyTaxCode={terms?.company_tax_code}
-                companyAddress={terms?.company_address}
-                companySignatureUrl={terms?.company_signature_url}
+                userSignatureUrl={signature.dataUrl}
                 userName={fullName.trim() || undefined}
-                showPartyBPlaceholder
               />
             ) : (
               <p className="text-gray-500">Nội dung trống</p>
