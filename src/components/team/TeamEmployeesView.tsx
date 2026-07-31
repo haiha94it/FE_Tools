@@ -1,9 +1,9 @@
 "use client";
 
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
-import { adminDataPanelClass } from "@/components/ui/table/ScrollableTableContainer";
 import Button from "@/components/ui/button/Button";
 import TeamCreateEmployeeModal from "@/components/team/TeamCreateEmployeeModal";
+import TeamCampaignNotificationCard from "@/components/team/TeamCampaignNotificationCard";
 import TeamEditEmployeeModal from "@/components/team/TeamEditEmployeeModal";
 import TeamEmployeeAccountsModal from "@/components/team/TeamEmployeeAccountsModal";
 import TeamEmployeePermissionsModal from "@/components/team/TeamEmployeePermissionsModal";
@@ -133,7 +133,7 @@ export default function TeamEmployeesView() {
   }, [editEmployee, accountsEmployee, permissionsEmployee]);
 
   return (
-    <div className={`${adminDataPanelClass} flex min-h-0 flex-1 flex-col gap-4`}>
+    <div className="custom-scrollbar flex h-0 min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-contain pr-1">
       <PageBreadcrumb pageTitle="Quản lý nhân viên" />
 
       <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] sm:p-6">
@@ -174,6 +174,8 @@ export default function TeamEmployeesView() {
           />
         )}
       </div>
+
+      <TeamCampaignNotificationCard />
 
       <TeamCreateEmployeeModal
         open={createOpen}

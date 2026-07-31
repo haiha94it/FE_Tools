@@ -8,21 +8,23 @@ import {
 } from "@/lib/zalo-account-utils";
 import { zaloCampaignNotificationService } from "@/services/zalo-campaign-notification.service";
 import { useAuthStore } from "@/stores/use-auth-store";
-import type { ZaloAccount } from "@/types/zalo-account";
+import type { ZaloAccount, ZaloAccountGroup } from "@/types/zalo-account";
 import { create } from "zustand";
 
 interface CampaignNotificationState {
   accounts: ZaloAccount[];
+  groups: ZaloAccountGroup[];
   selectedAccountId: number | null;
-  phoneNumber: string;
+  selectedGroupId: number | null;
   active: boolean;
   loading: boolean;
   saving: boolean;
   accountsLoading: boolean;
+  groupsLoading: boolean;
 
   fetchAll: () => Promise<void>;
-  setSelectedAccountId: (id: number | null) => void;
-  setPhoneNumber: (value: string) => void;
+  setSelectedAccountId: (id: number | null) => Promise<void>;
+  setSelectedGroupId: (id: number | null) => void;
   setActive: (value: boolean) => void;
   save: () => Promise<void>;
 }
@@ -59,12 +61,14 @@ async function pollSetupTask(
 export const useZaloCampaignNotificationStore = create<CampaignNotificationState>(
   (set, get) => ({
     accounts: [],
+    groups: [],
     selectedAccountId: null,
-    phoneNumber: "",
+    selectedGroupId: null,
     active: false,
     loading: false,
     saving: false,
     accountsLoading: false,
+    groupsLoading: false,
 
     fetchAll: async () => {
       // Strict Mode / multi-mount: 1 HTTP account + campaign-notification
@@ -97,39 +101,75 @@ export const useZaloCampaignNotificationStore = create<CampaignNotificationState
           accountId != null && eligible.some((a) => a.id === accountId)
             ? accountId
             : (eligible[0]?.id ?? null);
+        let groups: ZaloAccountGroup[] = [];
+        if (selected) {
+          try {
+            groups = await zaloCampaignNotificationService.getGroups(selected);
+          } catch {
+            groups = [];
+          }
+        }
+        const configuredGroupId = config?.group ?? null;
+        const selectedGroupId =
+          configuredGroupId != null &&
+          groups.some((group) => group.id === configuredGroupId)
+            ? configuredGroupId
+            : (groups[0]?.id ?? null);
 
         set({
           accounts: eligible,
+          groups,
           selectedAccountId: selected,
-          phoneNumber: config?.phone_number?.trim() ?? "",
+          selectedGroupId,
           active: Boolean(config?.active),
           loading: false,
           accountsLoading: false,
+          groupsLoading: false,
         });
       });
     },
 
-    setSelectedAccountId: (id) => set({ selectedAccountId: id }),
+    setSelectedAccountId: async (id) => {
+      set({
+        selectedAccountId: id,
+        selectedGroupId: null,
+        groups: [],
+        groupsLoading: Boolean(id),
+      });
+      if (!id) return;
+      try {
+        const groups = await zaloCampaignNotificationService.getGroups(id);
+        if (get().selectedAccountId !== id) return;
+        set({
+          groups,
+          selectedGroupId: groups[0]?.id ?? null,
+          groupsLoading: false,
+        });
+      } catch {
+        if (get().selectedAccountId === id) {
+          set({ groups: [], selectedGroupId: null, groupsLoading: false });
+        }
+      }
+    },
 
-    setPhoneNumber: (value) => set({ phoneNumber: value }),
+    setSelectedGroupId: (id) => set({ selectedGroupId: id }),
 
     setActive: (value) => set({ active: value }),
 
     save: async () => {
-      const { selectedAccountId, phoneNumber, active } = get();
+      const { selectedAccountId, selectedGroupId, active } = get();
       if (!selectedAccountId) {
         throw new Error("Chọn nick Zalo gửi thông báo.");
       }
-      const normalizedPhone = phoneNumber.trim();
-      if (!normalizedPhone) {
-        throw new Error("Nhập số điện thoại Zalo nhận thông báo.");
+      if (!selectedGroupId) {
+        throw new Error("Chọn nhóm Zalo nhận thông báo.");
       }
 
       set({ saving: true });
       try {
         const taskId = await zaloCampaignNotificationService.setup({
           id_account: selectedAccountId,
-          phone_number: normalizedPhone,
+          id_group: selectedGroupId,
           active,
         });
 

@@ -2,12 +2,12 @@
 export interface CampaignNotificationConfig {
   id?: number;
   account?: number | null;
-  phone_number?: string | null;
+  group?: number | null;
   active?: boolean;
 }
 
 export interface CampaignNotificationSetupPayload {
   id_account: number;
-  phone_number: string;
+  id_group: number;
   active: boolean;
 }

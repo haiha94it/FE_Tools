@@ -124,10 +124,6 @@ export const mainNavItems: NavItemConfig[] = [
         name: "Chúc mừng sinh nhật",
         path: "/zalo-campaigns/messenger-birthday",
       },
-      {
-        name: "Thông báo chiến dịch",
-        path: "/zalo-campaigns/campaign-notification",
-      },
     ],
   },
   {

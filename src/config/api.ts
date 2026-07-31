@@ -179,8 +179,6 @@ export const API_ZALO_CAMPAIGN_NOTIFICATION = {
   RESULT: "/api/campaign/campaign-notification/result",
 } as const;
 
-export const CAMPAIGN_NOTIFICATION_BASE = "/zalo-campaigns/campaign-notification";
-
 /** Tài nguyên — đồng bộ ZaloCN /resource */
 export const API_ZALO_RESOURCE = {
   LIST: "/api/popup/resource/get",

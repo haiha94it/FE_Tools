@@ -1,4 +1,7 @@
-import { API_ZALO_CAMPAIGN_NOTIFICATION } from "@/config/api";
+import {
+  API_ZALO_CAMPAIGN_NOTIFICATION,
+  API_ZALO_GROUP,
+} from "@/config/api";
 import { unwrapApiBody } from "@/lib/api-response";
 import {
   getCeleryTaskStatus,
@@ -10,6 +13,7 @@ import type {
   CampaignNotificationSetupPayload,
 } from "@/types/zalo-campaign-notification";
 import type { ScanTaskResponse } from "@/types/zalo-contacts";
+import type { ZaloAccountGroup } from "@/types/zalo-account";
 
 function normalizeConfig(body: unknown): CampaignNotificationConfig | null {
   if (!body || typeof body !== "object") return null;
@@ -17,6 +21,18 @@ function normalizeConfig(body: unknown): CampaignNotificationConfig | null {
 }
 
 export const zaloCampaignNotificationService = {
+  async getGroups(accountId: number): Promise<ZaloAccountGroup[]> {
+    const response = await api.get(API_ZALO_GROUP.LIST, {
+      params: {
+        id_account: accountId,
+        number_per_page: 2000,
+        page: 1,
+      },
+    });
+    const page = unwrapApiBody<{ results?: ZaloAccountGroup[] }>(response.data);
+    return page.results ?? [];
+  },
+
   async getConfig(): Promise<CampaignNotificationConfig | null> {
     try {
       const response = await api.get(API_ZALO_CAMPAIGN_NOTIFICATION.GET);

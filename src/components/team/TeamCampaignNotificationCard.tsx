@@ -1,12 +1,9 @@
 "use client";
 
 import ComponentCard from "@/components/common/ComponentCard";
-import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import Label from "@/components/form/Label";
-import Input from "@/components/form/input/InputField";
 import Switch from "@/components/form/switch/Switch";
 import Button from "@/components/ui/button/Button";
-import { adminDataPanelClass } from "@/components/ui/table/ScrollableTableContainer";
 import ContactAvatar from "@/components/zalo-contacts/shared/ContactAvatar";
 import { getApiErrorMessage } from "@/lib/errors";
 import { canSkipZaloProxyRequirement } from "@/lib/map-auth-user";
@@ -19,24 +16,32 @@ import {
 import { useEffect } from "react";
 import { HiOutlineBellAlert } from "react-icons/hi2";
 
-export default function CampaignNotificationView() {
+export default function TeamCampaignNotificationCard() {
   const accounts = useZaloCampaignNotificationStore((s) => s.accounts);
   const selectedAccountId = useZaloCampaignNotificationStore(
     (s) => s.selectedAccountId,
   );
-  const phoneNumber = useZaloCampaignNotificationStore((s) => s.phoneNumber);
+  const groups = useZaloCampaignNotificationStore((s) => s.groups);
+  const selectedGroupId = useZaloCampaignNotificationStore(
+    (s) => s.selectedGroupId,
+  );
   const active = useZaloCampaignNotificationStore((s) => s.active);
   const loading = useZaloCampaignNotificationStore((s) => s.loading);
   const saving = useZaloCampaignNotificationStore((s) => s.saving);
   const accountsLoading = useZaloCampaignNotificationStore(
     (s) => s.accountsLoading,
   );
+  const groupsLoading = useZaloCampaignNotificationStore(
+    (s) => s.groupsLoading,
+  );
 
   const fetchAll = useZaloCampaignNotificationStore((s) => s.fetchAll);
   const setSelectedAccountId = useZaloCampaignNotificationStore(
     (s) => s.setSelectedAccountId,
   );
-  const setPhoneNumber = useZaloCampaignNotificationStore((s) => s.setPhoneNumber);
+  const setSelectedGroupId = useZaloCampaignNotificationStore(
+    (s) => s.setSelectedGroupId,
+  );
   const setActive = useZaloCampaignNotificationStore((s) => s.setActive);
   const save = useZaloCampaignNotificationStore((s) => s.save);
   const user = useAuthStore((s) => s.user);
@@ -45,7 +50,7 @@ export default function CampaignNotificationView() {
   useEffect(() => {
     if (!user) return;
     void fetchAll();
-  }, [fetchAll, user?.id]);
+  }, [fetchAll, user]);
 
   const handleSave = async () => {
     try {
@@ -57,20 +62,12 @@ export default function CampaignNotificationView() {
   };
 
   return (
-    <div className={`${adminDataPanelClass} flex min-h-0 flex-1 flex-col gap-4`}>
-      <PageBreadcrumb
-        pageTitle="Thông báo chiến dịch"
-        parents={[
-          { label: "Chiến dịch", href: "/zalo-campaigns/campaign-notification" },
-        ]}
-      />
-
-      <ComponentCard
-        title="Thiết lập thông báo chiến dịch tự động"
-        desc="Nhận tin Zalo khi có sự kiện chiến dịch (vd. khách hỏi mua). Cần 1 nick Zalo gửi và 1 SĐT có Zalo nhận — nên kết bạn 2 nick với nhau."
-        fill
-      >
-        <div className="custom-scrollbar mx-auto flex h-0 min-h-0 w-full max-w-xl flex-1 flex-col gap-5 overflow-y-auto overscroll-contain pr-1">
+    <ComponentCard
+      title="Thông báo chiến dịch"
+      desc="Chọn nick gửi và nhóm Zalo nhận thông báo chung khi chiến dịch có sự kiện mới."
+    >
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(320px,0.8fr)]">
+        <div className="space-y-5">
           <div className="flex items-start gap-3 rounded-2xl border border-brand-200 bg-brand-50/60 p-4 dark:border-brand-500/30 dark:bg-brand-500/10">
             <HiOutlineBellAlert
               className="mt-0.5 shrink-0 text-brand-600 dark:text-brand-400"
@@ -78,8 +75,8 @@ export default function CampaignNotificationView() {
               aria-hidden
             />
             <p className="text-sm leading-relaxed text-gray-600 dark:text-gray-300">
-              Không thể tự gửi Zalo cho chính mình — chọn nick gửi thông báo và SĐT
-              nick khác (đã kết bạn) để nhận tin.
+              Nick gửi phải đang tham gia nhóm nhận thông báo. Danh sách nhóm sẽ
+              thay đổi theo nick Zalo được chọn.
             </p>
           </div>
 
@@ -107,7 +104,7 @@ export default function CampaignNotificationView() {
                       key={account.id}
                       type="button"
                       onClick={() =>
-                        setSelectedAccountId(selected ? null : account.id)
+                        void setSelectedAccountId(selected ? null : account.id)
                       }
                       className={`flex w-full items-center gap-3 rounded-lg border px-3 py-2.5 text-left transition-colors ${
                         selected
@@ -134,16 +131,60 @@ export default function CampaignNotificationView() {
               </div>
             )}
           </div>
+        </div>
 
+        <div className="space-y-5">
           <div>
-            <Label>Số điện thoại Zalo nhận thông báo</Label>
-            <Input
-              type="text"
-              value={phoneNumber}
-              onChange={(e) => setPhoneNumber(e.target.value)}
-              placeholder="VD: 0912345678"
-              disabled={loading || saving}
-            />
+            <Label>Nhóm Zalo nhận thông báo</Label>
+            {groupsLoading ? (
+              <p className="py-6 text-center text-sm text-gray-500">
+                Đang tải danh sách nhóm...
+              </p>
+            ) : !selectedAccountId ? (
+              <p className="py-6 text-center text-sm text-gray-500">
+                Chọn nick Zalo trước để xem danh sách nhóm.
+              </p>
+            ) : groups.length === 0 ? (
+              <p className="py-6 text-center text-sm text-gray-500">
+                Nick này chưa có nhóm đang tham gia.
+              </p>
+            ) : (
+              <div className="custom-scrollbar mt-2 max-h-72 space-y-2 overflow-y-auto rounded-xl border border-gray-200 p-2 dark:border-gray-700">
+                {groups.map((group) => {
+                  const selected = selectedGroupId === group.id;
+                  return (
+                    <button
+                      key={group.id}
+                      type="button"
+                      onClick={() =>
+                        setSelectedGroupId(selected ? null : group.id)
+                      }
+                      className={`flex w-full items-center gap-3 rounded-lg border px-3 py-2.5 text-left transition-colors ${
+                        selected
+                          ? "border-brand-300 bg-brand-50 dark:border-brand-500/40 dark:bg-brand-500/10"
+                          : "border-transparent hover:bg-gray-50 dark:hover:bg-white/[0.03]"
+                      }`}
+                    >
+                      <ContactAvatar
+                        name={group.name || `Nhóm #${group.id}`}
+                        avatar={group.avt}
+                        size="sm"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-gray-800 dark:text-white/90">
+                          {group.name || `Nhóm #${group.id}`}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {group.total_member
+                            ? `${group.total_member} thành viên`
+                            : "Nhóm Zalo"}
+                        </p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           <div className="flex items-center justify-between gap-4 rounded-xl border border-gray-200 px-4 py-3 dark:border-gray-700">
@@ -165,13 +206,15 @@ export default function CampaignNotificationView() {
           <div className="flex justify-end">
             <Button
               onClick={() => void handleSave()}
-              disabled={loading || saving || !selectedAccountId}
+              disabled={
+                loading || saving || !selectedAccountId || !selectedGroupId
+              }
             >
               {saving ? "Đang lưu..." : "Lưu thiết lập"}
             </Button>
           </div>
         </div>
-      </ComponentCard>
-    </div>
+      </div>
+    </ComponentCard>
   );
 }
