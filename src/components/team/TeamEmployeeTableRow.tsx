@@ -9,8 +9,7 @@ import { HiOutlineClipboard, HiOutlineEye, HiOutlineEyeOff } from "react-icons/h
 interface TeamEmployeeTableRowProps {
   employee: TeamEmployee;
   deleting?: boolean;
-  onAssignAccounts: (employee: TeamEmployee) => void;
-  onEditPermissions: (employee: TeamEmployee) => void;
+  onOpenSetup: (employee: TeamEmployee) => void;
   onEditEmployee: (employee: TeamEmployee) => void;
   onDeleteEmployee: (employee: TeamEmployee) => void;
 }
@@ -18,8 +17,7 @@ interface TeamEmployeeTableRowProps {
 function TeamEmployeeTableRow({
   employee,
   deleting = false,
-  onAssignAccounts,
-  onEditPermissions,
+  onOpenSetup,
   onEditEmployee,
   onDeleteEmployee,
 }: TeamEmployeeTableRowProps) {
@@ -104,19 +102,11 @@ function TeamEmployeeTableRow({
           </button>
           <button
             type="button"
-            onClick={() => onAssignAccounts(employee)}
-            disabled={deleting}
-            className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:text-gray-300"
-          >
-            Gán nick
-          </button>
-          <button
-            type="button"
-            onClick={() => onEditPermissions(employee)}
+            onClick={() => onOpenSetup(employee)}
             disabled={deleting}
             className="rounded-lg bg-brand-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-600 disabled:opacity-50"
           >
-            Quyền chiến dịch
+            Gán chức năng
           </button>
           <button
             type="button"

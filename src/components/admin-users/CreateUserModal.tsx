@@ -112,13 +112,15 @@ export default function CreateUserModal({
   };
 
   return (
-    <Modal isOpen={open} onClose={onClose} className="max-w-3xl p-6 sm:p-8">
-      <h3 className="mb-1 text-xl font-semibold text-gray-900 dark:text-white">
-        Thông tin tài khoản
-      </h3>
-      <p className="mb-6 text-sm text-gray-500">Tạo người dùng mới trên hệ thống.</p>
+    <Modal isOpen={open} onClose={onClose} className="max-w-3xl p-0">
+      <div className="shrink-0 px-6 pb-4 pt-6 sm:px-8 sm:pt-8">
+        <h3 className="mb-1 pr-12 text-xl font-semibold text-gray-900 dark:text-white">
+          Thông tin tài khoản
+        </h3>
+        <p className="text-sm text-gray-500">Tạo người dùng mới trên hệ thống.</p>
+      </div>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <div className="custom-scrollbar grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-y-auto px-6 pb-6 md:grid-cols-2 sm:px-8">
         <Field label="Tên đăng nhập">
           <Input value={form.username} onChange={(e) => updateField("username", e.target.value)} />
         </Field>
@@ -200,7 +202,7 @@ export default function CreateUserModal({
         </Field>
       </div>
 
-      <div className="mt-6 flex justify-end gap-3">
+      <div className="flex shrink-0 justify-end gap-3 border-t border-gray-200 bg-white px-6 py-4 dark:border-gray-800 dark:bg-gray-900 sm:px-8">
         <Button variant="outline" onClick={onClose} disabled={saving}>
           Hủy
         </Button>

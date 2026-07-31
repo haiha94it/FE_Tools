@@ -5,8 +5,7 @@ import Button from "@/components/ui/button/Button";
 import TeamCreateEmployeeModal from "@/components/team/TeamCreateEmployeeModal";
 import TeamCampaignNotificationCard from "@/components/team/TeamCampaignNotificationCard";
 import TeamEditEmployeeModal from "@/components/team/TeamEditEmployeeModal";
-import TeamEmployeeAccountsModal from "@/components/team/TeamEmployeeAccountsModal";
-import TeamEmployeePermissionsModal from "@/components/team/TeamEmployeePermissionsModal";
+import TeamEmployeeSetupModal from "@/components/team/TeamEmployeeSetupModal";
 import TeamEmployeesTable from "@/components/team/TeamEmployeesTable";
 import { confirm } from "@/lib/confirm";
 import { getApiErrorMessage } from "@/lib/errors";
@@ -23,8 +22,7 @@ export default function TeamEmployeesView() {
   const [employees, setEmployees] = useState<TeamEmployee[]>([]);
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
-  const [accountsEmployee, setAccountsEmployee] = useState<TeamEmployee | null>(null);
-  const [permissionsEmployee, setPermissionsEmployee] = useState<TeamEmployee | null>(null);
+  const [setupEmployee, setSetupEmployee] = useState<TeamEmployee | null>(null);
   const [editEmployee, setEditEmployee] = useState<TeamEmployee | null>(null);
   const [deletingEmployeeId, setDeletingEmployeeId] = useState<number | null>(null);
   const hasLoadedRef = useRef(false);
@@ -74,25 +72,17 @@ export default function TeamEmployeesView() {
     void load({ background: true });
   }, [load]);
 
-  const handleAssignAccounts = useCallback((employee: TeamEmployee) => {
-    setAccountsEmployee(employee);
+  const handleOpenSetup = useCallback((employee: TeamEmployee) => {
+    setSetupEmployee(employee);
   }, []);
 
-  const handleCloseAccountsModal = useCallback(() => {
-    setAccountsEmployee(null);
+  const handleCloseSetup = useCallback(() => {
+    setSetupEmployee(null);
   }, []);
 
-  const handleAccountsSaved = useCallback(() => {
+  const handleSetupSaved = useCallback(() => {
     void load({ background: true });
   }, [load]);
-
-  const handleEditPermissions = useCallback((employee: TeamEmployee) => {
-    setPermissionsEmployee(employee);
-  }, []);
-
-  const handleClosePermissionsModal = useCallback(() => {
-    setPermissionsEmployee(null);
-  }, []);
 
   const handleEditEmployee = useCallback((employee: TeamEmployee) => {
     setEditEmployee(employee);
@@ -122,15 +112,14 @@ export default function TeamEmployeesView() {
       // Patch local list — không full-screen loading
       setEmployees((current) => current.filter((item) => item.id !== employee.id));
       if (editEmployee?.id === employee.id) setEditEmployee(null);
-      if (accountsEmployee?.id === employee.id) setAccountsEmployee(null);
-      if (permissionsEmployee?.id === employee.id) setPermissionsEmployee(null);
+      if (setupEmployee?.id === employee.id) setSetupEmployee(null);
       toast.success("Đã xóa nhân viên.");
     } catch (error) {
       toast.error(getApiErrorMessage(error));
     } finally {
       setDeletingEmployeeId(null);
     }
-  }, [editEmployee, accountsEmployee, permissionsEmployee]);
+  }, [editEmployee, setupEmployee]);
 
   return (
     <div className="custom-scrollbar flex h-0 min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-contain pr-1">
@@ -167,8 +156,7 @@ export default function TeamEmployeesView() {
           <TeamEmployeesTable
             employees={employees}
             deletingEmployeeId={deletingEmployeeId}
-            onAssignAccounts={handleAssignAccounts}
-            onEditPermissions={handleEditPermissions}
+            onOpenSetup={handleOpenSetup}
             onEditEmployee={handleEditEmployee}
             onDeleteEmployee={(employee) => void handleDeleteEmployee(employee)}
           />
@@ -183,16 +171,11 @@ export default function TeamEmployeesView() {
         onCreated={handleEmployeeCreated}
         employeeLimit={employeeLimit}
       />
-      <TeamEmployeeAccountsModal
-        employee={accountsEmployee}
-        open={Boolean(accountsEmployee)}
-        onClose={handleCloseAccountsModal}
-        onSaved={handleAccountsSaved}
-      />
-      <TeamEmployeePermissionsModal
-        employee={permissionsEmployee}
-        open={Boolean(permissionsEmployee)}
-        onClose={handleClosePermissionsModal}
+      <TeamEmployeeSetupModal
+        employee={setupEmployee}
+        open={Boolean(setupEmployee)}
+        onClose={handleCloseSetup}
+        onSaved={handleSetupSaved}
       />
       <TeamEditEmployeeModal
         employee={editEmployee}

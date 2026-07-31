@@ -7,8 +7,7 @@ import TeamEmployeeTableRow from "./TeamEmployeeTableRow";
 interface TeamEmployeesTableProps {
   employees: TeamEmployee[];
   deletingEmployeeId?: number | null;
-  onAssignAccounts: (employee: TeamEmployee) => void;
-  onEditPermissions: (employee: TeamEmployee) => void;
+  onOpenSetup: (employee: TeamEmployee) => void;
   onEditEmployee: (employee: TeamEmployee) => void;
   onDeleteEmployee: (employee: TeamEmployee) => void;
 }
@@ -16,8 +15,7 @@ interface TeamEmployeesTableProps {
 function TeamEmployeesTable({
   employees,
   deletingEmployeeId = null,
-  onAssignAccounts,
-  onEditPermissions,
+  onOpenSetup,
   onEditEmployee,
   onDeleteEmployee,
 }: TeamEmployeesTableProps) {
@@ -43,8 +41,7 @@ function TeamEmployeesTable({
               key={employee.id}
               employee={employee}
               deleting={deletingEmployeeId === employee.id}
-              onAssignAccounts={onAssignAccounts}
-              onEditPermissions={onEditPermissions}
+              onOpenSetup={onOpenSetup}
               onEditEmployee={onEditEmployee}
               onDeleteEmployee={onDeleteEmployee}
             />
