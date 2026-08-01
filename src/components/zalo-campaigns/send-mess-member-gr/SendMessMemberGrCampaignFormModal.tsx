@@ -148,10 +148,16 @@ export default function SendMessMemberGrCampaignFormModal({
 
   const filteredMembers = useMemo(() => {
     const key = memberSearch.trim().toLowerCase();
-    if (!key) return members;
-    return members.filter((item) => {
-      const id = item.member_global_id.toLowerCase();
-      return item.name.toLowerCase().includes(key) || id.includes(key);
+    const matched = key
+      ? members.filter((item) => {
+          const id = item.member_global_id.toLowerCase();
+          return item.name.toLowerCase().includes(key) || id.includes(key);
+        })
+      : [...members];
+    return matched.sort((left, right) => {
+      const leftRole = left.is_creator ? 0 : left.is_admin ? 1 : 2;
+      const rightRole = right.is_creator ? 0 : right.is_admin ? 1 : 2;
+      return leftRole - rightRole;
     });
   }, [members, memberSearch]);
 
@@ -1075,6 +1081,11 @@ export default function SendMessMemberGrCampaignFormModal({
                                   </span>
                                 ) : null}
                               </span>
+                              {active ? (
+                                <span className="shrink-0 text-theme-xs font-semibold text-brand-600 dark:text-brand-400">
+                                  ✓ Đã chọn
+                                </span>
+                              ) : null}
                             </button>
                           </li>
                         );
@@ -1189,12 +1200,16 @@ export default function SendMessMemberGrCampaignFormModal({
                               />
                               <span className="min-w-0 flex-1 truncate text-gray-800 dark:text-white/90">
                                 {member.name}
-                                {member.is_admin ? (
-                                  <span className="ml-1 text-theme-xs text-gray-500">
-                                    · Admin
-                                  </span>
-                                ) : null}
                               </span>
+                              {member.is_creator ? (
+                                <span className="shrink-0 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">
+                                  Trưởng nhóm
+                                </span>
+                              ) : member.is_admin ? (
+                                <span className="shrink-0 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700 dark:bg-blue-500/10 dark:text-blue-300">
+                                  Phó nhóm
+                                </span>
+                              ) : null}
                               {selected ? (
                                 <span className="shrink-0 text-brand-600 dark:text-brand-400">
                                   ✓

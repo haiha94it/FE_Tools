@@ -643,7 +643,9 @@ export default function SendMesGroupCampaignFormModal({
 
               {!groupsEditable ? (
                 <p className="shrink-0 border-b border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
-                  Kịch bản đang chạy — không thể thay đổi nhóm.
+                  Kịch bản đã bắt đầu và chưa hoàn tất nên danh sách nhóm được
+                  khóa để giữ đúng tiến độ, tránh gửi trùng hoặc bỏ sót. Nếu cần
+                  chọn nhóm khác, hãy sao chép hoặc tạo kịch bản mới.
                 </p>
               ) : null}
 

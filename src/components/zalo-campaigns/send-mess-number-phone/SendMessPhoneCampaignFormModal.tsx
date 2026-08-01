@@ -323,7 +323,7 @@ export default function SendMessPhoneCampaignFormModal({
               ? readOnly
                 ? "Xem kịch bản SĐT"
                 : "Sửa kịch bản SĐT"
-              : "Thêm kịch bản SĐT"}
+              : "Thêm kịch bản tương tác đến SĐT"}
           </h3>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
             Nhắn tin và/hoặc kết bạn theo danh sách SĐT — multi-nick
@@ -340,142 +340,142 @@ export default function SendMessPhoneCampaignFormModal({
             <div className={campaignFormGridEqualClass}>
               <div className={campaignFormScrollPaneClass}>
                 <div className="space-y-4">
-            <div>
-              <label className="mb-1.5 block text-xs font-medium text-gray-600 dark:text-gray-400">
-                Tên kịch bản
-              </label>
-              <Input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Nhập tên kịch bản"
-                disabled={saving || !structureEditable}
-              />
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div>
-                <label className="mb-1.5 block text-xs font-medium text-gray-600 dark:text-gray-400">
-                  Thời gian chờ (giây)
-                </label>
-                <Input
-                  type="number"
-                  value={delayTime}
-                  onChange={(e) => setDelayTime(e.target.value)}
-                  disabled={saving || !structureEditable}
-                />
-              </div>
-              <div>
-                <label className="mb-1.5 block text-xs font-medium text-gray-600 dark:text-gray-400">
-                  Số lượt gửi / ngày
-                </label>
-                <Input
-                  type="number"
-                  value={numberCount}
-                  onChange={(e) => setNumberCount(e.target.value)}
-                  disabled={saving || !structureEditable}
-                />
-              </div>
-            </div>
-
-            <div className="rounded-xl border border-gray-200 bg-gray-50/60 p-4 dark:border-gray-700 dark:bg-white/[0.02]">
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                Khung giờ chạy
-              </span>
-              <div className="mt-3 flex flex-wrap items-center gap-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-theme-xs text-gray-500">Từ</span>
-                  <TimePicker
-                    value={startTime}
-                    onChange={setStartTime}
-                    disabled={saving || !structureEditable}
-                  />
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-theme-xs text-gray-500">Đến</span>
-                  <TimePicker
-                    value={endTime}
-                    onChange={setEndTime}
-                    disabled={saving || !structureEditable}
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap gap-4">
-              <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-                <Checkbox
-                  checked={sendMessage}
-                  onChange={setSendMessage}
-                  disabled={saving || !structureEditable}
-                />
-                Nhắn tin
-              </label>
-              <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-                <Checkbox
-                  checked={addFriend}
-                  onChange={setAddFriend}
-                  disabled={saving || !structureEditable}
-                />
-                Kết bạn
-              </label>
-            </div>
-
-            {sendMessage ? (
-              <>
-                <div className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
-                  <p className="mb-3 text-sm font-semibold text-gray-800 dark:text-white/90">
-                    Nội dung tin nhắn
-                  </p>
-                  <SendMessPhoneContentEditor
-                    contents={contents}
-                    disabled={saving}
-                    onContentsChange={setContents}
-                  />
-                </div>
-
-                <div className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
-                  <CampaignAttachmentFields
-                    contentType={contentType}
-                    images={images}
-                    selectedMediaId={selectedMediaId}
-                    uploadingImage={uploadingImage}
-                    disabled={saving || readOnly}
-                    resolveImageUrl={getSendMessPhoneMediaUrl}
-                    onContentTypeChange={setContentType}
-                    onImagesChange={setImages}
-                    onSelectedMediaIdChange={setSelectedMediaId}
-                    onUploadImage={async (file) => {
-                      try {
-                        return await handleUploadImage(file);
-                      } catch (error) {
-                        toast.error(getApiErrorMessage(error));
-                        return null;
-                      }
-                    }}
-                  />
-                  {contentType ? (
-                    <label className="mt-3 flex cursor-pointer items-start gap-2.5 text-sm text-gray-600 dark:text-gray-400">
-                      <Checkbox
-                        checked={splitAttachment}
-                        onChange={setSplitAttachment}
-                        disabled={saving || readOnly}
-                      />
-                      <span>Tách tin nhắn và đính kèm</span>
+                  <div>
+                    <label className="mb-1.5 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                      Tên kịch bản
                     </label>
-                  ) : null}
-                </div>
-              </>
-            ) : null}
+                    <Input
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="Nhập tên kịch bản"
+                      disabled={saving || !structureEditable}
+                    />
+                  </div>
 
-            {addFriend ? (
-              <div className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
-                <SendMessMemberGrFirstMessageEditor
-                  contents={firstMessages}
-                  disabled={saving}
-                  onContentsChange={setFirstMessages}
-                />
-              </div>
-            ) : null}
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <label className="mb-1.5 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                        Thời gian chờ (giây)
+                      </label>
+                      <Input
+                        type="number"
+                        value={delayTime}
+                        onChange={(e) => setDelayTime(e.target.value)}
+                        disabled={saving || !structureEditable}
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                        Số lượt gửi / ngày
+                      </label>
+                      <Input
+                        type="number"
+                        value={numberCount}
+                        onChange={(e) => setNumberCount(e.target.value)}
+                        disabled={saving || !structureEditable}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-gray-200 bg-gray-50/60 p-4 dark:border-gray-700 dark:bg-white/[0.02]">
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Khung giờ chạy
+                    </span>
+                    <div className="mt-3 flex flex-wrap items-center gap-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-theme-xs text-gray-500">Từ</span>
+                        <TimePicker
+                          value={startTime}
+                          onChange={setStartTime}
+                          disabled={saving || !structureEditable}
+                        />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-theme-xs text-gray-500">Đến</span>
+                        <TimePicker
+                          value={endTime}
+                          onChange={setEndTime}
+                          disabled={saving || !structureEditable}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap gap-4">
+                    <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                      <Checkbox
+                        checked={sendMessage}
+                        onChange={setSendMessage}
+                        disabled={saving || !structureEditable}
+                      />
+                      Nhắn tin
+                    </label>
+                    <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                      <Checkbox
+                        checked={addFriend}
+                        onChange={setAddFriend}
+                        disabled={saving || !structureEditable}
+                      />
+                      Kết bạn
+                    </label>
+                  </div>
+
+                  {sendMessage ? (
+                    <>
+                      <div className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
+                        <p className="mb-3 text-sm font-semibold text-gray-800 dark:text-white/90">
+                          Nội dung tin nhắn
+                        </p>
+                        <SendMessPhoneContentEditor
+                          contents={contents}
+                          disabled={saving}
+                          onContentsChange={setContents}
+                        />
+                      </div>
+
+                      <div className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
+                        <CampaignAttachmentFields
+                          contentType={contentType}
+                          images={images}
+                          selectedMediaId={selectedMediaId}
+                          uploadingImage={uploadingImage}
+                          disabled={saving || readOnly}
+                          resolveImageUrl={getSendMessPhoneMediaUrl}
+                          onContentTypeChange={setContentType}
+                          onImagesChange={setImages}
+                          onSelectedMediaIdChange={setSelectedMediaId}
+                          onUploadImage={async (file) => {
+                            try {
+                              return await handleUploadImage(file);
+                            } catch (error) {
+                              toast.error(getApiErrorMessage(error));
+                              return null;
+                            }
+                          }}
+                        />
+                        {contentType ? (
+                          <label className="mt-3 flex cursor-pointer items-start gap-2.5 text-sm text-gray-600 dark:text-gray-400">
+                            <Checkbox
+                              checked={splitAttachment}
+                              onChange={setSplitAttachment}
+                              disabled={saving || readOnly}
+                            />
+                            <span>Tách tin nhắn và đính kèm</span>
+                          </label>
+                        ) : null}
+                      </div>
+                    </>
+                  ) : null}
+
+                  {addFriend ? (
+                    <div className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
+                      <SendMessMemberGrFirstMessageEditor
+                        contents={firstMessages}
+                        disabled={saving}
+                        onContentsChange={setFirstMessages}
+                      />
+                    </div>
+                  ) : null}
                 </div>
               </div>
 
@@ -522,16 +522,14 @@ export default function SendMessPhoneCampaignFormModal({
                               type="button"
                               disabled={!structureEditable || saving}
                               onClick={() => toggleAccount(account.id)}
-                              className={`flex shrink-0 items-center gap-2.5 rounded-xl border px-2.5 py-2 transition ${
-                                active
+                              className={`flex shrink-0 items-center gap-2.5 rounded-xl border px-2.5 py-2 transition ${active
                                   ? "border-brand-300 bg-white shadow-theme-xs ring-2 ring-brand-500/15 dark:border-brand-500/40 dark:bg-gray-900"
                                   : "border-gray-200 bg-white/80 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-900/60 dark:hover:border-gray-600"
-                              } disabled:cursor-not-allowed disabled:opacity-60`}
+                                } disabled:cursor-not-allowed disabled:opacity-60`}
                             >
                               <span
-                                className={`relative h-10 w-10 shrink-0 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800 ${
-                                  active ? "ring-2 ring-brand-400/40" : ""
-                                }`}
+                                className={`relative h-10 w-10 shrink-0 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800 ${active ? "ring-2 ring-brand-400/40" : ""
+                                  }`}
                               >
                                 {account.avatar ? (
                                   <Image
@@ -600,11 +598,10 @@ export default function SendMessPhoneCampaignFormModal({
                     </p>
                     <div className="space-y-2">
                       <label
-                        className={`flex cursor-pointer items-start gap-2.5 rounded-lg border px-3 py-2 text-sm ${
-                          assignMode === "distribute"
+                        className={`flex cursor-pointer items-start gap-2.5 rounded-lg border px-3 py-2 text-sm ${assignMode === "distribute"
                             ? "border-brand-300 bg-brand-50/60 dark:border-brand-500/40 dark:bg-brand-500/10"
                             : "border-gray-200 dark:border-gray-700"
-                        }`}
+                          }`}
                       >
                         <input
                           type="radio"
@@ -624,11 +621,10 @@ export default function SendMessPhoneCampaignFormModal({
                         </span>
                       </label>
                       <label
-                        className={`flex cursor-pointer items-start gap-2.5 rounded-lg border px-3 py-2 text-sm ${
-                          assignMode === "all"
+                        className={`flex cursor-pointer items-start gap-2.5 rounded-lg border px-3 py-2 text-sm ${assignMode === "all"
                             ? "border-brand-300 bg-brand-50/60 dark:border-brand-500/40 dark:bg-brand-500/10"
                             : "border-gray-200 dark:border-gray-700"
-                        }`}
+                          }`}
                       >
                         <input
                           type="radio"
@@ -650,7 +646,7 @@ export default function SendMessPhoneCampaignFormModal({
                     </div>
                   </div>
 
-                  
+
                 </div>
               </div>
             </div>
