@@ -6,6 +6,7 @@ import {
   canSaveVideoFromMessage,
 } from "@/lib/message-media-from-chat";
 import {
+  convertJxlToJpg,
   filterDisplayMessages,
   isCenteredChatMessage,
   resolveStickerImageUrl,
@@ -67,6 +68,58 @@ const MessageMediaLightbox = dynamic(() => import("./MessageMediaLightbox"), {
 const messageTextClass =
   "w-full min-w-0 max-w-full text-sm whitespace-pre-wrap break-words [overflow-wrap:anywhere] [word-break:break-word]";
 
+interface QuoteAttachmentPreview {
+  imageUrl?: string;
+  text: string;
+}
+
+/** Parse attachment của tin được trả lời, ưu tiên thumbnail ảnh và không lộ JSON thô. */
+function resolveQuoteAttachmentPreview(
+  rawAttach: unknown,
+): QuoteAttachmentPreview | null {
+  const raw = trimToString(rawAttach);
+  if (!raw) return null;
+
+  try {
+    const attachment = JSON.parse(raw) as Record<string, unknown>;
+    let params: Record<string, unknown> = {};
+    if (typeof attachment.params === "string" && attachment.params.trim()) {
+      try {
+        params = JSON.parse(attachment.params) as Record<string, unknown>;
+      } catch {
+        params = {};
+      }
+    }
+
+    const imageUrl = [
+      attachment.thumbUrl,
+      attachment.thumb,
+      attachment.normalUrl,
+      attachment.hdUrl,
+      attachment.oriUrl,
+      attachment.href,
+      params.thumbUrl,
+      params.thumb,
+      params.normalUrl,
+      params.hdUrl,
+      params.hd,
+      params.oriUrl,
+      params.href,
+    ].find(
+      (value): value is string =>
+        typeof value === "string" && Boolean(value.trim()),
+    );
+    const text =
+      trimToString(attachment.title) ||
+      trimToString(attachment.description) ||
+      (imageUrl ? "Ảnh" : "Đính kèm");
+
+    return { imageUrl: convertJxlToJpg(imageUrl?.trim()), text };
+  } catch {
+    return { text: raw.startsWith("{") ? "Đính kèm" : raw };
+  }
+}
+
 /** Render đúng các đoạn mention theo pos/len và giữ nguyên phần text còn lại. */
 function MentionText({
   text,
@@ -127,8 +180,9 @@ function QuotePreview({
   const quote = message.quote?.[0];
   if (!quote) return null;
 
+  const attachmentPreview = resolveQuoteAttachmentPreview(quote.attach);
   const quoteText =
-    trimToString(quote.msg) || trimToString(quote.attach) || "Tin nhắn";
+    trimToString(quote.msg) || attachmentPreview?.text || "Tin nhắn";
 
   return (
     <div
@@ -141,7 +195,19 @@ function QuotePreview({
       <p className="font-semibold opacity-80">
         {trimToString(quote.fromD) || "Trả lời"}
       </p>
-      <p className={`line-clamp-2 ${messageTextClass} text-xs`}>{quoteText}</p>
+      <div className="mt-1 flex min-w-0 items-center gap-2">
+        {attachmentPreview?.imageUrl ? (
+          <Image
+            src={attachmentPreview.imageUrl}
+            alt="Ảnh được trả lời"
+            width={64}
+            height={64}
+            unoptimized
+            className="h-16 w-16 shrink-0 rounded-lg object-cover"
+          />
+        ) : null}
+        <p className={`line-clamp-2 ${messageTextClass} text-xs`}>{quoteText}</p>
+      </div>
     </div>
   );
 }

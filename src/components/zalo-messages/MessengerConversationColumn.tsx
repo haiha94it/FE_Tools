@@ -92,10 +92,13 @@ function MessengerConversationColumn({
     void fetchLabelCategories(selectedAccountId);
   }, [selectedAccountId, fetchLabelCategories]);
 
+  /** Mở hội thoại nhưng giữ nguyên vị trí cuộn của sidebar. */
   const handleSelect = useCallback(
     (conversation: MessengerConversation) => {
       if (!selectedAccountId) return;
-      router.push(`/zalo-messages/${selectedAccountId}/${conversation.id}`);
+      router.push(`/zalo-messages/${selectedAccountId}/${conversation.id}`, {
+        scroll: false,
+      });
     },
     [router, selectedAccountId],
   );

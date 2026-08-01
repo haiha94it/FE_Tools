@@ -523,7 +523,8 @@ export function resolveZaloCallLogDisplay(input: {
   };
 }
 
-function convertJxlToJpg(url: string | undefined | null): string {
+/** Đổi URL ảnh Zalo JPEG XL sang biến thể JPEG mà trình duyệt hỗ trợ. */
+export function convertJxlToJpg(url: string | undefined | null): string {
   if (!url) return "";
   if (url.includes(".jxl")) {
     return url.replace("/jxl/", "/jpg/").replace(".jxl", ".jpg");

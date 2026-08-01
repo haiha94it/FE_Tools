@@ -17,7 +17,7 @@ import type {
   MessengerConversation,
   MessengerConversationFilter,
 } from "@/types/zalo-messenger";
-import { memo, useEffect, useRef, useState } from "react";
+import { memo, useEffect, useLayoutEffect, useRef, useState } from "react";
 import ConversationContextMenu from "./ConversationContextMenu";
 import InboxToolbar from "./InboxToolbar";
 
@@ -27,6 +27,9 @@ const FILTERS: { id: MessengerConversationFilter; label: string }[] = [
   { id: "friend", label: "Bạn bè" },
   { id: "group", label: "Nhóm" },
 ];
+
+const conversationScrollPositions = new Map<string, number>();
+const pendingConversationScrollRestores = new Map<string, number>();
 
 interface ConversationPanelProps {
   accountId: number | null;
@@ -93,8 +96,10 @@ function ConversationPanel({
     y: number;
   } | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const restoredScrollKeyRef = useRef<string | null>(null);
   const loadMoreRef = useStableHandler(onLoadMore);
   const searchSubmitRef = useStableHandler(onSearchSubmit);
+  const scrollKey = `${accountId ?? ""}|${filter}|${selectedCategoryId ?? ""}|${search}`;
 
   const activeCategoryLabel = selectedCategoryId
     ? (labelCategories.find((item) => item.id === selectedCategoryId)?.name ??
@@ -120,7 +125,9 @@ function ConversationPanel({
     const node = listRef.current;
     if (!node) return undefined;
 
+    /** Ghi nhớ vị trí sidebar trước khi route hội thoại làm component remount. */
     const handleScroll = () => {
+      conversationScrollPositions.set(scrollKey, node.scrollTop);
       setContextMenu(null);
       if (!hasMore || loadingMore || loading) return;
       const nearBottom =
@@ -129,8 +136,40 @@ function ConversationPanel({
     };
 
     node.addEventListener("scroll", handleScroll, { passive: true });
-    return () => node.removeEventListener("scroll", handleScroll);
-  }, [hasMore, loadingMore, loading, loadMoreRef]);
+    return () => {
+      conversationScrollPositions.set(scrollKey, node.scrollTop);
+      node.removeEventListener("scroll", handleScroll);
+    };
+  }, [hasMore, loadingMore, loading, loadMoreRef, scrollKey]);
+
+  useLayoutEffect(() => {
+    const node = listRef.current;
+    if (!node || conversations.length === 0) return;
+
+    const pendingPosition = pendingConversationScrollRestores.get(scrollKey);
+    if (pendingPosition != null) {
+      let secondFrame = 0;
+      const firstFrame = window.requestAnimationFrame(() => {
+        secondFrame = window.requestAnimationFrame(() => {
+          const currentNode = listRef.current;
+          if (!currentNode) return;
+          currentNode.scrollTop = pendingPosition;
+          conversationScrollPositions.set(scrollKey, pendingPosition);
+          pendingConversationScrollRestores.delete(scrollKey);
+          restoredScrollKeyRef.current = scrollKey;
+        });
+      });
+      return () => {
+        window.cancelAnimationFrame(firstFrame);
+        if (secondFrame) window.cancelAnimationFrame(secondFrame);
+      };
+    }
+
+    if (restoredScrollKeyRef.current === scrollKey) return;
+
+    node.scrollTop = conversationScrollPositions.get(scrollKey) ?? 0;
+    restoredScrollKeyRef.current = scrollKey;
+  }, [conversations.length, scrollKey, selectedId]);
 
   const handleContextMenu = (
     event: React.MouseEvent,
@@ -258,7 +297,17 @@ function ConversationPanel({
                   >
                     <button
                       type="button"
-                      onClick={() => onSelect(conversation)}
+                      onClick={() => {
+                        const node = listRef.current;
+                        if (node) {
+                          conversationScrollPositions.set(scrollKey, node.scrollTop);
+                          pendingConversationScrollRestores.set(
+                            scrollKey,
+                            node.scrollTop,
+                          );
+                        }
+                        onSelect(conversation);
+                      }}
                       className="flex min-w-0 flex-1 items-center gap-3 text-left"
                     >
                       <div className="relative shrink-0">
