@@ -33,7 +33,10 @@ import {
 } from "@/lib/team-collaboration-utils";
 import { useAuthStore } from "@/stores/use-auth-store";
 import type { ZaloGroupMember } from "@/types/zalo-contacts";
-import type { DisplayMessage } from "@/types/zalo-messenger";
+import type {
+  DisplayMessage,
+  MessengerMention,
+} from "@/types/zalo-messenger";
 import Image from "next/image";
 import dynamic from "next/dynamic";
 import { useMemo, useState, type ReactNode } from "react";
@@ -63,6 +66,56 @@ const MessageMediaLightbox = dynamic(() => import("./MessageMediaLightbox"), {
 
 const messageTextClass =
   "w-full min-w-0 max-w-full text-sm whitespace-pre-wrap break-words [overflow-wrap:anywhere] [word-break:break-word]";
+
+/** Render đúng các đoạn mention theo pos/len và giữ nguyên phần text còn lại. */
+function MentionText({
+  text,
+  mentions,
+  own,
+}: {
+  text: string;
+  mentions?: MessengerMention[];
+  own: boolean;
+}) {
+  const validMentions = (mentions ?? [])
+    .filter(
+      (mention) =>
+        Number.isInteger(mention.pos) &&
+        Number.isInteger(mention.len) &&
+        mention.pos >= 0 &&
+        mention.len > 0 &&
+        mention.pos < text.length,
+    )
+    .sort((left, right) => left.pos - right.pos);
+
+  if (!validMentions.length) return text;
+
+  const parts: ReactNode[] = [];
+  let cursor = 0;
+
+  for (const mention of validMentions) {
+    if (mention.pos < cursor) continue;
+    if (mention.pos > cursor) parts.push(text.slice(cursor, mention.pos));
+
+    const end = Math.min(mention.pos + mention.len, text.length);
+    parts.push(
+      <span
+        key={`${mention.pos}-${mention.len}-${mention.uid ?? ""}`}
+        className={
+          own
+            ? "font-semibold text-cyan-200"
+            : "font-semibold text-brand-500 dark:text-brand-300"
+        }
+      >
+        {text.slice(mention.pos, end)}
+      </span>,
+    );
+    cursor = end;
+  }
+
+  if (cursor < text.length) parts.push(text.slice(cursor));
+  return parts;
+}
 
 function QuotePreview({
   message,
@@ -301,7 +354,7 @@ function MessageContent({
   } else if (text) {
     body = (
       <p className={`${messageTextClass} text-left`}>
-        {text}
+        <MentionText text={text} mentions={message.mentions} own={own} />
       </p>
     );
   } else {

@@ -183,6 +183,10 @@ export default function SendMesGroupCampaignFormModal({
     );
   }, [groups, groupSearch]);
 
+  const allFilteredGroupsSelected =
+    filteredGroups.length > 0 &&
+    filteredGroups.every((group) => selectedGroupIds.includes(group.id));
+
   const resetForm = useCallback(() => {
     setName("");
     setDelayTime("60");
@@ -313,6 +317,17 @@ export default function SendMesGroupCampaignFormModal({
       prev.includes(groupId)
         ? prev.filter((id) => id !== groupId)
         : [...prev, groupId],
+    );
+  };
+
+  /** Chọn hoặc bỏ chọn toàn bộ nhóm đang hiển thị theo bộ lọc hiện tại. */
+  const toggleAllFilteredGroups = () => {
+    if (!groupsEditable || !filteredGroups.length) return;
+    const filteredIds = new Set(filteredGroups.map((group) => group.id));
+    setSelectedGroupIds((current) =>
+      allFilteredGroupsSelected
+        ? current.filter((id) => !filteredIds.has(id))
+        : Array.from(new Set([...current, ...filteredIds])),
     );
   };
 
@@ -604,9 +619,26 @@ export default function SendMesGroupCampaignFormModal({
                     Chọn nhóm
                   </span>
                 </div>
-                <span className="rounded-full bg-brand-50 px-2 py-0.5 text-theme-xs font-medium text-brand-600 dark:bg-brand-500/10 dark:text-brand-400">
-                  {selectedGroupIds.length} đã chọn
-                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={toggleAllFilteredGroups}
+                    disabled={
+                      !groupsEditable ||
+                      saving ||
+                      groupsLoading ||
+                      filteredGroups.length === 0
+                    }
+                    className="text-theme-xs font-semibold text-brand-600 hover:text-brand-700 disabled:cursor-not-allowed disabled:opacity-40 dark:text-brand-400 dark:hover:text-brand-300"
+                  >
+                    {allFilteredGroupsSelected
+                      ? "Bỏ chọn tất cả"
+                      : "Chọn tất cả"}
+                  </button>
+                  <span className="rounded-full bg-brand-50 px-2 py-0.5 text-theme-xs font-medium text-brand-600 dark:bg-brand-500/10 dark:text-brand-400">
+                    {selectedGroupIds.length} đã chọn
+                  </span>
+                </div>
               </div>
 
               {!groupsEditable ? (

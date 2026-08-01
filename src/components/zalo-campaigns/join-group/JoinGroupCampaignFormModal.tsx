@@ -118,9 +118,23 @@ export default function JoinGroupCampaignFormModal({
     );
   }, [accounts, accountSearch]);
 
+  const allFilteredAccountsSelected =
+    filteredAccounts.length > 0 &&
+    filteredAccounts.every((account) => selectedAccountIds.includes(account.id));
+
   const toggleAccount = (id: number) => {
     setSelectedAccountIds((prev) =>
       prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
+    );
+  };
+
+  /** Chọn hoặc bỏ chọn toàn bộ tài khoản đang hiển thị theo tìm kiếm. */
+  const toggleAllFilteredAccounts = () => {
+    const filteredIds = new Set(filteredAccounts.map((account) => account.id));
+    setSelectedAccountIds((current) =>
+      allFilteredAccountsSelected
+        ? current.filter((id) => !filteredIds.has(id))
+        : Array.from(new Set([...current, ...filteredIds])),
     );
   };
 
@@ -313,9 +327,21 @@ export default function JoinGroupCampaignFormModal({
                 <p className="text-sm font-semibold text-gray-800 dark:text-white/90">
                   Chọn tài khoản Zalo
                 </p>
-                <span className="text-theme-xs text-gray-500">
-                  {selectedAccountIds.length} đã chọn
-                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={toggleAllFilteredAccounts}
+                    disabled={saving || accountsLoading || !filteredAccounts.length}
+                    className="text-theme-xs font-semibold text-brand-600 hover:text-brand-700 disabled:cursor-not-allowed disabled:opacity-40 dark:text-brand-400 dark:hover:text-brand-300"
+                  >
+                    {allFilteredAccountsSelected
+                      ? "Bỏ chọn tất cả"
+                      : "Chọn tất cả"}
+                  </button>
+                  <span className="text-theme-xs text-gray-500">
+                    {selectedAccountIds.length} đã chọn
+                  </span>
+                </div>
               </div>
               <Input
                 value={accountSearch}

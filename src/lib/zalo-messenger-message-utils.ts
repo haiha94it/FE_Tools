@@ -46,6 +46,20 @@ function readContentRecord(content: unknown): Record<string, unknown> | null {
   return content as Record<string, unknown>;
 }
 
+/** Chuẩn hóa quote API/WS dạng object hoặc array về danh sách dùng chung trên UI. */
+function normalizeMessageQuote(quote: unknown): DisplayMessage["quote"] {
+  if (Array.isArray(quote)) {
+    return quote.filter(
+      (item): item is NonNullable<DisplayMessage["quote"]>[number] =>
+        Boolean(item) && typeof item === "object" && !Array.isArray(item),
+    );
+  }
+  if (quote && typeof quote === "object") {
+    return [quote as NonNullable<DisplayMessage["quote"]>[number]];
+  }
+  return undefined;
+}
+
 /** URL ảnh sticker Zalo từ eid (id / id_sticker trong payload WS) */
 export function buildZaloStickerImageUrl(
   stickerId: string | number | null | undefined,
@@ -533,6 +547,12 @@ export function normalizeIncomingMessage(raw: RawZaloMessage): DisplayMessage {
     ts: raw.ts,
     conversation_id: raw.conversation_id,
     text_message: [],
+    quote: normalizeMessageQuote(raw.quote),
+    mentions: Array.isArray(raw.mentions)
+      ? raw.mentions
+      : Array.isArray(raw.mention)
+        ? (raw.mention as DisplayMessage["mentions"])
+        : undefined,
     sent_by: raw.sent_by ?? undefined,
   };
 
@@ -558,9 +578,6 @@ export function normalizeIncomingMessage(raw: RawZaloMessage): DisplayMessage {
                 },
               ]
             : undefined,
-        quote: Array.isArray(raw.quote)
-          ? (raw.quote as DisplayMessage["quote"])
-          : undefined,
       };
     }
 

@@ -10,25 +10,32 @@ import type {
   BirthdayMediaItem,
 } from "@/types/zalo-birthday-campaign";
 
+/** Chuẩn hóa response category dạng object hoặc mảng singleton. */
 function normalizeCampaign(body: unknown): BirthdayCampaign | null {
   if (!body || typeof body !== "object") return null;
+  if (Array.isArray(body)) return normalizeCampaign(body[0]);
   const record = body as BirthdayCampaign;
   if (record.id) return record;
-  if (Array.isArray(body) && body.length > 0) {
-    return (body[0] as BirthdayCampaign) ?? null;
-  }
   return null;
 }
 
+/** Bỏ id category khỏi body vì endpoint detail đã nhận id trên URL. */
 function stripCategoryId(payload: BirthdayCampaignFormPayload) {
-  const { id_category: _id, ...rest } = payload;
-  return rest;
+  const body: Partial<BirthdayCampaignFormPayload> = { ...payload };
+  delete body.id_category;
+  return body;
 }
 
 export const zaloBirthdayCampaignService = {
   async getCampaign(): Promise<BirthdayCampaign | null> {
-    const response = await api.get(API_ZALO_BIRTHDAY_CAMPAIGN.GET);
-    return normalizeCampaign(response.data);
+    const listResponse = await api.get(API_ZALO_BIRTHDAY_CAMPAIGN.GET);
+    const summary = normalizeCampaign(listResponse.data);
+    if (!summary?.id) return null;
+
+    const detailResponse = await api.get(
+      API_ZALO_BIRTHDAY_CAMPAIGN.detail(summary.id),
+    );
+    return normalizeCampaign(detailResponse.data);
   },
 
   async createOrEditCampaign(payload: BirthdayCampaignFormPayload): Promise<void> {

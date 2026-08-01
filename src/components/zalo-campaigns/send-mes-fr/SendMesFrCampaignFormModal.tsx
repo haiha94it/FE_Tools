@@ -176,6 +176,10 @@ export default function SendMesFrCampaignFormModal({
     );
   }, [friends, friendSearch]);
 
+  const allFilteredFriendsSelected =
+    filteredFriends.length > 0 &&
+    filteredFriends.every((friend) => selectedFriendIds.includes(friend.id));
+
   const resetForm = useCallback(() => {
     setName("");
     setDelayTime("60");
@@ -302,6 +306,17 @@ export default function SendMesFrCampaignFormModal({
       prev.includes(friendId)
         ? prev.filter((id) => id !== friendId)
         : [...prev, friendId],
+    );
+  };
+
+  /** Chọn hoặc bỏ chọn toàn bộ bạn bè đang hiển thị theo bộ lọc hiện tại. */
+  const toggleAllFilteredFriends = () => {
+    if (!friendsEditable || !filteredFriends.length) return;
+    const filteredIds = new Set(filteredFriends.map((friend) => friend.id));
+    setSelectedFriendIds((current) =>
+      allFilteredFriendsSelected
+        ? current.filter((id) => !filteredIds.has(id))
+        : Array.from(new Set([...current, ...filteredIds])),
     );
   };
 
@@ -582,9 +597,26 @@ export default function SendMesFrCampaignFormModal({
                     Chọn bạn bè
                   </span>
                 </div>
-                <span className="rounded-full bg-brand-50 px-2 py-0.5 text-theme-xs font-medium text-brand-600 dark:bg-brand-500/10 dark:text-brand-400">
-                  {selectedFriendIds.length} đã chọn
-                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={toggleAllFilteredFriends}
+                    disabled={
+                      !friendsEditable ||
+                      saving ||
+                      friendsLoading ||
+                      filteredFriends.length === 0
+                    }
+                    className="text-theme-xs font-semibold text-brand-600 hover:text-brand-700 disabled:cursor-not-allowed disabled:opacity-40 dark:text-brand-400 dark:hover:text-brand-300"
+                  >
+                    {allFilteredFriendsSelected
+                      ? "Bỏ chọn tất cả"
+                      : "Chọn tất cả"}
+                  </button>
+                  <span className="rounded-full bg-brand-50 px-2 py-0.5 text-theme-xs font-medium text-brand-600 dark:bg-brand-500/10 dark:text-brand-400">
+                    {selectedFriendIds.length} đã chọn
+                  </span>
+                </div>
               </div>
 
               {!friendsEditable ? (

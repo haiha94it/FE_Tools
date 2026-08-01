@@ -26,6 +26,7 @@ export const MANAGER_ONLY_PATHS = new Set([
   "/zalo-accounts/proxy",
   "/zalo-accounts/contacts",
   "/zalo-campaigns/post-video",
+  "/zalo-campaigns/messenger-birthday",
 ]);
 
 /** Admin panel only — sidebar `roles: ["admin"]` + TeamRouteGuard */
@@ -159,7 +160,7 @@ export function filterNavItemsForTeam(
 
   return items
     .map((item) => {
-      if (item.name === "Chiến dịch" && item.subItems) {
+      if (item.name === "Chiến dịch tự động" && item.subItems) {
         let subItems = filterCampaignSubItems(item.subItems, permissions, user);
         if (employee) {
           subItems = subItems.filter((sub) => !MANAGER_ONLY_PATHS.has(sub.path));

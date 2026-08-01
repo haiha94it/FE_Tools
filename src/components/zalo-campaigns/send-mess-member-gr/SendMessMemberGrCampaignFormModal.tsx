@@ -597,6 +597,7 @@ export default function SendMessMemberGrCampaignFormModal({
     }
   };
 
+  /** Lưu kịch bản cùng lựa chọn tách nội dung và file đính kèm. */
   const handleSave = async () => {
     const isRunningContentOnly = editingCampaign?.status === 1;
 
@@ -705,6 +706,7 @@ export default function SendMessMemberGrCampaignFormModal({
       assign_mode: assignMode,
       add_friend: addFriend,
       send_message: sendMessage,
+      split_attachment: splitAttachment,
       first_messages: firstMessages,
       from_time: formatTimeForApi(startTime),
       to_time: formatTimeForApi(endTime),

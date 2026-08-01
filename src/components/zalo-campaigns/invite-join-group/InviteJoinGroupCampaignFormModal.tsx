@@ -461,6 +461,39 @@ export default function InviteJoinGroupCampaignFormModal({
 
   const filteredGroups = useMemo(() => groups, [groups]);
   const filteredFriends = useMemo(() => friends, [friends]);
+  const selectableMemberUids = useMemo(
+    () =>
+      linkMembers
+        .map((member) => member.friend?.uid?.trim())
+        .filter((uid): uid is string => Boolean(uid)),
+    [linkMembers],
+  );
+  const allFriendsSelected =
+    filteredFriends.length > 0 &&
+    filteredFriends.every((friend) => selectedFriendIds.includes(friend.id));
+  const allMembersSelected =
+    selectableMemberUids.length > 0 &&
+    selectableMemberUids.every((uid) => selectedUids.includes(uid));
+
+  /** Chọn hoặc bỏ chọn toàn bộ bạn bè đang hiển thị. */
+  const toggleAllFriends = () => {
+    const visibleIds = new Set(filteredFriends.map((friend) => friend.id));
+    setSelectedFriendIds((current) =>
+      allFriendsSelected
+        ? current.filter((id) => !visibleIds.has(id))
+        : Array.from(new Set([...current, ...visibleIds])),
+    );
+  };
+
+  /** Chọn hoặc bỏ chọn toàn bộ thành viên hợp lệ lấy từ link nhóm. */
+  const toggleAllMembers = () => {
+    const visibleUids = new Set(selectableMemberUids);
+    setSelectedUids((current) =>
+      allMembersSelected
+        ? current.filter((uid) => !visibleUids.has(uid))
+        : Array.from(new Set([...current, ...visibleUids])),
+    );
+  };
 
   const groupPanelBadge = selectedGroupId
     ? "1 đã chọn"
@@ -867,6 +900,14 @@ export default function InviteJoinGroupCampaignFormModal({
                 toolbar={
                   inviteType === "friend" ? (
                     <>
+                      <button
+                        type="button"
+                        onClick={toggleAllFriends}
+                        disabled={saving || readOnly || !filteredFriends.length}
+                        className="w-fit text-theme-xs font-semibold text-brand-600 hover:text-brand-700 disabled:cursor-not-allowed disabled:opacity-40 dark:text-brand-400 dark:hover:text-brand-300"
+                      >
+                        {allFriendsSelected ? "Bỏ chọn tất cả" : "Chọn tất cả"}
+                      </button>
                       <div className="flex min-w-0 items-center gap-2">
                         <span className="shrink-0 text-theme-xs font-medium text-gray-500">
                           Nhãn
@@ -886,6 +927,15 @@ export default function InviteJoinGroupCampaignFormModal({
                         className="h-9"
                       />
                     </>
+                  ) : inviteType === "uids" ? (
+                    <button
+                      type="button"
+                      onClick={toggleAllMembers}
+                      disabled={saving || readOnly || !selectableMemberUids.length}
+                      className="w-fit text-theme-xs font-semibold text-brand-600 hover:text-brand-700 disabled:cursor-not-allowed disabled:opacity-40 dark:text-brand-400 dark:hover:text-brand-300"
+                    >
+                      {allMembersSelected ? "Bỏ chọn tất cả" : "Chọn tất cả"}
+                    </button>
                   ) : undefined
                 }
               >

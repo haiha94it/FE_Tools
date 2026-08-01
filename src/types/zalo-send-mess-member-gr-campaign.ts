@@ -71,6 +71,7 @@ export interface SendMessMemberGrCampaignFormPayload {
   assign_mode: SendMessMemberGrAssignMode;
   add_friend: boolean;
   send_message: boolean;
+  split_attachment: boolean;
   first_messages: string[];
   from_time: string | null;
   to_time: string | null;

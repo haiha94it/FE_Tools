@@ -36,6 +36,8 @@ const VISIBLE_PERMISSION_KEYS = (
 ).filter(
   (key) =>
     key !== "add_friend" &&
+    key !== "auto_inbox" &&
+    key !== "mess_birthday" &&
     (SHOW_SPAM_LINK_GROUP_FEATURES || key !== "spam_link_group"),
 );
 
@@ -77,6 +79,7 @@ export default function TeamEmployeeSetupModal({
         if (!SHOW_SPAM_LINK_GROUP_FEATURES) {
           nextPermissions.spam_link_group = false;
         }
+        nextPermissions.mess_birthday = false;
         setManagerAccounts(accounts);
         setSelectedIds(assignments.account_ids ?? []);
         setPermissions(nextPermissions);
@@ -113,6 +116,7 @@ export default function TeamEmployeeSetupModal({
       if (!SHOW_SPAM_LINK_GROUP_FEATURES) {
         nextPermissions.spam_link_group = false;
       }
+      nextPermissions.mess_birthday = false;
       await Promise.all([
         teamPermissionsService.setEmployeeAccountAssignments({
           employee_id: employee.id,

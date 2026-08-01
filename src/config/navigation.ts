@@ -99,7 +99,7 @@ export const mainNavItems: NavItemConfig[] = [
     managerOnly: true,
   },
   {
-    name: "Chiến dịch",
+    name: "Chiến dịch tự động",
     icon: "plugin",
     iconTone: "purple",
     subItems: [

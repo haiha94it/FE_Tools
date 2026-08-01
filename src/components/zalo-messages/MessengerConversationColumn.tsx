@@ -152,6 +152,7 @@ function MessengerConversationColumn({
     }
   });
 
+  /** Gửi nội dung modal người lạ qua tài khoản đang chọn. */
   const handleSendStrangerPhone = useStableHandler(
     (payload: { phone: string; text: string; imageLink: string | null }) => {
       if (!selectedAccountId) return;

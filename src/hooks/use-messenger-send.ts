@@ -295,6 +295,7 @@ export function useMessengerSend(options?: {
     [options?.accountUid, selectedAccountId, wsSend, wsStatus],
   );
 
+  /** Gửi text và một ảnh đính kèm tới người lạ bằng số điện thoại. */
   const sendStrangerPhone = useCallback(
     (
       accountId: number,

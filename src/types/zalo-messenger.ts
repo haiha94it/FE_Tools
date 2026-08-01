@@ -96,10 +96,19 @@ export interface RawZaloMessage {
   cliMsgId?: string;
   quote?: unknown;
   mention?: unknown[];
+  mentions?: MessengerMention[];
   actionId?: string;
   conversation_id?: number;
   sent_by?: SentByPayload | null;
   [key: string]: unknown;
+}
+
+/** Vị trí một mention trong nội dung text Zalo; pos/len dùng chỉ số UTF-16. */
+export interface MessengerMention {
+  uid?: string;
+  pos: number;
+  len: number;
+  type?: number;
 }
 
 export interface MessengerMessageAttachment {
@@ -181,6 +190,7 @@ export interface DisplayMessage {
   ts?: number | string;
   conversation_id?: number;
   text_message?: Array<{ text?: unknown }>;
+  mentions?: MessengerMention[];
   attachments?: MessengerMessageAttachment[];
   sticker?: Array<{ id?: string | number; catId?: string | number }>;
   quote?: MessengerMessageQuote[];
