@@ -515,7 +515,7 @@ export const useZaloMessengerStore = create<ZaloMessengerState>((set, get) => ({
         if (get().selectedAccountId !== accountId) return;
         set({ fastReplies });
         fastRepliesLoadedFor = accountId;
-      } catch (error) {
+      } catch {
         if (controller.signal.aborted) return;
         if (get().selectedAccountId !== accountId) return;
         set({ fastReplies: [] });
@@ -1110,7 +1110,13 @@ export const useZaloMessengerStore = create<ZaloMessengerState>((set, get) => ({
             ),
           };
         });
-      } catch {
+      } catch (error) {
+        if (handleConsentChatRequired(error)) {
+          if (get().selectedAccountId === accountId) {
+            set({ error: getApiErrorMessage(error) });
+          }
+          return;
+        }
         if (get().selectedAccountId === accountId) {
           set({ error: "Không tải được danh sách hội thoại." });
         }
@@ -1220,7 +1226,12 @@ export const useZaloMessengerStore = create<ZaloMessengerState>((set, get) => ({
           });
           detailOk = true;
         }
-      } catch {
+      } catch (error) {
+        if (handleConsentChatRequired(error)) {
+          set({ error: getApiErrorMessage(error) });
+          detailOk = false;
+          return;
+        }
         // detail optional khi đã có trong list; URL lạ / không quyền → chặn load tin
         if (!existingConversation) {
           toast.error("Không mở được hội thoại này.");
@@ -1347,7 +1358,11 @@ export const useZaloMessengerStore = create<ZaloMessengerState>((set, get) => ({
             },
           };
         });
-      } catch {
+      } catch (error) {
+        if (handleConsentChatRequired(error)) {
+          set({ error: getApiErrorMessage(error) });
+          return;
+        }
         set({ error: "Không tải được tin nhắn." });
       } finally {
         set({ [loadingKey]: false });
