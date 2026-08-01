@@ -33,9 +33,6 @@ function MessengerChatColumn({ showMobileBack = false }: MessengerChatColumnProp
 
   const accounts = useZaloMessengerStore((s) => s.accounts);
   const conversations = useZaloMessengerStore((s) => s.conversations);
-  const conversationsLoading = useZaloMessengerStore(
-    (s) => s.conversationsLoading,
-  );
   const selectedAccountId = useZaloMessengerStore((s) => s.selectedAccountId);
   const activeConversation = useZaloMessengerStore((s) => s.activeConversation);
   const messages = useZaloMessengerStore((s) => s.messages);
@@ -156,7 +153,7 @@ function MessengerChatColumn({ showMobileBack = false }: MessengerChatColumnProp
 
   const handleShare = useCallback((message: DisplayMessage) => {
     setShareTargetMessage(message);
-  }, []);
+  }, [setShareTargetMessage]);
 
   const handleReaction = useCallback(
     (message: DisplayMessage, reactionId: number) => {
@@ -239,9 +236,9 @@ function MessengerChatColumn({ showMobileBack = false }: MessengerChatColumnProp
     <MessageShareDialog
       open={shareTargetMessage != null}
       message={shareTargetMessage}
+      accountId={selectedAccountId}
       conversations={conversations}
       activeConversationId={activeConversationId}
-      loading={conversationsLoading}
       onClose={() => setShareTargetMessage(null)}
       onShare={(targets, accompanyText) => {
         if (!shareTargetMessage) return;

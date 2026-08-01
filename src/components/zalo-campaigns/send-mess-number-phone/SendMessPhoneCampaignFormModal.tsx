@@ -523,8 +523,8 @@ export default function SendMessPhoneCampaignFormModal({
                               disabled={!structureEditable || saving}
                               onClick={() => toggleAccount(account.id)}
                               className={`flex shrink-0 items-center gap-2.5 rounded-xl border px-2.5 py-2 transition ${active
-                                  ? "border-brand-300 bg-white shadow-theme-xs ring-2 ring-brand-500/15 dark:border-brand-500/40 dark:bg-gray-900"
-                                  : "border-gray-200 bg-white/80 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-900/60 dark:hover:border-gray-600"
+                                ? "border-brand-300 bg-white shadow-theme-xs ring-2 ring-brand-500/15 dark:border-brand-500/40 dark:bg-gray-900"
+                                : "border-gray-200 bg-white/80 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-900/60 dark:hover:border-gray-600"
                                 } disabled:cursor-not-allowed disabled:opacity-60`}
                             >
                               <span
@@ -599,8 +599,8 @@ export default function SendMessPhoneCampaignFormModal({
                     <div className="space-y-2">
                       <label
                         className={`flex cursor-pointer items-start gap-2.5 rounded-lg border px-3 py-2 text-sm ${assignMode === "distribute"
-                            ? "border-brand-300 bg-brand-50/60 dark:border-brand-500/40 dark:bg-brand-500/10"
-                            : "border-gray-200 dark:border-gray-700"
+                          ? "border-brand-300 bg-brand-50/60 dark:border-brand-500/40 dark:bg-brand-500/10"
+                          : "border-gray-200 dark:border-gray-700"
                           }`}
                       >
                         <input
@@ -622,8 +622,8 @@ export default function SendMessPhoneCampaignFormModal({
                       </label>
                       <label
                         className={`flex cursor-pointer items-start gap-2.5 rounded-lg border px-3 py-2 text-sm ${assignMode === "all"
-                            ? "border-brand-300 bg-brand-50/60 dark:border-brand-500/40 dark:bg-brand-500/10"
-                            : "border-gray-200 dark:border-gray-700"
+                          ? "border-brand-300 bg-brand-50/60 dark:border-brand-500/40 dark:bg-brand-500/10"
+                          : "border-gray-200 dark:border-gray-700"
                           }`}
                       >
                         <input
