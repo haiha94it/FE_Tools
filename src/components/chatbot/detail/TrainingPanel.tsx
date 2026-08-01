@@ -27,7 +27,6 @@ import {
   FiEdit,
   FiMoreVertical,
   FiPlus,
-  FiRefreshCw,
   FiTrash2,
   FiUpload,
 } from "react-icons/fi";
@@ -36,6 +35,7 @@ interface TrainingPanelProps {
   chatbotId: number;
 }
 
+/** Hiển thị và quản lý dữ liệu huấn luyện của một kịch bản chatbot. */
 export default function TrainingPanel({ chatbotId }: TrainingPanelProps) {
   const setChatbotId = useChatbotTrainingStore((s) => s.setChatbotId);
   const trainingData = useChatbotTrainingStore((s) => s.trainingData);
@@ -65,7 +65,6 @@ export default function TrainingPanel({ chatbotId }: TrainingPanelProps) {
   const clearAllTrainingData = useChatbotTrainingStore(
     (s) => s.clearAllTrainingData,
   );
-  const syncEmbeddings = useChatbotTrainingStore((s) => s.syncEmbeddings);
   const exportTrainingData = useChatbotTrainingStore((s) => s.exportTrainingData);
 
   const [formOpen, setFormOpen] = useState(false);
@@ -174,64 +173,73 @@ export default function TrainingPanel({ chatbotId }: TrainingPanelProps) {
     URL.revokeObjectURL(url);
   };
 
-  const handleSyncEmbeddings = async () => {
-    setActionsOpen(false);
-    await syncEmbeddings();
-  };
-
   const isTrulyEmpty = trainingCount === 0 && !trainingSearch.trim() && categoryFilter === null;
 
   return (
     <div className="space-y-4">
       {/* Top action row */}
-      {!isTrulyEmpty && (
-        <div className="flex items-center justify-between gap-3 border-b border-gray-100 pb-3.5 dark:border-gray-800">
-          <div className="flex items-center gap-2.5">
-            <Badge size="sm" color="primary" variant="light">
-              {trainingCount} Q&A
-            </Badge>
-          </div>
-          
-          <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between gap-3 border-b border-gray-100 pb-3.5 dark:border-gray-800">
+        <div className="flex items-center gap-2.5">
+          <Badge size="sm" color="primary" variant="light">
+            {trainingCount} Q&A
+          </Badge>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            onClick={openCreate}
+            className="flex items-center gap-1.5 !px-3.5 !py-2 text-xs font-semibold"
+          >
+            <FiPlus size={14} /> Thêm Q&A
+          </Button>
+
+          <div className="relative">
             <Button
               size="sm"
-              onClick={openCreate}
-              className="flex items-center gap-1.5 !px-3.5 !py-2 text-xs font-semibold"
+              variant="outline"
+              onClick={() => setActionsOpen(!actionsOpen)}
+              className="dropdown-toggle flex items-center gap-1 !px-3 !py-2 text-xs font-medium"
             >
-              <FiPlus size={14} /> Thêm Q&A
+              Tác vụ
+              <FiChevronDown
+                size={12}
+                className={`transition-transform duration-200 ${actionsOpen ? "rotate-180" : ""}`}
+              />
             </Button>
-
-            <div className="relative">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setActionsOpen(!actionsOpen)}
-                className="dropdown-toggle flex items-center gap-1 !px-3 !py-2 text-xs font-medium"
+            <Dropdown
+              isOpen={actionsOpen}
+              onClose={() => setActionsOpen(false)}
+              className="right-0 mt-1.5 w-48"
+            >
+              <DropdownItem
+                onClick={() => void handleExport()}
+                className="flex items-center gap-2"
               >
-                Tác vụ <FiChevronDown size={12} className={`transition-transform duration-200 ${actionsOpen ? "rotate-180" : ""}`} />
-              </Button>
-              <Dropdown isOpen={actionsOpen} onClose={() => setActionsOpen(false)} className="w-48 right-0 mt-1.5">
-                <DropdownItem onClick={() => void handleExport()} className="flex items-center gap-2">
-                  <FiDownload size={14} className="text-gray-400" /> Xuất file (Export)
-                </DropdownItem>
-                <DropdownItem onClick={() => { setActionsOpen(false); setImportOpen(true); }} className="flex items-center gap-2">
-                  <FiUpload size={14} className="text-gray-400" /> Nhập file (Import)
-                </DropdownItem>
-                {/* <DropdownItem onClick={() => void handleSyncEmbeddings()} className="flex items-center gap-2">
-                  <FiRefreshCw size={14} className="text-gray-400" /> Đồng bộ Vector AI
-                </DropdownItem> */}
-                <div className="border-t border-gray-100 dark:border-gray-800 my-1"></div>
-                <DropdownItem
-                  onClick={() => void handleClearAll()}
-                  className="flex items-center gap-2 !text-error-600 hover:!bg-error-50 dark:hover:!bg-error-500/10"
-                >
-                  <FiTrash2 size={14} /> Xóa toàn bộ
-                </DropdownItem>
-              </Dropdown>
-            </div>
+                <FiDownload size={14} className="text-gray-400" />
+                Xuất file (Export)
+              </DropdownItem>
+              <DropdownItem
+                onClick={() => {
+                  setActionsOpen(false);
+                  setImportOpen(true);
+                }}
+                className="flex items-center gap-2"
+              >
+                <FiUpload size={14} className="text-gray-400" />
+                Nhập file (Import)
+              </DropdownItem>
+              <div className="my-1 border-t border-gray-100 dark:border-gray-800"></div>
+              <DropdownItem
+                onClick={() => void handleClearAll()}
+                className="flex items-center gap-2 !text-error-600 hover:!bg-error-50 dark:hover:!bg-error-500/10"
+              >
+                <FiTrash2 size={14} /> Xóa toàn bộ
+              </DropdownItem>
+            </Dropdown>
           </div>
         </div>
-      )}
+      </div>
 
       {/* Filter inputs row */}
       {!isTrulyEmpty && (

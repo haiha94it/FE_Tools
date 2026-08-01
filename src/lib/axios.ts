@@ -84,6 +84,7 @@ async function performTokenRefresh(): Promise<string> {
   return access;
 }
 
+/** Làm mới access token; chỉ xóa phiên khi refresh token bị máy chủ từ chối. */
 export async function refreshAccessToken(): Promise<string | null> {
   if (isRefreshing) {
     return new Promise((resolve) => {
@@ -108,7 +109,9 @@ export async function refreshAccessToken(): Promise<string | null> {
   } catch (error) {
     markTokenRefreshFailure(error);
     processQueue(error, null);
-    logoutAndRedirect();
+    if (axios.isAxiosError(error) && error.response?.status === 401) {
+      logoutAndRedirect();
+    }
     return null;
   } finally {
     isRefreshing = false;
@@ -209,7 +212,7 @@ api.interceptors.response.use(
         ? refreshError.response?.status
         : undefined;
 
-      if (status === 401 || status === 429) {
+      if (status === 401) {
         logoutAndRedirect();
       }
       return Promise.reject(refreshError);

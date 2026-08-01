@@ -16,6 +16,7 @@ import { create } from "zustand";
 const MAX_RECONNECT_ATTEMPTS = 100;
 const BASE_RECONNECT_MS = 2000;
 const MAX_RECONNECT_MS = 30000;
+const ACCESS_TOKEN_REFRESH_SKEW_MS = 30_000;
 const RECOVERABLE_CLOSE_CODES = new Set([
   1000, 1001, 1006, 1012, 1013, 4000, 4001, 4002, 4500,
 ]);
@@ -90,6 +91,27 @@ function shouldReconnect(closeCode: number): boolean {
   return RECOVERABLE_CLOSE_CODES.has(closeCode);
 }
 
+/** Kiểm tra JWT access đã hết hạn hoặc sắp hết hạn trước lần reconnect. */
+function isAccessTokenExpired(accessToken: string): boolean {
+  try {
+    const payloadPart = accessToken.split(".")[1];
+    if (!payloadPart) return true;
+
+    const normalized = payloadPart.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = normalized.padEnd(
+      normalized.length + ((4 - (normalized.length % 4)) % 4),
+      "=",
+    );
+    const payload = JSON.parse(atob(padded)) as { exp?: unknown };
+    return (
+      typeof payload.exp !== "number" ||
+      payload.exp * 1000 <= Date.now() + ACCESS_TOKEN_REFRESH_SKEW_MS
+    );
+  } catch {
+    return true;
+  }
+}
+
 /** Đóng socket hiện tại trước khi đổi generation để callback cũ không mutate state. */
 function closeActiveSocket() {
   if (!socket) return;
@@ -122,6 +144,7 @@ async function retryAuthAndReconnect(
   return true;
 }
 
+/** Lên lịch reconnect và làm mới access token hết hạn trước khi mở socket mới. */
 function scheduleReconnect(
   set: (patch: Partial<WebSocketState>) => void,
   get: () => WebSocketState,
@@ -144,11 +167,37 @@ function scheduleReconnect(
     reconnectAttempts: attempts + 1,
   });
 
-  reconnectTimer = setTimeout(() => {
+  reconnectTimer = setTimeout(async () => {
     reconnectTimer = null;
-    if (!intentionalClose && getAccessToken()) {
-      get().connect();
+
+    if (intentionalClose) return;
+
+    const accessToken = getAccessToken();
+    if (!accessToken) {
+      set({ status: "disconnected" });
+      return;
     }
+
+    if (isAccessTokenExpired(accessToken)) {
+      if (!getRefreshToken()) {
+        set({ status: "disconnected" });
+        logoutAndRedirect();
+        return;
+      }
+
+      const refreshedAccess = await refreshAccessToken();
+      if (intentionalClose) return;
+      if (!refreshedAccess) {
+        if (getAccessToken()) {
+          scheduleReconnect(set, get);
+        } else {
+          set({ status: "disconnected" });
+        }
+        return;
+      }
+    }
+
+    get().connect();
   }, delay);
 }
 
@@ -215,6 +264,10 @@ function bindSocketHandlers(
     if (AUTH_CLOSE_CODES.has(event.code) && getRefreshToken()) {
       const refreshed = await retryAuthAndReconnect(set, get);
       if (refreshed) return;
+      if (getRefreshToken()) {
+        scheduleReconnect(set, get);
+        return;
+      }
     }
 
     if (AUTH_CLOSE_CODES.has(event.code)) {
