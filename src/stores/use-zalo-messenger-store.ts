@@ -37,6 +37,7 @@ import { toast } from "@/lib/toast";
 import {
   buildQuoteDetails,
   detectAttachmentKind,
+  isImageAttachmentDraft,
   resolveAttachmentChatType,
   resolveChatType,
 } from "@/lib/zalo-messenger-send-utils";
@@ -1658,7 +1659,7 @@ export const useZaloMessengerStore = create<ZaloMessengerState>((set, get) => ({
     const shouldSendImageAlbum =
       !quoteDetails &&
       attachments.length > 1 &&
-      attachments.every((file) => file.isImage);
+      attachments.every(isImageAttachmentDraft);
 
     if (shouldSendImageAlbum) {
       payloads.push({
