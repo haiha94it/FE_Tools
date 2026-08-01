@@ -517,7 +517,12 @@ function convertJxlToJpg(url: string | undefined | null): string {
   return url;
 }
 
-/** Raw Zalo → shape hiển thị UI */
+/**
+ * Chuẩn hóa một tin nhắn Zalo thô sang dữ liệu dùng để hiển thị trên UI.
+ *
+ * @param raw Tin nhắn thô nhận từ API hoặc WebSocket.
+ * @returns Tin nhắn đã chuẩn hóa, gồm text và attachment phù hợp với từng msgType.
+ */
 export function normalizeIncomingMessage(raw: RawZaloMessage): DisplayMessage {
   const base: DisplayMessage = {
     msgId: raw.msgId,
@@ -578,6 +583,9 @@ export function normalizeIncomingMessage(raw: RawZaloMessage): DisplayMessage {
       const params = parseContentParams(record?.params);
       const href = trimToString(record?.href);
       const thumb = convertJxlToJpg(trimToString(record?.thumb)) || href;
+      const title = trimToString(record?.title);
+      const description = trimToString(record?.description);
+      const caption = title || description;
       const duration = Number(params?.duration);
       const durationMs =
         Number.isFinite(duration) && duration > 0 ? duration : undefined;
@@ -586,8 +594,18 @@ export function normalizeIncomingMessage(raw: RawZaloMessage): DisplayMessage {
         ...base,
         attachments:
           href || thumb
-            ? [{ href, thumb, action: "video", durationMs }]
+            ? [
+                {
+                  href,
+                  thumb,
+                  title,
+                  description,
+                  action: "video",
+                  durationMs,
+                },
+              ]
             : [],
+        text_message: caption ? [{ text: caption }] : [],
         _groupLayout: groupLayout,
       };
     }

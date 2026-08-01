@@ -276,10 +276,10 @@ export default function SendMessPhoneResultsModal({
                       SĐT / Tên
                     </TableCell>
                     <TableCell isHeader className={headerClass}>
-                      TT KB
+                      Kết bạn
                     </TableCell>
                     <TableCell isHeader className={headerClass}>
-                      TT tin
+                      Nhắn tin
                     </TableCell>
                     <TableCell isHeader className={headerClass}>
                       Nội dung
