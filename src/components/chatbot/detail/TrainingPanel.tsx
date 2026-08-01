@@ -25,7 +25,6 @@ import {
   FiCpu,
   FiDownload,
   FiEdit,
-  FiMoreVertical,
   FiPlus,
   FiTrash2,
   FiUpload,
@@ -52,9 +51,6 @@ export default function TrainingPanel({ chatbotId }: TrainingPanelProps) {
 
   const setTrainingSearch = useChatbotTrainingStore((s) => s.setTrainingSearch);
   const setCategoryFilter = useChatbotTrainingStore((s) => s.setCategoryFilter);
-  const setHideAutoHarvested = useChatbotTrainingStore(
-    (s) => s.setHideAutoHarvested,
-  );
   const setPage = useChatbotTrainingStore((s) => s.setPage);
   const fetchTrainingData = useChatbotTrainingStore((s) => s.fetchTrainingData);
   const fetchCategories = useChatbotTrainingStore((s) => s.fetchCategories);
@@ -280,13 +276,23 @@ export default function TrainingPanel({ chatbotId }: TrainingPanelProps) {
             <p className="text-xs text-gray-500 dark:text-gray-400 max-w-[280px] mb-4">
               Chưa có dữ liệu Q&A. Hãy thêm câu hỏi và câu trả lời mẫu để huấn luyện bot thông minh hơn.
             </p>
-            <Button
-              size="sm"
-              onClick={openCreate}
-              className="flex items-center gap-1.5 !px-3.5 !py-2 text-xs font-semibold"
-            >
-              <FiPlus size={13} /> Thêm câu hỏi đầu tiên
-            </Button>
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <Button
+                size="sm"
+                onClick={openCreate}
+                className="flex items-center gap-1.5 !px-3.5 !py-2 text-xs font-semibold"
+              >
+                <FiPlus size={13} /> Thêm câu hỏi đầu tiên
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setImportOpen(true)}
+                className="flex items-center gap-1.5 !px-3.5 !py-2 text-xs font-semibold"
+              >
+                <FiUpload size={13} /> Import file
+              </Button>
+            </div>
           </div>
         ) : (
           <div className="divide-y divide-gray-100 dark:divide-gray-800">
