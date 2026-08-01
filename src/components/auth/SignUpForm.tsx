@@ -7,7 +7,6 @@ import PasswordInput from "@/components/form/input/PasswordInput";
 import Label from "@/components/form/Label";
 import Button from "@/components/ui/button/Button";
 import { APP_NAME, LEGAL_BRAND_NAME } from "@/constants/brand";
-import { STORAGE_KEYS } from "@/constants/storage-keys";
 import {
   validateGmail,
   validatePassword,
@@ -18,11 +17,9 @@ import { popupService } from "@/services/popup.service";
 import { useAuthStore } from "@/stores/use-auth-store";
 import type { RegisterPopupItem } from "@/types/auth";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 
 export default function SignUpForm() {
-  const searchParams = useSearchParams();
   const register = useAuthStore((s) => s.register);
   const isLoading = useAuthStore((s) => s.isLoading);
   const error = useAuthStore((s) => s.error);
@@ -32,7 +29,6 @@ export default function SignUpForm() {
   const [username, setUsername] = useState("");
   const [phone, setPhone] = useState("");
   const [mail, setMail] = useState("");
-  const [referralCode, setReferralCode] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [acceptTerms, setAcceptTerms] = useState(false);
@@ -41,19 +37,6 @@ export default function SignUpForm() {
   const [popupOpen, setPopupOpen] = useState(false);
   const [popupData, setPopupData] = useState<RegisterPopupItem | null>(null);
   const [popupMessage, setPopupMessage] = useState("");
-
-  const refFromUrl = searchParams.get("ref");
-  const referralLocked = Boolean(refFromUrl);
-
-  useEffect(() => {
-    if (refFromUrl) {
-      setReferralCode(refFromUrl);
-      localStorage.setItem(STORAGE_KEYS.REFERRAL_CODE, refFromUrl);
-      return;
-    }
-    const saved = localStorage.getItem(STORAGE_KEYS.REFERRAL_CODE);
-    if (saved) setReferralCode(saved);
-  }, [refFromUrl]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,7 +75,6 @@ export default function SignUpForm() {
         phone_number: phone.trim(),
         password,
         mail: mail.trim(),
-        referral_code: referralCode.trim(),
       });
 
       const popup = await popupService.getRegisterPopup().catch(() => null);
@@ -108,7 +90,6 @@ export default function SignUpForm() {
       setMail("");
       setPassword("");
       setConfirmPassword("");
-      if (!referralLocked) setReferralCode("");
       setAcceptTerms(false);
     } catch {
       // error trong store
@@ -194,16 +175,6 @@ export default function SignUpForm() {
                 value={mail}
                 onChange={(e) => setMail(e.target.value)}
                 disabled={isLoading}
-              />
-            </div>
-
-            <div>
-              <Label>Mã giới thiệu (nếu có)</Label>
-              <Input
-                placeholder="Mã giới thiệu"
-                value={referralCode}
-                onChange={(e) => setReferralCode(e.target.value)}
-                disabled={isLoading || referralLocked}
               />
             </div>
 

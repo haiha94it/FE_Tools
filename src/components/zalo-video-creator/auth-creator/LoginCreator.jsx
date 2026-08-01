@@ -28,7 +28,6 @@ export const LoginCreator = ({ setRfLogin, userInfor, visible, setVisible }) => 
     const [phoneNumber, setPhoneNumber] = useState('');
     const [mail, setMail] = useState('');
     const [facebookLink, setFacebookLink] = useState('');
-    const [referralCode, setReferralCode] = useState('');
     const [namePass, setNamePass] = useState("")
     const [phonePass, setPhonePass] = useState("")
     const [statusLogin, setStatusLogin] = useState(false);
@@ -135,7 +134,6 @@ export const LoginCreator = ({ setRfLogin, userInfor, visible, setVisible }) => 
                 username: regUsername,
                 mail: mail,
                 password: regPassword,
-                referral_code: referralCode,
             });
             setModalRe(true);
             setPassword('');
@@ -146,7 +144,6 @@ export const LoginCreator = ({ setRfLogin, userInfor, visible, setVisible }) => 
             setPhoneNumber('');
             setMail('');
             setFacebookLink('');
-            setReferralCode('');
         } catch (error) {
             console.error("Lỗi khi đăng ký:", error);
             toast.error(
@@ -413,17 +410,6 @@ export const LoginCreator = ({ setRfLogin, userInfor, visible, setVisible }) => 
                                 value={facebookLink}
                                 onChange={(e) => setFacebookLink(e.target.value)}
                                 placeholder="Link Facebook của bạn"
-                                className="zaloc-input"
-                            />
-                        </div>
-                        <div className="field-group">
-                            <label htmlFor="referral-code" className="zaloc-label">Mã giới thiệu ( nếu có )</label>
-                            <InputText
-                                id="referral-code"
-                                onKeyDown={handleKeyDown}
-                                value={referralCode}
-                                onChange={(e) => setReferralCode(e.target.value)}
-                                placeholder="Mã giới thiệu "
                                 className="zaloc-input"
                             />
                         </div>

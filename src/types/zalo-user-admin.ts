@@ -90,8 +90,6 @@ export interface CreateManagedUserPayload {
   chatbot_limit?: number;
   chatbot_expiration_date?: string;
   employee_expiration_date?: string;
-  is_pro?: boolean;
-  coin_balance?: number;
 }
 
 export interface EditManagedUserPayload {

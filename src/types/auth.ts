@@ -8,7 +8,6 @@ export interface ApiUserProfile {
   phone_number?: string;
   facebook_link?: string;
   expiration_date?: string | null;
-  coin_balance?: number;
   account_count?: number;
   account_limit?: number;
   employee_limit?: number;
@@ -30,7 +29,6 @@ export interface AuthUser {
   name: string;
   phone?: string;
   facebookLink?: string;
-  coinBalance?: number;
   expirationDate?: string | null;
   accountCount?: number;
   accountLimit?: number;
@@ -76,8 +74,6 @@ export interface RegisterPayload {
   mail: string;
   phone_number: string;
   facebook_link?: string;
-  referral_code?: string;
-  is_pro?: boolean;
 }
 
 export interface RegisterResponse {

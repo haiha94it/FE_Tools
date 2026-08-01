@@ -7,5 +7,4 @@ export const STORAGE_KEYS = {
   CARE_ACCESS_TOKEN: "access_care",
   /** Giữ đúng key cũ từ MANAGE_CN (typo refesh) */
   CARE_REFRESH_TOKEN: "refesh_care",
-  REFERRAL_CODE: "ref_code_care",
 } as const;

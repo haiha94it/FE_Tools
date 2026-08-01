@@ -1,4 +1,4 @@
-import { API_AUTH, API_BASE_URL, API_ZALO_USER_ADMIN } from "@/config/api";
+import { API_AUTH, API_ZALO_USER_ADMIN } from "@/config/api";
 import api, { clearTokens, getRefreshToken, updateTokens } from "@/lib/axios";
 import { clearCareTokens, updateCareTokens } from "@/lib/care-axios";
 import { mapApiUser } from "@/lib/map-auth-user";
@@ -14,10 +14,6 @@ import type {
   ResetPasswordPayload,
   ResetPasswordResponse,
 } from "@/types/auth";
-
-function resolveIsPro(): boolean {
-  return !API_BASE_URL.includes("care.chotnhanh.vn");
-}
 
 export const authService = {
   async login(payload: LoginPayload): Promise<LoginResponse> {
@@ -77,10 +73,7 @@ export const authService = {
   async register(payload: RegisterPayload): Promise<RegisterResponse> {
     const response = await api.post<RegisterResponse | null>(
       API_AUTH.REGISTER,
-      {
-        ...payload,
-        is_pro: payload.is_pro ?? resolveIsPro(),
-      },
+      payload,
     );
     return {
       ...(response.data ?? {}),

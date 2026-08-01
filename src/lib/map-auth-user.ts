@@ -45,7 +45,6 @@ export function mapApiUser(profile: ApiUserProfile): AuthUser {
     name: profile.fullname ?? profile.full_name ?? profile.username,
     phone: profile.phone_number,
     facebookLink: profile.facebook_link,
-    coinBalance: profile.coin_balance,
     expirationDate: profile.expiration_date,
     accountCount: profile.account_count,
     accountLimit: profile.account_limit,

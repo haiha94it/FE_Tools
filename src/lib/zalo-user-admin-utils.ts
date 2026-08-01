@@ -21,9 +21,7 @@ export const USER_PERMISSION_CREATE_OPTIONS = USER_PERMISSION_OPTIONS.filter(
 export const EXPORT_PERMISSION_OPTIONS = [
   { label: "Người dùng", value: "is_manager" },
   { label: "Khách hàng đại lý", value: "is_ai" },
-  { label: "AIZL", value: "is_pro" },
   { label: "Dùng thử", value: "is_trial" },
-  { label: "Dùng thử AIZL", value: "is_pro_trial" },
   { label: "Khách hàng đại lý dùng thử", value: "is_ai_trial" },
 ];
 
