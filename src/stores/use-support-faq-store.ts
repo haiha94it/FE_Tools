@@ -29,6 +29,13 @@ interface SupportFaqState {
   deleteFaq: (id: number) => Promise<void>;
   clearFaqs: () => Promise<number>;
   exportText: () => Promise<string>;
+  exportCsv: () => Promise<string>;
+  importFaqs: (
+    items: SupportFaqCreatePayload[],
+  ) => Promise<{
+    created_count: number;
+    errors: Array<{ index?: number; error?: string; errors?: unknown }>;
+  }>;
   syncEmbeddings: () => Promise<number>;
   fetchMedia: () => Promise<void>;
   uploadMedia: (file: File) => Promise<SupportMedia>;
@@ -126,6 +133,21 @@ export const useSupportFaqStore = create<SupportFaqState>((set, get) => ({
   },
 
   exportText: async () => supportChatbotService.exportFaqsText(),
+
+  exportCsv: async () => supportChatbotService.exportFaqsCsv(),
+
+  importFaqs: async (items) => {
+    set({ saving: true });
+    try {
+      const result = await supportChatbotService.importFaqs(items);
+      await get().fetchFaqs({ silent: true });
+      set({ saving: false });
+      return result;
+    } catch (err) {
+      set({ saving: false });
+      throw err;
+    }
+  },
 
   syncEmbeddings: async () => {
     set({ saving: true });

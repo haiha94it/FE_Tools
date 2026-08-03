@@ -2,9 +2,11 @@
 
 import Button from "@/components/ui/button/Button";
 import { useSupportChatStore } from "@/stores/use-support-chat-store";
+import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
-import { FiCpu, FiRefreshCw, FiSend, FiUser } from "react-icons/fi";
+import { FiRefreshCw, FiSend, FiUser } from "react-icons/fi";
 import SupportImageLightbox from "./SupportImageLightbox";
+import { SUPPORT_BOT_AVATAR_SRC } from "./support-bot-avatar";
 
 interface SupportChatPanelProps {
   /** Compact height for floating widget */
@@ -70,9 +72,15 @@ export default function SupportChatPanel({
               }`}
             >
               {isBot ? (
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-600 dark:bg-brand-500/15 dark:text-brand-400">
-                  <FiCpu size={14} />
-                </div>
+                <span className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full ring-1 ring-brand-200 dark:ring-brand-500/40">
+                  <Image
+                    src={SUPPORT_BOT_AVATAR_SRC}
+                    alt=""
+                    fill
+                    sizes="32px"
+                    className="object-cover"
+                  />
+                </span>
               ) : null}
               <div className="max-w-[80%] min-w-0">
                 {msg.text ? (
@@ -125,9 +133,15 @@ export default function SupportChatPanel({
         })}
         {sending ? (
           <div className="flex items-start gap-2">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-600 dark:bg-brand-500/15 dark:text-brand-400">
-              <FiCpu size={14} />
-            </div>
+            <span className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full ring-1 ring-brand-200 dark:ring-brand-500/40">
+              <Image
+                src={SUPPORT_BOT_AVATAR_SRC}
+                alt=""
+                fill
+                sizes="32px"
+                className="object-cover"
+              />
+            </span>
             <div className="flex items-center gap-1 rounded-2xl rounded-tl-none border border-gray-200 bg-white px-4 py-3 dark:border-gray-700 dark:bg-gray-800">
               <span
                 className="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-400"

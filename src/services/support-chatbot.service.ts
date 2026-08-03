@@ -111,9 +111,45 @@ export const supportChatbotService = {
   },
 
   async exportFaqsText(): Promise<string> {
-    const response = await api.get(API_SUPPORT_CHATBOT.FAQ_EXPORT);
+    const response = await api.get(API_SUPPORT_CHATBOT.FAQ_EXPORT, {
+      params: { format: "txt" },
+    });
     const data = response.data as { text?: string } | undefined;
     return data?.text ?? "";
+  },
+
+  /** Excel-compatible CSV (cột Câu hỏi, Câu trả lời — giống chatbot). */
+  async exportFaqsCsv(): Promise<string> {
+    const response = await api.get(API_SUPPORT_CHATBOT.FAQ_EXPORT, {
+      params: { format: "csv" },
+    });
+    const data = response.data as { csv?: string; text?: string } | undefined;
+    return data?.csv ?? data?.text ?? "";
+  },
+
+  async importFaqs(
+    items: SupportFaqCreatePayload[],
+  ): Promise<{
+    created_count: number;
+    errors: Array<{ index?: number; error?: string; errors?: unknown }>;
+  }> {
+    const body = items.map((item) => ({
+      question: item.question,
+      answer: item.answer ?? "",
+      is_active: item.is_active !== false,
+      media_ids: item.media_ids,
+    }));
+    const response = await api.post(API_SUPPORT_CHATBOT.FAQ_BULK, body);
+    const data = response.data as
+      | {
+          created_count?: number;
+          errors?: Array<{ index?: number; error?: string; errors?: unknown }>;
+        }
+      | undefined;
+    return {
+      created_count: data?.created_count ?? 0,
+      errors: data?.errors ?? [],
+    };
   },
 
   async syncEmbeddings(ids?: number[]): Promise<number> {

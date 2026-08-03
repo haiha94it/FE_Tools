@@ -4,6 +4,7 @@ import SupportEditorsSection from "@/components/support-chatbot/SupportEditorsSe
 import SupportFaqFormModal, {
   type SupportFaqFormValues,
 } from "@/components/support-chatbot/SupportFaqFormModal";
+import ImportSupportFaqModal from "@/components/support-chatbot/ImportSupportFaqModal";
 import SupportMissQueriesSection from "@/components/support-chatbot/SupportMissQueriesSection";
 import Badge from "@/components/ui/badge/Badge";
 import Button from "@/components/ui/button/Button";
@@ -12,15 +13,17 @@ import { confirm } from "@/lib/confirm";
 import { canAccessAdminSettings } from "@/lib/map-auth-user";
 import { useAuthStore } from "@/stores/use-auth-store";
 import { getApiErrorMessage } from "@/lib/errors";
+import { triggerDownload } from "@/lib/support-faq-io";
 import { toast } from "@/lib/toast";
 import { useSupportFaqStore } from "@/stores/use-support-faq-store";
 import type { SupportFaq } from "@/types/support-chatbot";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   FiDownload,
   FiEdit2,
   FiPlus,
   FiTrash2,
+  FiUpload,
 } from "react-icons/fi";
 
 export default function SupportBotSettingsPanel() {
@@ -46,11 +49,15 @@ export default function SupportBotSettingsPanel() {
   const deleteFaq = useSupportFaqStore((s) => s.deleteFaq);
   const clearFaqs = useSupportFaqStore((s) => s.clearFaqs);
   const exportText = useSupportFaqStore((s) => s.exportText);
+  const exportCsv = useSupportFaqStore((s) => s.exportCsv);
   const uploadMedia = useSupportFaqStore((s) => s.uploadMedia);
 
   const [formOpen, setFormOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const [editing, setEditing] = useState<SupportFaq | null>(null);
   const [searchInput, setSearchInput] = useState(search);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     void fetchMedia();
@@ -125,17 +132,49 @@ export default function SupportBotSettingsPanel() {
     }
   };
 
-  const handleExport = async () => {
+  useEffect(() => {
+    if (!exportMenuOpen) return undefined;
+    const onDocClick = (e: MouseEvent) => {
+      if (
+        exportMenuRef.current &&
+        !exportMenuRef.current.contains(e.target as Node)
+      ) {
+        setExportMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [exportMenuOpen]);
+
+  const handleExportTxt = async () => {
+    setExportMenuOpen(false);
     try {
       const text = await exportText();
-      const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "support-faq-export.txt";
-      a.click();
-      URL.revokeObjectURL(url);
+      if (!text.trim()) {
+        toast.error("Chưa có FAQ để xuất.");
+        return;
+      }
+      triggerDownload(text, "support-faq-export.txt", "text/plain;charset=utf-8");
       toast.success("Đã xuất file TXT.");
+    } catch (err) {
+      toast.error(getApiErrorMessage(err));
+    }
+  };
+
+  const handleExportExcel = async () => {
+    setExportMenuOpen(false);
+    try {
+      const csv = await exportCsv();
+      if (!csv.trim()) {
+        toast.error("Chưa có FAQ để xuất.");
+        return;
+      }
+      triggerDownload(
+        `\uFEFF${csv}`,
+        "support-faq-export.csv",
+        "text/csv;charset=utf-8;",
+      );
+      toast.success("Đã xuất file Excel (.csv).");
     } catch (err) {
       toast.error(getApiErrorMessage(err));
     }
@@ -149,11 +188,6 @@ export default function SupportBotSettingsPanel() {
         <h3 className="text-base font-semibold text-gray-900 dark:text-white">
           Setup bot hỏi đáp CSKH
         </h3>
-        <p className="mt-1 max-w-2xl text-sm text-gray-500 dark:text-gray-400">
-          Cấu hình câu hỏi – câu trả lời cho <strong>con trợ lý HDSD</strong>{" "}
-          (nút <strong>AI</strong> góc phải màn hình). User click AI → popup
-          «Trợ lý riêng của bạn» → bot trả lời theo FAQ bên dưới.
-        </p>
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
@@ -172,12 +206,41 @@ export default function SupportBotSettingsPanel() {
           <Button
             size="sm"
             variant="outline"
-            onClick={() => void handleExport()}
+            onClick={() => setImportOpen(true)}
             disabled={saving}
           >
-            <FiDownload className="mr-1" size={14} />
-            Export
+            <FiUpload className="mr-1" size={14} />
+            Import
           </Button>
+          <div className="relative" ref={exportMenuRef}>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setExportMenuOpen((v) => !v)}
+              disabled={saving}
+            >
+              <FiDownload className="mr-1" size={14} />
+              Export
+            </Button>
+            {exportMenuOpen ? (
+              <div className="absolute right-0 z-20 mt-1 min-w-[10.5rem] overflow-hidden rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-700 dark:bg-gray-900">
+                <button
+                  type="button"
+                  className="block w-full px-3 py-2 text-left text-xs font-medium text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-white/5"
+                  onClick={() => void handleExportExcel()}
+                >
+                  Excel (.csv)
+                </button>
+                <button
+                  type="button"
+                  className="block w-full px-3 py-2 text-left text-xs font-medium text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-white/5"
+                  onClick={() => void handleExportTxt()}
+                >
+                  Text (.txt)
+                </button>
+              </div>
+            ) : null}
+          </div>
           <Button
             size="sm"
             variant="outline"
@@ -218,7 +281,7 @@ export default function SupportBotSettingsPanel() {
               ) : faqs.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-3 py-8 text-center text-gray-500">
-                    Chưa có FAQ. Bấm «Thêm FAQ» để tạo kịch bản đầu tiên.
+                    Chưa có FAQ.
                   </td>
                 </tr>
               ) : (
@@ -322,6 +385,11 @@ export default function SupportBotSettingsPanel() {
         }}
         onSubmit={(v) => void handleSubmit(v)}
         onUploadMedia={uploadMedia}
+      />
+
+      <ImportSupportFaqModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
       />
     </div>
   );

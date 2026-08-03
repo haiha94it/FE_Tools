@@ -47,7 +47,6 @@ export default function SupportFaqFormModal({
 }: SupportFaqFormModalProps) {
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
-  const [isActive, setIsActive] = useState(true);
   const [mediaIds, setMediaIds] = useState<number[]>([]);
   const [uploading, setUploading] = useState(false);
 
@@ -55,7 +54,6 @@ export default function SupportFaqFormModal({
     if (!isOpen) return;
     setQuestion(initial?.question ?? "");
     setAnswer(initial?.answer ?? "");
-    setIsActive(initial?.is_active !== false);
     setMediaIds(initialMediaIds(initial));
   }, [isOpen, initial]);
 
@@ -81,7 +79,7 @@ export default function SupportFaqFormModal({
     onSubmit({
       question: q,
       answer: answer.trim(),
-      is_active: isActive,
+      is_active: true,
       media_ids: mediaIds,
     });
   };
@@ -115,16 +113,6 @@ export default function SupportFaqFormModal({
               className="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-sm text-gray-800 shadow-theme-xs focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
             />
           </div>
-
-          <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-            <input
-              type="checkbox"
-              checked={isActive}
-              onChange={(e) => setIsActive(e.target.checked)}
-              className="rounded border-gray-300 text-brand-500 focus:ring-brand-500"
-            />
-            FAQ đang bật
-          </label>
 
           <SupportMediaPicker
             media={media}

@@ -206,7 +206,7 @@ export default function SupportMissQueriesSection() {
               ) : items.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-3 py-6 text-center text-gray-500">
-                    Chưa có câu hỏi miss.
+                    Chưa có câu hỏi.
                   </td>
                 </tr>
               ) : (

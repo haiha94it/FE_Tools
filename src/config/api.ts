@@ -423,6 +423,7 @@ export const CHATBOTS_BASE = "/chatbots";
 /** Bot hỏi đáp CSKH — portable support_chatbot app */
 export const API_SUPPORT_CHATBOT = {
   FAQS: "/api/support-chatbot/faqs",
+  FAQ_BULK: "/api/support-chatbot/faqs/bulk",
   FAQ_DETAIL: (id: number | string) => `/api/support-chatbot/faqs/${id}`,
   FAQ_CLEAR: "/api/support-chatbot/faqs/clear",
   FAQ_EXPORT: "/api/support-chatbot/faqs/export",
