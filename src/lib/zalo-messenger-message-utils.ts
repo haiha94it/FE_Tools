@@ -554,7 +554,12 @@ export function normalizeIncomingMessage(raw: RawZaloMessage): DisplayMessage {
       : Array.isArray(raw.mention)
         ? (raw.mention as DisplayMessage["mentions"])
         : undefined,
-    sent_by: raw.sent_by ?? undefined,
+    ...(Object.prototype.hasOwnProperty.call(raw, "sent_by")
+      ? { sent_by: raw.sent_by ?? null }
+      : {}),
+    ...(Object.prototype.hasOwnProperty.call(raw, "sender_type")
+      ? { sender_type: raw.sender_type === "chatbot" ? "chatbot" : null }
+      : {}),
   };
 
   const msgType = raw.msgType ?? "webchat";
@@ -938,7 +943,6 @@ export function getMessagePreviewSummary(message: DisplayMessage): string {
 }
 
 export function hasVisibleContent(message: DisplayMessage): boolean {
-  if (message._optimistic) return true;
   if (message.recalled) return true;
   if (getMessageText(message)) return true;
   if (

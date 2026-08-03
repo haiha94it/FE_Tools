@@ -1,5 +1,6 @@
 "use client";
 
+import { takeFailedPendingComposerSend } from "@/hooks/use-messenger-send";
 import { toast } from "@/lib/toast";
 import {
   filterMessageDetailsForAccount,
@@ -50,6 +51,21 @@ function isMessageAck(
   return payload.type === "message_ack";
 }
 
+function messageAckError(payload: MessageAckPayload): string {
+  if (typeof payload.message === "string" && payload.message.trim()) {
+    return payload.message;
+  }
+  if (typeof payload.error === "string" && payload.error.trim()) {
+    return payload.error;
+  }
+  const result = payload.result;
+  if (result && typeof result === "object") {
+    const message = (result as { message?: unknown }).message;
+    if (typeof message === "string" && message.trim()) return message;
+  }
+  return "Không gửi được tin nhắn.";
+}
+
 function isVoiceCallResult(
   payload: WsMessagePayload,
 ): payload is VoiceCallResultPayload & WsMessagePayload {
@@ -62,6 +78,7 @@ function isWsActionMessage(
   return payload.type === "message" && typeof payload.command === "string";
 }
 
+/** Nhận realtime chat, scope theo nick và dọn subscription/timer khi unmount. */
 export function useMessengerWs() {
   const subscribe = useWebSocketStore((s) => s.subscribe);
   const pendingActivityRef = useRef<Map<number, PendingAccountActivity>>(
@@ -90,16 +107,26 @@ export function useMessengerWs() {
       patch: PendingAccountActivity,
     ) => {
       const prev = pendingActivityRef.current.get(accountId);
-      const nextTs =
-        patch.ts != null && (prev?.ts == null || patch.ts >= prev.ts)
-          ? patch.ts
-          : (prev?.ts ?? patch.ts ?? null);
+      const patchIsNewer =
+        patch.ts != null && (prev?.ts == null || patch.ts > prev.ts);
+      const sameActivity =
+        patch.ts != null && prev?.ts != null && patch.ts === prev.ts;
+      const nextTs = patchIsNewer
+        ? patch.ts
+        : (prev?.ts ?? patch.ts ?? null);
+      let hasUnread = prev?.hasUnread;
+      if (!prev || patchIsNewer || prev.ts == null) {
+        hasUnread = patch.hasUnread;
+      } else if (sameActivity && patch.hasUnread !== undefined) {
+        // Cùng activity: mark-read xảy ra sau inbound nên false phải thắng frame true trễ.
+        hasUnread =
+          prev.hasUnread === false || patch.hasUnread === false
+            ? false
+            : patch.hasUnread;
+      }
       pendingActivityRef.current.set(accountId, {
         ts: nextTs,
-        hasUnread:
-          patch.hasUnread !== undefined
-            ? patch.hasUnread
-            : prev?.hasUnread,
+        hasUnread,
       });
       if (activityTimerRef.current != null) return;
       activityTimerRef.current = setTimeout(
@@ -112,7 +139,6 @@ export function useMessengerWs() {
       const {
         mergeConversations,
         appendLiveMessages,
-        handleMessageAck,
         resetConversationUnread,
         selectedAccountId,
         activeConversation,
@@ -184,6 +210,7 @@ export function useMessengerWs() {
           const activityTs = resolveAccountActivityTsFromGlobalUpdate({
             message_details: messageDetails,
             conversations,
+            account: payload.account,
           });
           scheduleAccountActivity(wsAccountId, {
             ts: activityTs ?? Date.now(),
@@ -211,8 +238,30 @@ export function useMessengerWs() {
         return;
       }
 
-      if (isMessageAck(payload) && payload.clientMsgId) {
-        handleMessageAck(payload.clientMsgId, payload.success !== false);
+      if (isMessageAck(payload)) {
+        if (payload.success !== false || !payload.clientMsgId) return;
+        const pending = takeFailedPendingComposerSend(payload.clientMsgId);
+        if (!pending) return;
+
+        const store = useZaloMessengerStore.getState();
+        const canRestore =
+          pending.composerText != null &&
+          store.selectedAccountId === pending.accountId &&
+          store.activeConversationId === pending.conversationId &&
+          !store.composerText.trim() &&
+          store.attachmentDrafts.length === 0 &&
+          store.quoteMessage == null;
+        if (canRestore) {
+          useZaloMessengerStore.setState({
+            composerText: pending.composerText ?? "",
+            quoteMessage: pending.quoteMessage,
+          });
+        }
+        toast.error(
+          `${messageAckError(payload)}${
+            canRestore ? " Nội dung đã được khôi phục để gửi lại." : ""
+          }`,
+        );
         return;
       }
 

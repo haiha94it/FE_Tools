@@ -52,15 +52,6 @@ function InfoRow({ icon, label, children }: InfoRowProps) {
   );
 }
 
-function statusBadge(
-  status: DisplayMessage["_status"],
-): { label: string; color: "warning" | "error" | "success" } | null {
-  if (status === "sending") return { label: "Đang gửi", color: "warning" };
-  if (status === "failed") return { label: "Gửi thất bại", color: "error" };
-  if (status === "sent") return { label: "Đã gửi", color: "success" };
-  return null;
-}
-
 function MessageDetailDialog({
   open,
   message,
@@ -74,19 +65,22 @@ function MessageDetailDialog({
     const kind = getMessageKindLabel(message);
     const preview = getMessagePreviewSummary(message);
     const sentBy = message.sent_by;
-    const status = statusBadge(message._status);
-
+    const chatbotReply = own && message.sender_type === "chatbot";
     return {
       text,
       kind,
       preview,
       sentBy,
-      status,
+      chatbotReply,
       time: formatMessageDetailTime(message.ts),
-      operatorName: sentBy ? formatSentByLabel(sentBy) : "",
-      operatorUsername: sentBy?.username?.trim() ?? "",
+      operatorName: chatbotReply
+        ? "Chatbot trả lời"
+        : sentBy
+          ? formatSentByLabel(sentBy)
+          : "",
+      operatorUsername: chatbotReply ? "" : (sentBy?.username?.trim() ?? ""),
     };
-  }, [message]);
+  }, [message, own]);
 
   if (!open || !message || !detail) return null;
 
@@ -142,13 +136,8 @@ function MessageDetailDialog({
               )
             }
           >
-            {own ? "Bạn gửi" : "Khách gửi"}
+            {own ? "Tin đã gửi" : "Khách gửi"}
           </Badge>
-          {detail.status ? (
-            <Badge size="sm" color={detail.status.color}>
-              {detail.status.label}
-            </Badge>
-          ) : null}
           <Badge size="sm" color="light">
             {detail.kind}
           </Badge>
@@ -169,7 +158,7 @@ function MessageDetailDialog({
             {detail.kind}
           </InfoRow>
 
-          {detail.sentBy ? (
+          {detail.chatbotReply || detail.sentBy ? (
             <InfoRow
               icon={<HiOutlineUserCircle className="h-4 w-4" aria-hidden />}
               label="Người thao tác"

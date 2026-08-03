@@ -148,7 +148,6 @@ function MessengerConversationColumn({
     if (!selectedAccountId) return;
     try {
       await markAllConversationsRead(selectedAccountId);
-      await fetchConversations(selectedAccountId, { page: 1 });
       toast.success("Đã đánh dấu đọc tất cả hội thoại.");
     } catch {
       toast.error("Không cập nhật được trạng thái đọc.");

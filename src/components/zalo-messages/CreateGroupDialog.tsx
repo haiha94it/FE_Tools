@@ -16,7 +16,15 @@ import {
 import { toast } from "@/lib/toast";
 import { useZaloMessengerStore } from "@/stores/use-zalo-messenger-store";
 import type { ZaloFriendItem } from "@/types/zalo-contacts";
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 interface CreateGroupDialogProps {
   open: boolean;
@@ -52,6 +60,8 @@ function CreateGroupDialog({
   const loadingMoreRef = useRef(false);
   const userHasScrolledRef = useRef(false);
   const allowLoadAtBottomRef = useRef(true);
+  const dialogGenerationRef = useRef(0);
+  const searchGenerationRef = useRef(0);
 
   const resetState = useCallback(() => {
     setGroupName("");
@@ -69,13 +79,37 @@ function CreateGroupDialog({
     allowLoadAtBottomRef.current = true;
   }, []);
 
+  useLayoutEffect(() => {
+    const pendingGeneration = ++dialogGenerationRef.current;
+    searchGenerationRef.current += 1;
+    queueMicrotask(() => {
+      if (pendingGeneration !== dialogGenerationRef.current) return;
+      dialogGenerationRef.current += 1;
+      searchGenerationRef.current += 1;
+      resetState();
+    });
+    return () => {
+      dialogGenerationRef.current += 1;
+      searchGenerationRef.current += 1;
+    };
+  }, [accountId, open, resetState]);
+
   const handleClose = useCallback(() => {
+    dialogGenerationRef.current += 1;
+    searchGenerationRef.current += 1;
     resetState();
     onClose();
   }, [onClose, resetState]);
 
   const loadFriends = useCallback(
     async (search: string, page = 1, append = false) => {
+      const dialogGeneration = dialogGenerationRef.current;
+      const searchGeneration = searchGenerationRef.current;
+      const isCurrent = () =>
+        dialogGeneration === dialogGenerationRef.current &&
+        searchGeneration === searchGenerationRef.current;
+      if (!open) return;
+
       if (append) {
         if (loadingMoreRef.current) return;
         loadingMoreRef.current = true;
@@ -89,7 +123,11 @@ function CreateGroupDialog({
       }
 
       try {
-        const result = await fetchFriendsForCreateGroup(accountId, { search, page });
+        const result = await fetchFriendsForCreateGroup(accountId, {
+          search,
+          page,
+        });
+        if (!isCurrent()) return;
         const selectable = filterFriendsForCreateGroup(result.results ?? []);
         setFriends((current) =>
           append ? [...current, ...selectable] : selectable,
@@ -97,12 +135,14 @@ function CreateGroupDialog({
         currentPageRef.current = page;
         setHasMoreFriends(hasMoreFriendPages(result.next));
       } catch {
+        if (!isCurrent()) return;
         if (!append) {
           setFriends([]);
           setHasMoreFriends(false);
         }
         toast.error("Không tải được danh sách bạn bè.");
       } finally {
+        if (!isCurrent()) return;
         if (append) {
           loadingMoreRef.current = false;
           setLoadingMore(false);
@@ -111,7 +151,7 @@ function CreateGroupDialog({
         }
       }
     },
-    [accountId, fetchFriendsForCreateGroup],
+    [accountId, fetchFriendsForCreateGroup, open],
   );
 
   useEffect(() => {
@@ -178,6 +218,7 @@ function CreateGroupDialog({
       return;
     }
 
+    const dialogGeneration = dialogGenerationRef.current;
     setCreating(true);
     try {
       const result = await createZaloGroup({
@@ -185,6 +226,7 @@ function CreateGroupDialog({
         accountId,
         memberUids,
       });
+      if (dialogGeneration !== dialogGenerationRef.current) return;
       if (!result.ok) {
         toast.error(result.message || "Tạo nhóm thất bại.");
         return;
@@ -193,8 +235,20 @@ function CreateGroupDialog({
       onCreated(result.conversationId);
       handleClose();
     } finally {
-      setCreating(false);
+      if (dialogGeneration === dialogGenerationRef.current) {
+        setCreating(false);
+      }
     }
+  };
+
+  const handleSearchChange = (value: string) => {
+    searchGenerationRef.current += 1;
+    loadingMoreRef.current = false;
+    currentPageRef.current = 1;
+    setHasMoreFriends(false);
+    setLoadingFriends(false);
+    setLoadingMore(false);
+    setSearchQuery(value);
   };
 
   return (
@@ -233,7 +287,7 @@ function CreateGroupDialog({
             type="text"
             value={searchQuery}
             placeholder="Tìm bạn bè..."
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => handleSearchChange(e.target.value)}
           />
 
           <div

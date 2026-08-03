@@ -17,7 +17,9 @@ export function serializeWsChatCommand(
 
   if (!commandType) return payload;
 
-  const { chat_type: _chatType, command: _command, ...rest } = payload;
+  const rest = { ...payload };
+  delete rest.chat_type;
+  delete rest.command;
   return { type: commandType, ...rest };
 }
 
@@ -57,7 +59,7 @@ export type ReactionWsBuildResult =
 
 /**
  * Reaction nhóm: `grid` = conversation.group.uid (Zalo groupId).
- * Không dùng globalId / PK DB. msgId/cliMsgId từ raw message — không clientMsgId optimistic.
+ * Không dùng globalId / PK DB. msgId/cliMsgId lấy từ tin Zalo đã lưu.
  */
 export function buildReactionWsPayload(options: {
   accountId: number;
@@ -69,13 +71,6 @@ export function buildReactionWsPayload(options: {
 
   if (!Number.isInteger(reactionId) || reactionId < 0 || reactionId > 5) {
     return { ok: false, reason: "Cảm xúc không hợp lệ." };
-  }
-
-  if (message._optimistic) {
-    return {
-      ok: false,
-      reason: "Chờ tin nhắn gửi xong rồi mới thả cảm xúc.",
-    };
   }
 
   const msgId = toZaloIdString(message.msgId);
