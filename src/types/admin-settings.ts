@@ -62,4 +62,5 @@ export type AdminSettingsTabKey =
   | "logo"
   | "register"
   | "first-login"
-  | "decree";
+  | "decree"
+  | "support-bot";

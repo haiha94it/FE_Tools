@@ -8,6 +8,7 @@ import {
   type NavItemConfig,
   type NavRole,
 } from "@/config/navigation";
+import { canAccessSupportBotSetup } from "@/lib/map-auth-user";
 import {
   canManageTeam,
   filterNavItemsForTeam,
@@ -28,6 +29,7 @@ function userHasNavRole(
     isAdmin?: boolean;
     isSaler?: boolean;
     isSaleManager?: boolean;
+    isSupporter?: boolean;
   } | null,
 ): boolean {
   if (!roles?.length) return true;
@@ -36,6 +38,7 @@ function userHasNavRole(
     if (role === "admin") return Boolean(user.isAdmin);
     if (role === "saler") return Boolean(user.isSaler);
     if (role === "sale_manager") return Boolean(user.isSaleManager);
+    if (role === "supporter") return Boolean(user.isSupporter);
     return false;
   });
 }
@@ -47,13 +50,26 @@ const AppSidebar: React.FC = () => {
   const campaignPermissions = useTeamCollaborationStore((s) => s.campaignPermissions);
 
   const navItems = React.useMemo(() => {
-    const roleFiltered = mainNavItems.filter((item) => {
-      if (item.hidden) return false;
-      if (!userHasNavRole(item.roles, user)) return false;
-      if (item.managerOnly && !canManageTeam(user)) return false;
-      if (item.hideForEmployee && user?.isEmployee) return false;
-      return true;
-    });
+    const roleFiltered = mainNavItems
+      .map((item) => {
+        if (item.hidden) return null;
+        if (!userHasNavRole(item.roles, user)) return null;
+        if (item.managerOnly && !canManageTeam(user)) return null;
+        if (item.hideForEmployee && user?.isEmployee) return null;
+
+        if (item.subItems?.length) {
+          const subItems = item.subItems.filter((sub) => {
+            if (sub.requireSupportBotAccess) {
+              return canAccessSupportBotSetup(user);
+            }
+            return userHasNavRole(sub.roles, user);
+          });
+          if (!subItems.length) return null;
+          return { ...item, subItems };
+        }
+        return item;
+      })
+      .filter((item): item is (typeof mainNavItems)[number] => item != null);
     return filterNavItemsForTeam(roleFiltered, user, campaignPermissions);
   }, [user, campaignPermissions]);
   const othersItems = React.useMemo(
@@ -193,7 +209,11 @@ const AppSidebar: React.FC = () => {
               >
                 <ul className="mt-2 ml-12 space-y-1 border-l border-gray-100 pl-3 dark:border-gray-800">
                   {nav.subItems
-                    .filter((subItem) => userHasNavRole(subItem.roles, user))
+                    .filter((subItem) =>
+                      subItem.requireSupportBotAccess
+                        ? canAccessSupportBotSetup(user)
+                        : userHasNavRole(subItem.roles, user),
+                    )
                     .map((subItem) => (
                     <li key={subItem.name}>
                       <Link

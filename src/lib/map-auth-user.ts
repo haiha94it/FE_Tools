@@ -1,10 +1,27 @@
 import type { ApiUserProfile, AuthUser } from "@/types/auth";
 
-/** Chỉ super admin — trang Cài đặt hệ thống (/admin/settings) */
+/** Full Cài đặt hệ thống (mọi tab) — admin/superuser */
 export function canAccessAdminSettings(
   user: Pick<AuthUser, "isAdmin"> | null | undefined,
 ): boolean {
   return Boolean(user?.isAdmin);
+}
+
+/**
+ * Setup bot hỏi đáp CSKH — admin hoặc user đã được gán editor
+ * (`can_manage_support_faq` từ /me). Role supporter/saler alone không đủ.
+ */
+export function canAccessSupportBotSetup(
+  user: Pick<AuthUser, "isAdmin" | "canManageSupportFaq"> | null | undefined,
+): boolean {
+  return Boolean(user?.isAdmin || user?.canManageSupportFaq);
+}
+
+/** Vào /admin/settings: admin (full) hoặc editor bot (chỉ tab bot) */
+export function canAccessAdminSettingsPage(
+  user: Pick<AuthUser, "isAdmin" | "canManageSupportFaq"> | null | undefined,
+): boolean {
+  return canAccessAdminSettings(user) || canAccessSupportBotSetup(user);
 }
 
 /**
@@ -57,6 +74,12 @@ export function mapApiUser(profile: ApiUserProfile): AuthUser {
     isManager: profile.is_manager,
     isEmployee: profile.is_employee,
     isDeveloper: profile.is_developer,
+    isSupporter: Boolean(profile.is_supporter),
+    canManageSupportFaq: Boolean(
+      profile.can_manage_support_faq ||
+        profile.is_admin ||
+        profile.is_superuser,
+    ),
     acceptTerms: profile.accept_terms ?? false,
   };
 }
