@@ -235,7 +235,20 @@ export function RecommendedContactContent({
   );
 }
 
-/** Link mời nhóm / share link (recommened.link) — cover + title như Zalo */
+/** Bỏ URL khỏi caption — tránh hiện 2 lần (đen trong title + xanh ở href). */
+function stripUrlsFromCaption(text: string, href?: string): string {
+  let out = (text || "").trim();
+  if (!out) return "";
+  if (href) {
+    const escaped = href.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    out = out.replace(new RegExp(escaped, "gi"), " ");
+  }
+  // Mọi http(s) còn lại trong caption
+  out = out.replace(/https?:\/\/[^\s<>"']+/gi, " ");
+  return out.replace(/\s+/g, " ").trim();
+}
+
+/** Link mời nhóm / share link — text bôi chọn được; mở link qua nút Truy cập */
 export function RecommendedLinkContent({
   title,
   thumb,
@@ -258,9 +271,33 @@ export function RecommendedLinkContent({
     }
   }
 
-  const card = (
+  // title đôi khi = full msg (caption + URL) hoặc = chính href → chỉ giữ caption
+  const rawTitle = (title || "").trim();
+  const titleIsOnlyUrl =
+    Boolean(href) &&
+    (rawTitle === href ||
+      rawTitle === href?.replace(/\/$/, "") ||
+      /^https?:\/\/\S+$/i.test(rawTitle));
+  const caption = titleIsOnlyUrl
+    ? ""
+    : stripUrlsFromCaption(rawTitle, href || undefined);
+  // description OG ("Bấm vào đây...") — không hiện nếu trùng caption/url
+  const descClean = (() => {
+    const d = (description || "").trim();
+    if (!d) return "";
+    if (href && (d === href || d.includes("http"))) {
+      const stripped = stripUrlsFromCaption(d, href);
+      // desc thuần URL → ẩn; desc OG giữ nguyên nếu không phải URL
+      if (!stripped || stripped === caption) return d.startsWith("http") ? "" : d;
+    }
+    if (d === caption || d === rawTitle) return "";
+    return d;
+  })();
+
+  // Không bọc cả card bằng <a> — browser chặn select text trong link
+  return (
     <div
-      className={`w-[min(280px,100%)] overflow-hidden rounded-xl border ${
+      className={`w-[min(280px,100%)] select-text overflow-hidden rounded-xl border ${
         own
           ? "border-white/25 bg-white/10"
           : "border-gray-100 bg-white dark:border-gray-700 dark:bg-gray-900/40"
@@ -271,30 +308,35 @@ export function RecommendedLinkContent({
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={thumb}
-            alt={title || "Liên kết"}
-            className="h-full w-full object-cover"
+            alt={caption || title || "Liên kết"}
+            draggable={false}
+            className="pointer-events-none h-full w-full object-cover"
           />
-          {description ? (
-            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent px-3 pb-2.5 pt-8 text-xs font-medium text-white">
-              {description}
+          {descClean ? (
+            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent px-3 pb-2.5 pt-8 text-xs font-normal text-white select-text">
+              {descClean}
             </div>
           ) : null}
         </div>
       ) : null}
       <div className="px-3 py-2.5">
-        {title ? (
+        {caption ? (
           <p
-            className={`text-sm font-semibold leading-snug break-words ${
-              own ? "text-white" : "text-gray-900 dark:text-white"
+            className={`text-sm font-normal leading-snug break-words select-text ${
+              own ? "text-white" : "text-gray-900 dark:text-gray-100"
             }`}
           >
-            {title}
+            {caption}
           </p>
         ) : null}
         {href ? (
           <p
-            className={`mt-1 line-clamp-2 text-xs leading-snug break-all ${
-              own ? "text-white/75" : "text-gray-500 dark:text-gray-400"
+            className={`text-sm font-normal leading-snug break-all select-text ${
+              caption ? "mt-1" : ""
+            } ${
+              own
+                ? "text-sky-200"
+                : "text-blue-600 dark:text-blue-400"
             }`}
           >
             {href}
@@ -306,39 +348,29 @@ export function RecommendedLinkContent({
           }`}
         >
           <span
-            className={`min-w-0 truncate text-xs ${
-              own ? "text-white/65" : "text-gray-500 dark:text-gray-400"
+            className={`min-w-0 truncate text-xs font-normal select-text ${
+              own ? "text-white/70" : "text-gray-500 dark:text-gray-400"
             }`}
           >
             {hostname || "zalo.me"}
           </span>
           {href ? (
-            <span
-              className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium ${
+            <a
+              href={href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`shrink-0 rounded-full px-3 py-1 text-xs font-normal no-underline ${
                 own
-                  ? "bg-white/20 text-white"
-                  : "bg-brand-500 text-white dark:bg-brand-600"
+                  ? "bg-white/20 text-sky-100 hover:bg-white/30"
+                  : "bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-500"
               }`}
             >
               Truy cập
-            </span>
+            </a>
           ) : null}
         </div>
       </div>
     </div>
-  );
-
-  if (!href) return card;
-
-  return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="block max-w-full no-underline"
-    >
-      {card}
-    </a>
   );
 }
 
