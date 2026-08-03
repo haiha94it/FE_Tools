@@ -92,7 +92,7 @@ export default function LandingHeroMockup() {
 
           <div className="overflow-hidden bg-gray-950/5">
             <img
-              src="/images/logo/mockup 0.png"
+              src="/images/logo/mockup-0.png"
               alt="Bảng điều khiển CSKH tự động"
               className="w-full h-auto object-cover transition-transform duration-500"
             />
