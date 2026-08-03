@@ -8,6 +8,7 @@ import {
 import {
   convertJxlToJpg,
   filterDisplayMessages,
+  getMessageBubbleShell,
   isCenteredChatMessage,
   resolveStickerImageUrl,
 } from "@/lib/zalo-messenger-message-utils";
@@ -69,7 +70,54 @@ const MessageMediaLightbox = dynamic(() => import("./MessageMediaLightbox"), {
 });
 
 const messageTextClass =
-  "w-full min-w-0 max-w-full text-sm whitespace-pre-wrap break-words [overflow-wrap:anywhere] [word-break:break-word]";
+  "w-full min-w-0 max-w-full text-[15px] font-normal leading-[1.4] whitespace-pre-wrap break-words [overflow-wrap:anywhere] [word-break:break-word]";
+
+/** Link xanh Zalo (nền bubble sáng — gửi/nhận) */
+const ZALO_LINK = "font-normal text-[#0068FF] underline decoration-[#0068FF]/35 underline-offset-2 break-all dark:text-blue-400";
+
+/** URL trong text → xanh, bôi chọn được */
+function LinkifyText({ text }: { text: string; own?: boolean }) {
+  const urlRe = /(https?:\/\/[^\s<>"']+)/gi;
+  const nodes: ReactNode[] = [];
+  let last = 0;
+  let match: RegExpExecArray | null;
+  const re = new RegExp(urlRe.source, urlRe.flags);
+  while ((match = re.exec(text)) !== null) {
+    if (match.index > last) {
+      nodes.push(
+        <EmoticonInlineText
+          key={`t-${last}`}
+          text={text.slice(last, match.index)}
+        />,
+      );
+    }
+    const url = match[0].replace(/[.,;:!?)]+$/, "");
+    const trail = match[0].slice(url.length);
+    nodes.push(
+      <a
+        key={`u-${match.index}`}
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={ZALO_LINK}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {url}
+      </a>,
+    );
+    if (trail) {
+      nodes.push(<span key={`tr-${match.index}`}>{trail}</span>);
+    }
+    last = match.index + match[0].length;
+  }
+  if (last < text.length) {
+    nodes.push(
+      <EmoticonInlineText key={`t-${last}`} text={text.slice(last)} />,
+    );
+  }
+  if (!nodes.length) return <EmoticonInlineText text={text} />;
+  return <>{nodes}</>;
+}
 
 interface QuoteAttachmentPreview {
   imageUrl?: string;
@@ -172,7 +220,7 @@ function MentionText({
     .sort((left, right) => left.pos - right.pos);
 
   if (!validMentions.length) {
-    return <EmoticonInlineText text={text} />;
+    return <LinkifyText text={text} />;
   }
 
   const parts: ReactNode[] = [];
@@ -182,7 +230,7 @@ function MentionText({
     if (mention.pos < cursor) continue;
     if (mention.pos > cursor) {
       parts.push(
-        <EmoticonInlineText
+        <LinkifyText
           key={`pre-${mention.pos}`}
           text={text.slice(cursor, mention.pos)}
         />,
@@ -193,11 +241,7 @@ function MentionText({
     parts.push(
       <span
         key={`${mention.pos}-${mention.len}-${mention.uid ?? ""}`}
-        className={
-          own
-            ? "font-semibold text-cyan-200"
-            : "font-semibold text-brand-500 dark:text-brand-300"
-        }
+        className="font-medium text-[#0068FF] dark:text-blue-400"
       >
         {text.slice(mention.pos, end)}
       </span>,
@@ -206,19 +250,16 @@ function MentionText({
   }
 
   if (cursor < text.length) {
-    parts.push(
-      <EmoticonInlineText key="tail" text={text.slice(cursor)} />,
-    );
+    parts.push(<LinkifyText key="tail" text={text.slice(cursor)} />);
   }
   return parts;
 }
 
 function QuotePreview({
   message,
-  own,
 }: {
   message: DisplayMessage;
-  own: boolean;
+  own?: boolean;
 }) {
   const quote = message.quote?.[0];
   if (!quote) return null;
@@ -227,15 +268,10 @@ function QuotePreview({
   const quoteText =
     trimToString(quote.msg) || attachmentPreview?.text || "Tin nhắn";
 
+  // Nền bubble sáng (xanh nhạt / trắng) — quote viền xanh nhạt
   return (
-    <div
-      className={`mb-2 rounded-xl border-l-2 px-2.5 py-1.5 text-xs ${
-        own
-          ? "border-white/50 bg-white/10 text-white/90"
-          : "border-brand-400 bg-brand-50/70 text-gray-600 dark:border-brand-500/40 dark:bg-brand-500/10 dark:text-gray-300"
-      }`}
-    >
-      <p className="font-semibold opacity-80">
+    <div className="mb-2 rounded-xl border-l-2 border-[#0068FF]/50 bg-white/50 px-2.5 py-1.5 text-xs text-gray-600 dark:border-blue-400/40 dark:bg-white/5 dark:text-gray-300">
+      <p className="font-medium text-gray-700 opacity-90 dark:text-gray-200">
         {trimToString(quote.fromD) || "Trả lời"}
       </p>
       <div className="mt-1 flex min-w-0 items-center gap-2">
@@ -255,13 +291,9 @@ function QuotePreview({
   );
 }
 
-function RecalledNote({ own }: { own: boolean }) {
+function RecalledNote({ own: _own }: { own: boolean }) {
   return (
-    <p
-      className={`text-xs italic ${
-        own ? "text-white/80" : "text-gray-500 dark:text-gray-400"
-      }`}
-    >
+    <p className="text-xs italic text-gray-500 dark:text-gray-400">
       Tin nhắn đã được thu hồi
     </p>
   );
@@ -364,6 +396,7 @@ function MessageContent({
         thumb={attachment?.thumb}
         description={attachment?.description}
         href={attachment?.href}
+        linkCaption={attachment?.linkCaption}
         own={own}
       />
     );
@@ -588,6 +621,11 @@ export function MessageList({
             : "";
         const centered = isCenteredChatMessage(message);
         const isGroupMedia = message.msgType === "group.media";
+        const shell = getMessageBubbleShell(message);
+        // Tin gửi: nền xanh nhạt + chữ tối (Zalo PC) — meta luôn tone sáng
+        const ownLightBubble =
+          own && (shell === "text" || shell === "card");
+        const onLightMeta = ownLightBubble || shell === "media" || !own;
 
         return (
           <div
@@ -668,31 +706,33 @@ export function MessageList({
                   } ${own ? "max-md:ml-9" : "max-md:mr-9"}`}
                 >
                   <div
-                    className={`relative w-full min-w-0 max-w-full overflow-hidden shadow-sm ${
+                    className={`relative w-full min-w-0 max-w-full overflow-hidden text-[#081C36] dark:text-white/90 ${
                       isGroupMedia
-                        ? `w-full overflow-hidden max-md:rounded-xl max-md:border-0 max-md:p-0 max-md:shadow-none md:rounded-2xl md:border md:p-1.5 ${
-                            own
-                              ? "bg-gradient-to-br from-brand-500 to-brand-600 text-white md:border-brand-500 dark:md:border-brand-400"
-                              : "max-md:bg-transparent md:border-gray-100 md:bg-white dark:md:border-gray-700 dark:md:bg-gray-800"
-                          }`
-                        : "rounded-2xl px-3.5 py-2"
-                    } ${
-                      !isGroupMedia &&
-                      (own
-                        ? "rounded-br-md bg-gradient-to-br from-brand-500 to-brand-600 text-white"
-                        : "rounded-bl-md border border-gray-100 bg-white text-gray-800 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90")
+                        ? "w-full max-md:rounded-xl max-md:border-0 max-md:p-0 max-md:shadow-none md:rounded-xl"
+                        : shell === "media"
+                          ? `rounded-xl p-0 shadow-none ${own ? "rounded-br-md" : "rounded-bl-md"}`
+                          : shell === "card"
+                            ? `rounded-xl border p-2.5 shadow-sm ${
+                                own
+                                  ? "rounded-br-md border-[#b6d4f5] bg-[#DBEBFF] dark:border-blue-800 dark:bg-blue-950/45"
+                                  : "rounded-bl-md border-black/[0.06] bg-white dark:border-gray-600 dark:bg-gray-800"
+                              }`
+                            : own
+                              ? "rounded-[18px] rounded-br-md border border-[#b6d4f5] bg-[#DBEBFF] px-3 py-2 shadow-none dark:border-blue-800 dark:bg-blue-950/45"
+                              : "rounded-[18px] rounded-bl-md border border-black/[0.04] bg-white px-3 py-2 shadow-sm dark:border-gray-700 dark:bg-gray-800"
                     } ${reactionEmojis.length > 0 ? "pb-3" : ""}`}
                   >
-                    <QuotePreview message={message} own={own} />
+                    <QuotePreview message={message} />
                     <MessageContent
                       message={message}
-                      own={own}
+                      own={false}
                       onOpenPreview={setPreviewItem}
                     />
                     {!isGroupMedia ? (
                       <MessageMetaFooter
                         message={message}
                         own={own}
+                        onLight={onLightMeta}
                         sentByLabel={sentByLabel}
                       />
                     ) : null}

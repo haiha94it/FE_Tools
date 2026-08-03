@@ -174,7 +174,7 @@ export function RecommendedContactContent({
   thumb,
   phone,
   href,
-  own,
+  own: _own,
 }: {
   title?: string;
   thumb?: string;
@@ -182,14 +182,9 @@ export function RecommendedContactContent({
   href?: string;
   own: boolean;
 }) {
-  const inner = (
-    <div
-      className={`flex min-w-[220px] max-w-[280px] items-center gap-3 rounded-xl border px-3 py-2.5 ${
-        own
-          ? "border-white/25 bg-white/10"
-          : "border-gray-100 bg-gray-50 dark:border-gray-700 dark:bg-gray-900/40"
-      }`}
-    >
+  // Card shell luôn nền sáng (giống Zalo) — text bôi chọn được
+  return (
+    <div className="flex min-w-[220px] max-w-[280px] select-text items-center gap-3 rounded-xl border border-gray-100 bg-gray-50 px-3 py-2.5 dark:border-gray-700 dark:bg-gray-900/40">
       {thumb ? (
         <Image
           src={thumb}
@@ -200,145 +195,217 @@ export function RecommendedContactContent({
           className="h-11 w-11 shrink-0 rounded-full object-cover"
         />
       ) : (
-        <span
-          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${
-            own
-              ? "bg-white/15 text-white"
-              : "bg-brand-50 text-brand-600 dark:bg-brand-500/15 dark:text-brand-400"
-          }`}
-        >
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#0068FF]/10 text-[#0068FF]">
           <HiOutlineUserPlus size={20} aria-hidden />
         </span>
       )}
       <div className="min-w-0 flex-1">
-        <p className="text-xs font-semibold uppercase tracking-wide opacity-70">
+        <p className="text-xs font-normal uppercase tracking-wide text-gray-500">
           Danh thiếp
         </p>
         {title ? (
-          <p className="mt-0.5 text-sm font-medium leading-snug break-words">
+          <p className="mt-0.5 text-sm font-normal leading-snug break-words text-gray-900 dark:text-white">
             {title}
           </p>
         ) : null}
         {phone ? (
-          <p className="mt-0.5 text-xs opacity-80">{phone}</p>
+          <p className="mt-0.5 text-xs font-normal text-gray-500">{phone}</p>
+        ) : null}
+        {href ? (
+          <a
+            href={href}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-1 inline-block text-xs font-normal text-[#0068FF] no-underline hover:underline dark:text-blue-400"
+          >
+            Xem trang cá nhân
+          </a>
         ) : null}
       </div>
     </div>
   );
-
-  if (!href) return inner;
-
-  return (
-    <a href={href} target="_blank" rel="noreferrer" className="block">
-      {inner}
-    </a>
-  );
 }
 
-/** Link mời nhóm / share link (recommened.link) — cover + title như Zalo */
+/** Bỏ URL khỏi caption — tránh lặp với dòng link xanh. */
+function stripUrlsFromCaption(text: string, href?: string): string {
+  let out = (text || "").trim();
+  if (!out) return "";
+  if (href) {
+    const escaped = href.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    out = out.replace(new RegExp(escaped, "gi"), " ");
+  }
+  out = out.replace(/https?:\/\/[^\s<>"']+/gi, " ");
+  return out.replace(/\s+/g, " ").trim();
+}
+
+/**
+ * Link preview kiểu Zalo:
+ *
+ *  [caption user — chỉ khi gõ text kèm]  ← đen
+ *  [URL xanh]
+ *  ┌ thumb ─────────────┐
+ *  │ title OG (parselink)│  ← luôn dưới ảnh, không đẩy lên header
+ *  │ description        │
+ *  │ host               │
+ *  └────────────────────┘
+ */
 export function RecommendedLinkContent({
   title,
   thumb,
   description,
   href,
-  own,
+  linkCaption,
+  own: _own,
 }: {
   title?: string;
   thumb?: string;
   description?: string;
   href?: string;
+  /** Text user gửi kèm (params.msg) — không phải OG title */
+  linkCaption?: string;
   own: boolean;
 }) {
   let hostname = "";
   if (href) {
     try {
-      hostname = new URL(href).hostname;
+      hostname = new URL(href).hostname.replace(/^www\./, "");
     } catch {
       hostname = href;
     }
   }
 
-  const card = (
-    <div
-      className={`w-[min(280px,100%)] overflow-hidden rounded-xl border ${
-        own
-          ? "border-white/25 bg-white/10"
-          : "border-gray-100 bg-white dark:border-gray-700 dark:bg-gray-900/40"
-      }`}
-    >
-      {thumb ? (
-        <div className="relative h-40 w-full overflow-hidden bg-gray-100 dark:bg-gray-800">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={thumb}
-            alt={title || "Liên kết"}
-            className="h-full w-full object-cover"
-          />
-          {description ? (
-            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent px-3 pb-2.5 pt-8 text-xs font-medium text-white">
-              {description}
-            </div>
-          ) : null}
-        </div>
+  const rawTitle = (title || "").trim();
+  const titleIsOnlyUrl =
+    Boolean(href) &&
+    (rawTitle === href ||
+      rawTitle === href?.replace(/\/$/, "") ||
+      /^https?:\/\/\S+$/i.test(rawTitle));
+
+  // Caption = CHỈ text user gõ (strip URL). Không fallback sang OG title.
+  let caption = stripUrlsFromCaption(linkCaption || "", href || undefined);
+  // Legacy: title field = full msg "text + url" (chứa href) → strip thành caption
+  if (!caption && rawTitle && href) {
+    const titleEmbedsUrl = rawTitle.includes(
+      href.slice(0, Math.min(24, href.length)),
+    );
+    if (titleEmbedsUrl) {
+      caption = stripUrlsFromCaption(rawTitle, href);
+    }
+  }
+
+  // OG title (parselink) — chỉ hiện trong card dưới ảnh
+  let ogTitle = "";
+  if (rawTitle && !titleIsOnlyUrl) {
+    const titleEmbedsUrl =
+      Boolean(href) &&
+      rawTitle.includes(href!.slice(0, Math.min(24, href!.length)));
+    // Không dùng rawTitle làm OG nếu đó là caption user (có URL nhúng)
+    if (!titleEmbedsUrl) {
+      ogTitle = rawTitle;
+    }
+  }
+
+  const ogDesc = (() => {
+    const d = (description || "").trim();
+    if (!d) return "";
+    if (/^https?:\/\//i.test(d)) return "";
+    if (d === caption || d === ogTitle) return "";
+    return d;
+  })();
+
+  // Header trên card: caption (nếu có) + URL xanh — KHÔNG đưa ogTitle lên đây
+  const showHeaderUrl = Boolean(href);
+
+  return (
+    <div className="w-[min(288px,100%)] max-w-full select-text">
+      {caption ? (
+        <p className="text-sm font-normal leading-snug break-words text-gray-900 dark:text-gray-100">
+          {caption}
+        </p>
       ) : null}
-      <div className="px-3 py-2.5">
-        {title ? (
-          <p
-            className={`text-sm font-semibold leading-snug break-words ${
-              own ? "text-white" : "text-gray-900 dark:text-white"
-            }`}
-          >
-            {title}
-          </p>
-        ) : null}
-        {href ? (
-          <p
-            className={`mt-1 line-clamp-2 text-xs leading-snug break-all ${
-              own ? "text-white/75" : "text-gray-500 dark:text-gray-400"
-            }`}
-          >
-            {href}
-          </p>
-        ) : null}
-        <div
-          className={`mt-2.5 flex items-center justify-between gap-2 border-t pt-2.5 ${
-            own ? "border-white/20" : "border-gray-100 dark:border-gray-700"
+      {showHeaderUrl ? (
+        <p
+          className={`text-sm font-normal leading-snug break-all text-blue-600 dark:text-blue-400 ${
+            caption ? "mt-0.5" : ""
           }`}
         >
-          <span
-            className={`min-w-0 truncate text-xs ${
-              own ? "text-white/65" : "text-gray-500 dark:text-gray-400"
-            }`}
-          >
-            {hostname || "zalo.me"}
-          </span>
-          {href ? (
-            <span
-              className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium ${
-                own
-                  ? "bg-white/20 text-white"
-                  : "bg-brand-500 text-white dark:bg-brand-600"
+          {href}
+        </p>
+      ) : null}
+
+      <div
+        className={`overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-600 dark:bg-gray-900 ${
+          caption || showHeaderUrl ? "mt-2" : ""
+        }`}
+      >
+        {thumb ? (
+          href ? (
+            <a
+              href={href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block w-full overflow-hidden bg-gray-100 dark:bg-gray-800"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={thumb}
+                alt={ogTitle || caption || "Liên kết"}
+                draggable={false}
+                className="max-h-48 w-full object-cover"
+              />
+            </a>
+          ) : (
+            <div className="w-full overflow-hidden bg-gray-100 dark:bg-gray-800">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={thumb}
+                alt={ogTitle || caption || "Liên kết"}
+                draggable={false}
+                className="max-h-48 w-full object-cover"
+              />
+            </div>
+          )
+        ) : null}
+        <div className="px-3 py-2.5">
+          {ogTitle ? (
+            <p className="text-sm font-normal leading-snug break-words text-gray-900 dark:text-gray-100">
+              {ogTitle}
+            </p>
+          ) : null}
+          {ogDesc ? (
+            <p
+              className={`text-xs font-normal leading-snug break-words text-gray-500 dark:text-gray-400 ${
+                ogTitle ? "mt-0.5" : ""
               }`}
             >
-              Truy cập
-            </span>
+              {ogDesc}
+            </p>
+          ) : null}
+          {hostname ? (
+            href ? (
+              <a
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`block text-xs font-normal text-gray-400 no-underline hover:text-blue-600 dark:text-gray-500 dark:hover:text-blue-400 ${
+                  ogTitle || ogDesc ? "mt-1.5" : ""
+                }`}
+              >
+                {hostname}
+              </a>
+            ) : (
+              <p
+                className={`text-xs font-normal text-gray-400 dark:text-gray-500 ${
+                  ogTitle || ogDesc ? "mt-1.5" : ""
+                }`}
+              >
+                {hostname}
+              </p>
+            )
           ) : null}
         </div>
       </div>
     </div>
-  );
-
-  if (!href) return card;
-
-  return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="block max-w-full no-underline"
-    >
-      {card}
-    </a>
   );
 }
 

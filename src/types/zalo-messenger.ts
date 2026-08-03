@@ -119,6 +119,8 @@ export interface MessengerMessageAttachment {
   title?: string;
   action?: string;
   description?: string;
+  /** Caption user gửi kèm link (params.msg) — text trên card, tách OG title */
+  linkCaption?: string;
   /** Thời lượng voice/video (ms) */
   durationMs?: number;
   /** share.file — phần mở rộng từ content.params */
