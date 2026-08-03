@@ -19,6 +19,53 @@ export function isCenteredChatMessage(message: DisplayMessage): boolean {
   return action === "ecard" || action === "system";
 }
 
+/**
+ * Shell bubble kiểu Zalo — áp dụng mọi loại tin (không special-case 1 dạng).
+ * - text: bong bóng chat (xanh gửi / trắng nhận)
+ * - media: ảnh/video/sticker/album — ít chrome
+ * - card: link/file/contact/location/call — card trắng viền nhẹ
+ */
+export type MessageBubbleShell = "text" | "media" | "card";
+
+export function getMessageBubbleShell(
+  message: DisplayMessage,
+): MessageBubbleShell {
+  const type = message.msgType ?? "";
+  const action = message.attachments?.[0]?.action;
+
+  if (
+    type === "group.media" ||
+    action === "group-media" ||
+    type === "chat.photo" ||
+    type === "chat.video.msg" ||
+    type === "chat.gif" ||
+    type === "chat.sticker" ||
+    action === "gif" ||
+    action === "video" ||
+    (action === "file" && message.attachments?.[0]?.fileKind === "image") ||
+    (action === "file" && message.attachments?.[0]?.fileKind === "video")
+  ) {
+    return "media";
+  }
+
+  if (
+    action === "recommended.link" ||
+    action === "recommended" ||
+    action === "file" ||
+    action === "location" ||
+    action === "calltime" ||
+    action === "voice" ||
+    type === "chat.recommended" ||
+    type === "chat.location.new" ||
+    type === "chat.voice" ||
+    type === "share.file"
+  ) {
+    return "card";
+  }
+
+  return "text";
+}
+
 export function shouldHideMessageText(text: string): boolean {
   return (
     text.includes(
@@ -790,17 +837,49 @@ export function normalizeIncomingMessage(raw: RawZaloMessage): DisplayMessage {
 
       // Link mời nhóm / share link (typo Zalo: recommened.link)
       if (isRecommendedLinkPayload(actionRaw, href)) {
-        const linkLabel = title || href || "Liên kết";
+        const params = parseContentParams(record?.params) || {};
+        const rawMsg =
+          trimToString(params.msg) ||
+          trimToString(params.message) ||
+          "";
+        // Caption = text user gõ; bỏ URL trùng href
+        let linkCaption = "";
+        if (rawMsg) {
+          linkCaption = rawMsg
+            .replace(href ? new RegExp(href.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi") : /$^/, " ")
+            .replace(/https?:\/\/[^\s<>"']+/gi, " ")
+            .replace(/\s+/g, " ")
+            .trim();
+        }
+        // title field đôi khi = full msg (không có params.msg)
+        const titleLooksLikeCaption =
+          Boolean(title) &&
+          Boolean(href) &&
+          title.includes(href.slice(0, Math.min(24, href.length)));
+        if (!linkCaption && titleLooksLikeCaption) {
+          linkCaption = title
+            .replace(
+              new RegExp(href.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi"),
+              " ",
+            )
+            .replace(/https?:\/\/[^\s<>"']+/gi, " ")
+            .replace(/\s+/g, " ")
+            .trim();
+        }
+        const ogTitle = titleLooksLikeCaption ? "" : title;
+        const linkLabel =
+          linkCaption || ogTitle || href || "Liên kết";
         return {
           ...base,
           attachments: [
             {
               action: "recommended.link",
-              title,
+              title: ogTitle || title,
               thumb,
               href,
-              // description plain text (vd "Cộng đồng"), không parse phone JSON
+              // description plain text (OG desc), không parse phone JSON
               description,
+              linkCaption: linkCaption || undefined,
             },
           ],
           text_message: [{ text: linkLabel }],

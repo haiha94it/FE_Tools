@@ -8,6 +8,8 @@ import { memo } from "react";
 interface MessageMetaFooterProps {
   message: DisplayMessage;
   own: boolean;
+  /** Nền sáng (card/media) — time xám, không trắng như bubble xanh */
+  onLight?: boolean;
   sentByLabel?: string;
   className?: string;
 }
@@ -15,19 +17,21 @@ interface MessageMetaFooterProps {
 function MessageMetaFooter({
   message,
   own,
+  onLight = false,
   sentByLabel = "",
   className = "",
 }: MessageMetaFooterProps) {
   const time = formatMessageTime(message.ts);
   if (!time && !sentByLabel) return null;
 
-  const timeClass = own
-    ? "text-white/65"
-    : "text-gray-400 dark:text-gray-500";
+  const light = onLight || !own;
+  const timeClass = light
+    ? "text-gray-400 dark:text-gray-500"
+    : "text-white/65";
 
-  const sentByClass = own
-    ? "font-semibold text-amber-200"
-    : "font-semibold text-brand-600 dark:text-brand-400";
+  const sentByClass = light
+    ? "font-medium text-[#0068FF] dark:text-blue-400"
+    : "font-medium text-amber-200";
 
   return (
     <div
@@ -41,7 +45,7 @@ function MessageMetaFooter({
             </span>
           </Tooltip>
           <span
-            className={`shrink-0 ${own ? "text-white/45" : "text-gray-300 dark:text-gray-600"}`}
+            className={`shrink-0 ${light ? "text-gray-300 dark:text-gray-600" : "text-white/45"}`}
             aria-hidden
           >
             ·
