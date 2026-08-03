@@ -371,6 +371,28 @@ function parseRecommendedMeta(description: unknown): {
   }
 }
 
+/** Link OG / mời nhóm (recommened.link, zalo.me/g/...) — khác danh thiếp user */
+export function isRecommendedLinkPayload(
+  actionRaw: string,
+  href?: string,
+): boolean {
+  const actionLower = (actionRaw || "").toLowerCase();
+  if (
+    actionLower.includes("user") ||
+    actionLower.includes("call") ||
+    actionLower.includes("miss")
+  ) {
+    return false;
+  }
+  if (actionLower.includes("link")) return true;
+  const h = (href || "").toLowerCase();
+  return (
+    h.includes("zalo.me/g/") ||
+    h.includes("zaloapp.com/g/") ||
+    h.includes("zalo.me/s/")
+  );
+}
+
 /** duration Zalo calltime (giây) → "0:03" / "1:05" */
 export function formatCallDurationSec(seconds: number): string {
   const s = Math.max(0, Math.floor(Number(seconds) || 0));
@@ -766,14 +788,35 @@ export function normalizeIncomingMessage(raw: RawZaloMessage): DisplayMessage {
         };
       }
 
+      // Link mời nhóm / share link (typo Zalo: recommened.link)
+      if (isRecommendedLinkPayload(actionRaw, href)) {
+        const linkLabel = title || href || "Liên kết";
+        return {
+          ...base,
+          attachments: [
+            {
+              action: "recommended.link",
+              title,
+              thumb,
+              href,
+              // description plain text (vd "Cộng đồng"), không parse phone JSON
+              description,
+            },
+          ],
+          text_message: [{ text: linkLabel }],
+        };
+      }
+
       const meta = parseRecommendedMeta(record?.description);
+      // Danh thiếp user: avatar đôi khi nằm ở href thay vì thumb
+      const contactThumb = thumb || href;
       return {
         ...base,
         attachments: [
           {
             action: "recommended",
             title,
-            thumb,
+            thumb: contactThumb,
             href,
             description: meta.phone,
           },
@@ -909,6 +952,13 @@ export function getMessageKindLabel(message: DisplayMessage): string {
       attachment?.callHeadline ||
       (attachment?.callType === 1 ? "Cuộc gọi video" : "Cuộc gọi thoại")
     );
+  }
+  if (
+    action === "recommended.link" ||
+    (message.msgType === "chat.recommended" &&
+      isRecommendedLinkPayload(action || "", attachment?.href))
+  ) {
+    return "Liên kết";
   }
   if (message.msgType === "chat.recommended" || action === "recommended") {
     return "Danh thiếp";

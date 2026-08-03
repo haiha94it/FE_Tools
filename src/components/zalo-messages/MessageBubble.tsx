@@ -57,6 +57,7 @@ import {
   GroupMediaGrid,
   LocationMessageContent,
   RecommendedContactContent,
+  RecommendedLinkContent,
   SystemTipContent,
   VideoMessageContent,
   VoiceMessageContent,
@@ -353,6 +354,16 @@ function MessageContent({
         durationSec={attachment?.callDurationSec ?? 0}
         isVideo={attachment?.callType === 1}
         status={attachment?.callStatus}
+        own={own}
+      />
+    );
+  } else if (attachment?.action === "recommended.link") {
+    body = (
+      <RecommendedLinkContent
+        title={attachment?.title}
+        thumb={attachment?.thumb}
+        description={attachment?.description}
+        href={attachment?.href}
         own={own}
       />
     );

@@ -235,6 +235,113 @@ export function RecommendedContactContent({
   );
 }
 
+/** Link mời nhóm / share link (recommened.link) — cover + title như Zalo */
+export function RecommendedLinkContent({
+  title,
+  thumb,
+  description,
+  href,
+  own,
+}: {
+  title?: string;
+  thumb?: string;
+  description?: string;
+  href?: string;
+  own: boolean;
+}) {
+  let hostname = "";
+  if (href) {
+    try {
+      hostname = new URL(href).hostname;
+    } catch {
+      hostname = href;
+    }
+  }
+
+  const card = (
+    <div
+      className={`w-[min(280px,100%)] overflow-hidden rounded-xl border ${
+        own
+          ? "border-white/25 bg-white/10"
+          : "border-gray-100 bg-white dark:border-gray-700 dark:bg-gray-900/40"
+      }`}
+    >
+      {thumb ? (
+        <div className="relative h-40 w-full overflow-hidden bg-gray-100 dark:bg-gray-800">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={thumb}
+            alt={title || "Liên kết"}
+            className="h-full w-full object-cover"
+          />
+          {description ? (
+            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent px-3 pb-2.5 pt-8 text-xs font-medium text-white">
+              {description}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+      <div className="px-3 py-2.5">
+        {title ? (
+          <p
+            className={`text-sm font-semibold leading-snug break-words ${
+              own ? "text-white" : "text-gray-900 dark:text-white"
+            }`}
+          >
+            {title}
+          </p>
+        ) : null}
+        {href ? (
+          <p
+            className={`mt-1 line-clamp-2 text-xs leading-snug break-all ${
+              own ? "text-white/75" : "text-gray-500 dark:text-gray-400"
+            }`}
+          >
+            {href}
+          </p>
+        ) : null}
+        <div
+          className={`mt-2.5 flex items-center justify-between gap-2 border-t pt-2.5 ${
+            own ? "border-white/20" : "border-gray-100 dark:border-gray-700"
+          }`}
+        >
+          <span
+            className={`min-w-0 truncate text-xs ${
+              own ? "text-white/65" : "text-gray-500 dark:text-gray-400"
+            }`}
+          >
+            {hostname || "zalo.me"}
+          </span>
+          {href ? (
+            <span
+              className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium ${
+                own
+                  ? "bg-white/20 text-white"
+                  : "bg-brand-500 text-white dark:bg-brand-600"
+              }`}
+            >
+              Truy cập
+            </span>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+
+  if (!href) return card;
+
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="block max-w-full no-underline"
+    >
+      {card}
+    </a>
+  );
+}
+
 /** Bubble log cuộc gọi Zalo — chỉ hiển thị, không callback / gọi lại */
 export function CallLogMessageContent({
   title,
@@ -746,6 +853,7 @@ export function isRichMessageType(message: DisplayMessage): boolean {
     action === "location" ||
     action === "ecard" ||
     action === "recommended" ||
+    action === "recommended.link" ||
     action === "calltime" ||
     action === "system" ||
     action === "voice" ||

@@ -117,6 +117,9 @@ function getZaloMessagePreview(message: DisplayMessage): string {
       if (head) return `[${head}]`;
       return att.callType === 1 ? "[Cuộc gọi video]" : "[Cuộc gọi]";
     }
+    if (att?.action === "recommended.link") {
+      return att.title ? `[Liên kết] ${att.title}` : "[Liên kết]";
+    }
     return "[Danh thiếp]";
   }
   if (message.attachments?.length) return "[Tệp đính kèm]";

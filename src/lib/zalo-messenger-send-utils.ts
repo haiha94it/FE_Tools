@@ -171,6 +171,9 @@ export function getQuotePreviewText(message: DisplayMessage): string {
       }
       return head;
     }
+    if (att?.action === "recommended.link") {
+      return att?.title || att?.href || "Liên kết";
+    }
     return att?.title ? `Danh thiếp: ${att.title}` : "Danh thiếp";
   }
   if (message.msgType === "share.file") {
