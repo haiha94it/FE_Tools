@@ -513,8 +513,9 @@ export function MessageList({
         const reactionMessages = getMessageReactions(message, reactionMap);
         const reactionEmojis = getUniqueReactionEmojis(reactionMessages);
         const scrollAnchorId = getMessageScrollAnchorId(message);
-        const sentByLabel =
-          own && shouldShowSentByLabel(message.sent_by, currentUserId)
+        const sentByLabel = own && message.sender_type === "chatbot"
+          ? "Chatbot trả lời"
+          : own && shouldShowSentByLabel(message.sent_by, currentUserId)
             ? formatSentByLabel(message.sent_by)
             : "";
         const centered = isCenteredChatMessage(message);
@@ -612,9 +613,7 @@ export function MessageList({
                       (own
                         ? "rounded-br-md bg-gradient-to-br from-brand-500 to-brand-600 text-white"
                         : "rounded-bl-md border border-gray-100 bg-white text-gray-800 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90")
-                    } ${message._status === "failed" ? "ring-2 ring-error-400/50" : ""} ${
-                      reactionEmojis.length > 0 ? "pb-3" : ""
-                    }`}
+                    } ${reactionEmojis.length > 0 ? "pb-3" : ""}`}
                   >
                     <QuotePreview message={message} own={own} />
                     <MessageContent

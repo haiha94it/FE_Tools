@@ -122,7 +122,7 @@ export function sortConversations(
   });
 }
 
-/** Gộp hai bản ghi hội thoại — giữ updated_time mới nhất, không mất nhãn local */
+/** Gộp hội thoại theo activity; mark-read thắng frame unread cùng mốc đến trễ. */
 export function mergeConversationRecords(
   base: MessengerConversation,
   patch: MessengerConversation,
@@ -132,6 +132,13 @@ export function mergeConversationRecords(
   const patchTime = parseZaloUpdatedTimeMs(patch.updated_time);
   if (baseTime > patchTime) {
     merged.updated_time = base.updated_time;
+    merged.new_message = base.new_message;
+  } else if (
+    baseTime === patchTime &&
+    base.new_message === false &&
+    patch.new_message === true
+  ) {
+    merged.new_message = false;
   }
   if (
     base.category_message?.length &&
@@ -322,11 +329,12 @@ export function maxMessengerAccountActivityTime(
 
 /**
  * Lấy ts activity từ frame new_global_update.
- * Ưu tiên message_details[].ts → conversations[].updated_time → null.
+ * Lấy max từ message, conversation và account để ordering badge ổn định.
  */
 export function resolveAccountActivityTsFromGlobalUpdate(payload: {
   message_details?: Array<{ ts?: string | number | null }> | null;
   conversations?: Array<{ updated_time?: string | number | null }> | null;
+  account?: { updated_time?: string | number | null } | null;
 }): number | null {
   let maxTs = 0;
 
@@ -338,6 +346,8 @@ export function resolveAccountActivityTsFromGlobalUpdate(payload: {
     const ts = parseZaloUpdatedTimeMs(conv.updated_time);
     if (ts > maxTs) maxTs = ts;
   }
+  const accountTs = parseZaloUpdatedTimeMs(payload.account?.updated_time);
+  if (accountTs > maxTs) maxTs = accountTs;
 
   return maxTs > 0 ? maxTs : null;
 }
@@ -479,7 +489,7 @@ function messageDedupeKeys(message: DisplayMessage): string[] {
   if (message.msgId) keys.push(`msg:${message.msgId}`);
   const cliMsgId = message.clientMsgId ?? message.cliMsgId;
   if (cliMsgId) keys.push(`cli:${cliMsgId}`);
-  if (message.id != null && !String(message.id).startsWith("optimistic_")) {
+  if (message.id != null) {
     keys.push(`id:${message.id}`);
   }
   if (!keys.length) keys.push(`fallback:${message.ts}-${getMessageText(message)}`);
@@ -495,7 +505,7 @@ export function getMessageText(message: DisplayMessage): string {
 }
 
 export function isOwnMessage(message: DisplayMessage): boolean {
-  return message.uidFrom === "0" || message._optimistic === true;
+  return message.uidFrom === "0";
 }
 
 function findGroupMemberByUid(
@@ -535,6 +545,10 @@ export function resolveSenderAvatar(
   return member ? getGroupMemberDisplay(member).avatar : null;
 }
 
+/**
+ * Dedupe theo mọi msgId/cliMsgId hợp lệ; bản đến sau thắng.
+ * `sent_by: null` là overwrite có chủ đích để không giữ actor của nick khác.
+ */
 export function dedupeMessages(messages: DisplayMessage[]): DisplayMessage[] {
   const result: DisplayMessage[] = [];
   const indexByKey = new Map<string, number>();
@@ -552,11 +566,7 @@ export function dedupeMessages(messages: DisplayMessage[]): DisplayMessage[] {
     }
 
     const previous = result[existingIndex];
-    const merged = {
-      ...previous,
-      ...message,
-      sent_by: message.sent_by ?? previous.sent_by,
-    };
+    const merged = { ...previous, ...message };
     result[existingIndex] = merged;
     for (const key of new Set([
       ...messageDedupeKeys(previous),

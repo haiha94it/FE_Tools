@@ -18,7 +18,7 @@ export interface ChatScrollPrependAnchor {
 export function getMessageScrollAnchorId(
   message: Pick<DisplayMessage, "id" | "clientMsgId" | "cliMsgId">,
 ): string | null {
-  if (message.id != null && !String(message.id).startsWith("optimistic_")) {
+  if (message.id != null) {
     return String(message.id);
   }
   const clientId = message.clientMsgId ?? message.cliMsgId;

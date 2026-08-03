@@ -100,6 +100,8 @@ export interface RawZaloMessage {
   actionId?: string;
   conversation_id?: number;
   sent_by?: SentByPayload | null;
+  /** Nguồn outbound rõ nghĩa; chỉ có `chatbot` với reply do chatbot gửi. */
+  sender_type?: "chatbot" | null;
   [key: string]: unknown;
 }
 
@@ -198,11 +200,10 @@ export interface DisplayMessage {
   undo?: Array<{ content?: string }>;
   /** WS/API chat.undo — giữ bubble, UI “đã thu hồi” (không xóa tin gốc) */
   recalled?: boolean;
-  _optimistic?: boolean;
-  _status?: "sending" | "sent" | "failed";
-  _retryData?: SendMessagePayload;
   /** Người gửi thực tế — outbound team audit (CARE 2 §4) */
   sent_by?: SentByPayload | null;
+  /** Chatbot gửi; không suy luận từ sent_by=null vì tin cũ/tự động cũng có thể null. */
+  sender_type?: "chatbot" | null;
   /** Album ảnh/video gộp theo group_layout_id */
   groupMedia?: MessengerGroupMedia;
   /** Metadata thô — dùng khi gộp album lúc render */
@@ -222,6 +223,7 @@ export interface MessengerAccountWsBadge {
   uid?: string;
   globalId?: string;
   status: boolean;
+  updated_time?: string | number | null;
 }
 
 export interface NewGlobalUpdatePayload {
@@ -231,12 +233,15 @@ export interface NewGlobalUpdatePayload {
   account?: MessengerAccountWsBadge | null;
 }
 
+/** ACK protocol cho lệnh gửi; FE chỉ dùng ACK âm để báo lỗi/khôi phục draft text. */
 export interface MessageAckPayload {
   type: "message_ack";
   clientMsgId?: string;
   id_conversation?: number;
   status?: string;
   success?: boolean;
+  message?: string;
+  error?: string;
   result?: unknown;
 }
 

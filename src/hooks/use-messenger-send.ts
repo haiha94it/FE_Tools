@@ -21,6 +21,58 @@ import type {
 } from "@/types/zalo-messenger";
 import { useCallback } from "react";
 
+const PENDING_COMPOSER_SEND_TTL_MS = 60_000;
+
+interface PendingComposerSend {
+  accountId: number;
+  conversationId: number;
+  batchId: string;
+  composerText: string | null;
+  quoteMessage: DisplayMessage | null;
+  expiresAt: number;
+}
+
+const pendingComposerSends = new Map<string, PendingComposerSend>();
+
+function prunePendingComposerSends(now = Date.now()) {
+  for (const [clientMsgId, pending] of pendingComposerSends) {
+    if (pending.expiresAt <= now) pendingComposerSends.delete(clientMsgId);
+  }
+}
+
+/** Đăng ký ngay các payload đã vào socket, dùng chung batch cho ACK âm. */
+function rememberPendingComposerSend(
+  clientMsgIds: string[],
+  draft: Omit<PendingComposerSend, "batchId" | "expiresAt">,
+  batchId = clientMsgIds.join(":"),
+) {
+  const now = Date.now();
+  prunePendingComposerSends(now);
+  const pending: PendingComposerSend = {
+    ...draft,
+    batchId,
+    expiresAt: now + PENDING_COMPOSER_SEND_TTL_MS,
+  };
+  for (const clientMsgId of clientMsgIds) {
+    pendingComposerSends.set(clientMsgId, pending);
+  }
+}
+
+/** Lấy một draft có ACK âm và xóa cả batch để không toast/restore lặp. */
+export function takeFailedPendingComposerSend(
+  clientMsgId: string,
+): PendingComposerSend | null {
+  prunePendingComposerSends();
+  const pending = pendingComposerSends.get(clientMsgId);
+  if (!pending) return null;
+  for (const [candidateId, candidate] of pendingComposerSends) {
+    if (candidate.batchId === pending.batchId) {
+      pendingComposerSends.delete(candidateId);
+    }
+  }
+  return pending;
+}
+
 function wsSendPayload(
   wsSend: (payload: Record<string, unknown> | string) => boolean,
   payload: SendMessagePayload | Record<string, unknown>,
@@ -32,6 +84,7 @@ function wsSendPayload(
   return wsSend(serialized);
 }
 
+/** Điều phối gửi chat qua WS, gồm ACK draft và xử lý batch gửi dở. */
 export function useMessengerSend(options?: {
   accountUid?: string | null;
 }) {
@@ -49,6 +102,11 @@ export function useMessengerSend(options?: {
     (s) => s.buildOutboundPayloads,
   );
   const clearComposer = useZaloMessengerStore((s) => s.clearComposer);
+  const setComposerText = useZaloMessengerStore((s) => s.setComposerText);
+  const setQuoteMessage = useZaloMessengerStore((s) => s.setQuoteMessage);
+  const removeAttachmentDraft = useZaloMessengerStore(
+    (s) => s.removeAttachmentDraft,
+  );
   const resetConversationUnread = useZaloMessengerStore(
     (s) => s.resetConversationUnread,
   );
@@ -78,6 +136,19 @@ export function useMessengerSend(options?: {
     );
 
     if (!payloads.length) return false;
+    const draft = useZaloMessengerStore.getState();
+    const canRestoreText =
+      payloads.length === 1 &&
+      draft.attachmentDrafts.length === 0 &&
+      Boolean(draft.composerText.trim());
+    const pendingDraft = {
+      accountId: selectedAccountId,
+      conversationId: activeConversationId,
+      composerText: canRestoreText ? draft.composerText : null,
+      quoteMessage: canRestoreText ? draft.quoteMessage : null,
+    };
+    const batchId = payloads.map((payload) => payload.clientMsgId).join(":");
+    const sentClientMsgIds: string[] = [];
 
     if (activeConversation?.new_message) {
       resetConversationUnread(selectedAccountId, activeConversationId);
@@ -86,11 +157,34 @@ export function useMessengerSend(options?: {
     for (const payload of payloads) {
       const sent = wsSendPayload(wsSend, payload);
       if (!sent) {
-        toast.error("Không gửi được tin nhắn. Kiểm tra kết nối mạng.");
+        if (sentClientMsgIds.length > 0) {
+          rememberPendingComposerSend(
+            sentClientMsgIds,
+            pendingDraft,
+            batchId,
+          );
+          for (let index = 0; index < sentClientMsgIds.length; index += 1) {
+            removeAttachmentDraft(0);
+          }
+          // Text/quote đã nằm trong payload đầu; chỉ giữ attachment chưa vào socket.
+          setComposerText("");
+          setQuoteMessage(null);
+          toast.error(
+            `Đã gửi ${sentClientMsgIds.length}/${payloads.length} phần. Phần chưa gửi vẫn được giữ lại.`,
+          );
+        } else {
+          toast.error("Không gửi được tin nhắn. Kiểm tra kết nối mạng.");
+        }
         return false;
       }
+      sentClientMsgIds.push(payload.clientMsgId);
     }
 
+    rememberPendingComposerSend(
+      sentClientMsgIds,
+      pendingDraft,
+      batchId,
+    );
     clearComposer();
     return true;
   }, [
@@ -100,7 +194,10 @@ export function useMessengerSend(options?: {
     buildOutboundPayloads,
     clearComposer,
     composerText,
+    removeAttachmentDraft,
     resetConversationUnread,
+    setComposerText,
+    setQuoteMessage,
     options?.accountUid,
     selectedAccountId,
     uploadingAttachment,

@@ -185,7 +185,7 @@ export function getQuoteOwnerLabel(
   message: DisplayMessage,
   accountName?: string | null,
 ): string {
-  if (message.uidFrom === "0" || message._optimistic) {
+  if (message.uidFrom === "0") {
     return accountName?.trim() || "Bạn";
   }
   return trimToString(message.quote?.[0]?.fromD) || "Người gửi";

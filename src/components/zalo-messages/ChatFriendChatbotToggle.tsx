@@ -10,7 +10,15 @@ import { zaloAccountService } from "@/services/zalo-account.service";
 import { useZaloAccountStore } from "@/stores/use-zalo-account-store";
 import { useZaloMessengerStore } from "@/stores/use-zalo-messenger-store";
 import type { MessengerConversation } from "@/types/zalo-messenger";
-import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { FiClock, FiCpu } from "react-icons/fi";
 
 interface ChatFriendChatbotToggleProps {
@@ -41,6 +49,15 @@ function ChatFriendChatbotToggle({
   >({});
 
   const friendUid = resolveChatFriendUid(conversation.friend);
+  const scopeKey = `${accountId}:${friendUid ?? ""}`;
+  const activeScopeRef = useRef(scopeKey);
+  const botOperationEpochRef = useRef(0);
+  const reminderOperationEpochRef = useRef(0);
+  useLayoutEffect(() => {
+    activeScopeRef.current = scopeKey;
+    botOperationEpochRef.current += 1;
+    reminderOperationEpochRef.current += 1;
+  }, [scopeKey]);
   const accountChatbotOn = isZaloChatbotEnabled({
     is_chatbot: account?.is_chatbot,
   });
@@ -53,11 +70,14 @@ function ChatFriendChatbotToggle({
   // Friend API là SSOT; list account chỉ làm fallback trước khi request hoàn tất.
   const botEnabledForFriend =
     Boolean(friendUid) &&
-    (chatbotEnabledByUid[friendUid] ?? !disabledUidSet.has(friendUid));
+    (chatbotEnabledByUid[scopeKey] ?? !disabledUidSet.has(friendUid));
 
+  /** PATCH bot theo scope/epoch; response cũ không được ghi đè hội thoại mới. */
   const handleToggle = useCallback(
     async (enabled: boolean) => {
       if (!friendUid || pending || !accountChatbotOn) return;
+      const requestScope = scopeKey;
+      const requestEpoch = ++botOperationEpochRef.current;
       setPending(true);
       try {
         const action = enabled ? "remove" : "add";
@@ -66,10 +86,16 @@ function ChatFriendChatbotToggle({
           action,
           [friendUid],
         );
+        if (
+          activeScopeRef.current !== requestScope ||
+          botOperationEpochRef.current !== requestEpoch
+        ) {
+          return;
+        }
         const nextUids = data.chatbot_disabled_friend_uids ?? [];
         setChatbotEnabledByUid((current) => ({
           ...current,
-          [friendUid]: !new Set(nextUids).has(friendUid),
+          [requestScope]: !new Set(nextUids).has(friendUid),
         }));
         setMessengerDisabledUids(accountId, nextUids);
         // Sync /zalo-accounts store nếu đã load
@@ -86,41 +112,81 @@ function ChatFriendChatbotToggle({
             : "Đã tắt chatbot cho khách hàng này. Bạn có thể tiếp tục tư vấn thủ công.",
         );
       } catch (error) {
-        toast.error(getApiErrorMessage(error));
+        if (
+          activeScopeRef.current === requestScope &&
+          botOperationEpochRef.current === requestEpoch
+        ) {
+          toast.error(getApiErrorMessage(error));
+        }
       } finally {
-        setPending(false);
+        if (
+          activeScopeRef.current === requestScope &&
+          botOperationEpochRef.current === requestEpoch
+        ) {
+          setPending(false);
+        }
       }
     },
-    [accountChatbotOn, accountId, friendUid, pending, setMessengerDisabledUids],
+    [
+      accountChatbotOn,
+      accountId,
+      friendUid,
+      pending,
+      scopeKey,
+      setMessengerDisabledUids,
+    ],
   );
 
   useEffect(() => {
-    if (!friendUid || !accountChatbotOn) return;
     let cancelled = false;
-    void zaloAccountService
-      .getChatbotDisabledFriends(accountId, {
-        uid: friendUid,
-      })
-      .then((page) => {
-        if (cancelled) return;
-        const friend = page.results[0];
-        setChatbotEnabledByUid((current) => ({
-          ...current,
-          [friendUid]: friend ? !friend.is_chatbot_disabled : true,
-        }));
-        setReminderEnabled(friend ? !friend.is_reminder_paused : true);
-      })
-      .catch((error) => {
-        if (!cancelled) toast.error(getApiErrorMessage(error));
-      })
+    const timer = window.setTimeout(() => {
+      if (cancelled || activeScopeRef.current !== scopeKey) return;
+      setPending(false);
+      setReminderPending(false);
+      setReminderEnabled(true);
+      if (!friendUid || !accountChatbotOn) return;
+      const botEpoch = botOperationEpochRef.current;
+      const reminderEpoch = reminderOperationEpochRef.current;
+      void zaloAccountService
+        .getChatbotDisabledFriends(accountId, {
+          uid: friendUid,
+        })
+        .then((page) => {
+          if (cancelled || activeScopeRef.current !== scopeKey) return;
+          const friend = page.results[0];
+          if (botOperationEpochRef.current === botEpoch) {
+            setChatbotEnabledByUid((current) => ({
+              ...current,
+              [scopeKey]: friend ? !friend.is_chatbot_disabled : true,
+            }));
+          }
+          if (reminderOperationEpochRef.current === reminderEpoch) {
+            setReminderEnabled(friend ? !friend.is_reminder_paused : true);
+          }
+        })
+        .catch((error) => {
+          if (
+            !cancelled &&
+            activeScopeRef.current === scopeKey &&
+            botOperationEpochRef.current === botEpoch &&
+            reminderOperationEpochRef.current === reminderEpoch
+          ) {
+            toast.error(getApiErrorMessage(error));
+          }
+        });
+    }, 0);
     return () => {
       cancelled = true;
+      window.clearTimeout(timer);
     };
-  }, [accountChatbotOn, accountId, friendUid]);
+  }, [accountChatbotOn, accountId, friendUid, scopeKey]);
 
+  /** PATCH reminder độc lập với bot và bỏ qua completion stale. */
   const handleReminderToggle = useCallback(
     async (enabled: boolean) => {
       if (!friendUid || reminderPending || !accountChatbotOn) return;
+      const requestScope = scopeKey;
+      const requestEpoch = ++reminderOperationEpochRef.current;
       setReminderPending(true);
       try {
         const data = await zaloAccountService.patchChatbotDisabledFriends(
@@ -128,6 +194,12 @@ function ChatFriendChatbotToggle({
           enabled ? "resume_reminder" : "pause_reminder",
           [friendUid],
         );
+        if (
+          activeScopeRef.current !== requestScope ||
+          reminderOperationEpochRef.current !== requestEpoch
+        ) {
+          return;
+        }
         setReminderEnabled(
           !new Set(data.reminder_paused_friend_uids ?? []).has(friendUid),
         );
@@ -137,12 +209,22 @@ function ChatFriendChatbotToggle({
             : "Đã dừng chức năng nhắc nhở cho khách hàng này.",
         );
       } catch (error) {
-        toast.error(getApiErrorMessage(error));
+        if (
+          activeScopeRef.current === requestScope &&
+          reminderOperationEpochRef.current === requestEpoch
+        ) {
+          toast.error(getApiErrorMessage(error));
+        }
       } finally {
-        setReminderPending(false);
+        if (
+          activeScopeRef.current === requestScope &&
+          reminderOperationEpochRef.current === requestEpoch
+        ) {
+          setReminderPending(false);
+        }
       }
     },
-    [accountChatbotOn, accountId, friendUid, reminderPending],
+    [accountChatbotOn, accountId, friendUid, reminderPending, scopeKey],
   );
 
   if (!friendUid || !accountChatbotOn) {

@@ -11,7 +11,7 @@ import { confirm } from "@/lib/confirm";
 import { toast } from "@/lib/toast";
 import { zaloLabelService } from "@/services/zalo-label.service";
 import type { MessengerCategoryLabel } from "@/types/zalo-messenger";
-import { memo, useCallback, useEffect, useState } from "react";
+import { memo, useCallback, useLayoutEffect, useRef, useState } from "react";
 
 interface LabelManageDialogProps {
   accountId: number;
@@ -41,33 +41,85 @@ function LabelManageDialog({
   );
   const [name, setName] = useState("");
   const [color, setColor] = useState(DEFAULT_LABEL_COLOR);
+  const scopeGenerationRef = useRef(0);
+  const fetchEpochRef = useRef(0);
+  const mutationBusyRef = useRef(false);
+  const mutationBusy = saving || deletingId !== null;
 
-  const fetchLabels = useCallback(async () => {
-    setLoading(true);
-    try {
-      const list = await zaloLabelService.listCategories(accountId);
-      setLabels(list);
-    } catch {
-      toast.error("Không tải được danh sách nhãn.");
-      setLabels([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [accountId]);
-
-  useEffect(() => {
-    if (!open) return;
-    void fetchLabels();
-  }, [open, fetchLabels]);
-
-  const resetForm = () => {
+  const resetForm = useCallback(() => {
     setName("");
     setColor(DEFAULT_LABEL_COLOR);
     setShowForm(false);
     setEditingLabel(null);
-  };
+  }, []);
 
+  const fetchLabels = useCallback(async (
+    accountIdSnapshot: number,
+    scopeGeneration: number,
+  ) => {
+    const fetchEpoch = ++fetchEpochRef.current;
+    setLoading(true);
+    try {
+      const list = await zaloLabelService.listCategories(accountIdSnapshot);
+      if (
+        scopeGeneration !== scopeGenerationRef.current ||
+        fetchEpoch !== fetchEpochRef.current
+      ) {
+        return;
+      }
+      setLabels(list);
+    } catch {
+      if (
+        scopeGeneration !== scopeGenerationRef.current ||
+        fetchEpoch !== fetchEpochRef.current
+      ) {
+        return;
+      }
+      toast.error("Không tải được danh sách nhãn.");
+      setLabels([]);
+    } finally {
+      if (
+        scopeGeneration === scopeGenerationRef.current &&
+        fetchEpoch === fetchEpochRef.current
+      ) {
+        setLoading(false);
+      }
+    }
+  }, []);
+
+  useLayoutEffect(() => {
+    const pendingGeneration = ++scopeGenerationRef.current;
+    queueMicrotask(() => {
+      if (pendingGeneration !== scopeGenerationRef.current) return;
+      const scopeGeneration = ++scopeGenerationRef.current;
+      setLabels([]);
+      setLoading(false);
+      setSaving(false);
+      setDeletingId(null);
+      fetchEpochRef.current += 1;
+      mutationBusyRef.current = false;
+      resetForm();
+      if (open) void fetchLabels(accountId, scopeGeneration);
+    });
+    return () => {
+      scopeGenerationRef.current += 1;
+    };
+  }, [accountId, fetchLabels, open, resetForm]);
+
+  const handleClose = useCallback(() => {
+    scopeGenerationRef.current += 1;
+    setLoading(false);
+    setSaving(false);
+    setDeletingId(null);
+    fetchEpochRef.current += 1;
+    mutationBusyRef.current = false;
+    resetForm();
+    onClose();
+  }, [onClose, resetForm]);
+
+  /** Lưu đúng scope dialog và serialize với thao tác xóa. */
   const handleSave = async () => {
+    if (mutationBusyRef.current) return;
     const trimmedName = name.trim();
     if (!trimmedName) {
       toast.error("Vui lòng nhập tên nhãn.");
@@ -79,6 +131,8 @@ function LabelManageDialog({
       return;
     }
 
+    const scopeGeneration = scopeGenerationRef.current;
+    mutationBusyRef.current = true;
     setSaving(true);
     try {
       if (editingLabel) {
@@ -87,25 +141,34 @@ function LabelManageDialog({
           name: trimmedName,
           color,
         });
+        if (scopeGeneration !== scopeGenerationRef.current) return;
         toast.success("Đã cập nhật nhãn.");
       } else {
         await zaloLabelService.createCategory({
           name: trimmedName,
           color,
         });
+        if (scopeGeneration !== scopeGenerationRef.current) return;
         toast.success("Đã tạo nhãn mới.");
       }
       resetForm();
-      await fetchLabels();
+      await fetchLabels(accountId, scopeGeneration);
+      if (scopeGeneration !== scopeGenerationRef.current) return;
       onLabelsChanged();
     } catch {
       /* toast from axios */
     } finally {
-      setSaving(false);
+      if (scopeGeneration === scopeGenerationRef.current) {
+        mutationBusyRef.current = false;
+        setSaving(false);
+      }
     }
   };
 
+  /** Xóa đúng scope dialog và serialize với thao tác lưu. */
   const handleDelete = async (label: MessengerCategoryLabel) => {
+    if (mutationBusyRef.current) return;
+    const confirmGeneration = scopeGenerationRef.current;
     if (
       !(await confirm({
         title: "Xóa nhãn",
@@ -117,17 +180,31 @@ function LabelManageDialog({
       return;
     }
 
+    if (
+      confirmGeneration !== scopeGenerationRef.current ||
+      mutationBusyRef.current
+    ) {
+      return;
+    }
+
+    const scopeGeneration = scopeGenerationRef.current;
+    mutationBusyRef.current = true;
     setDeletingId(label.id);
     try {
       await zaloLabelService.deleteCategory(label.id);
+      if (scopeGeneration !== scopeGenerationRef.current) return;
       toast.success("Đã xóa nhãn.");
       if (editingLabel?.id === label.id) resetForm();
-      await fetchLabels();
+      await fetchLabels(accountId, scopeGeneration);
+      if (scopeGeneration !== scopeGenerationRef.current) return;
       onLabelsChanged();
     } catch {
       /* toast from axios */
     } finally {
-      setDeletingId(null);
+      if (scopeGeneration === scopeGenerationRef.current) {
+        mutationBusyRef.current = false;
+        setDeletingId(null);
+      }
     }
   };
 
@@ -141,7 +218,7 @@ function LabelManageDialog({
   return (
     <Modal
       isOpen={open}
-      onClose={onClose}
+      onClose={handleClose}
       className="max-w-lg"
       showCloseButton
     >
@@ -190,6 +267,7 @@ function LabelManageDialog({
                       <button
                         type="button"
                         onClick={() => startEdit(label)}
+                        disabled={mutationBusy}
                         className="rounded-lg px-2 py-1 text-xs text-gray-500 transition hover:bg-white hover:text-brand-600 dark:hover:bg-gray-900"
                       >
                         Sửa
@@ -197,7 +275,7 @@ function LabelManageDialog({
                       <button
                         type="button"
                         onClick={() => void handleDelete(label)}
-                        disabled={deletingId === label.id}
+                        disabled={mutationBusy}
                         className="rounded-lg px-2 py-1 text-xs text-gray-500 transition hover:bg-white hover:text-red-600 disabled:opacity-50 dark:hover:bg-gray-900"
                       >
                         {deletingId === label.id ? "..." : "Xóa"}
@@ -218,7 +296,7 @@ function LabelManageDialog({
                 <Input
                   type="text"
                   value={name}
-                  disabled={saving}
+                  disabled={mutationBusy}
                   placeholder="Tên nhãn"
                   onChange={(e) => setName(e.target.value)}
                 />
@@ -227,7 +305,7 @@ function LabelManageDialog({
                 <input
                   type="color"
                   value={color}
-                  disabled={saving}
+                  disabled={mutationBusy}
                   onChange={(e) => setColor(e.target.value)}
                   className="h-7 w-8 cursor-pointer rounded border-0 bg-transparent p-0"
                   aria-label="Chọn màu nhãn"
@@ -239,14 +317,14 @@ function LabelManageDialog({
                   size="sm"
                   variant="outline"
                   onClick={resetForm}
-                  disabled={saving}
+                  disabled={mutationBusy}
                 >
                   Hủy
                 </Button>
                 <Button
                   size="sm"
                   onClick={() => void handleSave()}
-                  disabled={saving}
+                  disabled={mutationBusy}
                 >
                   {saving ? "Đang lưu..." : editingLabel ? "Lưu" : "Tạo"}
                 </Button>
@@ -264,7 +342,7 @@ function LabelManageDialog({
                 resetForm();
                 setShowForm(true);
               }}
-              disabled={labels.length >= ZALO_LABEL_MAX_COUNT}
+              disabled={mutationBusy || labels.length >= ZALO_LABEL_MAX_COUNT}
             >
               Thêm nhãn
             </Button>
