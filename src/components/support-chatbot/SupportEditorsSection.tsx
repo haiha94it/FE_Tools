@@ -111,13 +111,8 @@ export default function SupportEditorsSection() {
       <div>
         <h4 className="mb-1 flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-white">
           <FiUsers size={16} />
-          Editors — gán user theo role
+          Editors
         </h4>
-        <p className="text-xs text-gray-500 dark:text-gray-400">
-          Chỉ user thuộc role eligible (cấu hình BE{" "}
-          <code className="text-[11px]">USER_STAFF_ROLE_ATTRS</code>) mới gán
-          được. Admin luôn quản lý FAQ, không cần gán editor.
-        </p>
       </div>
 
       {/* Role chips */}
@@ -300,39 +295,6 @@ export default function SupportEditorsSection() {
             </tbody>
           </table>
         </div>
-      </div>
-
-      {/* Current editors summary */}
-      <div>
-        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
-          Đang là editor ({editors.length})
-        </p>
-        {loading ? (
-          <p className="text-xs text-gray-500">Đang tải…</p>
-        ) : editors.length === 0 ? (
-          <p className="text-xs text-gray-500">Chưa gán editor nào.</p>
-        ) : (
-          <ul className="flex flex-wrap gap-2">
-            {editors.map((ed) => (
-              <li
-                key={ed.id}
-                className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 py-1 pl-3 pr-1 text-xs dark:border-gray-700 dark:bg-white/5"
-              >
-                <span className="font-medium text-gray-800 dark:text-gray-200">
-                  {ed.username || `#${ed.user_id}`}
-                </span>
-                <button
-                  type="button"
-                  disabled={saving}
-                  onClick={() => void handleRevoke(ed.user_id, ed.username)}
-                  className="rounded-full px-2 py-0.5 font-semibold text-error-600 hover:bg-error-50 disabled:opacity-50 dark:hover:bg-error-500/10"
-                >
-                  ×
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
       </div>
     </section>
   );
