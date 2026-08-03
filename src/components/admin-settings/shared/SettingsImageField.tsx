@@ -42,7 +42,17 @@ export default function SettingsImageField({
         {required ? <span className="text-error-500"> *</span> : null}
       </p>
       {previewUrl ? (
-        <div className="relative mb-3 h-40 w-40 overflow-hidden rounded-xl border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800">
+        <div
+          className="relative mb-3 h-40 w-40 overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700"
+          /* Ô caro — thấy logo trong suốt, không nhầm nền xám/trắng là nền ảnh */
+          style={{
+            backgroundImage:
+              "linear-gradient(45deg, #e5e7eb 25%, transparent 25%), linear-gradient(-45deg, #e5e7eb 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #e5e7eb 75%), linear-gradient(-45deg, transparent 75%, #e5e7eb 75%)",
+            backgroundSize: "16px 16px",
+            backgroundPosition: "0 0, 0 8px, 8px -8px, -8px 0",
+            backgroundColor: "#f9fafb",
+          }}
+        >
           <Image
             src={previewUrl}
             alt=""

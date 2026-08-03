@@ -1,9 +1,9 @@
 "use client";
 
+import BrandLogo from "@/components/common/BrandLogo";
 import { ThemeToggleButton } from "@/components/common/ThemeToggleButton";
 import UserDropdown from "@/components/header/UserDropdown";
 import { Tooltip } from "@/components/ui/tooltip/Tooltip";
-import { APP_NAME } from "@/constants/brand";
 import { useSidebar } from "@/context/SidebarContext";
 import Link from "next/link";
 import React, { useState } from "react";
@@ -69,9 +69,7 @@ const AppHeader: React.FC = () => {
           </Tooltip>
 
           <Link href="/" prefetch={false} className="lg:hidden">
-            <img
-              src="/images/logo/logobanner.png"
-              alt={APP_NAME}
+            <BrandLogo
               width={154}
               height={32}
               className="h-8 w-auto object-contain"

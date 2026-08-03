@@ -1,10 +1,10 @@
 "use client";
 
+import BrandLogo from "@/components/common/BrandLogo";
 import LandingAuthActions from "@/components/landing/LandingAuthActions";
 import { LANDING_NAV_LINKS } from "@/components/landing/landing-data";
 import { IconClose, IconMenu } from "@/components/landing/LandingIcons";
 import LandingThemeToggle from "@/components/landing/LandingThemeToggle";
-import { APP_NAME } from "@/constants/brand";
 import { useGSAP } from "@gsap/react";
 import { gsap, ScrollTrigger } from "@/lib/gsap-config";
 import Link from "next/link";
@@ -325,13 +325,11 @@ export default function LandingNav() {
               className="flex shrink-0 items-center gap-2.5"
               onMouseEnter={handleLogoHover}
             >
-              <img
+              <BrandLogo
                 ref={logoRef}
-                src="/images/logo/logobanner.png"
-                alt={APP_NAME}
                 width={140}
                 height={36}
-                className="h-8 w-auto transition-transform duration-300 sm:h-9 object-contain shrink-0"
+                className="h-8 w-auto shrink-0 object-contain transition-transform duration-300 sm:h-9"
               />
             </Link>
 

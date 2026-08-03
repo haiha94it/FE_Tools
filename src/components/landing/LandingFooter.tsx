@@ -1,6 +1,6 @@
+import BrandLogo from "@/components/common/BrandLogo";
 import LandingAuthActions from "@/components/landing/LandingAuthActions";
 import { APP_NAME, LEGAL_BRAND_NAME } from "@/constants/brand";
-import Image from "next/image";
 import Link from "next/link";
 
 export default function LandingFooter() {
@@ -12,12 +12,10 @@ export default function LandingFooter() {
         <div className="flex flex-col gap-8 sm:flex-row sm:items-start sm:justify-between">
           <div className="max-w-xs">
             <Link href="/" className="inline-block cursor-pointer">
-              <img
-                src="/images/logo/logobanner.png"
-                alt={APP_NAME}
+              <BrandLogo
                 width={140}
                 height={36}
-                className="h-8 w-auto transition-transform duration-300 hover:scale-[1.02] sm:h-9 object-contain"
+                className="h-8 w-auto object-contain transition-transform duration-300 hover:scale-[1.02] sm:h-9"
               />
             </Link>
             <p className="landing-lead mt-3 text-sm leading-relaxed">

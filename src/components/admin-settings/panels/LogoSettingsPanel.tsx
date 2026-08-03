@@ -1,5 +1,6 @@
 "use client";
 
+import { invalidateBrandLogoCache } from "@/lib/brand-logo";
 import { getApiErrorMessage } from "@/lib/errors";
 import { toast } from "@/lib/toast";
 import { adminSettingsService } from "@/services/admin-settings.service";
@@ -48,6 +49,8 @@ export default function LogoSettingsPanel() {
     setSaving(true);
     try {
       await adminSettingsService.saveLogo({ link: imagePath });
+      // Sidebar/header/landing reload logo API ngay, không cần F5
+      invalidateBrandLogoCache();
       toast.success("Đã cập nhật logo.");
       await load();
     } catch (error) {

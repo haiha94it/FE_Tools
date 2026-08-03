@@ -1,7 +1,7 @@
 "use client";
 
+import BrandLogo from "@/components/common/BrandLogo";
 import SidebarNavIcon from "@/components/layout/SidebarNavIcon";
-import { APP_NAME } from "@/constants/brand";
 import {
   mainNavItems,
   otherNavItems,
@@ -247,19 +247,14 @@ const AppSidebar: React.FC = () => {
       >
         <Link href="/" prefetch={false}>
           {isExpanded || isHovered || isMobileOpen ? (
-            <>
-              <img
-                src="/images/logo/logobanner.png"
-                alt={APP_NAME}
-                width={150}
-                height={40}
-                className="h-10 w-auto object-contain"
-              />
-            </>
+            <BrandLogo
+              width={150}
+              height={40}
+              className="h-10 w-auto object-contain"
+            />
           ) : (
-            <img
-              src="/images/logo/favicon.png"
-              alt={APP_NAME}
+            <BrandLogo
+              variant="icon"
               width={32}
               height={32}
               className="h-8 w-8 object-contain"
