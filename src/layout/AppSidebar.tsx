@@ -151,7 +151,7 @@ const AppSidebar: React.FC = () => {
                 )}
                 {(isExpanded || isHovered || isMobileOpen) && (
                   <ChevronDownIcon
-                    className={`ml-auto h-5 w-5 transition-transform duration-200 ${
+                    className={`h-5 w-5 shrink-0 transition-transform duration-200 ${
                       submenuOpen ? "rotate-180 text-brand-500" : "text-gray-400"
                     }`}
                   />
@@ -174,7 +174,9 @@ const AppSidebar: React.FC = () => {
                     active={linkActive}
                   />
                   {(isExpanded || isHovered || isMobileOpen) && (
-                    <span className="menu-item-text">{nav.name}</span>
+                    <span className="menu-item-text" title={nav.name}>
+                      {nav.name}
+                    </span>
                   )}
                 </Link>
               )
