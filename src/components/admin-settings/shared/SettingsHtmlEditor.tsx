@@ -1,6 +1,7 @@
 "use client";
 
 import Checkbox from "@/components/form/input/Checkbox";
+import ConsentRichTextEditor from "@/components/consent/ConsentRichTextEditor";
 
 interface SettingsHtmlEditorProps {
   label?: string;
@@ -11,11 +12,12 @@ interface SettingsHtmlEditorProps {
   activeLabel?: string;
 }
 
-const textareaClassName =
-  "custom-scrollbar w-full min-h-[min(60vh,480px)] resize-y rounded-xl border border-gray-300 bg-transparent px-4 py-3 font-mono text-sm text-gray-800 shadow-theme-xs outline-none placeholder:text-gray-400 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90";
-
+/**
+ * Editor rich text (Quill) cho popup admin — bold/italic/header như ZaloCN Prime Editor.
+ * Lưu HTML; không raw textarea.
+ */
 export default function SettingsHtmlEditor({
-  label = "Nội dung HTML",
+  label = "Nội dung",
   value,
   active,
   onChange,
@@ -28,11 +30,12 @@ export default function SettingsHtmlEditor({
         <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
           {label}
         </label>
-        <textarea
+        <ConsentRichTextEditor
           value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className={textareaClassName}
-          placeholder="Nhập nội dung HTML..."
+          onChange={onChange}
+          showPlaceholders={false}
+          placeholder="Soạn nội dung — dùng toolbar in đậm, tiêu đề, danh sách…"
+          className="settings-html-editor"
         />
       </div>
       <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-gray-700 dark:text-gray-300">

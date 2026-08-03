@@ -21,27 +21,24 @@ export default function AlertSettingsPanel() {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
+  /** Snapshot lúc mở dialog — tránh race form state */
+  const [previewSnapshot, setPreviewSnapshot] = useState<{
+    imagePath: string;
+    link: string;
+  }>({ imagePath: "", link: "" });
 
   const [editingId, setEditingId] = useState<number | null>(null);
   const [link, setLink] = useState("");
   const [imagePath, setImagePath] = useState("");
   const [active, setActive] = useState(true);
 
-  // Dedupe Strict Mode nằm ở adminSettingsService.listAlerts
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      setItems(await adminSettingsService.listAlerts());
-    } catch (error) {
-      toast.error(getApiErrorMessage(error));
-    } finally {
-      setLoading(false);
-    }
+  /** Nạp 1 popup vào form (sửa / xem trước) */
+  const selectItem = useCallback((item: PopupAlertItem) => {
+    setEditingId(item.id);
+    setLink(item.link ?? "");
+    setImagePath(item.image ?? "");
+    setActive(Boolean(item.active));
   }, []);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
 
   const resetForm = () => {
     setEditingId(null);
@@ -50,12 +47,74 @@ export default function AlertSettingsPanel() {
     setActive(true);
   };
 
-  const selectItem = (item: PopupAlertItem) => {
-    setEditingId(item.id);
-    setLink(item.link ?? "");
-    setImagePath(item.image ?? "");
-    setActive(Boolean(item.active));
-  };
+  /**
+   * Load list + tùy chọn nạp form.
+   * prefer: id đã biết | image vừa save (create) | "first" auto item đầu.
+   */
+  const load = useCallback(
+    async (prefer?: number | null | "first" | { image: string }) => {
+      setLoading(true);
+      try {
+        const list = await adminSettingsService.listAlerts();
+        setItems(list);
+
+        let pick: PopupAlertItem | undefined;
+        if (prefer === "first") {
+          pick = list[0];
+        } else if (prefer && typeof prefer === "object" && "image" in prefer) {
+          pick =
+            list.find((i) => i.image === prefer.image) ?? list[0] ?? undefined;
+        } else if (typeof prefer === "number") {
+          pick = list.find((i) => i.id === prefer) ?? list[0] ?? undefined;
+        } else if (prefer === null) {
+          pick = undefined;
+        } else {
+          // reload thuần (toggle): sync form nếu đang sửa id còn trong list
+          pick = undefined;
+        }
+
+        if (prefer === "first" || typeof prefer === "number" || (prefer && typeof prefer === "object")) {
+          if (pick) selectItem(pick);
+          else resetForm();
+        } else if (prefer === undefined) {
+          // giữ form; nếu đang edit id bị xóa thì nạp first hoặc clear
+          setEditingId((cur) => {
+            if (cur == null) return cur;
+            const still = list.find((i) => i.id === cur);
+            if (still) {
+              setLink(still.link ?? "");
+              setImagePath(still.image ?? "");
+              setActive(Boolean(still.active));
+              return still.id;
+            }
+            if (list[0]) {
+              setLink(list[0].link ?? "");
+              setImagePath(list[0].image ?? "");
+              setActive(Boolean(list[0].active));
+              return list[0].id;
+            }
+            setLink("");
+            setImagePath("");
+            setActive(true);
+            return null;
+          });
+        }
+
+        return list;
+      } catch (error) {
+        toast.error(getApiErrorMessage(error));
+        return [] as PopupAlertItem[];
+      } finally {
+        setLoading(false);
+      }
+    },
+    [selectItem],
+  );
+
+  useEffect(() => {
+    // 1 thông báo (hoặc nhiều): mount → nạp item đầu vào form, Xem trước dùng được ngay
+    void load("first");
+  }, [load]);
 
   const handleUpload = async (file: File) => {
     setUploading(true);
@@ -75,6 +134,8 @@ export default function AlertSettingsPanel() {
     }
     setSaving(true);
     try {
+      const savedId = editingId;
+      const savedImage = imagePath;
       await adminSettingsService.saveAlert({
         id: editingId,
         link,
@@ -82,8 +143,12 @@ export default function AlertSettingsPanel() {
         active,
       });
       toast.success("Đã lưu thông báo.");
-      resetForm();
-      await load();
+      // Giữ form — không reset; re-select theo id hoặc image vừa tạo
+      if (savedId != null) {
+        await load(savedId);
+      } else {
+        await load({ image: savedImage });
+      }
     } catch (error) {
       toast.error(getApiErrorMessage(error));
     } finally {
@@ -123,11 +188,24 @@ export default function AlertSettingsPanel() {
     try {
       await adminSettingsService.deleteAlerts([id]);
       toast.success("Đã xóa thông báo.");
-      if (editingId === id) resetForm();
-      await load();
+      await load("first");
     } catch (error) {
       toast.error(getApiErrorMessage(error));
     }
+  };
+
+  const openPreview = () => {
+    // Form trống → fallback item đầu (case chỉ 1 thông báo, user chưa click card)
+    const fallback = items[0];
+    const snapImage = imagePath || fallback?.image || "";
+    const snapLink = imagePath ? link : (fallback?.link ?? link);
+    if (!snapImage) {
+      toast.error("Chưa có ảnh thông báo để xem trước.");
+      return;
+    }
+    if (!imagePath && fallback) selectItem(fallback);
+    setPreviewSnapshot({ imagePath: snapImage, link: snapLink });
+    setPreviewOpen(true);
   };
 
   return (
@@ -156,8 +234,9 @@ export default function AlertSettingsPanel() {
           <SettingsPanelActions
             saving={saving}
             saveDisabled={!imagePath}
+            previewDisabled={!imagePath && !items[0]?.image}
             onSave={() => void handleSave()}
-            onPreview={() => setPreviewOpen(true)}
+            onPreview={openPreview}
           />
           {editingId ? (
             <button
@@ -182,11 +261,19 @@ export default function AlertSettingsPanel() {
           {items.map((item, index) => {
             const imageUrl = resolveAdminSettingsImage(item.image);
             return (
-              <button
+              // Card dùng div — tránh <button> lồng <button> (Checkbox + Xóa)
+              <div
                 key={item.id}
-                type="button"
+                role="button"
+                tabIndex={0}
                 onClick={() => selectItem(item)}
-                className={`rounded-2xl border p-4 text-left transition hover:border-brand-300 dark:hover:border-brand-500/40 ${
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    selectItem(item);
+                  }
+                }}
+                className={`cursor-pointer rounded-2xl border p-4 text-left transition hover:border-brand-300 dark:hover:border-brand-500/40 ${
                   editingId === item.id
                     ? "border-brand-300 bg-brand-50/50 dark:border-brand-500/30 dark:bg-brand-500/10"
                     : "border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]"
@@ -196,17 +283,18 @@ export default function AlertSettingsPanel() {
                   <p className="font-medium text-gray-800 dark:text-white/90">
                     Thông báo {index + 1}
                   </p>
-                  <div className="flex items-center gap-2">
+                  <div
+                    className="flex items-center gap-2"
+                    onClick={(e) => e.stopPropagation()}
+                    onKeyDown={(e) => e.stopPropagation()}
+                  >
                     <Checkbox
                       checked={Boolean(item.active)}
                       onChange={() => void handleToggle(item)}
                     />
                     <button
                       type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        void handleDelete(item.id);
-                      }}
+                      onClick={() => void handleDelete(item.id)}
                       className="text-xs text-error-500 hover:underline"
                     >
                       Xóa
@@ -225,7 +313,7 @@ export default function AlertSettingsPanel() {
                   </div>
                 ) : null}
                 <p className="line-clamp-2 text-xs text-gray-500">{item.link}</p>
-              </button>
+              </div>
             );
           })}
         </div>
@@ -235,8 +323,8 @@ export default function AlertSettingsPanel() {
         open={previewOpen}
         onClose={() => setPreviewOpen(false)}
         title="Xem trước thông báo"
-        imagePath={imagePath}
-        link={link}
+        imagePath={previewSnapshot.imagePath}
+        link={previewSnapshot.link}
       />
     </div>
   );

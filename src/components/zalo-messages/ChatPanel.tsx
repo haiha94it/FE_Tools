@@ -27,19 +27,30 @@ import type {
   MessengerMentionInfo,
   MessengerStickerItem,
 } from "@/types/zalo-messenger";
-import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef } from "react";
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import ChatComposer from "./ChatComposer";
 import ChatFriendActions from "./ChatFriendActions";
 import ChatFriendChatbotToggle from "./ChatFriendChatbotToggle";
 import ChatHeaderMenu from "./ChatHeaderMenu";
 import ChatScrollToBottom from "./ChatScrollToBottom";
 import GroupMembersPanel from "./GroupMembersPanel";
+import GroupSettingsDialog from "./GroupSettingsDialog";
 import { MessageList } from "./MessageBubble";
 
 const SCROLL_TOP_THRESHOLD = 80;
 
 interface ChatPanelProps {
   accountId: number | null;
+  /** Zalo uid nick đang chọn — phân quyền cài đặt nhóm (creator/admin/member) */
+  accountUid?: string | null;
   accountLabel?: string;
   conversation: MessengerConversation | null;
   messages: DisplayMessage[];
@@ -84,6 +95,7 @@ interface ChatPanelProps {
 
 function ChatPanel({
   accountId,
+  accountUid = null,
   accountLabel,
   conversation,
   messages,
@@ -139,6 +151,7 @@ function ChatPanel({
   /** Members chỉ load 1 lần ở MessengerChatColumn — tránh double/triple get-member/show */
   const groupMembers = groupMembersProp ?? [];
   const refreshMembers = onRefreshGroupMembers ?? (() => undefined);
+  const [groupSettingsOpen, setGroupSettingsOpen] = useState(false);
 
   const {
     newMessageCount,
@@ -336,12 +349,36 @@ function ChatPanel({
         </div>
 
         {isGroup && groupId ? (
-          <GroupMembersPanel
-            members={groupMembers}
-            isLoading={groupMembersLoading}
-            isRefreshing={groupMembersRefreshing}
-            onRefresh={refreshMembers}
-          />
+          <div className="flex shrink-0 items-center gap-1.5">
+            <GroupMembersPanel
+              members={groupMembers}
+              isLoading={groupMembersLoading}
+              isRefreshing={groupMembersRefreshing}
+              onRefresh={refreshMembers}
+            />
+            {accountId ? (
+              <button
+                type="button"
+                onClick={() => setGroupSettingsOpen(true)}
+                className="flex h-9 items-center gap-1.5 rounded-xl border border-gray-200 px-2.5 text-xs font-medium text-gray-600 transition hover:border-brand-300 hover:text-brand-600 dark:border-gray-700 dark:text-gray-300 dark:hover:border-brand-500/40 dark:hover:text-brand-400"
+                title="Cài đặt nhóm"
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  aria-hidden
+                >
+                  <circle cx="12" cy="12" r="3" />
+                  <path d="M12 1v2M12 21v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4" />
+                </svg>
+                <span className="hidden xl:inline">Cài đặt</span>
+              </button>
+            ) : null}
+          </div>
         ) : null}
 
         {!isGroup && accountId && conversation.friend ? (
@@ -432,6 +469,24 @@ function ChatPanel({
           onScrollToBottom={() => scrollToBottom()}
         />
       </div>
+
+      {isGroup && groupId && accountId && conversation.group?.uid ? (
+        <GroupSettingsDialog
+          open={groupSettingsOpen}
+          onClose={() => setGroupSettingsOpen(false)}
+          accountId={accountId}
+          accountUid={accountUid}
+          groupId={groupId}
+          groupUid={String(conversation.group.uid)}
+          groupName={title}
+          groupAvatar={avatar}
+          members={groupMembers}
+          onUpdated={() => {
+            refreshMembers();
+            void onRefreshConversation?.();
+          }}
+        />
+      ) : null}
 
       <ChatComposer
         accountId={accountId}

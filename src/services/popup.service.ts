@@ -2,6 +2,14 @@ import { API_BASE_URL, API_POPUP } from "@/config/api";
 import api from "@/lib/axios";
 import type { DecreeItem, RegisterPopupItem } from "@/types/auth";
 
+/** Popup điều khoản đăng nhập lần đầu — GET /api/popup/term/get */
+export interface TermPopupItem {
+  id?: number;
+  content?: string;
+  image?: string;
+  active?: boolean;
+}
+
 export const popupService = {
   async getRegisterPopup(): Promise<RegisterPopupItem | null> {
     const { data } = await api.get<RegisterPopupItem[]>(API_POPUP.REGISTER);
@@ -10,6 +18,12 @@ export const popupService = {
 
   async getDecree(): Promise<DecreeItem | null> {
     const { data } = await api.get<DecreeItem>(API_POPUP.DECREE);
+    return data ?? null;
+  },
+
+  /** Nội dung + active popup term (ép accept_terms) */
+  async getTerm(): Promise<TermPopupItem | null> {
+    const { data } = await api.get<TermPopupItem>(API_POPUP.TERM);
     return data ?? null;
   },
 

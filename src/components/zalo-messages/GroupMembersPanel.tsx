@@ -37,13 +37,24 @@ function GroupMembersPanel({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [open]);
 
+  const memberCount = members.length;
+  const countLabel = isLoading && memberCount === 0 ? "…" : String(memberCount);
+
   return (
     <div ref={panelRef} className="relative shrink-0">
-      <Tooltip content="Thành viên nhóm" side="bottom">
+      <Tooltip
+        content={
+          memberCount > 0
+            ? `Thành viên nhóm (${memberCount})`
+            : "Thành viên nhóm"
+        }
+        side="bottom"
+      >
         <button
           type="button"
           onClick={() => setOpen((prev) => !prev)}
           className="flex h-9 items-center gap-1.5 rounded-xl border border-gray-200 px-2.5 text-xs font-medium text-gray-600 transition hover:border-brand-300 hover:text-brand-600 dark:border-gray-700 dark:text-gray-300 dark:hover:border-brand-500/40 dark:hover:text-brand-400"
+          aria-label={`Thành viên nhóm, ${countLabel} người`}
         >
           <svg
             width="16"
@@ -59,7 +70,10 @@ function GroupMembersPanel({
             <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
             <path d="M16 3.13a4 4 0 0 1 0 7.75" />
           </svg>
-          <span className="hidden xl:inline">Thành viên</span>
+          <span className="hidden sm:inline">Thành viên</span>
+          <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-brand-50 px-1.5 py-0.5 text-[11px] font-semibold tabular-nums text-brand-600 dark:bg-brand-500/15 dark:text-brand-400">
+            {countLabel}
+          </span>
         </button>
       </Tooltip>
 

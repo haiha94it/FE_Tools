@@ -5,6 +5,8 @@ import Button from "@/components/ui/button/Button";
 interface SettingsPanelActionsProps {
   saving?: boolean;
   saveDisabled?: boolean;
+  /** Disable nút xem trước (vd. chưa có ảnh trong form) */
+  previewDisabled?: boolean;
   onSave: () => void;
   onPreview?: () => void;
   previewLabel?: string;
@@ -15,6 +17,7 @@ interface SettingsPanelActionsProps {
 export default function SettingsPanelActions({
   saving = false,
   saveDisabled = false,
+  previewDisabled = false,
   onSave,
   onPreview,
   previewLabel = "Xem trước",
@@ -27,7 +30,12 @@ export default function SettingsPanelActions({
         {saving ? "Đang lưu..." : "Lưu"}
       </Button>
       {onPreview ? (
-        <Button size="sm" variant="outline" onClick={onPreview} disabled={saving}>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={onPreview}
+          disabled={saving || previewDisabled}
+        >
           {previewLabel}
         </Button>
       ) : null}

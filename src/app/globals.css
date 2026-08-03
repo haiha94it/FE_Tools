@@ -858,6 +858,16 @@ span.flatpickr-weekday,
   overflow-y: auto;
 }
 
+/* Admin settings popup term/decree — editor cao hơn (giống Care/ZaloCN) */
+.settings-html-editor.consent-quill-editor .ql-container.ql-snow,
+.settings-html-editor.consent-quill-editor .ql-editor {
+  min-height: min(55vh, 420px);
+}
+
+.settings-html-editor.consent-quill-editor .ql-editor {
+  max-height: min(65vh, 560px);
+}
+
 .dark .consent-quill-editor .ql-editor {
   color: rgba(255, 255, 255, 0.9);
 }

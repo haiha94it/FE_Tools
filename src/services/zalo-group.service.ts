@@ -3,6 +3,8 @@ import { zaloLabelService } from "@/services/zalo-label.service";
 import { unwrapApiBody } from "@/lib/api-response";
 import {
   extractGroupsFromScanTaskPayload,
+  getCeleryTaskStatus,
+  isCeleryTaskDone,
   normalizeCeleryPollResponse,
 } from "@/lib/celery-poll";
 import {
@@ -23,6 +25,70 @@ import type {
   ZaloGroupMember,
   ZaloLabelCategory,
 } from "@/types/zalo-contacts";
+import type { ZaloGroupSettingPayload } from "@/types/zalo-group-settings";
+
+const GROUP_TASK_POLL_MS = 1200;
+const GROUP_TASK_MAX_ATTEMPTS = 40;
+
+/** Poll Celery group task tới xong — trả result SUCCESS hoặc fail message */
+async function pollGroupCeleryTask(
+  startPath: string,
+  resultPath: string,
+  body: Record<string, unknown>,
+): Promise<{ ok: boolean; message?: string; data?: unknown }> {
+  const startRes = await api.post(startPath, body);
+  const startBody = unwrapApiBody<{ id_task?: string | number; message?: string }>(
+    startRes.data,
+  );
+  const idTask = startBody.id_task;
+  if (!idTask) {
+    return { ok: false, message: startBody.message || "Không tạo được tác vụ." };
+  }
+
+  for (let i = 0; i < GROUP_TASK_MAX_ATTEMPTS; i += 1) {
+    await new Promise((r) => setTimeout(r, GROUP_TASK_POLL_MS));
+    const pollRes = await api.post(resultPath, { id_task: idTask });
+    const raw = pollRes.data;
+    const normalized = normalizeCeleryPollResponse(
+      raw && typeof raw === "object" && "task_status" in (raw as object)
+        ? (raw as ScanTaskResponse)
+        : unwrapApiBody<ScanTaskResponse>(raw),
+    );
+    const status = getCeleryTaskStatus(normalized);
+    if (!isCeleryTaskDone(status)) continue;
+
+    if (status === "SUCCESS") {
+      const payload = normalized.data ?? normalized.result;
+      // result có thể envelope { success: false }
+      if (
+        payload &&
+        typeof payload === "object" &&
+        "success" in (payload as object) &&
+        (payload as { success?: boolean }).success === false
+      ) {
+        return {
+          ok: false,
+          message:
+            (payload as { message?: string }).message ||
+            normalized.message ||
+            "Thao tác thất bại.",
+          data: payload,
+        };
+      }
+      return {
+        ok: true,
+        message: normalized.message || "Thành công",
+        data: payload,
+      };
+    }
+    return {
+      ok: false,
+      message: normalized.message || "Tác vụ thất bại.",
+      data: normalized.data ?? normalized.result,
+    };
+  }
+  return { ok: false, message: "Hết thời gian chờ tác vụ nhóm." };
+}
 
 function extractGroupMembers(body: unknown): ZaloGroupMember[] {
   return extractGroupMembersFromPoll(body).members;
@@ -214,5 +280,92 @@ export const zaloGroupService = {
       link,
     });
     return extractGroupMembers(response.data);
+  },
+
+  /** GET setting nhóm — poll result → { setting, group_id } */
+  async getGroupSetting(
+    accountId: number,
+    groupId: number,
+  ): Promise<{ ok: boolean; setting?: ZaloGroupSettingPayload; message?: string }> {
+    const res = await pollGroupCeleryTask(
+      API_ZALO_GROUP.GET_SETTING,
+      API_ZALO_GROUP.GET_SETTING_RESULT,
+      { id_account: accountId, id_group: groupId },
+    );
+    if (!res.ok) return { ok: false, message: res.message };
+    const data = res.data as Record<string, unknown> | null;
+    const setting =
+      (data?.setting as ZaloGroupSettingPayload | undefined) ??
+      (data as ZaloGroupSettingPayload | undefined);
+    return { ok: true, setting: setting ?? undefined, message: res.message };
+  },
+
+  /** Cập nhật setting — body.setting gồm grid + cờ 0/1 (Care) */
+  async changeGroupSetting(
+    accountId: number,
+    setting: ZaloGroupSettingPayload,
+  ): Promise<{ ok: boolean; message?: string }> {
+    return pollGroupCeleryTask(
+      API_ZALO_GROUP.CHANGE_SETTING,
+      API_ZALO_GROUP.CHANGE_SETTING_RESULT,
+      { id_account: accountId, setting },
+    );
+  },
+
+  async changeGroupName(
+    accountId: number,
+    groupId: number,
+    name: string,
+  ): Promise<{ ok: boolean; message?: string }> {
+    return pollGroupCeleryTask(
+      API_ZALO_GROUP.CHANGE_NAME,
+      API_ZALO_GROUP.CHANGE_NAME_RESULT,
+      { id_account: accountId, id_group: groupId, name },
+    );
+  },
+
+  /**
+   * Đổi avatar nhóm — `file` path chứa chứa BE (chứa `/media/files/`).
+   * Upload trước qua messenger uploadFile.
+   */
+  async changeGroupAvatar(
+    accountId: number,
+    groupId: number,
+    filePath: string,
+  ): Promise<{ ok: boolean; message?: string }> {
+    return pollGroupCeleryTask(
+      API_ZALO_GROUP.CHANGE_AVATAR,
+      API_ZALO_GROUP.CHANGE_AVATAR_RESULT,
+      {
+        id_account: accountId,
+        id_group: groupId,
+        for_group: true,
+        file: filePath,
+      },
+    );
+  },
+
+  async addGroupAdmin(
+    accountId: number,
+    groupId: number,
+    uidAdmin: string,
+  ): Promise<{ ok: boolean; message?: string }> {
+    return pollGroupCeleryTask(
+      API_ZALO_GROUP.ADD_ADMIN,
+      API_ZALO_GROUP.ADD_ADMIN_RESULT,
+      { id_account: accountId, id_group: groupId, uid_admin: uidAdmin },
+    );
+  },
+
+  async removeGroupAdmin(
+    accountId: number,
+    groupId: number,
+    uidAdmin: string,
+  ): Promise<{ ok: boolean; message?: string }> {
+    return pollGroupCeleryTask(
+      API_ZALO_GROUP.REMOVE_ADMIN,
+      API_ZALO_GROUP.REMOVE_ADMIN_RESULT,
+      { id_account: accountId, id_group: groupId, uid_admin: uidAdmin },
+    );
   },
 };

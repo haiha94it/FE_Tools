@@ -76,6 +76,7 @@ export default function FirstLoginSettingsPanel() {
         onClose={() => setPreviewOpen(false)}
         title="Xem trước thông báo đăng nhập lần đầu"
         content={content}
+        showAcceptMock
       />
     </div>
   );

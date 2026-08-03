@@ -179,7 +179,7 @@ export function useGroupMembers(
         refreshEpochRef.current = null;
         toast.success(
           `Đã làm mới ${next.length} thành viên${
-            result.total_member ? ` / ${result.total_member}` : ""
+            result.total_member ? ` trên ${result.total_member}` : ""
           }.`,
         );
         return;

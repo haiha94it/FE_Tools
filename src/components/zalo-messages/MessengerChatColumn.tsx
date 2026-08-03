@@ -197,6 +197,7 @@ function MessengerChatColumn({ showMobileBack = false }: MessengerChatColumnProp
     <>
     <ChatPanel
       accountId={selectedAccountId}
+      accountUid={accountUid}
       accountLabel={getAccountLabel(selectedAccount ?? null)}
       conversation={activeConversation}
       messages={messages}

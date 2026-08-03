@@ -1,5 +1,6 @@
 "use client";
 
+import AcceptTermsGate from "@/components/auth/AcceptTermsGate";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { TeamRouteGuard } from "@/components/auth/TeamRouteGuard";
 import { useSidebar } from "@/context/SidebarContext";
@@ -32,6 +33,8 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
           </main>
         </div>
       </div>
+      {/* Popup điều khoản đăng nhập lần đầu — accept_terms */}
+      <AcceptTermsGate />
       </TeamRouteGuard>
     </AuthGuard>
   );

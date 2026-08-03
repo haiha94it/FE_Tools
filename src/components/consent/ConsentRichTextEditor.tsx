@@ -9,6 +9,8 @@ interface ConsentRichTextEditorProps {
   disabled?: boolean;
   placeholder?: string;
   className?: string;
+  /** Ẩn chip placeholder consent — dùng cho admin settings popup term/decree */
+  showPlaceholders?: boolean;
 }
 
 type QuillInstance = {
@@ -52,6 +54,7 @@ function ConsentRichTextEditor({
   disabled = false,
   placeholder = "Soạn nội dung điều khoản như văn bản thường…",
   className = "",
+  showPlaceholders = true,
 }: ConsentRichTextEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const quillRef = useRef<QuillInstance | null>(null);
@@ -183,48 +186,50 @@ function ConsentRichTextEditor({
 
   return (
     <div className={`consent-quill-editor min-w-0 space-y-3 ${className}`.trim()}>
-      <div className="rounded-xl border border-gray-200 bg-gray-50/50 p-4 dark:border-gray-800 dark:bg-white/[0.02]">
-        <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-          Chèn nhanh các biến placeholder
-        </p>
-        <div className="flex flex-wrap items-center gap-1.5">
-          {[
-            { label: "Tên đơn vị / Cá nhân", text: "{{ entity_name }}" },
-            { label: "Mã số thuế", text: "{{ tax_code }}" },
-            { label: "Người đại diện", text: "{{ representative_name }}" },
-            { label: "Chức vụ", text: "{{ representative_title }}" },
-            { label: "Địa chỉ", text: "{{ address }}" },
-            { label: "Số điện thoại", text: "{{ phone }}" },
-            { label: "Email", text: "{{ email }}" },
-          ].map((btn) => (
-            <button
-              key={btn.text}
-              type="button"
-              onClick={() => insertPlaceholder(btn.text)}
-              className="cursor-pointer rounded bg-brand-50 px-2 py-1 text-xs font-medium text-brand-700 hover:bg-brand-100 dark:bg-brand-500/10 dark:text-brand-300 dark:hover:bg-brand-500/20"
-            >
-              {btn.label}
-            </button>
-          ))}
+      {showPlaceholders ? (
+        <div className="rounded-xl border border-gray-200 bg-gray-50/50 p-4 dark:border-gray-800 dark:bg-white/[0.02]">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+            Chèn nhanh các biến placeholder
+          </p>
+          <div className="flex flex-wrap items-center gap-1.5">
+            {[
+              { label: "Tên đơn vị / Cá nhân", text: "{{ entity_name }}" },
+              { label: "Mã số thuế", text: "{{ tax_code }}" },
+              { label: "Người đại diện", text: "{{ representative_name }}" },
+              { label: "Chức vụ", text: "{{ representative_title }}" },
+              { label: "Địa chỉ", text: "{{ address }}" },
+              { label: "Số điện thoại", text: "{{ phone }}" },
+              { label: "Email", text: "{{ email }}" },
+            ].map((btn) => (
+              <button
+                key={btn.text}
+                type="button"
+                onClick={() => insertPlaceholder(btn.text)}
+                className="cursor-pointer rounded bg-brand-50 px-2 py-1 text-xs font-medium text-brand-700 hover:bg-brand-100 dark:bg-brand-500/10 dark:text-brand-300 dark:hover:bg-brand-500/20"
+              >
+                {btn.label}
+              </button>
+            ))}
 
-          <div className="mx-1 h-4 w-px bg-gray-200 dark:bg-gray-800" />
+            <div className="mx-1 h-4 w-px bg-gray-200 dark:bg-gray-800" />
 
-          {[
-            { label: "Ngày hiện tại", text: "{{ current_day }}" },
-            { label: "Tháng hiện tại", text: "{{ current_month }}" },
-            { label: "Năm hiện tại", text: "{{ current_year }}" },
-          ].map((btn) => (
-            <button
-              key={btn.text}
-              type="button"
-              onClick={() => insertPlaceholder(btn.text)}
-              className="cursor-pointer rounded bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
-            >
-              {btn.label}
-            </button>
-          ))}
+            {[
+              { label: "Ngày hiện tại", text: "{{ current_day }}" },
+              { label: "Tháng hiện tại", text: "{{ current_month }}" },
+              { label: "Năm hiện tại", text: "{{ current_year }}" },
+            ].map((btn) => (
+              <button
+                key={btn.text}
+                type="button"
+                onClick={() => insertPlaceholder(btn.text)}
+                className="cursor-pointer rounded bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+              >
+                {btn.label}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      ) : null}
 
       <div
         ref={containerRef}

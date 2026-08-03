@@ -220,7 +220,7 @@ export const API_ZALO_USER_ADMIN = {
 
 export const ADMIN_USERS_BASE = "/admin/users";
 
-/** Nhóm Zalo */
+/** Nhóm Zalo — đủ path quản trị nhóm (Care SettingGroups) */
 export const API_ZALO_GROUP = {
   LIST: "/api/group/",
   /** Lấy avatar/chi tiết từ danh sách nhóm (type=simple) — ZaloCN fetchs */
@@ -237,6 +237,22 @@ export const API_ZALO_GROUP = {
   GET_MEMBER_SHOW: "/api/group/get-member/show",
   CREATE: "/api/group/create",
   CREATE_RESULT: "/api/group/create/result",
+  /** Sửa thông tin / quyền nhóm — giống Care */
+  ADD_ADMIN: "/api/group/add-admin",
+  ADD_ADMIN_RESULT: "/api/group/add-admin/result",
+  REMOVE_ADMIN: "/api/group/remove-admin",
+  REMOVE_ADMIN_RESULT: "/api/group/remove-admin/result",
+  CHANGE_OWNER: "/api/group/change-owner",
+  CHANGE_OWNER_RESULT: "/api/group/change-owner/result",
+  CHANGE_NAME: "/api/group/change-name",
+  CHANGE_NAME_RESULT: "/api/group/change-name/result",
+  CHANGE_AVATAR: "/api/group/change-avatar",
+  CHANGE_AVATAR_RESULT: "/api/group/change-avatar/result",
+  GET_SETTING: "/api/group/get-group-setting",
+  GET_SETTING_RESULT: "/api/group/get-group-setting/result",
+  CHANGE_SETTING: "/api/group/change-group-setting",
+  CHANGE_SETTING_RESULT: "/api/group/change-group-setting/result",
+  LOCK_CHAT: "/api/group/lock-group-chat",
 } as const;
 
 /** Nhãn hội thoại — /api/message/category/ (§ fe_message_label_category.md) */
