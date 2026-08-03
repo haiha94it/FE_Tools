@@ -17,6 +17,8 @@ import {
   getMessageReactions,
   getUniqueReactionEmojis,
   groupReactionsByCliMsgId,
+  resolveStandaloneZaloEmoticon,
+  splitZaloEmoticonText,
 } from "@/lib/zalo-messenger-reactions";
 import {
   getMessageText,
@@ -121,6 +123,33 @@ function resolveQuoteAttachmentPreview(
 }
 
 /** Render đúng các đoạn mention theo pos/len và giữ nguyên phần text còn lại. */
+/** Render shortcode Zalo (`/-strong` → 👍) trong đoạn text thường */
+function EmoticonInlineText({ text }: { text: string }) {
+  const parts = splitZaloEmoticonText(text);
+  if (parts.length === 1 && parts[0]?.type === "text") {
+    return <>{parts[0].value}</>;
+  }
+  return (
+    <>
+      {parts.map((part, index) =>
+        part.type === "emoticon" ? (
+          <span
+            key={`e-${index}`}
+            className="inline-block px-0.5 text-[1.15em] leading-none align-[-0.1em]"
+            role="img"
+            aria-label={part.option.label}
+            title={part.option.label}
+          >
+            {part.option.emoji}
+          </span>
+        ) : (
+          <span key={`t-${index}`}>{part.value}</span>
+        ),
+      )}
+    </>
+  );
+}
+
 function MentionText({
   text,
   mentions,
@@ -141,14 +170,23 @@ function MentionText({
     )
     .sort((left, right) => left.pos - right.pos);
 
-  if (!validMentions.length) return text;
+  if (!validMentions.length) {
+    return <EmoticonInlineText text={text} />;
+  }
 
   const parts: ReactNode[] = [];
   let cursor = 0;
 
   for (const mention of validMentions) {
     if (mention.pos < cursor) continue;
-    if (mention.pos > cursor) parts.push(text.slice(cursor, mention.pos));
+    if (mention.pos > cursor) {
+      parts.push(
+        <EmoticonInlineText
+          key={`pre-${mention.pos}`}
+          text={text.slice(cursor, mention.pos)}
+        />,
+      );
+    }
 
     const end = Math.min(mention.pos + mention.len, text.length);
     parts.push(
@@ -166,7 +204,11 @@ function MentionText({
     cursor = end;
   }
 
-  if (cursor < text.length) parts.push(text.slice(cursor));
+  if (cursor < text.length) {
+    parts.push(
+      <EmoticonInlineText key="tail" text={text.slice(cursor)} />,
+    );
+  }
   return parts;
 }
 
@@ -418,11 +460,26 @@ function MessageContent({
       </div>
     );
   } else if (text) {
-    body = (
-      <p className={`${messageTextClass} text-left`}>
-        <MentionText text={text} mentions={message.mentions} own={own} />
-      </p>
-    );
+    // Tin webchat chỉ là shortcode Zalo (vd. `/-strong`) → icon lớn
+    const standalone = resolveStandaloneZaloEmoticon(text);
+    if (standalone) {
+      body = (
+        <span
+          className="inline-flex select-none text-4xl leading-none"
+          role="img"
+          aria-label={standalone.label}
+          title={standalone.label}
+        >
+          {standalone.emoji}
+        </span>
+      );
+    } else {
+      body = (
+        <p className={`${messageTextClass} text-left`}>
+          <MentionText text={text} mentions={message.mentions} own={own} />
+        </p>
+      );
+    }
   } else {
     body = (
       <span className="text-xs italic opacity-70">Nội dung không hỗ trợ</span>

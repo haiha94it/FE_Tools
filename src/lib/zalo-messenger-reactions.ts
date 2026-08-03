@@ -100,6 +100,73 @@ export function getReactionById(id: number): ZaloReactionOption | undefined {
   return ZALO_REACTION_OPTIONS.find((item) => item.id === id);
 }
 
+export function getReactionByAlt(alt: string): ZaloReactionOption | undefined {
+  return REACTION_BY_ALT[alt];
+}
+
+/** Shortcode emoticon Zalo trong tin webchat — dài trước để không cắt nhầm */
+const EMOTICON_ALTS_SORTED = [...ZALO_REACTION_OPTIONS]
+  .map((item) => item.alt)
+  .sort((a, b) => b.length - a.length);
+
+/**
+ * Tin chỉ là 1 emoticon Zalo (vd. `/-strong`) — hiển thị icon lớn.
+ */
+export function isStandaloneZaloEmoticon(text: string): boolean {
+  const t = text.trim();
+  return Boolean(t && REACTION_BY_ALT[t]);
+}
+
+export function resolveStandaloneZaloEmoticon(
+  text: string,
+): ZaloReactionOption | null {
+  const t = text.trim();
+  return (t && REACTION_BY_ALT[t]) || null;
+}
+
+export type ZaloEmoticonTextPart =
+  | { type: "text"; value: string }
+  | { type: "emoticon"; value: string; option: ZaloReactionOption };
+
+/**
+ * Tách text webchat thành đoạn text + emoticon (`/-strong`, `/-heart`, …).
+ */
+export function splitZaloEmoticonText(text: string): ZaloEmoticonTextPart[] {
+  if (!text) return [];
+  const parts: ZaloEmoticonTextPart[] = [];
+  let remaining = text;
+
+  while (remaining.length > 0) {
+    let earliest = -1;
+    let matchedAlt = "";
+    for (const alt of EMOTICON_ALTS_SORTED) {
+      const idx = remaining.indexOf(alt);
+      if (idx === -1) continue;
+      if (earliest === -1 || idx < earliest) {
+        earliest = idx;
+        matchedAlt = alt;
+      } else if (idx === earliest && alt.length > matchedAlt.length) {
+        matchedAlt = alt;
+      }
+    }
+    if (earliest === -1 || !matchedAlt) {
+      parts.push({ type: "text", value: remaining });
+      break;
+    }
+    if (earliest > 0) {
+      parts.push({ type: "text", value: remaining.slice(0, earliest) });
+    }
+    const option = REACTION_BY_ALT[matchedAlt];
+    if (option) {
+      parts.push({ type: "emoticon", value: matchedAlt, option });
+    } else {
+      parts.push({ type: "text", value: matchedAlt });
+    }
+    remaining = remaining.slice(earliest + matchedAlt.length);
+  }
+  return parts;
+}
+
 export function isReactionOnlyMessage(message: DisplayMessage): boolean {
   if (message.msgType === "chat.reaction") return true;
   return (
