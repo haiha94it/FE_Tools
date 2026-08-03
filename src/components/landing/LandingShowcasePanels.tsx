@@ -57,7 +57,7 @@ function MessengerPanel() {
     <PanelChrome title="cskh.tudongai.com/zalo-messages">
       <div className="overflow-hidden bg-gray-950/5">
         <img
-          src="/images/logo/Ảnh 2 - tin nhan.png"
+          src="/images/logo/anh-2-tin-nhan.png"
           alt="Hộp thư Zalo realtime — CSKH tự động"
           className="w-full h-auto object-cover transition-transform duration-500 hover:scale-[1.02]"
         />
@@ -71,7 +71,7 @@ function CampaignsPanel() {
     <PanelChrome title="cskh.tudongai.com/zalo-campaigns">
       <div className="overflow-hidden bg-gray-950/5">
         <img
-          src="/images/logo/Ảnh 2 - chiến dịch.png"
+          src="/images/logo/anh-2-chien-dich.png"
           alt="Tự động hóa marketing Zalo — CSKH tự động"
           className="w-full h-auto object-cover transition-transform duration-500 hover:scale-[1.02]"
         />
@@ -85,7 +85,7 @@ function ShopPanel() {
     <PanelChrome title="cskh.tudongai.com/shop">
       <div className="overflow-hidden bg-gray-950/5">
         <img
-          src="/images/logo/Ảnh 2 - quản lý shop bán hàng.png"
+          src="/images/logo/anh-2-quan-ly-shop-ban-hang.png"
           alt="Quản lý cửa hàng shop online — CSKH tự động"
           className="w-full h-auto object-cover transition-transform duration-500 hover:scale-[1.02]"
         />
@@ -99,7 +99,7 @@ function AccountsPanel() {
     <PanelChrome title="cskh.tudongai.com/zalo-accounts">
       <div className="overflow-hidden bg-gray-950/5">
         <img
-          src="/images/logo/Ảnh 2 - quản lý tài khoản.png"
+          src="/images/logo/anh-2-quan-ly-tai-khoan.png"
           alt="Trung tâm quản lý tài khoản Zalo — CSKH tự động"
           className="w-full h-auto object-cover transition-transform duration-500 hover:scale-[1.02]"
         />
