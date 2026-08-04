@@ -256,9 +256,6 @@ export default function GroupSettingsDialog({
               {groupName || "Nhóm Zalo"}
             </p>
             <p className="text-xs text-gray-500">ID Nhóm: {groupId}</p>
-            <p className="mt-0.5 text-[11px] text-gray-400">
-              Thêm/gỡ phó nhóm: mở danh sách Thành viên
-            </p>
           </div>
         </div>
 
