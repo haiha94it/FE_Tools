@@ -1,5 +1,6 @@
 "use client";
 
+import { Tooltip } from "@/components/ui/tooltip/Tooltip";
 import { getTeamEmployeePassword } from "@/lib/team-employee-utils";
 import { toast } from "@/lib/toast";
 import type { TeamEmployee } from "@/types/team-collaboration";
@@ -54,28 +55,34 @@ function TeamEmployeeTableRow({
           </span>
           {password ? (
             <div className="flex shrink-0 items-center gap-0.5">
-              <button
-                type="button"
-                onClick={() => setShowPassword((v) => !v)}
-                className="rounded p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-800 dark:hover:bg-white/[0.06] dark:hover:text-white/90"
-                aria-label={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
-                title={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+              <Tooltip
+                content={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+                side="top"
+                avoidCollisions={false}
               >
-                {showPassword ? (
-                  <HiOutlineEyeOff className="h-4 w-4" />
-                ) : (
-                  <HiOutlineEye className="h-4 w-4" />
-                )}
-              </button>
-              <button
-                type="button"
-                onClick={() => void handleCopyPassword()}
-                className="rounded p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-800 dark:hover:bg-white/[0.06] dark:hover:text-white/90"
-                aria-label="Sao chép mật khẩu"
-                title="Sao chép mật khẩu"
-              >
-                <HiOutlineClipboard className="h-4 w-4" />
-              </button>
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="cursor-pointer rounded p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-800 dark:hover:bg-white/[0.06] dark:hover:text-white/90"
+                  aria-label={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+                >
+                  {showPassword ? (
+                    <HiOutlineEyeOff className="h-4 w-4" aria-hidden />
+                  ) : (
+                    <HiOutlineEye className="h-4 w-4" aria-hidden />
+                  )}
+                </button>
+              </Tooltip>
+              <Tooltip content="Sao chép mật khẩu" side="top" avoidCollisions={false}>
+                <button
+                  type="button"
+                  onClick={() => void handleCopyPassword()}
+                  className="cursor-pointer rounded p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-800 dark:hover:bg-white/[0.06] dark:hover:text-white/90"
+                  aria-label="Sao chép mật khẩu"
+                >
+                  <HiOutlineClipboard className="h-4 w-4" aria-hidden />
+                </button>
+              </Tooltip>
             </div>
           ) : null}
         </div>

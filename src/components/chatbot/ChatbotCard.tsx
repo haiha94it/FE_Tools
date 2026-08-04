@@ -87,7 +87,11 @@ export default function ChatbotCard({
         >
           Sao chép
         </Button>
-        <Tooltip content={chatbot.is_active ? "Tắt kịch bản" : "Bật kịch bản"}>
+        <Tooltip
+          content={chatbot.is_active ? "Tắt kịch bản" : "Bật kịch bản"}
+          side="top"
+          avoidCollisions={false}
+        >
           <button
             type="button"
             aria-label={chatbot.is_active ? "Tắt kịch bản" : "Bật kịch bản"}
@@ -97,7 +101,7 @@ export default function ChatbotCard({
             {chatbot.is_active ? "Tắt" : "Bật"}
           </button>
         </Tooltip>
-        <Tooltip content="Xóa kịch bản">
+        <Tooltip content="Xóa kịch bản" side="top" avoidCollisions={false}>
           <button
             type="button"
             aria-label="Xóa kịch bản"

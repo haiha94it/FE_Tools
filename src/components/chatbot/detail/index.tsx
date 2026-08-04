@@ -18,6 +18,7 @@ import type { ChatbotInstance } from "@/types/chatbot";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { FiCopy, FiCpu, FiPlus, FiTrash2 } from "react-icons/fi";
+import { Tooltip } from "@/components/ui/tooltip/Tooltip";
 import AssignAccountsModal from "./AssignAccountsModal";
 import MissDataNotificationModal from "./MissDataNotificationModal";
 
@@ -356,30 +357,42 @@ export default function ChatbotDetailView({
                       </div>
                       <span>Cập nhật {formatRelativeTime(bot.updated_at)}</span>
                       
-                      {/* Inline Actions on Hover */}
-                      <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1.5 transition duration-150 absolute right-3 bottom-2 bg-white px-1.5 py-0.5 rounded-md dark:bg-gray-950 border border-gray-100 dark:border-gray-800 shadow-sm z-10">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openCopy(bot);
-                          }}
-                          className="text-gray-500 hover:text-brand-600 dark:text-gray-400 dark:hover:text-brand-400 transition"
-                          title="Sao chép kịch bản"
+                      {/* Inline actions: ẩn hẳn pointer-events khi không hover card — tránh tooltip “ma” */}
+                      <div className="pointer-events-none absolute right-3 bottom-2 z-10 flex items-center gap-0.5 rounded-md border border-gray-100 bg-white p-0.5 opacity-0 shadow-sm transition duration-150 group-hover:pointer-events-auto group-hover:opacity-100 dark:border-gray-800 dark:bg-gray-950">
+                        <Tooltip
+                          content="Sao chép kịch bản"
+                          side="top"
+                          avoidCollisions={false}
                         >
-                          <FiCopy size={12} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            void handleDelete(bot);
-                          }}
-                          className="text-gray-500 hover:text-error-600 dark:text-gray-400 dark:hover:text-error-400 transition"
-                          title="Xóa kịch bản"
+                          <button
+                            type="button"
+                            aria-label="Sao chép kịch bản"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openCopy(bot);
+                            }}
+                            className="inline-flex size-7 cursor-pointer items-center justify-center rounded-md text-gray-500 transition hover:bg-brand-50 hover:text-brand-600 dark:text-gray-400 dark:hover:bg-brand-500/10 dark:hover:text-brand-400"
+                          >
+                            <FiCopy size={14} aria-hidden />
+                          </button>
+                        </Tooltip>
+                        <Tooltip
+                          content="Xóa kịch bản"
+                          side="top"
+                          avoidCollisions={false}
                         >
-                          <FiTrash2 size={12} />
-                        </button>
+                          <button
+                            type="button"
+                            aria-label="Xóa kịch bản"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              void handleDelete(bot);
+                            }}
+                            className="inline-flex size-7 cursor-pointer items-center justify-center rounded-md text-gray-500 transition hover:bg-error-50 hover:text-error-600 dark:text-gray-400 dark:hover:bg-error-500/10 dark:hover:text-error-400"
+                          >
+                            <FiTrash2 size={14} aria-hidden />
+                          </button>
+                        </Tooltip>
                       </div>
                     </div>
                   </div>

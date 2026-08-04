@@ -1,6 +1,7 @@
 "use client";
 
 import Button from "@/components/ui/button/Button";
+import { Tooltip } from "@/components/ui/tooltip/Tooltip";
 import { chatbotService } from "@/services/chatbot.service";
 import { useChatbotStore } from "@/stores/use-chatbot-store";
 import { useChatbotTrainingStore } from "@/stores/use-chatbot-training-store";
@@ -172,14 +173,16 @@ export default function ChatTestBot({ chatbotId }: ChatTestBotProps) {
             </p>
           </div>
         </div>
-        <button
-          type="button"
-          onClick={handleRefresh}
-          className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 shadow-xs hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 transition"
-          title="Làm mới cuộc trò chuyện"
-        >
-          <FiRefreshCw size={14} />
-        </button>
+        <Tooltip content="Làm mới cuộc trò chuyện" side="top" avoidCollisions={false}>
+          <button
+            type="button"
+            aria-label="Làm mới cuộc trò chuyện"
+            onClick={handleRefresh}
+            className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 shadow-xs transition hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400 dark:hover:bg-gray-800"
+          >
+            <FiRefreshCw size={14} aria-hidden />
+          </button>
+        </Tooltip>
       </div>
 
       {/* Messages Viewport */}

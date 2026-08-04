@@ -355,6 +355,13 @@ function ChatPanel({
               isLoading={groupMembersLoading}
               isRefreshing={groupMembersRefreshing}
               onRefresh={refreshMembers}
+              accountId={accountId}
+              groupId={groupId}
+              accountUid={accountUid}
+              onAdminChanged={() => {
+                refreshMembers();
+                void onRefreshConversation?.();
+              }}
             />
             {accountId ? (
               <button

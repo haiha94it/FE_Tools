@@ -25,6 +25,11 @@ interface TooltipProps {
   side?: "top" | "right" | "bottom" | "left";
   align?: "start" | "center" | "end";
   disabled?: boolean;
+  /**
+   * Mặc định true: Radix có thể lật side khi sát mép viewport.
+   * false: luôn giữ `side` (vd. luôn top dù gần đáy card).
+   */
+  avoidCollisions?: boolean;
 }
 
 /**
@@ -37,6 +42,7 @@ export function Tooltip({
   side = "top",
   align = "center",
   disabled = false,
+  avoidCollisions = true,
 }: TooltipProps) {
   if (disabled || !content) {
     return children;
@@ -51,6 +57,7 @@ export function Tooltip({
           align={align}
           sideOffset={6}
           collisionPadding={8}
+          avoidCollisions={avoidCollisions}
           className="z-[100010] max-w-xs rounded-lg bg-gray-900 px-3 py-1.5 text-xs leading-5 text-white shadow-theme-sm dark:bg-gray-700"
         >
           {content}

@@ -1,13 +1,10 @@
 "use client";
 
-import ContactAvatar, {
-  ContactNameCell,
-} from "@/components/zalo-contacts/shared/ContactAvatar";
+import ContactAvatar from "@/components/zalo-contacts/shared/ContactAvatar";
 import Button from "@/components/ui/button/Button";
 import Input from "@/components/form/input/InputField";
 import Switch from "@/components/form/switch/Switch";
 import { Modal } from "@/components/ui/modal";
-import { getGroupMemberDisplay } from "@/lib/zalo-contacts-utils";
 import { toast } from "@/lib/toast";
 import { zaloGroupService } from "@/services/zalo-group.service";
 import { zaloMessengerService } from "@/services/zalo-messenger.service";
@@ -37,10 +34,10 @@ interface GroupSettingsDialogProps {
 }
 
 /**
- * Phân quyền:
- * - is_creator: đổi tên/ảnh + toggle quyền nhóm + thêm/gỡ phó nhóm
- * - is_admin (phó): đổi tên/ảnh + toggle quyền nhóm — KHÔNG gán phó khác
- * - thành viên: chỉ xem
+ * Phân quyền (dialog cài đặt — chỉ profile + toggle):
+ * - is_creator / is_admin (phó): đổi tên/ảnh + bật-tắt option nhóm
+ * - thành viên: chỉ xem option
+ * Ủy quyền phó → `GroupMembersPanel` (danh sách thành viên).
  */
 function resolveSelfRole(
   members: ZaloGroupMember[],
@@ -83,18 +80,15 @@ export default function GroupSettingsDialog({
   );
   const [loadingSetting, setLoadingSetting] = useState(false);
   const [savingKey, setSavingKey] = useState<string | null>(null);
-  const [busyAdminUid, setBusyAdminUid] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const { isCreator, isAdminOnly, isMemberOnly } = useMemo(
     () => resolveSelfRole(members, accountUid),
     [members, accountUid],
   );
-  /** Trưởng + phó: đổi tên/ảnh + cài đặt quyền nhóm */
+  /** Trưởng + phó: đổi tên/ảnh + bật-tắt option nhóm */
   const canEditProfile = isCreator || isAdminOnly;
   const canEditSettings = isCreator || isAdminOnly;
-  /** Chỉ trưởng nhóm — thêm/gỡ phó nhóm */
-  const canManageAdmins = isCreator;
 
   useEffect(() => {
     if (!open) return;
@@ -232,40 +226,6 @@ export default function GroupSettingsDialog({
     [accountId, canEditSettings, groupId, groupUid, setting],
   );
 
-  const handleAdmin = useCallback(
-    async (member: ZaloGroupMember, action: "add" | "remove") => {
-      if (!canManageAdmins) {
-        toast.error("Chỉ trưởng nhóm mới được thêm/gỡ phó nhóm.");
-        return;
-      }
-      const uid = member.friend?.uid;
-      if (!uid) {
-        toast.error("Thành viên thiếu UID — làm mới danh sách rồi thử lại.");
-        return;
-      }
-      setBusyAdminUid(uid);
-      try {
-        const res =
-          action === "add"
-            ? await zaloGroupService.addGroupAdmin(accountId, groupId, uid)
-            : await zaloGroupService.removeGroupAdmin(accountId, groupId, uid);
-        if (!res.ok) {
-          toast.error(res.message || "Thao tác phó nhóm thất bại.");
-          return;
-        }
-        toast.success(
-          action === "add" ? "Đã thêm phó nhóm." : "Đã gỡ phó nhóm.",
-        );
-        onUpdated?.();
-      } catch {
-        toast.error("Thao tác phó nhóm thất bại.");
-      } finally {
-        setBusyAdminUid(null);
-      }
-    },
-    [accountId, canManageAdmins, groupId, onUpdated],
-  );
-
   const roleLabel = isCreator
     ? "Trưởng nhóm"
     : isAdminOnly
@@ -296,15 +256,16 @@ export default function GroupSettingsDialog({
               {groupName || "Nhóm Zalo"}
             </p>
             <p className="text-xs text-gray-500">ID Nhóm: {groupId}</p>
+            <p className="mt-0.5 text-[11px] text-gray-400">
+              Thêm/gỡ phó nhóm: mở danh sách Thành viên
+            </p>
           </div>
         </div>
 
-        {/* Thành viên: chỉ xem */}
         {isMemberOnly ? (
           <div className="space-y-4">
-            <p className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-4 text-center text-sm text-gray-500 dark:border-gray-800 dark:bg-white/[0.02]">
-              Bạn là thành viên — chỉ xem thông tin nhóm, không được tùy chỉnh
-              hay ủy quyền.
+            <p className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-3 text-center text-sm text-gray-500 dark:border-gray-800 dark:bg-white/[0.02]">
+              Bạn là thành viên — chỉ xem quyền nhóm, không tùy chỉnh.
             </p>
             <section>
               <h4 className="mb-2 border-b border-gray-100 pb-1 text-[11px] font-bold uppercase tracking-wide text-gray-500 dark:border-gray-800">
@@ -340,39 +301,9 @@ export default function GroupSettingsDialog({
                 </ul>
               )}
             </section>
-            <section>
-              <h4 className="mb-2 text-[11px] font-bold uppercase tracking-wide text-gray-500">
-                Thành viên
-              </h4>
-              <ul className="space-y-1">
-                {members.map((member) => {
-                  const { key, name: mName, avatar } =
-                    getGroupMemberDisplay(member);
-                  const badge = member.is_creator
-                    ? "Trưởng nhóm"
-                    : member.is_admin
-                      ? "Phó nhóm"
-                      : null;
-                  return (
-                    <li
-                      key={key}
-                      className="flex items-center justify-between gap-2 rounded-lg px-2 py-2"
-                    >
-                      <ContactNameCell name={mName} avatar={avatar} />
-                      {badge ? (
-                        <span className="text-[10px] font-medium text-gray-500">
-                          {badge}
-                        </span>
-                      ) : null}
-                    </li>
-                  );
-                })}
-              </ul>
-            </section>
           </div>
         ) : (
           <>
-            {/* Creator + Admin: đổi tên / ảnh */}
             {canEditProfile ? (
               <div className="mb-4 flex flex-wrap gap-2">
                 <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center">
@@ -411,9 +342,8 @@ export default function GroupSettingsDialog({
               </div>
             ) : null}
 
-            {/* Trưởng + phó: toggle quyền nhóm */}
             {canEditSettings ? (
-              <section className="mb-5">
+              <section>
                 <h4 className="mb-2 border-b border-gray-100 pb-1 text-[11px] font-bold uppercase tracking-wide text-brand-600 dark:border-gray-800">
                   Thiết lập quyền nhóm
                 </h4>
@@ -452,68 +382,6 @@ export default function GroupSettingsDialog({
                   </ul>
                 )}
               </section>
-            ) : null}
-
-            {/* Chỉ trưởng: ủy quyền phó — phó không gán phó khác */}
-            {canManageAdmins ? (
-              <section>
-                <h4 className="mb-2 border-b border-gray-100 pb-1 text-[11px] font-bold uppercase tracking-wide text-brand-600 dark:border-gray-800">
-                  Ủy quyền ban quản trị
-                </h4>
-                <ul className="space-y-1 rounded-xl border border-gray-100 bg-gray-50/60 p-2 dark:border-gray-800 dark:bg-white/[0.02]">
-                  {members
-                    .filter((m) => !m.is_creator)
-                    .map((member) => {
-                      const { key, name: mName, avatar } =
-                        getGroupMemberDisplay(member);
-                      const uid = member.friend?.uid ?? "";
-                      const busy = busyAdminUid === uid;
-                      return (
-                        <li
-                          key={key}
-                          className="flex items-center justify-between gap-2 rounded-lg px-2 py-2"
-                        >
-                          <ContactNameCell name={mName} avatar={avatar} />
-                          <div className="flex shrink-0 items-center gap-2">
-                            {member.is_admin ? (
-                              <span className="text-[10px] font-medium text-gray-500">
-                                Phó nhóm
-                              </span>
-                            ) : null}
-                            <Button
-                              size="sm"
-                              variant={member.is_admin ? "outline" : "primary"}
-                              disabled={busy || !uid}
-                              onClick={() =>
-                                void handleAdmin(
-                                  member,
-                                  member.is_admin ? "remove" : "add",
-                                )
-                              }
-                            >
-                              {busy
-                                ? "..."
-                                : member.is_admin
-                                  ? "Xóa phó nhóm"
-                                  : "Thêm phó nhóm"}
-                            </Button>
-                          </div>
-                        </li>
-                      );
-                    })}
-                  {members.filter((m) => !m.is_creator).length === 0 ? (
-                    <p className="px-2 py-3 text-center text-xs text-gray-500">
-                      Chưa có thành viên khác — làm mới danh sách thành viên.
-                    </p>
-                  ) : null}
-                </ul>
-              </section>
-            ) : isAdminOnly ? (
-              <p className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-3 text-xs text-gray-500 dark:border-gray-800 dark:bg-white/[0.02]">
-                Phó nhóm được tùy chỉnh tên, ảnh và quyền nhóm. Chỉ{" "}
-                <span className="font-semibold">trưởng nhóm</span> được thêm/gỡ
-                phó nhóm.
-              </p>
             ) : null}
           </>
         )}

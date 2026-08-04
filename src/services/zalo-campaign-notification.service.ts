@@ -8,6 +8,7 @@ import {
   normalizeCeleryPollResponse,
 } from "@/lib/celery-poll";
 import api from "@/lib/axios";
+import { extractPaginated } from "@/lib/zalo-contacts-utils";
 import type {
   CampaignNotificationConfig,
   CampaignNotificationSetupPayload,
@@ -20,17 +21,43 @@ function normalizeConfig(body: unknown): CampaignNotificationConfig | null {
   return body as CampaignNotificationConfig;
 }
 
+export type CampaignNotificationGroupsPage = {
+  results: ZaloAccountGroup[];
+  count: number;
+  hasMore: boolean;
+  page: number;
+};
+
+const GROUPS_PAGE_SIZE = 50;
+
 export const zaloCampaignNotificationService = {
-  async getGroups(accountId: number): Promise<ZaloAccountGroup[]> {
+  /**
+   * Danh sách nhóm nick đang join — phân trang + tìm theo tên (BE `name`).
+   */
+  async getGroups(
+    accountId: number,
+    options?: { page?: number; pageSize?: number; name?: string },
+  ): Promise<CampaignNotificationGroupsPage> {
+    const page = Math.max(1, options?.page ?? 1);
+    const pageSize = Math.min(
+      2000,
+      Math.max(1, options?.pageSize ?? GROUPS_PAGE_SIZE),
+    );
+    const name = options?.name?.trim() || undefined;
     const response = await api.get(API_ZALO_GROUP.LIST, {
       params: {
         id_account: accountId,
-        number_per_page: 2000,
-        page: 1,
+        number_per_page: pageSize,
+        page,
+        ...(name ? { name } : {}),
       },
     });
-    const page = unwrapApiBody<{ results?: ZaloAccountGroup[] }>(response.data);
-    return page.results ?? [];
+    const paginated = extractPaginated<ZaloAccountGroup>(response.data);
+    const results = paginated.results ?? [];
+    const count = paginated.count ?? results.length;
+    const hasMore =
+      Boolean(paginated.next) || page * pageSize < count;
+    return { results, count, hasMore, page };
   },
 
   async getConfig(): Promise<CampaignNotificationConfig | null> {

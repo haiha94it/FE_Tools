@@ -346,20 +346,21 @@ export default function TrainingPanel({ chatbotId }: TrainingPanelProps) {
                   )}
                 </div>
 
-                <div className="flex sm:flex-col justify-end shrink-0 gap-1.5 opacity-90 sm:opacity-0 sm:group-hover:opacity-100 transition duration-150">
-                  <Tooltip content="Chỉnh sửa">
+                <div className="flex shrink-0 justify-end gap-1.5 opacity-90 transition duration-150 sm:pointer-events-none sm:flex-col sm:opacity-0 sm:group-hover:pointer-events-auto sm:group-hover:opacity-100">
+                  <Tooltip content="Chỉnh sửa" side="top" avoidCollisions={false}>
                     <button
                       type="button"
+                      aria-label="Chỉnh sửa"
                       onClick={() => openEdit(item)}
-                      className="cursor-pointer flex h-7 w-7 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 hover:border-brand-500 hover:text-brand-600 hover:shadow-xs dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400 dark:hover:border-brand-500 dark:hover:text-brand-400 transition"
+                      className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 transition hover:border-brand-500 hover:text-brand-600 hover:shadow-xs dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400 dark:hover:border-brand-500 dark:hover:text-brand-400"
                     >
-                      <FiEdit size={12} />
+                      <FiEdit size={12} aria-hidden />
                     </button>
                   </Tooltip>
-                  
-                  <Tooltip content="Xóa Q&A">
+                  <Tooltip content="Xóa Q&A" side="top" avoidCollisions={false}>
                     <button
                       type="button"
+                      aria-label="Xóa Q&A"
                       onClick={async () => {
                         const ok = await confirm({
                           title: "Xóa Q&A",
@@ -369,9 +370,9 @@ export default function TrainingPanel({ chatbotId }: TrainingPanelProps) {
                         });
                         if (ok) await deleteTrainingData(item.id);
                       }}
-                      className="cursor-pointer flex h-7 w-7 items-center justify-center rounded-lg border border-gray-200 bg-white text-error-600 hover:border-error-500 hover:bg-error-50 hover:shadow-xs dark:border-gray-800 dark:bg-gray-900 dark:hover:border-error-500 dark:hover:bg-error-500/10 transition"
+                      className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-lg border border-gray-200 bg-white text-error-600 transition hover:border-error-500 hover:bg-error-50 hover:shadow-xs dark:border-gray-800 dark:bg-gray-900 dark:hover:border-error-500 dark:hover:bg-error-500/10"
                     >
-                      <FiTrash2 size={12} />
+                      <FiTrash2 size={12} aria-hidden />
                     </button>
                   </Tooltip>
                 </div>

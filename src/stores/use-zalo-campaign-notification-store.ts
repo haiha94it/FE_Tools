@@ -11,6 +11,8 @@ import { useAuthStore } from "@/stores/use-auth-store";
 import type { ZaloAccount, ZaloAccountGroup } from "@/types/zalo-account";
 import { create } from "zustand";
 
+const GROUPS_PAGE_SIZE = 50;
+
 interface CampaignNotificationState {
   accounts: ZaloAccount[];
   groups: ZaloAccountGroup[];
@@ -21,11 +23,18 @@ interface CampaignNotificationState {
   saving: boolean;
   accountsLoading: boolean;
   groupsLoading: boolean;
+  groupsLoadingMore: boolean;
+  groupsPage: number;
+  groupsHasMore: boolean;
+  groupsSearch: string;
+  groupsCount: number;
 
   fetchAll: () => Promise<void>;
   setSelectedAccountId: (id: number | null) => Promise<void>;
   setSelectedGroupId: (id: number | null) => void;
   setActive: (value: boolean) => void;
+  setGroupsSearch: (q: string) => void;
+  loadMoreGroups: () => Promise<void>;
   save: () => Promise<void>;
 }
 
@@ -58,6 +67,19 @@ async function pollSetupTask(
   return { ok: false, message: "Hết thời gian chờ thiết lập." };
 }
 
+/** Gộp group theo id — giữ order, tránh trùng khi append page. */
+function mergeGroups(
+  prev: ZaloAccountGroup[],
+  next: ZaloAccountGroup[],
+): ZaloAccountGroup[] {
+  const map = new Map<number, ZaloAccountGroup>();
+  for (const g of prev) map.set(g.id, g);
+  for (const g of next) map.set(g.id, g);
+  return Array.from(map.values());
+}
+
+let groupsSearchTimer: ReturnType<typeof setTimeout> | null = null;
+
 export const useZaloCampaignNotificationStore = create<CampaignNotificationState>(
   (set, get) => ({
     accounts: [],
@@ -69,6 +91,11 @@ export const useZaloCampaignNotificationStore = create<CampaignNotificationState
     saving: false,
     accountsLoading: false,
     groupsLoading: false,
+    groupsLoadingMore: false,
+    groupsPage: 0,
+    groupsHasMore: false,
+    groupsSearch: "",
+    groupsCount: 0,
 
     fetchAll: async () => {
       // Strict Mode / multi-mount: 1 HTTP account + campaign-notification
@@ -101,53 +128,108 @@ export const useZaloCampaignNotificationStore = create<CampaignNotificationState
           accountId != null && eligible.some((a) => a.id === accountId)
             ? accountId
             : (eligible[0]?.id ?? null);
-        let groups: ZaloAccountGroup[] = [];
-        if (selected) {
-          try {
-            groups = await zaloCampaignNotificationService.getGroups(selected);
-          } catch {
-            groups = [];
-          }
-        }
-        const configuredGroupId = config?.group ?? null;
-        const selectedGroupId =
-          configuredGroupId != null &&
-          groups.some((group) => group.id === configuredGroupId)
-            ? configuredGroupId
-            : (groups[0]?.id ?? null);
 
         set({
           accounts: eligible,
-          groups,
           selectedAccountId: selected,
-          selectedGroupId,
+          selectedGroupId: config?.group ?? null,
           active: Boolean(config?.active),
           loading: false,
           accountsLoading: false,
-          groupsLoading: false,
+          groups: [],
+          groupsPage: 0,
+          groupsHasMore: false,
+          groupsSearch: "",
+          groupsCount: 0,
         });
+
+        if (selected) {
+          set({ groupsLoading: true });
+          try {
+            const page = await zaloCampaignNotificationService.getGroups(
+              selected,
+              { page: 1, pageSize: GROUPS_PAGE_SIZE },
+            );
+            if (get().selectedAccountId !== selected) return;
+            const configuredGroupId = config?.group ?? null;
+            let groups = page.results;
+            // Nhóm đã cấu hình có thể không nằm page 1 — giữ selected nếu có trong list
+            let selectedGroupId =
+              configuredGroupId != null &&
+              groups.some((g) => g.id === configuredGroupId)
+                ? configuredGroupId
+                : (groups[0]?.id ?? null);
+            // Nếu config group chưa có trong page 1, giữ config id (user thấy selected khi load thêm)
+            if (
+              configuredGroupId != null &&
+              !groups.some((g) => g.id === configuredGroupId)
+            ) {
+              selectedGroupId = configuredGroupId;
+            }
+            set({
+              groups,
+              selectedGroupId,
+              groupsPage: 1,
+              groupsHasMore: page.hasMore,
+              groupsCount: page.count,
+              groupsLoading: false,
+            });
+          } catch {
+            if (get().selectedAccountId === selected) {
+              set({
+                groups: [],
+                groupsPage: 0,
+                groupsHasMore: false,
+                groupsCount: 0,
+                groupsLoading: false,
+              });
+            }
+          }
+        }
       });
     },
 
     setSelectedAccountId: async (id) => {
+      if (groupsSearchTimer) {
+        clearTimeout(groupsSearchTimer);
+        groupsSearchTimer = null;
+      }
       set({
         selectedAccountId: id,
         selectedGroupId: null,
         groups: [],
         groupsLoading: Boolean(id),
+        groupsLoadingMore: false,
+        groupsPage: 0,
+        groupsHasMore: false,
+        groupsSearch: "",
+        groupsCount: 0,
       });
       if (!id) return;
       try {
-        const groups = await zaloCampaignNotificationService.getGroups(id);
+        const page = await zaloCampaignNotificationService.getGroups(id, {
+          page: 1,
+          pageSize: GROUPS_PAGE_SIZE,
+        });
         if (get().selectedAccountId !== id) return;
         set({
-          groups,
-          selectedGroupId: groups[0]?.id ?? null,
+          groups: page.results,
+          selectedGroupId: page.results[0]?.id ?? null,
+          groupsPage: 1,
+          groupsHasMore: page.hasMore,
+          groupsCount: page.count,
           groupsLoading: false,
         });
       } catch {
         if (get().selectedAccountId === id) {
-          set({ groups: [], selectedGroupId: null, groupsLoading: false });
+          set({
+            groups: [],
+            selectedGroupId: null,
+            groupsPage: 0,
+            groupsHasMore: false,
+            groupsCount: 0,
+            groupsLoading: false,
+          });
         }
       }
     },
@@ -155,6 +237,106 @@ export const useZaloCampaignNotificationStore = create<CampaignNotificationState
     setSelectedGroupId: (id) => set({ selectedGroupId: id }),
 
     setActive: (value) => set({ active: value }),
+
+    setGroupsSearch: (q) => {
+      const selectedAccountId = get().selectedAccountId;
+      set({ groupsSearch: q });
+      if (!selectedAccountId) return;
+
+      if (groupsSearchTimer) clearTimeout(groupsSearchTimer);
+      groupsSearchTimer = setTimeout(() => {
+        void (async () => {
+          const accountId = get().selectedAccountId;
+          const search = get().groupsSearch.trim();
+          if (!accountId) return;
+          set({ groupsLoading: true, groupsLoadingMore: false });
+          try {
+            const page = await zaloCampaignNotificationService.getGroups(
+              accountId,
+              {
+                page: 1,
+                pageSize: GROUPS_PAGE_SIZE,
+                name: search || undefined,
+              },
+            );
+            if (
+              get().selectedAccountId !== accountId ||
+              get().groupsSearch.trim() !== search
+            ) {
+              return;
+            }
+            const prevSelected = get().selectedGroupId;
+            const stillVisible =
+              prevSelected != null &&
+              page.results.some((g) => g.id === prevSelected);
+            set({
+              groups: page.results,
+              groupsPage: 1,
+              groupsHasMore: page.hasMore,
+              groupsCount: page.count,
+              groupsLoading: false,
+              selectedGroupId: stillVisible
+                ? prevSelected
+                : (page.results[0]?.id ?? null),
+            });
+          } catch {
+            if (get().selectedAccountId === accountId) {
+              set({
+                groups: [],
+                groupsPage: 0,
+                groupsHasMore: false,
+                groupsCount: 0,
+                groupsLoading: false,
+              });
+            }
+          }
+        })();
+      }, 300);
+    },
+
+    loadMoreGroups: async () => {
+      const {
+        selectedAccountId,
+        groupsHasMore,
+        groupsLoading,
+        groupsLoadingMore,
+        groupsPage,
+        groupsSearch,
+        groups,
+      } = get();
+      if (
+        !selectedAccountId ||
+        !groupsHasMore ||
+        groupsLoading ||
+        groupsLoadingMore
+      ) {
+        return;
+      }
+      const nextPage = groupsPage + 1;
+      set({ groupsLoadingMore: true });
+      try {
+        const page = await zaloCampaignNotificationService.getGroups(
+          selectedAccountId,
+          {
+            page: nextPage,
+            pageSize: GROUPS_PAGE_SIZE,
+            name: groupsSearch.trim() || undefined,
+          },
+        );
+        if (get().selectedAccountId !== selectedAccountId) return;
+        set({
+          groups: mergeGroups(groups, page.results),
+          groupsPage: nextPage,
+          groupsHasMore: page.hasMore,
+          groupsCount: page.count,
+          groupsLoadingMore: false,
+        });
+      } catch {
+        if (get().selectedAccountId === selectedAccountId) {
+          set({ groupsLoadingMore: false });
+        }
+      }
+    },
 
     save: async () => {
       const { selectedAccountId, selectedGroupId, active } = get();
