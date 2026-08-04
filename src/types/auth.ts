@@ -19,6 +19,9 @@ export interface ApiUserProfile {
   is_manager?: boolean;
   is_employee?: boolean;
   is_developer?: boolean;
+  is_supporter?: boolean;
+  /** Admin hoặc đã gán SupportFAQEditor */
+  can_manage_support_faq?: boolean;
   accept_terms?: boolean;
 }
 
@@ -40,6 +43,9 @@ export interface AuthUser {
   isManager?: boolean;
   isEmployee?: boolean;
   isDeveloper?: boolean;
+  isSupporter?: boolean;
+  /** Setup bot CSKH — admin hoặc editor đã gán */
+  canManageSupportFaq?: boolean;
   acceptTerms?: boolean;
 }
 

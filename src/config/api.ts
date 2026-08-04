@@ -419,3 +419,24 @@ export const API_CHATBOT = {
 } as const;
 
 export const CHATBOTS_BASE = "/chatbots";
+
+/** Bot hỏi đáp CSKH — portable support_chatbot app */
+export const API_SUPPORT_CHATBOT = {
+  FAQS: "/api/support-chatbot/faqs",
+  FAQ_BULK: "/api/support-chatbot/faqs/bulk",
+  FAQ_DETAIL: (id: number | string) => `/api/support-chatbot/faqs/${id}`,
+  FAQ_CLEAR: "/api/support-chatbot/faqs/clear",
+  FAQ_EXPORT: "/api/support-chatbot/faqs/export",
+  FAQ_SYNC: "/api/support-chatbot/faqs/sync-embeddings",
+  MEDIA: "/api/support-chatbot/media",
+  MEDIA_DETAIL: (id: number | string) => `/api/support-chatbot/media/${id}`,
+  ASK: "/api/support-chatbot/ask",
+  MISS_QUERIES: "/api/support-chatbot/miss-queries",
+  MISS_QUERY_DETAIL: (id: number | string) =>
+    `/api/support-chatbot/miss-queries/${id}`,
+  EDITORS: "/api/support-chatbot/editors",
+  EDITORS_ELIGIBLE: "/api/support-chatbot/editors/eligible",
+  EDITOR_DETAIL: (userId: number | string) =>
+    `/api/support-chatbot/editors/${userId}`,
+} as const;
+

@@ -7,6 +7,7 @@ import { useSidebar } from "@/context/SidebarContext";
 import AppHeader from "@/layout/AppHeader";
 import AppSidebar from "@/layout/AppSidebar";
 import Backdrop from "@/layout/Backdrop";
+import SupportAssistantWidget from "@/components/support-chatbot/SupportAssistantWidget";
 import React from "react";
 
 export default function AdminShell({ children }: { children: React.ReactNode }) {
@@ -35,6 +36,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
       </div>
       {/* Popup điều khoản đăng nhập lần đầu — accept_terms */}
       <AcceptTermsGate />
+      <SupportAssistantWidget />
       </TeamRouteGuard>
     </AuthGuard>
   );

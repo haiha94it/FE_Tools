@@ -3,6 +3,11 @@ export type NavSubItem = {
   path: string;
   /** Nếu set — chỉ hiển thị với quyền tương ứng (vd. chỉ admin) */
   roles?: NavRole[];
+  /**
+   * Setup bot CSKH: chỉ hiện khi admin hoặc đã gán editor
+   * (`canManageSupportFaq` từ /me).
+   */
+  requireSupportBotAccess?: boolean;
 };
 
 export type NavIconKey =
@@ -27,7 +32,7 @@ export type NavIconTone =
   | "purple"
   | "error";
 
-export type NavRole = "admin" | "saler" | "sale_manager";
+export type NavRole = "admin" | "saler" | "sale_manager" | "supporter";
 
 export type NavItemConfig = {
   name: string;
@@ -130,10 +135,15 @@ export const mainNavItems: NavItemConfig[] = [
     name: "Admin",
     icon: "list",
     iconTone: "error",
-    roles: ["admin", "saler", "sale_manager"],
+    roles: ["admin", "saler", "sale_manager", "supporter"],
     subItems: [
-      { name: "Quản lý người dùng", path: "/admin/users" },
+      { name: "Quản lý người dùng", path: "/admin/users", roles: ["admin", "saler", "sale_manager"] },
       { name: "Cài đặt hệ thống", path: "/admin/settings", roles: ["admin"] },
+      {
+        name: "Setup bot hỏi đáp CSKH",
+        path: "/admin/settings?tab=support-bot",
+        requireSupportBotAccess: true,
+      },
     ],
   },
 ];
