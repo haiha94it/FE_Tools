@@ -79,13 +79,16 @@ export interface ScanTaskResponse {
 }
 
 export interface ZaloGroupMemberFriend {
-  id: number;
+  id: number | null;
   uid: string;
   name: string;
   alias_name?: string | null;
   avatar?: string | null;
   avt?: string | null;
   phone_number?: string | null;
+  /** 0 none · 1 friend · 2 outgoing · 3 incoming */
+  relation_status?: 0 | 1 | 2 | 3 | number;
+  is_friend?: boolean;
 }
 
 export interface ZaloGroupMember {

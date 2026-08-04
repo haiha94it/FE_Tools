@@ -368,4 +368,30 @@ export const zaloGroupService = {
       { id_account: accountId, id_group: groupId, uid_admin: uidAdmin },
     );
   },
+
+  /** Kick members khỏi nhóm — POST /api/group/remove-member */
+  async removeGroupMembers(
+    accountId: number,
+    groupId: number,
+    uids: string[],
+  ): Promise<{ ok: boolean; message?: string; data?: unknown }> {
+    return pollGroupCeleryTask(
+      API_ZALO_GROUP.REMOVE_MEMBER,
+      API_ZALO_GROUP.REMOVE_MEMBER_RESULT,
+      { id_account: accountId, id_group: groupId, uids },
+    );
+  },
+
+  /** Mời bạn bè vào nhóm — POST /api/group/invite-member */
+  async inviteGroupMembers(
+    accountId: number,
+    groupId: number,
+    uids: string[],
+  ): Promise<{ ok: boolean; message?: string; data?: unknown }> {
+    return pollGroupCeleryTask(
+      API_ZALO_GROUP.INVITE_MEMBER,
+      API_ZALO_GROUP.INVITE_MEMBER_RESULT,
+      { id_account: accountId, id_group: groupId, uids },
+    );
+  },
 };

@@ -456,6 +456,30 @@ export function filterSelectableGroupMembers(
   return members.filter((member) => member.friend?.id != null);
 }
 
+function parseRelationStatus(raw: unknown): number | undefined {
+  if (typeof raw === "number" && Number.isFinite(raw)) return raw;
+  if (typeof raw === "string" && raw.trim() !== "") {
+    const n = Number(raw);
+    if (Number.isFinite(n)) return n;
+  }
+  return undefined;
+}
+
+function parseIsFriendFlag(
+  rawIsFriend: unknown,
+  relationStatus: number | undefined,
+): boolean | undefined {
+  if (rawIsFriend === true || rawIsFriend === 1 || rawIsFriend === "1") {
+    return true;
+  }
+  if (rawIsFriend === false || rawIsFriend === 0 || rawIsFriend === "0") {
+    return false;
+  }
+  if (relationStatus === 1) return true;
+  if (relationStatus != null) return false;
+  return undefined;
+}
+
 export function normalizeGroupMember(raw: unknown): ZaloGroupMember | null {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
   const record = raw as Record<string, unknown>;
@@ -468,8 +492,21 @@ export function normalizeGroupMember(raw: unknown): ZaloGroupMember | null {
   if (record.friend && typeof record.friend === "object" && !Array.isArray(record.friend)) {
     const f = record.friend as Record<string, unknown>;
     const friendId =
-      typeof f.id === "number" && Number.isFinite(f.id) ? f.id : null;
-    if (friendId != null) {
+      typeof f.id === "number" && Number.isFinite(f.id)
+        ? f.id
+        : typeof f.id === "string" && f.id.trim() && Number.isFinite(Number(f.id))
+          ? Number(f.id)
+          : null;
+    const uidRaw = f.uid;
+    const uid =
+      typeof uidRaw === "string"
+        ? uidRaw
+        : uidRaw != null && uidRaw !== ""
+          ? String(uidRaw)
+          : "";
+
+    // Có FriendModel (id) hoặc ít nhất uid — giữ payload quan hệ
+    if (friendId != null || uid) {
       const profile =
         f.global_profile &&
         typeof f.global_profile === "object" &&
@@ -485,9 +522,12 @@ export function normalizeGroupMember(raw: unknown): ZaloGroupMember | null {
             ? profile.avt
             : null;
 
+      const relation_status = parseRelationStatus(f.relation_status);
+      const is_friend = parseIsFriendFlag(f.is_friend, relation_status);
+
       friend = {
         id: friendId,
-        uid: typeof f.uid === "string" ? f.uid : String(f.uid ?? ""),
+        uid,
         name:
           (typeof f.name === "string" ? f.name : null) ||
           (typeof f.alias_name === "string" ? f.alias_name : null) ||
@@ -502,6 +542,8 @@ export function normalizeGroupMember(raw: unknown): ZaloGroupMember | null {
           (typeof f.avt === "string" ? f.avt : null) || avatarFromProfile,
         phone_number:
           typeof f.phone_number === "string" ? f.phone_number : null,
+        ...(relation_status !== undefined ? { relation_status } : {}),
+        ...(is_friend !== undefined ? { is_friend } : {}),
       };
     }
   }
