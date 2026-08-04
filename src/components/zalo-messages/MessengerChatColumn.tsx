@@ -71,6 +71,7 @@ function MessengerChatColumn({ showMobileBack = false }: MessengerChatColumnProp
     (s) => s.removeConversationLabel,
   );
   const resetChatState = useZaloMessengerStore((s) => s.resetChatState);
+  const setMobilePanel = useZaloMessengerStore((s) => s.setMobilePanel);
   const refreshActiveConversation = useZaloMessengerStore(
     (s) => s.refreshActiveConversation,
   );
@@ -120,10 +121,14 @@ function MessengerChatColumn({ showMobileBack = false }: MessengerChatColumnProp
 
   const handleBack = useCallback(() => {
     resetChatState();
+    setMobilePanel("conversations");
     if (selectedAccountId) {
       router.push(`/zalo-messages/${selectedAccountId}`);
+    } else {
+      setMobilePanel("accounts");
+      router.push("/zalo-messages");
     }
-  }, [resetChatState, router, selectedAccountId]);
+  }, [resetChatState, router, selectedAccountId, setMobilePanel]);
 
   const handleSend = useCallback(
     (mentionInfo: MessengerMentionInfo[]) => {

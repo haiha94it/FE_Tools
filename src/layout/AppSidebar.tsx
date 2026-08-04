@@ -113,17 +113,27 @@ const AppSidebar: React.FC = () => {
     }
   }, [pathname, isActive, navItems, othersItems]);
 
+  // Đo lại chiều cao submenu khi mở / đổi quyền / resize — tránh cắt item cuối (Sinh nhật)
   useEffect(() => {
-    if (openSubmenu !== null) {
-      const key = `${openSubmenu.type}-${openSubmenu.index}`;
-      if (subMenuRefs.current[key]) {
-        setSubMenuHeight((prevHeights) => ({
-          ...prevHeights,
-          [key]: subMenuRefs.current[key]?.scrollHeight || 0,
-        }));
-      }
-    }
-  }, [openSubmenu]);
+    if (openSubmenu === null) return undefined;
+    const key = `${openSubmenu.type}-${openSubmenu.index}`;
+    const measure = () => {
+      const el = subMenuRefs.current[key];
+      if (!el) return;
+      setSubMenuHeight((prev) => ({
+        ...prev,
+        [key]: el.scrollHeight || 0,
+      }));
+    };
+    measure();
+    // layout xong (font/wrap) đo lại
+    const raf = window.requestAnimationFrame(measure);
+    window.addEventListener("resize", measure);
+    return () => {
+      window.cancelAnimationFrame(raf);
+      window.removeEventListener("resize", measure);
+    };
+  }, [openSubmenu, navItems, othersItems]);
 
   const handleSubmenuToggle = (index: number, menuType: "main" | "others") => {
     setOpenSubmenu((prevOpenSubmenu) => {
@@ -249,10 +259,11 @@ const AppSidebar: React.FC = () => {
 
   return (
     <aside
-      className={`fixed top-0 left-0 z-50 mt-16 flex h-screen flex-col border-r border-gray-200 bg-white px-5 text-gray-900 transition-all duration-300 ease-in-out lg:mt-0 dark:border-gray-800 dark:bg-gray-900 
+      className={`fixed left-0 z-50 flex flex-col border-r border-gray-200 bg-white px-4 text-gray-900 transition-all duration-300 ease-in-out sm:px-5 dark:border-gray-800 dark:bg-gray-900
+        top-16 h-[calc(100dvh-4rem)] lg:top-0 lg:h-dvh
         ${
           isExpanded || isMobileOpen
-            ? "w-[290px]"
+            ? "w-[min(290px,100vw)]"
             : isHovered
               ? "w-[290px]"
               : "w-[90px]"
@@ -263,7 +274,7 @@ const AppSidebar: React.FC = () => {
       onMouseLeave={() => setIsHovered(false)}
     >
       <div
-        className={`flex py-8 ${
+        className={`flex shrink-0 py-5 lg:py-8 ${
           !isExpanded && !isHovered ? "lg:justify-center" : "justify-start"
         }`}
       >
@@ -284,12 +295,13 @@ const AppSidebar: React.FC = () => {
           )}
         </Link>
       </div>
-      <div className="flex flex-col overflow-y-auto duration-300 ease-linear custom-scrollbar">
-        <nav className="mb-6">
+      {/* flex-1 min-h-0 + overflow-y: cuộn hết menu kể cả Sinh nhật */}
+      <div className="custom-scrollbar flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain pb-[max(1.5rem,env(safe-area-inset-bottom))] duration-300 ease-linear">
+        <nav className="mb-4">
           <div className="flex flex-col gap-4">
             <div>
               <h2
-                className={`mb-4 flex text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider ${
+                className={`mb-3 flex text-xs font-semibold tracking-wider text-gray-500 uppercase dark:text-gray-400 ${
                   !isExpanded && !isHovered
                     ? "lg:justify-center"
                     : "justify-start"
@@ -307,7 +319,7 @@ const AppSidebar: React.FC = () => {
             {othersItems.length > 0 && (
               <div>
                 <h2
-                  className={`mb-4 flex text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider ${
+                  className={`mb-3 flex text-xs font-semibold tracking-wider text-gray-500 uppercase dark:text-gray-400 ${
                     !isExpanded && !isHovered
                       ? "lg:justify-center"
                       : "justify-start"

@@ -26,9 +26,15 @@ function AddFriendMessageDialog({
   }, [open]);
 
   return (
-    <Modal isOpen={open} onClose={onClose} className="max-w-md" showCloseButton>
-      <div className="p-5 sm:p-6">
-        <h3 className="text-base font-semibold text-gray-900 dark:text-white">
+    <Modal
+      isOpen={open}
+      onClose={onClose}
+      className="max-w-md max-md:max-w-full"
+      showCloseButton
+      layer="top"
+    >
+      <div className="flex flex-col p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:p-6">
+        <h3 className="pr-10 text-lg font-semibold text-gray-900 sm:text-base dark:text-white">
           Gửi lời mời kết bạn
         </h3>
         {friendName ? (
@@ -41,18 +47,27 @@ function AddFriendMessageDialog({
           value={message}
           onChange={(event) => setMessage(event.target.value)}
           rows={4}
-          maxLength={500}
+          maxLength={135}
           placeholder="Lời nhắn kèm lời mời..."
-          className="mt-4 w-full resize-none rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm outline-none focus:border-brand-300 focus:ring-2 focus:ring-brand-500/15 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90"
+          className="mt-4 w-full resize-none rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 text-base outline-none focus:border-brand-300 focus:ring-2 focus:ring-brand-500/15 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90 sm:py-2.5 sm:text-sm"
         />
+        <p className="mt-1 text-right text-[11px] text-gray-400">
+          {message.length}/135
+        </p>
 
-        <div className="mt-4 flex justify-end gap-2">
-          <Button size="sm" variant="outline" onClick={onClose}>
+        <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={onClose}
+            className="!h-11 w-full sm:!h-9 sm:w-auto"
+          >
             Huỷ
           </Button>
           <Button
             size="sm"
             onClick={() => onSubmit(message.trim() || DEFAULT_MESSAGE)}
+            className="!h-11 w-full sm:!h-9 sm:w-auto"
           >
             Gửi lời mời
           </Button>

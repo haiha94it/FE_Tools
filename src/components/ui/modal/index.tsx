@@ -62,13 +62,13 @@ export const Modal: React.FC<ModalProps> = ({
 
   const panelClasses = isFullscreen
     ? "relative z-10 h-full w-full"
-    : `relative z-10 flex max-h-[calc(100dvh-2rem)] w-full min-w-0 flex-col overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-theme-xl dark:border-gray-800 dark:bg-gray-900 ${className}`;
+    : `relative z-10 box-border flex max-h-[calc(100dvh-1rem)] w-full min-w-0 max-w-full flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-theme-xl sm:max-h-[calc(100dvh-2rem)] sm:rounded-3xl dark:border-gray-800 dark:bg-gray-900 ${className}`;
 
   const layerClass = layer === "top" ? "z-[100001]" : "z-[99999]";
 
   return createPortal(
     <div
-      className={`fixed inset-0 ${layerClass} flex items-center justify-center overflow-hidden overscroll-contain p-4 sm:p-6`}
+      className={`fixed inset-0 ${layerClass} flex items-center justify-center overflow-hidden overscroll-contain p-2 sm:p-4 md:p-6`}
       role="dialog"
       aria-modal="true"
     >
@@ -88,7 +88,7 @@ export const Modal: React.FC<ModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="absolute right-3 top-3 z-20 flex h-9.5 w-9.5 items-center justify-center rounded-full bg-gray-100 text-gray-400 transition-colors hover:bg-gray-200 hover:text-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white sm:right-5 sm:top-5 sm:h-10 sm:w-10"
+            className="absolute right-2 top-2 z-20 flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-gray-400 transition-colors hover:bg-gray-200 hover:text-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white sm:right-5 sm:top-5 sm:h-10 sm:w-10"
             aria-label="Đóng"
           >
             <svg

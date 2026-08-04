@@ -3,7 +3,7 @@
 import { useMessengerLayoutMode } from "@/hooks/use-messenger-layout-mode";
 import { useResizablePanelWidth } from "@/hooks/use-resizable-panel-width";
 import { useZaloMessengerStore } from "@/stores/use-zalo-messenger-store";
-import { memo } from "react";
+import { memo, useEffect } from "react";
 import MessengerAccountColumn from "./MessengerAccountColumn";
 import MessengerChatColumn from "./MessengerChatColumn";
 import MessengerConversationColumn from "./MessengerConversationColumn";
@@ -19,12 +19,31 @@ function MessengerLayout() {
   const layoutMode = useMessengerLayoutMode();
   const mobilePanel = useZaloMessengerStore((s) => s.mobilePanel);
   const selectedAccountId = useZaloMessengerStore((s) => s.selectedAccountId);
+  const activeConversationId = useZaloMessengerStore(
+    (s) => s.activeConversationId,
+  );
+  const setMobilePanel = useZaloMessengerStore((s) => s.setMobilePanel);
 
   const isDesktop = layoutMode === "desktop";
   const isTablet = layoutMode === "tablet";
   const isPhone = layoutMode === "phone";
 
-  const activePanel: Panel = isDesktop ? "chat" : mobilePanel;
+  /**
+   * Phone 3 bước: nick → hội thoại → chat.
+   * Guard: không nick → luôn accounts (tránh kẹt panel "conversations" rỗng).
+   * Có nick, chưa chat → conversations; có conversation → theo mobilePanel.
+   */
+  const phonePanel: Panel = !selectedAccountId
+    ? "accounts"
+    : mobilePanel === "chat" && activeConversationId
+      ? "chat"
+      : mobilePanel === "accounts"
+        ? "conversations"
+        : mobilePanel === "chat" && !activeConversationId
+          ? "conversations"
+          : mobilePanel;
+
+  const activePanel: Panel = isDesktop ? "chat" : isPhone ? phonePanel : mobilePanel;
   const showSplit = (isTablet || isDesktop) && selectedAccountId != null;
 
   const showAccounts =
@@ -35,10 +54,39 @@ function MessengerLayout() {
   const showConversations =
     isDesktop ||
     showSplit ||
-    (isPhone && activePanel === "conversations");
+    (isPhone &&
+      selectedAccountId != null &&
+      activePanel === "conversations");
 
   const showChat =
-    isDesktop || showSplit || (isPhone && activePanel === "chat");
+    isDesktop ||
+    showSplit ||
+    (isPhone &&
+      selectedAccountId != null &&
+      activePanel === "chat" &&
+      activeConversationId != null);
+
+  // Sửa state lệch: phone không nick phải ở màn accounts
+  useEffect(() => {
+    if (!isPhone) return;
+    if (!selectedAccountId && mobilePanel !== "accounts") {
+      setMobilePanel("accounts");
+      return;
+    }
+    if (
+      selectedAccountId &&
+      mobilePanel === "chat" &&
+      !activeConversationId
+    ) {
+      setMobilePanel("conversations");
+    }
+  }, [
+    isPhone,
+    selectedAccountId,
+    activeConversationId,
+    mobilePanel,
+    setMobilePanel,
+  ]);
 
   // Kéo rộng/hẹp list hội thoại — thấy hết nhãn thẻ filter
   const canResizeConversations =

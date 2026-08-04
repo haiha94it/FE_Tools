@@ -663,10 +663,10 @@ export function MessageList({
               </div>
             ) : (
             <div
-              className={`group/row relative flex w-full min-w-0 items-end overflow-hidden ${
-                isGroupMedia ? "max-md:gap-0 md:gap-2" : "gap-2"
-              } ${own ? "justify-end" : "justify-start"} ${
-                compact ? "mt-1" : "mt-3"
+              className={`group/row relative flex w-full min-w-0 items-end overflow-visible ${
+                isGroupMedia ? "max-md:gap-0 md:gap-2" : "gap-1.5 sm:gap-2"
+              } ${own ? "justify-end max-md:pl-10 max-md:pr-1 sm:pl-12" : "justify-start max-md:pr-10 max-md:pl-1 sm:pr-12"} ${
+                compact ? "mt-1" : "mt-2.5 sm:mt-3"
               }`}
             >
               {showAvatar ? (
@@ -683,11 +683,12 @@ export function MessageList({
                 </div>
               ) : null}
 
+              {/* Không w-full: bubble co theo nội dung, max ~75vw mobile — tránh tràn full như văn bản */}
               <div
-                className={`flex w-full min-w-0 flex-col ${
+                className={`flex min-w-0 flex-col ${
                   isGroupMedia
-                    ? "max-md:flex-1 max-md:max-w-full md:max-w-[min(96%,420px)]"
-                    : "max-w-[min(92%,360px)] max-md:max-w-[min(96%,360px)]"
+                    ? "w-full max-w-[min(88vw,360px)] sm:max-w-[min(90%,420px)]"
+                    : "max-w-[min(75vw,280px)] sm:max-w-[min(82%,320px)] md:max-w-[min(88%,360px)]"
                 } ${own ? "items-end" : "items-start"}`}
               >
                 {showSenderHeader ? (
@@ -703,23 +704,23 @@ export function MessageList({
                 <div
                   className={`relative w-max min-w-0 max-w-full ${
                     isGroupMedia ? "w-full" : ""
-                  } ${own ? "max-md:ml-9" : "max-md:mr-9"}`}
+                  } ${own ? "max-md:mr-0" : "max-md:ml-0"}`}
                 >
                   <div
-                    className={`relative w-full min-w-0 max-w-full overflow-hidden text-[#081C36] dark:text-white/90 ${
+                    className={`relative w-full min-w-0 max-w-full overflow-hidden break-words text-[#081C36] dark:text-white/90 ${
                       isGroupMedia
-                        ? "w-full max-md:rounded-xl max-md:border-0 max-md:p-0 max-md:shadow-none md:rounded-xl"
+                        ? "w-full rounded-2xl max-md:rounded-2xl md:rounded-xl"
                         : shell === "media"
-                          ? `rounded-xl p-0 shadow-none ${own ? "rounded-br-md" : "rounded-bl-md"}`
+                          ? `rounded-2xl p-0 shadow-sm sm:rounded-xl sm:shadow-none ${own ? "rounded-br-md" : "rounded-bl-md"}`
                           : shell === "card"
-                            ? `rounded-xl border p-2.5 shadow-sm ${
+                            ? `rounded-2xl border p-2.5 shadow-sm sm:rounded-xl ${
                                 own
                                   ? "rounded-br-md border-[#b6d4f5] bg-[#DBEBFF] dark:border-blue-800 dark:bg-blue-950/45"
-                                  : "rounded-bl-md border-black/[0.06] bg-white dark:border-gray-600 dark:bg-gray-800"
+                                  : "rounded-bl-md border-gray-200/90 bg-white dark:border-gray-600 dark:bg-gray-800"
                               }`
                             : own
-                              ? "rounded-[18px] rounded-br-md border border-[#b6d4f5] bg-[#DBEBFF] px-3 py-2 shadow-none dark:border-blue-800 dark:bg-blue-950/45"
-                              : "rounded-[18px] rounded-bl-md border border-black/[0.04] bg-white px-3 py-2 shadow-sm dark:border-gray-700 dark:bg-gray-800"
+                              ? "rounded-[18px] rounded-br-md border border-[#b6d4f5] bg-[#DBEBFF] px-3 py-2 shadow-sm dark:border-blue-800 dark:bg-blue-950/45 sm:shadow-none"
+                              : "rounded-[18px] rounded-bl-md border border-gray-200/90 bg-white px-3 py-2 shadow-sm dark:border-gray-600 dark:bg-gray-800"
                     } ${reactionEmojis.length > 0 ? "pb-3" : ""}`}
                   >
                     <QuotePreview message={message} />

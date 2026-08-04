@@ -29,9 +29,12 @@ function MessengerAccountColumn() {
   return (
     <>
       <div className="shrink-0 border-b border-gray-100 px-3 py-3 dark:border-gray-800">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-          Tài khoản
+        <h3 className="text-sm font-semibold text-gray-800 dark:text-white/90">
+          Chọn tài khoản Zalo
         </h3>
+        <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+          Chọn nick để xem hội thoại và nhắn tin
+        </p>
       </div>
       <AccountPanel
         accounts={accounts}

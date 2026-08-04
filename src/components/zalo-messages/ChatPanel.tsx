@@ -317,12 +317,12 @@ function ChatPanel({
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
-      <header className="relative z-20 flex shrink-0 items-center gap-3 border-b border-gray-100 bg-white px-3 py-3 dark:border-gray-800 dark:bg-gray-900 sm:px-4">
+      <header className="relative z-20 flex shrink-0 items-center gap-2 border-b border-gray-100 bg-white px-2 py-2.5 dark:border-gray-800 dark:bg-gray-900 sm:gap-3 sm:px-4 sm:py-3">
         {showBack && onBack ? (
           <button
             type="button"
             onClick={onBack}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-gray-200 text-gray-600 transition hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 md:hidden"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-gray-200 text-gray-600 transition hover:bg-gray-50 active:bg-gray-100 dark:border-gray-700 dark:text-gray-300 md:hidden"
             aria-label="Quay lại"
           >
             ←
@@ -349,7 +349,7 @@ function ChatPanel({
         </div>
 
         {isGroup && groupId ? (
-          <div className="flex shrink-0 items-center gap-1.5">
+          <div className="flex shrink-0 items-center gap-1 sm:gap-1.5">
             <GroupMembersPanel
               members={groupMembers}
               isLoading={groupMembersLoading}
@@ -367,8 +367,9 @@ function ChatPanel({
               <button
                 type="button"
                 onClick={() => setGroupSettingsOpen(true)}
-                className="flex h-9 items-center gap-1.5 rounded-xl border border-gray-200 px-2.5 text-xs font-medium text-gray-600 transition hover:border-brand-300 hover:text-brand-600 dark:border-gray-700 dark:text-gray-300 dark:hover:border-brand-500/40 dark:hover:text-brand-400"
+                className="flex h-10 min-w-10 items-center justify-center gap-1.5 rounded-xl border border-gray-200 px-2.5 text-xs font-medium text-gray-600 transition hover:border-brand-300 hover:text-brand-600 active:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:border-brand-500/40 dark:hover:text-brand-400 sm:h-9"
                 title="Cài đặt nhóm"
+                aria-label="Cài đặt nhóm"
               >
                 <svg
                   width="16"
@@ -416,7 +417,7 @@ function ChatPanel({
       <div className="relative min-h-0 flex-1">
         <div
           ref={scrollRef}
-          className="messenger-chat-scroll absolute inset-0 overflow-x-hidden overflow-y-auto overscroll-contain bg-gradient-to-b from-gray-50/80 to-white px-2 py-4 max-md:px-3 dark:from-gray-900/50 dark:to-gray-900 lg:px-4"
+          className="messenger-chat-scroll absolute inset-0 overflow-x-hidden overflow-y-auto overscroll-contain bg-gradient-to-b from-gray-50/90 to-white px-2 py-3 max-md:px-2.5 dark:from-gray-900/50 dark:to-gray-900 sm:px-3 sm:py-4 lg:px-4"
         >
           {loadingMore ? (
             <div className="mb-3 flex justify-center">

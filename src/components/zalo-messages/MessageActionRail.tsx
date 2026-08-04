@@ -6,7 +6,9 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { HiOutlineEllipsisVertical, HiOutlineInformationCircle } from "react-icons/hi2";
 import { createPortal } from "react-dom";
 
-const MOBILE_CHAT_MEDIA = "(max-width: 992px), (hover: none), (pointer: coarse)";
+/** Phone/tablet + touch: sheet; laptop/desktop có hover: rail hover */
+const MOBILE_CHAT_MEDIA =
+  "(max-width: 1023px), (hover: none) and (pointer: coarse)";
 
 function useMessengerMobileUI() {
   const [isMobileUI, setIsMobileUI] = useState(() => {
@@ -151,50 +153,14 @@ interface MobileActionSheetProps {
 
 function PortalMobileActionSheet({
   open,
-  own,
+  own: _own,
   anchorRef,
   onClose,
   children,
 }: MobileActionSheetProps) {
   const sheetRef = useRef<HTMLDivElement>(null);
-  const [coords, setCoords] = useState<{
-    top: number;
-    left: number;
-    maxWidth: number;
-  } | null>(null);
-
-  useEffect(() => {
-    if (!open) {
-      setCoords(null);
-      return undefined;
-    }
-
-    const syncPosition = () => {
-      const anchor = anchorRef.current;
-      if (!anchor) return;
-      const rect = anchor.getBoundingClientRect();
-      const margin = 8;
-      const menuWidth = 196;
-      const maxWidth = Math.min(menuWidth, window.innerWidth - margin * 2);
-
-      let left = own ? rect.right - maxWidth : rect.left;
-      left = Math.max(margin, Math.min(left, window.innerWidth - maxWidth - margin));
-
-      setCoords({
-        top: rect.bottom + 6,
-        left,
-        maxWidth,
-      });
-    };
-
-    syncPosition();
-    window.addEventListener("resize", syncPosition);
-    window.addEventListener("scroll", syncPosition, true);
-    return () => {
-      window.removeEventListener("resize", syncPosition);
-      window.removeEventListener("scroll", syncPosition, true);
-    };
-  }, [open, own, anchorRef]);
+  // own/anchorRef giữ API cũ; sheet bottom-full không neo tọa độ anchor
+  void _own;
 
   useEffect(() => {
     if (!open) return undefined;
@@ -225,30 +191,49 @@ function PortalMobileActionSheet({
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [open, onClose]);
 
-  if (!open || !coords || typeof document === "undefined") return null;
+  useEffect(() => {
+    if (!open) return undefined;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [open]);
+
+  if (!open || typeof document === "undefined") return null;
 
   return createPortal(
-    <>
+    <div
+      className="fixed inset-0 z-[1200] flex flex-col justify-end"
+      role="presentation"
+    >
       <button
         type="button"
         aria-label="Đóng tùy chọn tin nhắn"
-        className="fixed inset-0 z-[1190] cursor-default bg-black/25 backdrop-blur-[1px]"
+        className="absolute inset-0 cursor-default bg-black/35 backdrop-blur-[1px]"
         onClick={onClose}
       />
       <div
         ref={sheetRef}
         role="menu"
         aria-label="Tùy chọn tin nhắn"
-        className="fixed z-[1200] flex flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white py-1 shadow-2xl dark:border-gray-700 dark:bg-gray-900"
-        style={{
-          top: coords.top,
-          left: coords.left,
-          width: coords.maxWidth,
-        }}
+        className="relative z-10 mx-auto flex w-full max-w-lg flex-col overflow-hidden rounded-t-3xl border border-gray-200 bg-white pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-2xl dark:border-gray-700 dark:bg-gray-900"
       >
-        {children}
+        <div className="flex justify-center pt-2.5 pb-1" aria-hidden>
+          <span className="h-1 w-10 rounded-full bg-gray-300 dark:bg-gray-600" />
+        </div>
+        <div className="max-h-[min(70dvh,420px)] overflow-y-auto overscroll-contain py-1">
+          {children}
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="mx-3 mb-2 mt-1 flex min-h-12 items-center justify-center rounded-2xl border border-gray-200 bg-gray-50 text-base font-semibold text-gray-800 active:bg-gray-100 dark:border-gray-700 dark:bg-gray-800 dark:text-white/90"
+        >
+          Huỷ
+        </button>
       </div>
-    </>,
+    </div>,
     document.body,
   );
 }
@@ -268,7 +253,7 @@ interface MessageActionRailProps {
 }
 
 const mobileMenuItemClass =
-  "flex min-h-[44px] w-full cursor-pointer items-center gap-2.5 px-3.5 text-left text-sm text-gray-700 transition active:bg-gray-100 dark:text-gray-200 dark:active:bg-white/[0.06]";
+  "flex min-h-12 w-full cursor-pointer items-center gap-3 px-4 text-left text-[15px] font-medium text-gray-800 transition active:bg-gray-100 dark:text-gray-100 dark:active:bg-white/[0.06]";
 
 export function MessageActionRail({
   own,
@@ -334,7 +319,8 @@ export function MessageActionRail({
           aria-expanded={sheetOpen}
           aria-haspopup="menu"
           onClick={toggleSheet}
-          className={`absolute top-1/2 z-10 inline-flex h-8 w-8 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border border-gray-200 bg-white/95 text-gray-500 shadow-sm transition active:scale-95 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400 ${
+          className={`absolute top-1/2 z-10 inline-flex h-9 w-9 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border border-gray-200 bg-white text-gray-600 shadow-md transition active:scale-95 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 ${
+            /* Nằm trong lề pl/pr-10 của row — không ăn width bubble */
             own ? "-left-9" : "-right-9"
           }`}
         >
@@ -409,16 +395,16 @@ export function MessageActionRail({
               }}
               className={`${mobileMenuItemClass} border-t border-gray-100 dark:border-gray-800`}
             >
-              <HiOutlineInformationCircle className="h-4 w-4 shrink-0" aria-hidden />
+              <HiOutlineInformationCircle className="h-5 w-5 shrink-0" aria-hidden />
               Chi tiết tin nhắn
             </button>
           ) : null}
           {onReaction ? (
-            <div className="border-t border-gray-100 px-3 py-2.5 dark:border-gray-800">
-              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
+            <div className="border-t border-gray-100 px-4 py-3 dark:border-gray-800">
+              <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
                 Cảm xúc
               </p>
-              <div className="flex flex-wrap gap-1.5">
+              <div className="flex flex-wrap justify-center gap-2">
                 {ZALO_REACTION_OPTIONS.map((option) => (
                   <button
                     key={option.id}
@@ -429,7 +415,7 @@ export function MessageActionRail({
                       onReaction(option.id);
                       closeSheet();
                     }}
-                    className="inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl border border-gray-100 text-lg transition active:scale-95 active:bg-gray-100 dark:border-gray-800 dark:active:bg-white/[0.06]"
+                    className="inline-flex h-12 w-12 cursor-pointer items-center justify-center rounded-2xl border border-gray-100 text-2xl transition active:scale-95 active:bg-gray-100 dark:border-gray-800 dark:active:bg-white/[0.06]"
                   >
                     {option.emoji}
                   </button>

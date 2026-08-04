@@ -41,6 +41,10 @@ function MessengerConversationColumn({
   const [savingNote, setSavingNote] = useState(false);
 
   const selectedAccountId = useZaloMessengerStore((s) => s.selectedAccountId);
+  const setMobilePanel = useZaloMessengerStore((s) => s.setMobilePanel);
+  const setSelectedAccountId = useZaloMessengerStore(
+    (s) => s.setSelectedAccountId,
+  );
   const conversations = useZaloMessengerStore((s) => s.conversations);
   const conversationLinks = useZaloMessengerStore((s) => s.conversationLinks);
   const conversationSearch = useZaloMessengerStore((s) => s.conversationSearch);
@@ -235,8 +239,12 @@ function MessengerConversationColumn({
           {showMobileBack ? (
             <button
               type="button"
-              onClick={() => router.push("/zalo-messages")}
-              className="rounded-lg px-2 py-1 text-xs text-brand-500 lg:hidden"
+              onClick={() => {
+                setMobilePanel("accounts");
+                setSelectedAccountId(null);
+                router.push("/zalo-messages");
+              }}
+              className="inline-flex min-h-9 items-center rounded-lg px-2 py-1.5 text-xs font-medium text-brand-600 active:bg-brand-50 dark:text-brand-400 xl:hidden"
             >
               ← Tài khoản
             </button>

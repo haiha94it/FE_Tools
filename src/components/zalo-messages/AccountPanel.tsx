@@ -61,7 +61,7 @@ function AccountPanel({
             <button
               type="button"
               onClick={() => onSelect(account.id)}
-              className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 px-3 py-3 text-left transition-colors"
+              className="flex min-h-[56px] min-w-0 flex-1 cursor-pointer items-center gap-3 px-3 py-3 text-left transition-colors active:bg-brand-50/50 dark:active:bg-brand-500/10"
             >
               <div className="relative shrink-0">
                 <ContactAvatar name={label} avatar={account.avatar} size="md" />

@@ -11,10 +11,19 @@ import {
   campaignFormGridEqualClass,
   campaignFormMainClass,
   campaignFormModalPanelClass,
+  campaignFormModalPanelClassWizard,
   campaignFormScrollPaneClass,
   campaignFormSidePaneClass,
+  campaignFormWizardListScrollClass,
+  CAMPAIGN_WIZARD_LIST_MAX_HEIGHT,
 } from "@/components/zalo-campaigns/CampaignFormModalLayout";
+import {
+  CampaignFormWizardFooter,
+  CampaignFormWizardHeader,
+  type CampaignWizardStep,
+} from "@/components/zalo-campaigns/CampaignFormWizard";
 import ContactAvatar from "@/components/zalo-contacts/shared/ContactAvatar";
+import { useCampaignFormWizard } from "@/hooks/use-campaign-form-wizard";
 import { UserIcon } from "@/icons";
 import { resolveZaloLabelColor } from "@/lib/zalo-label-utils";
 import CampaignAttachmentFields from "@/components/zalo-campaigns/shared/CampaignAttachmentFields";
@@ -137,6 +146,8 @@ export default function SendMesFrCampaignFormModal({
 }: SendMesFrCampaignFormModalProps) {
   const createOrEditCampaign = useZaloSendMesFrCampaignStore((s) => s.createOrEditCampaign);
   const saving = useZaloSendMesFrCampaignStore((s) => s.saving);
+  const { isWizard, wizardStep, setWizardStep, goBack, goNext } =
+    useCampaignFormWizard(open);
 
   const [name, setName] = useState("");
   const [delayTime, setDelayTime] = useState("60");
@@ -415,318 +426,522 @@ export default function SendMesFrCampaignFormModal({
     }
   };
 
-  return (
-    <Modal isOpen={open} onClose={onClose} className={campaignFormModalPanelClass.lg} showCloseButton>
-      <div className={campaignFormBodyClass}>
-        <div className="mb-4 shrink-0 pr-8">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-            {editingCampaign
-              ? readOnly
-                ? "Xem kịch bản nhắn tin bạn bè"
-                : "Sửa kịch bản nhắn tin bạn bè"
-              : "Thêm kịch bản nhắn tin bạn bè"}
-          </h3>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Soạn nội dung, chọn tài khoản và bạn bè nhận tin
-          </p>
+  const wizardSteps: CampaignWizardStep[] = useMemo(
+    () => [
+      {
+        id: "config",
+        title: "Cấu hình + tin",
+        hint: "Tên, tốc độ, khung giờ, nội dung và đính kèm",
+      },
+      {
+        id: "account",
+        title: "Nick Zalo",
+        hint: "Chọn tài khoản gửi tin",
+      },
+      {
+        id: "friends",
+        title: "Bạn bè",
+        hint: "Chọn bạn bè nhận tin",
+      },
+    ],
+    [],
+  );
+
+  const validateWizardStep = useCallback(
+    (step: number): boolean => {
+      if (step === 0) {
+        if (!name.trim()) {
+          toast.error("Vui lòng nhập tên kịch bản.");
+          return false;
+        }
+        const delay = Number(delayTime);
+        const count = Number(numberCount);
+        if (!Number.isFinite(delay) || delay <= 0) {
+          toast.error("Thời gian chờ không hợp lệ.");
+          return false;
+        }
+        if (!Number.isFinite(count) || count <= 0) {
+          toast.error("Số lượt gửi không hợp lệ.");
+          return false;
+        }
+        if (!contents.length && !contentType) {
+          toast.error("Nhập nội dung hoặc chọn đính kèm.");
+          return false;
+        }
+        if (contentType === "image" && !images.length) {
+          toast.error("Vui lòng thêm ảnh.");
+          return false;
+        }
+        if (contentType === "image" && images.length > 1) {
+          toast.error("Chỉ chấp nhận 1 ảnh. Từ 2 ảnh trở lên vui lòng gửi dạng album.");
+          return false;
+        }
+        if ((contentType === "video" || contentType === "album") && !selectedMediaId) {
+          toast.error(
+            contentType === "video" ? "Vui lòng chọn video." : "Vui lòng chọn album ảnh.",
+          );
+          return false;
+        }
+        return true;
+      }
+      if (step === 1) {
+        if (!selectedAccountId) {
+          toast.error("Chọn tài khoản Zalo.");
+          return false;
+        }
+        return true;
+      }
+      return true;
+    },
+    [
+      name,
+      delayTime,
+      numberCount,
+      contents,
+      contentType,
+      images,
+      selectedMediaId,
+      selectedAccountId,
+    ],
+  );
+
+  const modalTitle = editingCampaign
+    ? readOnly
+      ? "Xem kịch bản nhắn tin bạn bè"
+      : "Sửa kịch bản nhắn tin bạn bè"
+    : "Thêm kịch bản nhắn tin bạn bè";
+
+  const configFields = (
+    <div className="space-y-4">
+      <div>
+        <label className="mb-1.5 block text-xs font-medium text-gray-600 dark:text-gray-400">
+          Tên kịch bản
+        </label>
+        <Input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Nhập tên kịch bản"
+          disabled={saving}
+        />
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div>
+          <label className="mb-1.5 block text-xs font-medium text-gray-600 dark:text-gray-400">
+            Thời gian chờ (giây)
+          </label>
+          <Input
+            type="number"
+            value={delayTime}
+            onChange={(e) => setDelayTime(e.target.value)}
+            disabled={saving}
+          />
         </div>
+        <div>
+          <label className="mb-1.5 block text-xs font-medium text-gray-600 dark:text-gray-400">
+            Số lượt gửi / ngày
+          </label>
+          <Input
+            type="number"
+            value={numberCount}
+            onChange={(e) => setNumberCount(e.target.value)}
+            disabled={saving}
+          />
+        </div>
+      </div>
 
-        <div className={campaignFormMainClass}>
-          <fieldset disabled={readOnly} className="contents">
-            <div className={campaignFormGridEqualClass}>
-              <div className={campaignFormScrollPaneClass}>
-                <div className="space-y-4">
-            <div>
-              <label className="mb-1.5 block text-xs font-medium text-gray-600 dark:text-gray-400">
-                Tên kịch bản
-              </label>
-              <Input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Nhập tên kịch bản"
-                disabled={saving}
-              />
-            </div>
+      <div className="rounded-xl border border-gray-200 bg-gray-50/60 p-4 dark:border-gray-700 dark:bg-white/[0.02]">
+        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+          Khung giờ chạy
+        </span>
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2">
+            <span className="text-theme-xs text-gray-500">Từ</span>
+            <TimePicker value={startTime} onChange={setStartTime} disabled={saving} />
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-theme-xs text-gray-500">Đến</span>
+            <TimePicker value={endTime} onChange={setEndTime} disabled={saving} />
+          </div>
+        </div>
+      </div>
 
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div>
-                <label className="mb-1.5 block text-xs font-medium text-gray-600 dark:text-gray-400">
-                  Thời gian chờ (giây)
-                </label>
-                <Input
-                  type="number"
-                  value={delayTime}
-                  onChange={(e) => setDelayTime(e.target.value)}
-                  disabled={saving}
-                />
-              </div>
-              <div>
-                <label className="mb-1.5 block text-xs font-medium text-gray-600 dark:text-gray-400">
-                  Số lượt gửi / ngày
-                </label>
-                <Input
-                  type="number"
-                  value={numberCount}
-                  onChange={(e) => setNumberCount(e.target.value)}
-                  disabled={saving}
-                />
-              </div>
-            </div>
+      <div className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
+        <p className="mb-3 text-sm font-semibold text-gray-800 dark:text-white/90">
+          Nội dung tin nhắn
+        </p>
+        <SendMesFrContentEditor
+          contents={contents}
+          images={images}
+          contentType={contentType}
+          uploadingImage={uploadingImage}
+          disabled={saving || readOnly}
+          showImages={false}
+          onContentsChange={setContents}
+          onImagesChange={setImages}
+          onUploadImage={handleUploadImage}
+        />
+      </div>
 
-            <div className="rounded-xl border border-gray-200 bg-gray-50/60 p-4 dark:border-gray-700 dark:bg-white/[0.02]">
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                Khung giờ chạy
-              </span>
-              <div className="mt-3 flex flex-wrap items-center gap-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-theme-xs text-gray-500">Từ</span>
-                  <TimePicker value={startTime} onChange={setStartTime} disabled={saving} />
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-theme-xs text-gray-500">Đến</span>
-                  <TimePicker value={endTime} onChange={setEndTime} disabled={saving} />
-                </div>
-              </div>
-            </div>
+      <div className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
+        <CampaignAttachmentFields
+          contentType={contentType}
+          images={images}
+          selectedMediaId={selectedMediaId}
+          uploadingImage={uploadingImage}
+          disabled={saving || readOnly}
+          resolveImageUrl={getSendMesFrMediaUrl}
+          onContentTypeChange={setContentType}
+          onImagesChange={setImages}
+          onSelectedMediaIdChange={setSelectedMediaId}
+          onUploadImage={async (file) => {
+            try {
+              return await handleUploadImage(file);
+            } catch (error) {
+              toast.error(getApiErrorMessage(error));
+              return null;
+            }
+          }}
+        />
+        {contentType ? (
+          <label className="mt-3 flex cursor-pointer items-start gap-2.5 text-sm text-gray-600 dark:text-gray-400">
+            <Checkbox
+              checked={splitAttachment}
+              onChange={setSplitAttachment}
+              disabled={saving || readOnly}
+            />
+            <span>Tách tin nhắn và đính kèm</span>
+          </label>
+        ) : null}
+      </div>
+    </div>
+  );
 
-            <div className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
-              <p className="mb-3 text-sm font-semibold text-gray-800 dark:text-white/90">
-                Nội dung tin nhắn
-              </p>
-              <SendMesFrContentEditor
-                contents={contents}
-                images={images}
-                contentType={contentType}
-                uploadingImage={uploadingImage}
-                disabled={saving || readOnly}
-                showImages={false}
-                onContentsChange={setContents}
-                onImagesChange={setImages}
-                onUploadImage={handleUploadImage}
-              />
-            </div>
-
-            <div className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
-              <CampaignAttachmentFields
-                contentType={contentType}
-                images={images}
-                selectedMediaId={selectedMediaId}
-                uploadingImage={uploadingImage}
-                disabled={saving || readOnly}
-                resolveImageUrl={getSendMesFrMediaUrl}
-                onContentTypeChange={setContentType}
-                onImagesChange={setImages}
-                onSelectedMediaIdChange={setSelectedMediaId}
-                onUploadImage={async (file) => {
-                  try {
-                    return await handleUploadImage(file);
-                  } catch (error) {
-                    toast.error(getApiErrorMessage(error));
-                    return null;
-                  }
-                }}
-              />
-              {contentType ? (
-                <label className="mt-3 flex cursor-pointer items-start gap-2.5 text-sm text-gray-600 dark:text-gray-400">
-                  <Checkbox
-                    checked={splitAttachment}
-                    onChange={setSplitAttachment}
-                    disabled={saving || readOnly}
-                  />
-                  <span>Tách tin nhắn và đính kèm</span>
-                </label>
-              ) : null}
-            </div>
-                </div>
-              </div>
-
-              <div
-                className={`${campaignFormSidePaneClass} gap-3 rounded-2xl border border-gray-200 bg-gray-50/40 p-3 dark:border-gray-800 dark:bg-white/[0.02]`}
+  const accountPicker = (
+    <div className="min-w-0">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <p className="text-sm font-semibold text-gray-800 dark:text-white/90">
+          Tài khoản gửi tin
+        </p>
+        {selectedAccountId ? (
+          <span className="rounded-full bg-brand-50 px-2 py-0.5 text-theme-xs font-medium text-brand-600 dark:bg-brand-500/10 dark:text-brand-400">
+            Đã chọn
+          </span>
+        ) : null}
+      </div>
+      <div
+        className={`custom-scrollbar flex gap-2 overflow-x-auto pb-0.5 ${
+          isWizard ? "flex-col overflow-x-visible sm:flex-row sm:overflow-x-auto" : ""
+        }`}
+      >
+        {accountsLoading ? (
+          <p className="px-2 py-3 text-sm text-gray-500">Đang tải...</p>
+        ) : activeAccounts.length === 0 ? (
+          <p className="px-2 py-3 text-sm text-gray-500">Không có tài khoản</p>
+        ) : (
+          activeAccounts.map((account) => {
+            const active = selectedAccountId === account.id;
+            const label = account.name || `#${account.id}`;
+            return (
+              <button
+                key={account.id}
+                type="button"
+                onClick={() => handleSelectAccount(account.id)}
+                className={`flex items-center gap-2 rounded-xl border px-2.5 py-2 transition ${
+                  isWizard ? "w-full shrink-0 sm:w-auto" : "shrink-0"
+                } ${
+                  active
+                    ? "border-brand-300 bg-white shadow-theme-xs ring-2 ring-brand-500/15 dark:border-brand-500/40 dark:bg-gray-900"
+                    : "border-gray-200 bg-white/80 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-900/60"
+                }`}
               >
-            <div className="shrink-0">
-              <p className="mb-2 text-sm font-semibold text-gray-800 dark:text-white/90">
-                Tài khoản gửi tin
-              </p>
-              <div className="custom-scrollbar flex gap-2 overflow-x-auto pb-0.5">
-                {accountsLoading ? (
-                  <p className="px-2 py-3 text-sm text-gray-500">Đang tải...</p>
-                ) : activeAccounts.length === 0 ? (
-                  <p className="px-2 py-3 text-sm text-gray-500">Không có tài khoản</p>
-                ) : (
-                  activeAccounts.map((account) => {
-                    const active = selectedAccountId === account.id;
-                    return (
-                      <button
-                        key={account.id}
-                        type="button"
-                        onClick={() => handleSelectAccount(account.id)}
-                        className={`flex shrink-0 items-center gap-2 rounded-xl border px-2.5 py-2 transition ${
-                          active
-                            ? "border-brand-300 bg-white shadow-theme-xs ring-2 ring-brand-500/15 dark:border-brand-500/40 dark:bg-gray-900"
-                            : "border-gray-200 bg-white/80 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-900/60"
-                        }`}
-                      >
-                        <span className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
-                          {account.avatar ? (
-                            <Image src={account.avatar} alt="" fill unoptimized className="object-cover" />
-                          ) : (
-                            <AvatarText
-                              name={account.name || `#${account.id}`}
-                              size="sm"
-                              className="!h-9 !w-9"
-                            />
-                          )}
-                        </span>
-                        <span className="max-w-[120px] truncate text-left text-sm font-medium text-gray-800 dark:text-white/90">
-                          {account.name || `#${account.id}`}
-                        </span>
-                      </button>
-                    );
-                  })
-                )}
-              </div>
-            </div>
+                <span className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
+                  {account.avatar ? (
+                    <Image src={account.avatar} alt="" fill unoptimized className="object-cover" />
+                  ) : (
+                    <AvatarText name={label} size="sm" className="!h-9 !w-9" />
+                  )}
+                </span>
+                <span
+                  className={`truncate text-left text-sm font-medium text-gray-800 dark:text-white/90 ${
+                    isWizard ? "min-w-0 flex-1 sm:max-w-[120px]" : "max-w-[120px]"
+                  }`}
+                >
+                  {label}
+                </span>
+                {active && isWizard ? (
+                  <span className="shrink-0 text-brand-600 sm:hidden">✓</span>
+                ) : null}
+              </button>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
 
-            <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.02]">
-              <div className="flex shrink-0 items-center justify-between gap-2 border-b border-gray-100 px-3 py-2 dark:border-gray-800">
-                <div className="flex items-center gap-2">
-                  <span className="flex size-6 items-center justify-center rounded-md bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-400">
-                    <UserIcon className="size-3.5" />
-                  </span>
-                  <span className="text-sm font-semibold text-gray-800 dark:text-white/90">
-                    Chọn bạn bè
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={toggleAllFilteredFriends}
-                    disabled={
-                      !friendsEditable ||
-                      saving ||
-                      friendsLoading ||
-                      filteredFriends.length === 0
-                    }
-                    className="text-theme-xs font-semibold text-brand-600 hover:text-brand-700 disabled:cursor-not-allowed disabled:opacity-40 dark:text-brand-400 dark:hover:text-brand-300"
-                  >
-                    {allFilteredFriendsSelected
-                      ? "Bỏ chọn tất cả"
-                      : "Chọn tất cả"}
-                  </button>
-                  <span className="rounded-full bg-brand-50 px-2 py-0.5 text-theme-xs font-medium text-brand-600 dark:bg-brand-500/10 dark:text-brand-400">
-                    {selectedFriendIds.length} đã chọn
-                  </span>
-                </div>
-              </div>
-
-              {!friendsEditable ? (
-                <p className="shrink-0 border-b border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
-                  Kịch bản đang chạy — không thể thay đổi bạn bè.
-                </p>
+  const friendsListBody = !selectedAccountId ? (
+    <p className="px-3 py-6 text-center text-xs text-gray-500">
+      Chọn tài khoản để xem bạn bè
+    </p>
+  ) : friendsLoading ? (
+    <p className="px-3 py-6 text-center text-xs text-gray-500">Đang tải...</p>
+  ) : filteredFriends.length === 0 ? (
+    <p className="px-3 py-6 text-center text-xs text-gray-500">
+      Không có bạn bè phù hợp
+    </p>
+  ) : (
+    <ul className="space-y-0.5">
+      {filteredFriends.map((friend) => {
+        const selected = selectedFriendIds.includes(friend.id);
+        const friendName = getZaloFriendDisplayName(friend);
+        return (
+          <li key={friend.id}>
+            <button
+              type="button"
+              disabled={!friendsEditable || saving}
+              onClick={() => toggleFriend(friend.id)}
+              className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition ${
+                selected
+                  ? "bg-brand-50 dark:bg-brand-500/10"
+                  : "hover:bg-gray-50 dark:hover:bg-white/[0.04]"
+              }`}
+            >
+              <ContactAvatar
+                name={friendName}
+                avatar={getZaloGroupAvatar(friend)}
+                size="sm"
+              />
+              <span className="min-w-0 flex-1 truncate text-gray-800 dark:text-white/90">
+                {friendName}
+              </span>
+              {selected ? (
+                <span className="shrink-0 text-brand-600 dark:text-brand-400">✓</span>
               ) : null}
+            </button>
+          </li>
+        );
+      })}
+    </ul>
+  );
 
-              <div className="shrink-0 min-w-0 space-y-2 border-b border-gray-100 px-3 py-2 dark:border-gray-800">
-                <div className="flex min-w-0 items-center gap-2">
-                  <span className="shrink-0 text-theme-xs font-medium text-gray-500">
-                    Nhãn
-                  </span>
-                  <LabelChipFilter
-                    labels={labelCategories}
-                    value={friendLabelId}
-                    onChange={setFriendLabelId}
-                    disabled={!selectedAccountId || saving}
-                  />
-                </div>
-                <div className="flex h-10 items-stretch gap-2">
-                  <div className="min-w-0 flex-1 [&>div]:h-full [&_input]:!h-full">
-                    <Input
-                      value={friendSearch}
-                      onChange={(e) => setFriendSearch(e.target.value)}
-                      placeholder="Tìm bạn bè..."
-                      disabled={!selectedAccountId || saving}
-                      className="!h-full !min-h-10 !px-3 !py-2 !text-sm"
-                    />
+  const friendsPanel = (
+    <div
+      className={
+        isWizard
+          ? "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.02]"
+          : "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.02]"
+      }
+    >
+      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-gray-100 px-3 py-2 dark:border-gray-800">
+        <div className="flex items-center gap-2">
+          <span className="flex size-6 items-center justify-center rounded-md bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-400">
+            <UserIcon className="size-3.5" />
+          </span>
+          <span className="text-sm font-semibold text-gray-800 dark:text-white/90">
+            Chọn bạn bè
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={toggleAllFilteredFriends}
+            disabled={
+              !friendsEditable ||
+              saving ||
+              friendsLoading ||
+              filteredFriends.length === 0
+            }
+            className="text-theme-xs font-semibold text-brand-600 hover:text-brand-700 disabled:cursor-not-allowed disabled:opacity-40 dark:text-brand-400 dark:hover:text-brand-300"
+          >
+            {allFilteredFriendsSelected ? "Bỏ chọn tất cả" : "Chọn tất cả"}
+          </button>
+          <span className="rounded-full bg-brand-50 px-2 py-0.5 text-theme-xs font-medium text-brand-600 dark:bg-brand-500/10 dark:text-brand-400">
+            {selectedFriendIds.length} đã chọn
+          </span>
+        </div>
+      </div>
+
+      {!friendsEditable ? (
+        <p className="shrink-0 border-b border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
+          Kịch bản đang chạy — không thể thay đổi bạn bè.
+        </p>
+      ) : null}
+
+      <div className="shrink-0 min-w-0 space-y-2 border-b border-gray-100 px-3 py-2 dark:border-gray-800">
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="shrink-0 text-theme-xs font-medium text-gray-500">
+            Nhãn
+          </span>
+          <LabelChipFilter
+            labels={labelCategories}
+            value={friendLabelId}
+            onChange={setFriendLabelId}
+            disabled={!selectedAccountId || saving}
+          />
+        </div>
+        <div className="flex h-10 items-stretch gap-2">
+          <div className="min-w-0 flex-1 [&>div]:h-full [&_input]:!h-full">
+            <Input
+              value={friendSearch}
+              onChange={(e) => setFriendSearch(e.target.value)}
+              placeholder="Tìm bạn bè..."
+              disabled={!selectedAccountId || saving}
+              className="!h-full !min-h-10 !px-3 !py-2 !text-sm"
+            />
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-10 shrink-0 whitespace-nowrap !py-0 px-3 text-xs"
+            disabled={!selectedAccountId || scanningFriends || saving}
+            onClick={() => void handleScanFriends()}
+          >
+            {scanningFriends ? "Đang quét..." : "Quét bạn bè"}
+          </Button>
+        </div>
+      </div>
+
+      <div
+        className={
+          isWizard
+            ? campaignFormWizardListScrollClass
+            : "custom-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain p-1.5"
+        }
+        style={
+          isWizard
+            ? {
+                maxHeight: CAMPAIGN_WIZARD_LIST_MAX_HEIGHT,
+                height: CAMPAIGN_WIZARD_LIST_MAX_HEIGHT,
+                WebkitOverflowScrolling: "touch",
+                touchAction: "pan-y",
+              }
+            : undefined
+        }
+      >
+        {friendsListBody}
+      </div>
+    </div>
+  );
+
+  const wizardBody =
+    wizardStep === 0
+      ? configFields
+      : wizardStep === 1
+        ? accountPicker
+        : friendsPanel;
+
+  return (
+    <Modal
+      isOpen={open}
+      onClose={onClose}
+      className={
+        isWizard
+          ? campaignFormModalPanelClassWizard
+          : campaignFormModalPanelClass.lg
+      }
+      showCloseButton
+    >
+      <div className={campaignFormBodyClass}>
+        {isWizard ? (
+          <>
+            <div className="mb-1 min-w-0 max-w-full shrink-0 pr-9">
+              <h3 className="text-sm font-semibold leading-snug break-words text-gray-900 dark:text-white">
+                {modalTitle}
+              </h3>
+            </div>
+            <CampaignFormWizardHeader
+              steps={wizardSteps}
+              current={wizardStep}
+              onJump={(i) => {
+                if (i < wizardStep) setWizardStep(i);
+              }}
+            />
+            <div
+              className={
+                wizardStep >= 2
+                  ? "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
+                  : "custom-scrollbar min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain"
+              }
+              style={
+                wizardStep < 2
+                  ? { WebkitOverflowScrolling: "touch", touchAction: "pan-y" }
+                  : undefined
+              }
+            >
+              <fieldset
+                disabled={readOnly}
+                className={
+                  wizardStep >= 2
+                    ? "flex min-h-0 flex-1 flex-col border-0 p-0"
+                    : "min-w-0 border-0 p-0"
+                }
+              >
+                {wizardBody}
+              </fieldset>
+            </div>
+            <div className="relative z-10 shrink-0 border-t border-gray-100 bg-white dark:border-gray-800 dark:bg-gray-900">
+              <CampaignFormWizardFooter
+                current={wizardStep}
+                total={wizardSteps.length}
+                onBack={goBack}
+                onNext={() => {
+                  if (!validateWizardStep(wizardStep)) return;
+                  goNext(wizardSteps.length - 1);
+                }}
+                onCancel={onClose}
+                onSubmit={() => void handleSave()}
+                saving={saving}
+                readOnly={readOnly}
+              />
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="mb-4 shrink-0 pr-8">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                {modalTitle}
+              </h3>
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                Soạn nội dung, chọn tài khoản và bạn bè nhận tin
+              </p>
+            </div>
+
+            <div className={campaignFormMainClass}>
+              <fieldset disabled={readOnly} className="contents">
+                <div className={campaignFormGridEqualClass}>
+                  <div className={campaignFormScrollPaneClass}>
+                    {configFields}
                   </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-10 shrink-0 whitespace-nowrap !py-0 px-3 text-xs"
-                    disabled={!selectedAccountId || scanningFriends || saving}
-                    onClick={() => void handleScanFriends()}
+
+                  <div
+                    className={`${campaignFormSidePaneClass} gap-3 rounded-2xl border border-gray-200 bg-gray-50/40 p-3 dark:border-gray-800 dark:bg-white/[0.02]`}
                   >
-                    {scanningFriends ? "Đang quét..." : "Quét bạn bè"}
-                  </Button>
+                    {accountPicker}
+                    {friendsPanel}
+                  </div>
                 </div>
-              </div>
-
-              <div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain p-1.5">
-                {!selectedAccountId ? (
-                  <p className="px-3 py-6 text-center text-xs text-gray-500">
-                    Chọn tài khoản để xem bạn bè
-                  </p>
-                ) : friendsLoading ? (
-                  <p className="px-3 py-6 text-center text-xs text-gray-500">Đang tải...</p>
-                ) : filteredFriends.length === 0 ? (
-                  <p className="px-3 py-6 text-center text-xs text-gray-500">
-                    Không có bạn bè phù hợp
-                  </p>
-                ) : (
-                  <ul className="space-y-0.5">
-                    {filteredFriends.map((friend) => {
-                      const selected = selectedFriendIds.includes(friend.id);
-                      const friendName = getZaloFriendDisplayName(friend);
-                      return (
-                        <li key={friend.id}>
-                          <button
-                            type="button"
-                            disabled={!friendsEditable || saving}
-                            onClick={() => toggleFriend(friend.id)}
-                            className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition ${
-                              selected
-                                ? "bg-brand-50 dark:bg-brand-500/10"
-                                : "hover:bg-gray-50 dark:hover:bg-white/[0.04]"
-                            }`}
-                          >
-                            <ContactAvatar
-                              name={friendName}
-                              avatar={getZaloGroupAvatar(friend)}
-                              size="sm"
-                            />
-                            <span className="min-w-0 flex-1 truncate text-gray-800 dark:text-white/90">
-                              {friendName}
-                            </span>
-                            {selected ? (
-                              <span className="shrink-0 text-brand-600 dark:text-brand-400">✓</span>
-                            ) : null}
-                          </button>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
-              </div>
+              </fieldset>
             </div>
-              </div>
-            </div>
-          </fieldset>
-        </div>
 
-        <div className="mt-4 flex shrink-0 justify-end gap-2 border-t border-gray-100 pt-4 dark:border-gray-800">
-          {readOnly ? (
-            <Button size="sm" variant="outline" onClick={onClose}>
-              Đóng
-            </Button>
-          ) : (
-            <>
-              <Button size="sm" variant="outline" onClick={onClose} disabled={saving}>
-                Hủy
-              </Button>
-              <Button size="sm" disabled={saving} onClick={() => void handleSave()}>
-                {saving ? "Đang lưu..." : editingCampaign ? "Lưu thay đổi" : "Lưu kịch bản"}
-              </Button>
-            </>
-          )}
-        </div>
+            <div className="mt-4 flex shrink-0 justify-end gap-2 border-t border-gray-100 pt-4 dark:border-gray-800">
+              {readOnly ? (
+                <Button size="sm" variant="outline" onClick={onClose}>
+                  Đóng
+                </Button>
+              ) : (
+                <>
+                  <Button size="sm" variant="outline" onClick={onClose} disabled={saving}>
+                    Hủy
+                  </Button>
+                  <Button size="sm" disabled={saving} onClick={() => void handleSave()}>
+                    {saving ? "Đang lưu..." : editingCampaign ? "Lưu thay đổi" : "Lưu kịch bản"}
+                  </Button>
+                </>
+              )}
+            </div>
+          </>
+        )}
       </div>
     </Modal>
   );

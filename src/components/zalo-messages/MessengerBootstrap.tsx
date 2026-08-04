@@ -81,6 +81,7 @@ export default function MessengerBootstrap({
         if (!allowed) {
           // URL còn id nick user cũ (vd /zalo-messages/26) → về list nick user mới
           useZaloMessengerStore.getState().setSelectedAccountId(null);
+          setMobilePanel("accounts");
           resetChatState();
           router.replace("/zalo-messages");
           return;
@@ -102,6 +103,7 @@ export default function MessengerBootstrap({
 
       if (gen !== routeSyncGeneration) return;
       useZaloMessengerStore.getState().setSelectedAccountId(null);
+      setMobilePanel("accounts");
       resetChatState();
     })();
   }, [
@@ -112,15 +114,17 @@ export default function MessengerBootstrap({
     switchAccount,
     selectConversation,
     resetChatState,
+    setMobilePanel,
     router,
   ]);
 
+  // Phone: đồng bộ panel theo URL (tablet/desktop dùng split, panel ít quan trọng)
   useEffect(() => {
-    const isWideLayout =
+    const isPhone =
       typeof window !== "undefined" &&
-      window.matchMedia("(min-width: 768px)").matches;
-    if (isWideLayout) return;
-    if (routeConversationId) setMobilePanel("chat");
+      window.matchMedia("(max-width: 767px)").matches;
+    if (!isPhone) return;
+    if (routeConversationId && routeAccountId) setMobilePanel("chat");
     else if (routeAccountId) setMobilePanel("conversations");
     else setMobilePanel("accounts");
   }, [routeConversationId, routeAccountId, setMobilePanel]);

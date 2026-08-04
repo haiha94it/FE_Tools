@@ -10,14 +10,24 @@ import {
   campaignFormBodyClass,
   campaignFormMainClass,
   campaignFormModalPanelClass,
+  campaignFormModalPanelClassWizard,
   campaignFormScrollPaneClass,
   campaignFormSidePaneClass,
+  campaignFormWizardListScrollClass,
+  campaignFormWizardSelectionPanelClass,
+  CAMPAIGN_WIZARD_LIST_MAX_HEIGHT,
 } from "@/components/zalo-campaigns/CampaignFormModalLayout";
+import {
+  CampaignFormWizardFooter,
+  CampaignFormWizardHeader,
+  type CampaignWizardStep,
+} from "@/components/zalo-campaigns/CampaignFormWizard";
 import ContactAvatar from "@/components/zalo-contacts/shared/ContactAvatar";
 import CampaignAttachmentFields from "@/components/zalo-campaigns/shared/CampaignAttachmentFields";
 import SendMesFrContentEditor from "@/components/zalo-campaigns/send-mes-fr/SendMesFrContentEditor";
 import SendMessMemberGrFirstMessageEditor from "./SendMessMemberGrFirstMessageEditor";
 import { GroupIcon, UserIcon } from "@/icons";
+import { useCampaignFormWizard } from "@/hooks/use-campaign-form-wizard";
 import { useScanTaskPoll } from "@/hooks/use-scan-task-poll";
 import {
   canEditSendMessMemberGrTargets,
@@ -88,6 +98,8 @@ export default function SendMessMemberGrCampaignFormModal({
     (s) => s.createOrEditCampaign,
   );
   const saving = useZaloSendMessMemberGrCampaignStore((s) => s.saving);
+  const { isWizard, wizardStep, setWizardStep, goBack, goNext } =
+    useCampaignFormWizard(open);
 
   const [name, setName] = useState("");
   const [delayTime, setDelayTime] = useState("350");
@@ -727,524 +739,850 @@ export default function SendMessMemberGrCampaignFormModal({
     }
   };
 
-  return (
-    <Modal isOpen={open} onClose={onClose} className={campaignFormModalPanelClass.xl} showCloseButton>
-      <div className={campaignFormBodyClass}>
-        <div className="mb-4 shrink-0 pr-8">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-            {editingCampaign
-              ? readOnly
-                ? "Xem kịch bản tương tác nhóm"
-                : "Sửa kịch bản tương tác nhóm"
-              : "Thêm kịch bản tương tác nhóm"}
-          </h3>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Multi-nick: chọn nick → nhóm chung (globalId) → thành viên → chế độ chia
-          </p>
-          {!targetsEditable ? (
-            <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
-              Kịch bản đang chạy — chỉ sửa nội dung / media. Nick, nhóm, TV và chế độ chia bị khóa.
-            </p>
-          ) : null}
-        </div>
+  const wizardSteps: CampaignWizardStep[] = useMemo(
+    () => [
+      {
+        id: "config",
+        title: "Cấu hình + tin",
+        hint: "Tên, tốc độ, khung giờ, chế độ gán, nhắn tin / kết bạn và nội dung",
+      },
+      {
+        id: "accounts",
+        title: "Nick Zalo",
+        hint: "Chọn một hoặc nhiều nick gửi tin / kết bạn",
+      },
+      {
+        id: "groups",
+        title: "Nhóm",
+        hint: "Chọn nhóm chung (globalId) — quét nhóm nếu danh sách trống",
+      },
+      {
+        id: "members",
+        title: "Thành viên",
+        hint: "Chọn thành viên mục tiêu — quét TV nếu danh sách trống",
+      },
+    ],
+    [],
+  );
 
-        <div className={campaignFormMainClass}>
-          <fieldset disabled={readOnly} className="contents">
-            <div className="grid h-full min-h-0 flex-1 gap-4 overflow-hidden max-lg:grid-cols-1 max-lg:grid-rows-[minmax(0,1fr)_minmax(0,1fr)] lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:grid-rows-1">
-              <div className={campaignFormScrollPaneClass}>
-                <div className="space-y-4">
-            <div>
-              <label className="mb-1.5 block text-xs font-medium text-gray-600 dark:text-gray-400">
-                Tên kịch bản
-              </label>
-              <Input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Nhập tên kịch bản"
+  /** Validate từng bước wizard; content-only (đang chạy) bỏ qua ràng buộc nick/nhóm/TV. */
+  const validateWizardStep = useCallback(
+    (step: number): boolean => {
+      if (step === 0) {
+        if (!sendMessage && !addFriend) {
+          toast.error("Chọn ít nhất một chức năng: Nhắn tin hoặc Kết bạn.");
+          return false;
+        }
+        if (!targetsEditable) {
+          // status===1: chỉ sửa tin/media — vẫn kiểm tra nội dung
+        } else {
+          const trimmedName = name.trim();
+          if (!trimmedName) {
+            toast.error("Vui lòng nhập tên kịch bản.");
+            return false;
+          }
+          const delay = Number(delayTime);
+          const count = Number(numberCount);
+          if (!Number.isFinite(delay) || delay <= 0) {
+            toast.error("Thời gian chờ không hợp lệ.");
+            return false;
+          }
+          if (!Number.isFinite(count) || count <= 0) {
+            toast.error("Số lượt gửi không hợp lệ.");
+            return false;
+          }
+        }
+        if (sendMessage && !contents.length && !contentType) {
+          toast.error("Nhập nội dung hoặc chọn đính kèm.");
+          return false;
+        }
+        if (sendMessage && contentType === "image" && !images.length) {
+          toast.error("Vui lòng thêm ảnh.");
+          return false;
+        }
+        if (sendMessage && contentType === "image" && images.length > 1) {
+          toast.error(
+            "Chỉ chấp nhận 1 ảnh. Từ 2 ảnh trở lên vui lòng gửi dạng album.",
+          );
+          return false;
+        }
+        if (
+          sendMessage &&
+          (contentType === "video" || contentType === "album") &&
+          !selectedMediaId
+        ) {
+          toast.error(
+            contentType === "video"
+              ? "Vui lòng chọn video."
+              : "Vui lòng chọn album ảnh.",
+          );
+          return false;
+        }
+        if (addFriend && !firstMessages.length) {
+          toast.error("Thêm ít nhất một lời chào kết bạn.");
+          return false;
+        }
+        return true;
+      }
+      if (!targetsEditable) return true;
+      if (step === 1) {
+        if (!selectedAccountIds.length) {
+          toast.error("Chọn ít nhất một tài khoản Zalo.");
+          return false;
+        }
+        return true;
+      }
+      if (step === 2) {
+        if (!selectedGroupGlobalId) {
+          toast.error("Chọn nhóm (cần globalId từ danh sách nhóm chung).");
+          return false;
+        }
+        return true;
+      }
+      return true;
+    },
+    [
+      sendMessage,
+      addFriend,
+      targetsEditable,
+      name,
+      delayTime,
+      numberCount,
+      contents.length,
+      contentType,
+      images.length,
+      selectedMediaId,
+      firstMessages.length,
+      selectedAccountIds.length,
+      selectedGroupGlobalId,
+    ],
+  );
+
+  const modalTitle = editingCampaign
+    ? readOnly
+      ? "Xem kịch bản tương tác nhóm"
+      : "Sửa kịch bản tương tác nhóm"
+    : "Thêm kịch bản tương tác nhóm";
+
+  const wizardListStyle = {
+    maxHeight: CAMPAIGN_WIZARD_LIST_MAX_HEIGHT,
+    height: CAMPAIGN_WIZARD_LIST_MAX_HEIGHT,
+    WebkitOverflowScrolling: "touch" as const,
+    overscrollBehavior: "contain" as const,
+    touchAction: "pan-y" as const,
+  };
+
+  const runningBanner = !targetsEditable ? (
+    <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
+      Kịch bản đang chạy — chỉ sửa nội dung / media. Nick, nhóm, TV và chế độ chia
+      bị khóa.
+    </p>
+  ) : null;
+
+  const configFields = (
+    <div className="space-y-4">
+      {runningBanner}
+      <div>
+        <label className="mb-1.5 block text-xs font-medium text-gray-600 dark:text-gray-400">
+          Tên kịch bản
+        </label>
+        <Input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Nhập tên kịch bản"
+          disabled={saving}
+        />
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div>
+          <label className="mb-1.5 block text-xs font-medium text-gray-600 dark:text-gray-400">
+            Thời gian chờ (giây)
+          </label>
+          <Input
+            type="number"
+            value={delayTime}
+            onChange={(e) => setDelayTime(e.target.value)}
+            disabled={saving}
+          />
+        </div>
+        <div>
+          <label className="mb-1.5 block text-xs font-medium text-gray-600 dark:text-gray-400">
+            Số lượt / ngày
+          </label>
+          <Input
+            type="number"
+            value={numberCount}
+            onChange={(e) => setNumberCount(e.target.value)}
+            disabled={saving}
+          />
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-gray-200 bg-gray-50/60 p-4 dark:border-gray-700 dark:bg-white/[0.02]">
+        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+          Khung giờ chạy
+        </span>
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2">
+            <span className="text-theme-xs text-gray-500">Từ</span>
+            <TimePicker value={startTime} onChange={setStartTime} disabled={saving} />
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-theme-xs text-gray-500">Đến</span>
+            <TimePicker value={endTime} onChange={setEndTime} disabled={saving} />
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
+        <p className="mb-2 text-sm font-semibold text-gray-800 dark:text-white/90">
+          Chế độ gán thành viên
+        </p>
+        <div className="space-y-2">
+          <label
+            className={`flex cursor-pointer items-start gap-2.5 rounded-lg border px-3 py-2 text-sm ${
+              assignMode === "distribute"
+                ? "border-brand-300 bg-brand-50/60 dark:border-brand-500/40 dark:bg-brand-500/10"
+                : "border-gray-200 dark:border-gray-700"
+            }`}
+          >
+            <input
+              type="radio"
+              name="assign_mode"
+              className="mt-1"
+              checked={assignMode === "distribute"}
+              disabled={!targetsEditable || saving}
+              onChange={() => setAssignMode("distribute")}
+            />
+            <span>
+              <span className="font-medium text-gray-800 dark:text-white/90">
+                Chia thành viên cho các nick
+              </span>
+              <span className="mt-0.5 block text-theme-xs text-gray-500 dark:text-gray-400">
+                Mỗi TV chỉ 1 nick xử lý; hệ thống chia cho nick còn hoạt động mỗi
+                phiên.
+              </span>
+            </span>
+          </label>
+          <label
+            className={`flex cursor-pointer items-start gap-2.5 rounded-lg border px-3 py-2 text-sm ${
+              assignMode === "all"
+                ? "border-brand-300 bg-brand-50/60 dark:border-brand-500/40 dark:bg-brand-500/10"
+                : "border-gray-200 dark:border-gray-700"
+            }`}
+          >
+            <input
+              type="radio"
+              name="assign_mode"
+              className="mt-1"
+              checked={assignMode === "all"}
+              disabled={!targetsEditable || saving}
+              onChange={() => setAssignMode("all")}
+            />
+            <span>
+              <span className="font-medium text-gray-800 dark:text-white/90">
+                Mọi nick gửi tất cả thành viên
+              </span>
+              <span className="mt-0.5 block text-theme-xs text-gray-500 dark:text-gray-400">
+                Mỗi nick lần lượt nhắn/kết bạn toàn bộ TV (số lượt ≈ nick × TV).
+              </span>
+            </span>
+          </label>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-4">
+        <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+          <Checkbox checked={sendMessage} onChange={setSendMessage} disabled={saving} />
+          Nhắn tin
+        </label>
+        <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+          <Checkbox checked={addFriend} onChange={setAddFriend} disabled={saving} />
+          Kết bạn
+        </label>
+      </div>
+
+      {sendMessage ? (
+        <div className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
+          <p className="mb-3 text-sm font-semibold text-gray-800 dark:text-white/90">
+            Nội dung tin nhắn
+          </p>
+          <SendMesFrContentEditor
+            contents={contents}
+            images={images}
+            contentType={contentType}
+            uploadingImage={uploadingImage}
+            disabled={saving}
+            showImages={false}
+            onContentsChange={setContents}
+            onImagesChange={setImages}
+            onUploadImage={handleUploadImage}
+          />
+          <div className="mt-4">
+            <CampaignAttachmentFields
+              contentType={contentType}
+              images={images}
+              selectedMediaId={selectedMediaId}
+              uploadingImage={uploadingImage}
+              disabled={saving}
+              resolveImageUrl={getSendMessMemberGrMediaUrl}
+              onContentTypeChange={setContentType}
+              onImagesChange={setImages}
+              onSelectedMediaIdChange={setSelectedMediaId}
+              onUploadImage={async (file) => {
+                try {
+                  return await handleUploadImage(file);
+                } catch (error) {
+                  toast.error(getApiErrorMessage(error));
+                  return null;
+                }
+              }}
+            />
+          </div>
+          {contentType ? (
+            <label className="mt-3 flex cursor-pointer items-start gap-2.5 text-sm text-gray-600 dark:text-gray-400">
+              <Checkbox
+                checked={splitAttachment}
+                onChange={setSplitAttachment}
                 disabled={saving}
               />
-            </div>
+              <span>Tách tin nhắn và đính kèm</span>
+            </label>
+          ) : null}
+        </div>
+      ) : null}
 
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div>
-                <label className="mb-1.5 block text-xs font-medium text-gray-600 dark:text-gray-400">
-                  Thời gian chờ (giây)
-                </label>
-                <Input
-                  type="number"
-                  value={delayTime}
-                  onChange={(e) => setDelayTime(e.target.value)}
-                  disabled={saving}
-                />
-              </div>
-              <div>
-                <label className="mb-1.5 block text-xs font-medium text-gray-600 dark:text-gray-400">
-                  Số lượt / ngày
-                </label>
-                <Input
-                  type="number"
-                  value={numberCount}
-                  onChange={(e) => setNumberCount(e.target.value)}
-                  disabled={saving}
-                />
-              </div>
-            </div>
+      {addFriend ? (
+        <div className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
+          <SendMessMemberGrFirstMessageEditor
+            contents={firstMessages}
+            disabled={saving}
+            onContentsChange={setFirstMessages}
+          />
+        </div>
+      ) : null}
+    </div>
+  );
 
-            <div className="rounded-xl border border-gray-200 bg-gray-50/60 p-4 dark:border-gray-700 dark:bg-white/[0.02]">
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                Khung giờ chạy
-              </span>
-              <div className="mt-3 flex flex-wrap items-center gap-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-theme-xs text-gray-500">Từ</span>
-                  <TimePicker value={startTime} onChange={setStartTime} disabled={saving} />
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-theme-xs text-gray-500">Đến</span>
-                  <TimePicker value={endTime} onChange={setEndTime} disabled={saving} />
-                </div>
-              </div>
-            </div>
+  const allAccountsSelected =
+    activeAccounts.length > 0 &&
+    activeAccounts.every((a) => selectedAccountIds.includes(a.id));
 
-            <div className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
-              <p className="mb-2 text-sm font-semibold text-gray-800 dark:text-white/90">
-                Chế độ gán thành viên
-              </p>
-              <div className="space-y-2">
-                <label
-                  className={`flex cursor-pointer items-start gap-2.5 rounded-lg border px-3 py-2 text-sm ${
-                    assignMode === "distribute"
-                      ? "border-brand-300 bg-brand-50/60 dark:border-brand-500/40 dark:bg-brand-500/10"
-                      : "border-gray-200 dark:border-gray-700"
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="assign_mode"
-                    className="mt-1"
-                    checked={assignMode === "distribute"}
-                    disabled={!targetsEditable || saving}
-                    onChange={() => setAssignMode("distribute")}
-                  />
-                  <span>
-                    <span className="font-medium text-gray-800 dark:text-white/90">
-                      Chia thành viên cho các nick
-                    </span>
-                    <span className="mt-0.5 block text-theme-xs text-gray-500 dark:text-gray-400">
-                      Mỗi TV chỉ 1 nick xử lý; hệ thống chia cho nick còn hoạt động mỗi phiên.
-                    </span>
-                  </span>
-                </label>
-                <label
-                  className={`flex cursor-pointer items-start gap-2.5 rounded-lg border px-3 py-2 text-sm ${
-                    assignMode === "all"
-                      ? "border-brand-300 bg-brand-50/60 dark:border-brand-500/40 dark:bg-brand-500/10"
-                      : "border-gray-200 dark:border-gray-700"
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="assign_mode"
-                    className="mt-1"
-                    checked={assignMode === "all"}
-                    disabled={!targetsEditable || saving}
-                    onChange={() => setAssignMode("all")}
-                  />
-                  <span>
-                    <span className="font-medium text-gray-800 dark:text-white/90">
-                      Mọi nick gửi tất cả thành viên
-                    </span>
-                    <span className="mt-0.5 block text-theme-xs text-gray-500 dark:text-gray-400">
-                      Mỗi nick lần lượt nhắn/kết bạn toàn bộ TV (số lượt ≈ nick × TV).
-                    </span>
-                  </span>
-                </label>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap gap-4">
-              <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-                <Checkbox checked={sendMessage} onChange={setSendMessage} disabled={saving} />
-                Nhắn tin
-              </label>
-              <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-                <Checkbox checked={addFriend} onChange={setAddFriend} disabled={saving} />
-                Kết bạn
-              </label>
-            </div>
-
-            {sendMessage ? (
-              <div className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
-                <p className="mb-3 text-sm font-semibold text-gray-800 dark:text-white/90">
-                  Nội dung tin nhắn
-                </p>
-                <SendMesFrContentEditor
-                  contents={contents}
-                  images={images}
-                  contentType={contentType}
-                  uploadingImage={uploadingImage}
-                  disabled={saving}
-                  showImages={false}
-                  onContentsChange={setContents}
-                  onImagesChange={setImages}
-                  onUploadImage={handleUploadImage}
-                />
-                <div className="mt-4">
-                  <CampaignAttachmentFields
-                    contentType={contentType}
-                    images={images}
-                    selectedMediaId={selectedMediaId}
-                    uploadingImage={uploadingImage}
-                    disabled={saving}
-                    resolveImageUrl={getSendMessMemberGrMediaUrl}
-                    onContentTypeChange={setContentType}
-                    onImagesChange={setImages}
-                    onSelectedMediaIdChange={setSelectedMediaId}
-                    onUploadImage={async (file) => {
-                      try {
-                        return await handleUploadImage(file);
-                      } catch (error) {
-                        toast.error(getApiErrorMessage(error));
-                        return null;
-                      }
-                    }}
-                  />
-                </div>
-                {contentType ? (
-                  <label className="mt-3 flex cursor-pointer items-start gap-2.5 text-sm text-gray-600 dark:text-gray-400">
-                    <Checkbox
-                      checked={splitAttachment}
-                      onChange={setSplitAttachment}
-                      disabled={saving}
-                    />
-                    <span>Tách tin nhắn và đính kèm</span>
-                  </label>
-                ) : null}
-              </div>
-            ) : null}
-
-            {addFriend ? (
-              <div className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
-                <SendMessMemberGrFirstMessageEditor
-                  contents={firstMessages}
-                  disabled={saving}
-                  onContentsChange={setFirstMessages}
-                />
-              </div>
-            ) : null}
-                </div>
-              </div>
-
-              <div
-                className={`${campaignFormSidePaneClass} gap-3 rounded-2xl border border-gray-200 bg-gray-50/40 p-3 dark:border-gray-800 dark:bg-white/[0.02]`}
+  const accountsPanel = (
+    <div
+      className={
+        isWizard
+          ? "flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900"
+          : "shrink-0"
+      }
+    >
+      <div className="mb-2 flex shrink-0 items-center justify-between gap-2">
+        <p className="text-sm font-semibold text-gray-800 dark:text-white/90">
+          {isWizard ? "Chọn tài khoản Zalo" : "Tài khoản gửi tin"}
+        </p>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            disabled={!targetsEditable || saving || !activeAccounts.length}
+            onClick={toggleSelectAllAccounts}
+            className="text-theme-xs font-medium text-brand-600 hover:underline disabled:opacity-50 dark:text-brand-400"
+          >
+            {allAccountsSelected ? "Bỏ chọn tất cả" : "Chọn tất cả"}
+          </button>
+          {isWizard ? (
+            <span className="text-theme-xs text-gray-500">
+              {selectedAccountIds.length} đã chọn
+            </span>
+          ) : null}
+        </div>
+      </div>
+      <div
+        className={
+          isWizard
+            ? `${campaignFormWizardListScrollClass} space-y-1`
+            : "custom-scrollbar flex gap-2 overflow-x-auto pb-0.5"
+        }
+        style={isWizard ? wizardListStyle : undefined}
+      >
+        {accountsLoading ? (
+          <p className="px-2 py-3 text-sm text-gray-500">Đang tải...</p>
+        ) : activeAccounts.length === 0 ? (
+          <p className="px-2 py-3 text-sm text-gray-500">Không có tài khoản</p>
+        ) : isWizard ? (
+          activeAccounts.map((account) => {
+            const active = selectedAccountIds.includes(account.id);
+            return (
+              <button
+                key={account.id}
+                type="button"
+                disabled={!targetsEditable || saving}
+                onClick={() => toggleAccount(account.id)}
+                className={`flex w-full min-w-0 items-center gap-3 rounded-lg border px-3 py-2.5 text-left transition active:bg-brand-50/80 ${
+                  active
+                    ? "border-brand-300 bg-brand-50 dark:border-brand-500/30 dark:bg-brand-500/10"
+                    : "border-transparent hover:bg-gray-50 dark:hover:bg-white/[0.03]"
+                } disabled:cursor-not-allowed disabled:opacity-60`}
               >
-            <div className="shrink-0">
-              <div className="mb-2 flex items-center justify-between gap-2">
-                <p className="text-sm font-semibold text-gray-800 dark:text-white/90">
-                  Tài khoản gửi tin
-                </p>
-                <button
-                  type="button"
-                  disabled={!targetsEditable || saving || !activeAccounts.length}
-                  onClick={toggleSelectAllAccounts}
-                  className="text-theme-xs font-medium text-brand-600 hover:underline disabled:opacity-50 dark:text-brand-400"
-                >
-                  {activeAccounts.length > 0 &&
-                  activeAccounts.every((a) => selectedAccountIds.includes(a.id))
-                    ? "Bỏ chọn tất cả"
-                    : "Chọn tất cả"}
-                </button>
-              </div>
-              <div className="custom-scrollbar flex gap-2 overflow-x-auto pb-0.5">
-                {accountsLoading ? (
-                  <p className="px-2 py-3 text-sm text-gray-500">Đang tải...</p>
-                ) : activeAccounts.length === 0 ? (
-                  <p className="px-2 py-3 text-sm text-gray-500">Không có tài khoản</p>
-                ) : (
-                  activeAccounts.map((account) => {
-                    const active = selectedAccountIds.includes(account.id);
-                    return (
-                      <button
-                        key={account.id}
-                        type="button"
-                        disabled={!targetsEditable || saving}
-                        onClick={() => toggleAccount(account.id)}
-                        className={`flex shrink-0 items-center gap-2 rounded-xl border px-2.5 py-2 transition ${
-                          active
-                            ? "border-brand-300 bg-white shadow-theme-xs ring-2 ring-brand-500/15 dark:border-brand-500/40 dark:bg-gray-900"
-                            : "border-gray-200 bg-white/80 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-900/60"
-                        } disabled:cursor-not-allowed disabled:opacity-60`}
-                      >
-                        <span className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
-                          {account.avatar ? (
-                            <Image src={account.avatar} alt="" fill unoptimized className="object-cover" />
-                          ) : (
-                            <AvatarText
-                              name={account.name || `#${account.id}`}
-                              size="sm"
-                              className="!h-9 !w-9"
-                            />
-                          )}
-                        </span>
-                        <span className="max-w-[120px] truncate text-left text-sm font-medium text-gray-800 dark:text-white/90">
-                          {account.name || `#${account.id}`}
-                        </span>
-                        {active ? (
-                          <span className="text-brand-600 dark:text-brand-400">✓</span>
-                        ) : null}
-                      </button>
-                    );
-                  })
-                )}
-              </div>
-              {multiNick ? (
-                <p className="mt-1.5 text-theme-xs text-gray-500 dark:text-gray-400">
-                  ≥2 nick: chỉ hiện nhóm mọi nick đều join (cùng globalId).
-                </p>
-              ) : null}
-            </div>
-
-            <div className="grid min-h-0 flex-1 gap-3 lg:grid-cols-2">
-              <div className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.02]">
-                <div className="flex shrink-0 items-center gap-2 border-b border-gray-100 px-3 py-2 dark:border-gray-800">
-                  <span className="flex size-6 items-center justify-center rounded-md bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-400">
-                    <GroupIcon className="size-3.5" />
-                  </span>
-                  <span className="text-sm font-semibold text-gray-800 dark:text-white/90">
-                    Nhóm chung
-                  </span>
-                </div>
-                <div className="shrink-0 min-w-0 space-y-2 border-b border-gray-100 px-3 py-2 dark:border-gray-800">
-                  <div className="flex h-10 items-stretch gap-2">
-                    <div className="min-w-0 flex-1 [&>div]:h-full [&_input]:!h-full">
-                      <Input
-                        value={groupSearch}
-                        onChange={(e) => setGroupSearch(e.target.value)}
-                        placeholder="Tìm nhóm..."
-                        disabled={!selectedAccountIds.length || saving}
-                        className="!h-full !min-h-10 !px-3 !py-2 !text-sm"
-                      />
-                    </div>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-10 shrink-0 whitespace-nowrap !py-0 px-3 text-xs"
-                      disabled={!selectedAccountIds.length || scanningGroups || saving}
-                      onClick={() => void handleScanGroups()}
-                    >
-                      {scanningGroups ? "Đang quét..." : "Quét nhóm"}
-                    </Button>
-                  </div>
-                </div>
-                <div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain p-1.5">
-                  {!selectedAccountIds.length ? (
-                    <p className="px-3 py-6 text-center text-xs text-gray-500">
-                      Chọn tài khoản để xem nhóm chung
-                    </p>
-                  ) : groupsLoading ? (
-                    <p className="px-3 py-6 text-center text-xs text-gray-500">Đang tải...</p>
-                  ) : filteredGroups.length === 0 ? (
-                    <p className="px-3 py-6 text-center text-xs text-gray-500">
-                      Không có nhóm chung / chưa sync global
-                    </p>
+                <Checkbox
+                  checked={active}
+                  onChange={() => toggleAccount(account.id)}
+                  disabled={!targetsEditable || saving}
+                />
+                <span className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
+                  {account.avatar ? (
+                    <Image
+                      src={account.avatar}
+                      alt=""
+                      fill
+                      unoptimized
+                      className="object-cover"
+                    />
                   ) : (
-                    <ul className="space-y-0.5">
-                      {filteredGroups.map((group) => {
-                        const globalId = group.globalId ?? "";
-                        const active = Boolean(
-                          globalId && selectedGroupGlobalId === globalId,
-                        );
-                        return (
-                          <li key={globalId || `${group.id}-${group.name}`}>
-                            <button
-                              type="button"
-                              disabled={!targetsEditable || saving || !globalId}
-                              onClick={() => handleSelectGroup(group)}
-                              className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition ${
-                                active
-                                  ? "bg-brand-50 dark:bg-brand-500/10"
-                                  : "hover:bg-gray-50 dark:hover:bg-white/[0.04]"
-                              } disabled:opacity-50`}
-                            >
-                              <ContactAvatar
-                                name={group.name}
-                                avatar={groupAvatar(group)}
-                                size="sm"
-                              />
-                              <span className="min-w-0 flex-1">
-                                <span className="block truncate text-gray-800 dark:text-white/90">
-                                  {group.name}
-                                </span>
-                                {typeof group.total_member === "number" ? (
-                                  <span className="text-theme-xs text-gray-500">
-                                    {group.total_member} TV
-                                  </span>
-                                ) : null}
-                              </span>
-                              {active ? (
-                                <span className="shrink-0 text-theme-xs font-semibold text-brand-600 dark:text-brand-400">
-                                  ✓ Đã chọn
-                                </span>
-                              ) : null}
-                            </button>
-                          </li>
-                        );
-                      })}
-                    </ul>
+                    <AvatarText
+                      name={account.name || `#${account.id}`}
+                      size="sm"
+                      className="!h-9 !w-9"
+                    />
                   )}
-                </div>
-              </div>
-
-              <div className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.02]">
-                <div className="flex shrink-0 items-center justify-between gap-2 border-b border-gray-100 px-3 py-2 dark:border-gray-800">
-                  <div className="flex items-center gap-2">
-                    <span className="flex size-6 items-center justify-center rounded-md bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-400">
-                      <UserIcon className="size-3.5" />
-                    </span>
-                    <span className="text-sm font-semibold text-gray-800 dark:text-white/90">
-                      Thành viên
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      disabled={
-                        !targetsEditable ||
-                        saving ||
-                        !filteredMembers.length
-                      }
-                      onClick={toggleSelectAllMembers}
-                      className="text-theme-xs font-medium text-brand-600 hover:underline disabled:opacity-50 dark:text-brand-400"
-                    >
-                      {filteredMembers.length > 0 &&
-                      filteredMembers.every((m) =>
-                        selectedMemberGlobalIds.includes(m.member_global_id),
-                      )
-                        ? "Bỏ chọn"
-                        : "Chọn hết"}
-                    </button>
-                    <span className="rounded-full bg-brand-50 px-2 py-0.5 text-theme-xs font-medium text-brand-600 dark:bg-brand-500/10 dark:text-brand-400">
-                      {selectedMemberGlobalIds.length} đã chọn
-                    </span>
-                  </div>
-                </div>
-
-                {!targetsEditable ? (
-                  <p className="shrink-0 border-b border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
-                    Kịch bản đang chạy — không thể thay đổi thành viên.
-                  </p>
+                </span>
+                <span className="min-w-0">
+                  <span className="block truncate text-sm font-medium text-gray-800 dark:text-white/90">
+                    {account.name || `#${account.id}`}
+                  </span>
+                  <span className="block truncate text-theme-xs text-gray-500">
+                    {account.phone_number || "—"}
+                  </span>
+                </span>
+              </button>
+            );
+          })
+        ) : (
+          activeAccounts.map((account) => {
+            const active = selectedAccountIds.includes(account.id);
+            return (
+              <button
+                key={account.id}
+                type="button"
+                disabled={!targetsEditable || saving}
+                onClick={() => toggleAccount(account.id)}
+                className={`flex shrink-0 items-center gap-2 rounded-xl border px-2.5 py-2 transition ${
+                  active
+                    ? "border-brand-300 bg-white shadow-theme-xs ring-2 ring-brand-500/15 dark:border-brand-500/40 dark:bg-gray-900"
+                    : "border-gray-200 bg-white/80 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-900/60"
+                } disabled:cursor-not-allowed disabled:opacity-60`}
+              >
+                <span className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
+                  {account.avatar ? (
+                    <Image
+                      src={account.avatar}
+                      alt=""
+                      fill
+                      unoptimized
+                      className="object-cover"
+                    />
+                  ) : (
+                    <AvatarText
+                      name={account.name || `#${account.id}`}
+                      size="sm"
+                      className="!h-9 !w-9"
+                    />
+                  )}
+                </span>
+                <span className="max-w-[120px] truncate text-left text-sm font-medium text-gray-800 dark:text-white/90">
+                  {account.name || `#${account.id}`}
+                </span>
+                {active ? (
+                  <span className="text-brand-600 dark:text-brand-400">✓</span>
                 ) : null}
+              </button>
+            );
+          })
+        )}
+      </div>
+      {multiNick ? (
+        <p className="mt-1.5 shrink-0 text-theme-xs text-gray-500 dark:text-gray-400">
+          ≥2 nick: chỉ hiện nhóm mọi nick đều join (cùng globalId).
+        </p>
+      ) : null}
+    </div>
+  );
 
-                <div className="shrink-0 border-b border-gray-100 px-3 py-2 dark:border-gray-800">
-                  <div className="flex h-10 items-stretch gap-2">
-                    <div className="min-w-0 flex-1 [&>div]:h-full [&_input]:!h-full">
-                      <Input
-                        value={memberSearch}
-                        onChange={(e) => setMemberSearch(e.target.value)}
-                        placeholder="Tìm thành viên..."
-                        disabled={!selectedGroupGlobalId || saving}
-                        className="!h-full !min-h-10 !px-3 !py-2 !text-sm"
-                      />
+  const groupsListBody = !selectedAccountIds.length ? (
+    <p className="px-3 py-6 text-center text-xs text-gray-500">
+      Chọn tài khoản để xem nhóm chung
+    </p>
+  ) : groupsLoading ? (
+    <p className="px-3 py-6 text-center text-xs text-gray-500">Đang tải...</p>
+  ) : filteredGroups.length === 0 ? (
+    <p className="px-3 py-6 text-center text-xs text-gray-500">
+      Không có nhóm chung / chưa sync global
+    </p>
+  ) : (
+    <ul className="space-y-0.5">
+      {filteredGroups.map((group) => {
+        const globalId = group.globalId ?? "";
+        const active = Boolean(globalId && selectedGroupGlobalId === globalId);
+        return (
+          <li key={globalId || `${group.id}-${group.name}`}>
+            <button
+              type="button"
+              disabled={!targetsEditable || saving || !globalId}
+              onClick={() => handleSelectGroup(group)}
+              className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition ${
+                active
+                  ? "bg-brand-50 dark:bg-brand-500/10"
+                  : "hover:bg-gray-50 dark:hover:bg-white/[0.04]"
+              } disabled:opacity-50`}
+            >
+              <ContactAvatar
+                name={group.name}
+                avatar={groupAvatar(group)}
+                size="sm"
+              />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-gray-800 dark:text-white/90">
+                  {group.name}
+                </span>
+                {typeof group.total_member === "number" ? (
+                  <span className="text-theme-xs text-gray-500">
+                    {group.total_member} TV
+                  </span>
+                ) : null}
+              </span>
+              {active ? (
+                <span className="shrink-0 text-theme-xs font-semibold text-brand-600 dark:text-brand-400">
+                  ✓ Đã chọn
+                </span>
+              ) : null}
+            </button>
+          </li>
+        );
+      })}
+    </ul>
+  );
+
+  const groupsPanel = (
+    <div
+      className={
+        isWizard
+          ? campaignFormWizardSelectionPanelClass
+          : "flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.02]"
+      }
+    >
+      <div className="flex shrink-0 items-center gap-2 border-b border-gray-100 px-3 py-2 dark:border-gray-800">
+        <span className="flex size-6 items-center justify-center rounded-md bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-400">
+          <GroupIcon className="size-3.5" />
+        </span>
+        <span className="text-sm font-semibold text-gray-800 dark:text-white/90">
+          Nhóm chung
+        </span>
+        {selectedGroupGlobalId ? (
+          <span className="ml-auto rounded-full bg-brand-50 px-2 py-0.5 text-theme-xs font-medium text-brand-600 dark:bg-brand-500/10 dark:text-brand-400">
+            Đã chọn
+          </span>
+        ) : null}
+      </div>
+      <div className="min-w-0 shrink-0 space-y-2 border-b border-gray-100 px-3 py-2 dark:border-gray-800">
+        <div className="flex h-10 items-stretch gap-2">
+          <div className="min-w-0 flex-1 [&>div]:h-full [&_input]:!h-full">
+            <Input
+              value={groupSearch}
+              onChange={(e) => setGroupSearch(e.target.value)}
+              placeholder="Tìm nhóm..."
+              disabled={!selectedAccountIds.length || saving}
+              className="!h-full !min-h-10 !px-3 !py-2 !text-sm"
+            />
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-10 shrink-0 whitespace-nowrap !py-0 px-3 text-xs"
+            disabled={!selectedAccountIds.length || scanningGroups || saving}
+            onClick={() => void handleScanGroups()}
+          >
+            {scanningGroups ? "Đang quét..." : "Quét nhóm"}
+          </Button>
+        </div>
+      </div>
+      <div
+        className={
+          isWizard
+            ? campaignFormWizardListScrollClass
+            : "custom-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain p-1.5"
+        }
+        style={isWizard ? wizardListStyle : undefined}
+      >
+        {groupsListBody}
+      </div>
+    </div>
+  );
+
+  const membersListBody = !selectedGroupGlobalId ? (
+    <p className="px-3 py-6 text-center text-xs text-gray-500">
+      Chọn nhóm để xem thành viên
+    </p>
+  ) : membersLoading ? (
+    <p className="px-3 py-6 text-center text-xs text-gray-500">Đang tải...</p>
+  ) : filteredMembers.length === 0 ? (
+    <p className="px-3 py-6 text-center text-xs text-gray-500">
+      Chưa có thành viên trong nhóm (thử Quét TV nếu danh sách trống).
+    </p>
+  ) : (
+    <ul className="space-y-0.5">
+      {filteredMembers.map((member) => {
+        const selected = selectedMemberGlobalIds.includes(member.member_global_id);
+        return (
+          <li key={member.member_global_id}>
+            <button
+              type="button"
+              disabled={!targetsEditable || saving}
+              onClick={() => toggleMember(member.member_global_id)}
+              className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition ${
+                selected
+                  ? "bg-brand-50 dark:bg-brand-500/10"
+                  : "hover:bg-gray-50 dark:hover:bg-white/[0.04]"
+              }`}
+            >
+              <ContactAvatar
+                name={member.name}
+                avatar={member.avatar}
+                size="sm"
+              />
+              <span className="min-w-0 flex-1 truncate text-gray-800 dark:text-white/90">
+                {member.name}
+              </span>
+              {member.is_creator ? (
+                <span className="shrink-0 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">
+                  Trưởng nhóm
+                </span>
+              ) : member.is_admin ? (
+                <span className="shrink-0 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700 dark:bg-blue-500/10 dark:text-blue-300">
+                  Phó nhóm
+                </span>
+              ) : null}
+              {selected ? (
+                <span className="shrink-0 text-brand-600 dark:text-brand-400">✓</span>
+              ) : null}
+            </button>
+          </li>
+        );
+      })}
+    </ul>
+  );
+
+  const membersPanel = (
+    <div
+      className={
+        isWizard
+          ? campaignFormWizardSelectionPanelClass
+          : "flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.02]"
+      }
+    >
+      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-gray-100 px-3 py-2 dark:border-gray-800">
+        <div className="flex items-center gap-2">
+          <span className="flex size-6 items-center justify-center rounded-md bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-400">
+            <UserIcon className="size-3.5" />
+          </span>
+          <span className="text-sm font-semibold text-gray-800 dark:text-white/90">
+            Thành viên
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            disabled={!targetsEditable || saving || !filteredMembers.length}
+            onClick={toggleSelectAllMembers}
+            className="text-theme-xs font-medium text-brand-600 hover:underline disabled:opacity-50 dark:text-brand-400"
+          >
+            {filteredMembers.length > 0 &&
+            filteredMembers.every((m) =>
+              selectedMemberGlobalIds.includes(m.member_global_id),
+            )
+              ? "Bỏ chọn"
+              : "Chọn hết"}
+          </button>
+          <span className="rounded-full bg-brand-50 px-2 py-0.5 text-theme-xs font-medium text-brand-600 dark:bg-brand-500/10 dark:text-brand-400">
+            {selectedMemberGlobalIds.length} đã chọn
+          </span>
+        </div>
+      </div>
+
+      {!targetsEditable ? (
+        <p className="shrink-0 border-b border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
+          Kịch bản đang chạy — không thể thay đổi thành viên.
+        </p>
+      ) : null}
+
+      <div className="shrink-0 border-b border-gray-100 px-3 py-2 dark:border-gray-800">
+        <div className="flex h-10 items-stretch gap-2">
+          <div className="min-w-0 flex-1 [&>div]:h-full [&_input]:!h-full">
+            <Input
+              value={memberSearch}
+              onChange={(e) => setMemberSearch(e.target.value)}
+              placeholder="Tìm thành viên..."
+              disabled={!selectedGroupGlobalId || saving}
+              className="!h-full !min-h-10 !px-3 !py-2 !text-sm"
+            />
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-10 shrink-0 whitespace-nowrap !py-0 px-3 text-xs"
+            disabled={
+              !selectedAccountIds.length ||
+              !selectedGroupGlobalId ||
+              membersLoading ||
+              scanningMembers ||
+              saving
+            }
+            onClick={() => void handleScanMembers()}
+          >
+            {scanningMembers ? "Đang quét..." : "Quét TV"}
+          </Button>
+        </div>
+      </div>
+
+      <div
+        className={
+          isWizard
+            ? campaignFormWizardListScrollClass
+            : "custom-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain p-1.5"
+        }
+        style={isWizard ? wizardListStyle : undefined}
+      >
+        {membersListBody}
+      </div>
+    </div>
+  );
+
+  const wizardBody =
+    wizardStep === 0
+      ? configFields
+      : wizardStep === 1
+        ? accountsPanel
+        : wizardStep === 2
+          ? groupsPanel
+          : membersPanel;
+
+  /** Step list (1 nick / 2 nhóm / 3 TV): flex overflow-hidden + height tường minh. */
+  const isWizardListStep = wizardStep >= 1;
+
+  return (
+    <Modal
+      isOpen={open}
+      onClose={onClose}
+      className={
+        isWizard
+          ? campaignFormModalPanelClassWizard
+          : campaignFormModalPanelClass.xl
+      }
+      showCloseButton
+    >
+      <div className={campaignFormBodyClass}>
+        {isWizard ? (
+          <>
+            <div className="mb-1 min-w-0 max-w-full shrink-0 pr-9">
+              <h3 className="text-sm font-semibold leading-snug break-words text-gray-900 dark:text-white">
+                {modalTitle}
+              </h3>
+            </div>
+            <CampaignFormWizardHeader
+              steps={wizardSteps}
+              current={wizardStep}
+              onJump={(index) => {
+                if (index < wizardStep) setWizardStep(index);
+              }}
+            />
+            <div
+              className={
+                isWizardListStep
+                  ? "flex min-h-0 min-w-0 max-w-full flex-1 flex-col overflow-hidden"
+                  : "custom-scrollbar min-h-0 min-w-0 max-w-full flex-1 overflow-y-auto overscroll-contain"
+              }
+              style={
+                isWizardListStep
+                  ? undefined
+                  : { WebkitOverflowScrolling: "touch", touchAction: "pan-y" }
+              }
+            >
+              <fieldset
+                disabled={readOnly}
+                className={
+                  isWizardListStep
+                    ? "flex min-h-0 min-w-0 flex-1 flex-col border-0 p-0"
+                    : "min-w-0 border-0 p-0"
+                }
+              >
+                {wizardBody}
+              </fieldset>
+            </div>
+            <div className="relative z-10 shrink-0 border-t border-gray-100 bg-white dark:border-gray-800 dark:bg-gray-900">
+              <CampaignFormWizardFooter
+                current={wizardStep}
+                total={wizardSteps.length}
+                onBack={goBack}
+                onNext={() => {
+                  if (!validateWizardStep(wizardStep)) return;
+                  goNext(wizardSteps.length - 1);
+                }}
+                onCancel={onClose}
+                onSubmit={() => void handleSave()}
+                saving={saving}
+                readOnly={readOnly}
+              />
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="mb-4 shrink-0 pr-8">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                {modalTitle}
+              </h3>
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                Multi-nick: chọn nick → nhóm chung (globalId) → thành viên → chế độ
+                chia
+              </p>
+            </div>
+
+            <div className={campaignFormMainClass}>
+              <fieldset disabled={readOnly} className="contents">
+                <div className="grid gap-4 max-lg:grid-cols-1 max-lg:auto-rows-auto lg:h-full lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:grid-rows-1 lg:overflow-hidden">
+                  <div className={campaignFormScrollPaneClass}>
+                    {configFields}
+                  </div>
+
+                  <div
+                    className={`${campaignFormSidePaneClass} gap-3 rounded-2xl border border-gray-200 bg-gray-50/40 p-3 dark:border-gray-800 dark:bg-white/[0.02]`}
+                  >
+                    {accountsPanel}
+                    <div className="grid min-h-0 flex-1 gap-3 lg:grid-cols-2">
+                      {groupsPanel}
+                      {membersPanel}
                     </div>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-10 shrink-0 whitespace-nowrap !py-0 px-3 text-xs"
-                      disabled={
-                        !selectedAccountIds.length ||
-                        !selectedGroupGlobalId ||
-                        membersLoading ||
-                        scanningMembers ||
-                        saving
-                      }
-                      onClick={() => void handleScanMembers()}
-                    >
-                      {scanningMembers ? "Đang quét..." : "Quét TV"}
-                    </Button>
                   </div>
                 </div>
-
-                <div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain p-1.5">
-                  {!selectedGroupGlobalId ? (
-                    <p className="px-3 py-6 text-center text-xs text-gray-500">
-                      Chọn nhóm để xem thành viên
-                    </p>
-                  ) : membersLoading ? (
-                    <p className="px-3 py-6 text-center text-xs text-gray-500">Đang tải...</p>
-                  ) : filteredMembers.length === 0 ? (
-                    <p className="px-3 py-6 text-center text-xs text-gray-500">
-                      Chưa có thành viên trong nhóm (thử Quét TV nếu danh sách trống).
-                    </p>
-                  ) : (
-                    <ul className="space-y-0.5">
-                      {filteredMembers.map((member) => {
-                        const selected = selectedMemberGlobalIds.includes(
-                          member.member_global_id,
-                        );
-                        return (
-                          <li key={member.member_global_id}>
-                            <button
-                              type="button"
-                              disabled={!targetsEditable || saving}
-                              onClick={() => toggleMember(member.member_global_id)}
-                              className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition ${
-                                selected
-                                  ? "bg-brand-50 dark:bg-brand-500/10"
-                                  : "hover:bg-gray-50 dark:hover:bg-white/[0.04]"
-                              }`}
-                            >
-                              <ContactAvatar
-                                name={member.name}
-                                avatar={member.avatar}
-                                size="sm"
-                              />
-                              <span className="min-w-0 flex-1 truncate text-gray-800 dark:text-white/90">
-                                {member.name}
-                              </span>
-                              {member.is_creator ? (
-                                <span className="shrink-0 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">
-                                  Trưởng nhóm
-                                </span>
-                              ) : member.is_admin ? (
-                                <span className="shrink-0 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700 dark:bg-blue-500/10 dark:text-blue-300">
-                                  Phó nhóm
-                                </span>
-                              ) : null}
-                              {selected ? (
-                                <span className="shrink-0 text-brand-600 dark:text-brand-400">
-                                  ✓
-                                </span>
-                              ) : null}
-                            </button>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  )}
-                </div>
-              </div>
+              </fieldset>
             </div>
-              </div>
-            </div>
-          </fieldset>
-        </div>
 
-        <div className="mt-4 flex shrink-0 justify-end gap-2 border-t border-gray-100 pt-4 dark:border-gray-800">
-          {readOnly ? (
-            <Button variant="outline" onClick={onClose}>
-              Đóng
-            </Button>
-          ) : (
-            <>
-              <Button variant="outline" onClick={onClose} disabled={saving}>
-                Hủy
-              </Button>
-              <Button onClick={() => void handleSave()} disabled={saving}>
-                {saving ? "Đang lưu..." : "Lưu kịch bản"}
-              </Button>
-            </>
-          )}
-        </div>
+            <div className="mt-4 flex shrink-0 justify-end gap-2 border-t border-gray-100 pt-4 dark:border-gray-800">
+              {readOnly ? (
+                <Button variant="outline" onClick={onClose}>
+                  Đóng
+                </Button>
+              ) : (
+                <>
+                  <Button variant="outline" onClick={onClose} disabled={saving}>
+                    Hủy
+                  </Button>
+                  <Button onClick={() => void handleSave()} disabled={saving}>
+                    {saving ? "Đang lưu..." : "Lưu kịch bản"}
+                  </Button>
+                </>
+              )}
+            </div>
+          </>
+        )}
       </div>
     </Modal>
   );
