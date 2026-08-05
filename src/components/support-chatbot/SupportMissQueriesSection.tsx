@@ -156,10 +156,6 @@ export default function SupportMissQueriesSection() {
               </Badge>
             ) : null}
           </h4>
-          <p className="text-xs text-gray-500 dark:text-gray-400">
-            Tự ghi nhận khi user hỏi mà bot miss. Có thể xóa hoặc nhập câu trả
-            lời để đưa vào bộ FAQ.
-          </p>
         </div>
         <Button
           size="sm"
@@ -190,8 +186,6 @@ export default function SupportMissQueriesSection() {
             <thead className="sticky top-0 border-b border-gray-200 bg-gray-50 text-xs font-semibold uppercase text-gray-500 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400">
               <tr>
                 <th className="px-3 py-2">Câu hỏi</th>
-                <th className="px-3 py-2">Lần</th>
-                <th className="px-3 py-2">User</th>
                 <th className="px-3 py-2">Cập nhật</th>
                 <th className="px-3 py-2 text-right">Thao tác</th>
               </tr>
@@ -199,13 +193,13 @@ export default function SupportMissQueriesSection() {
             <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
               {loading && items.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-3 py-6 text-center text-gray-500">
+                  <td colSpan={3} className="px-3 py-6 text-center text-gray-500">
                     Đang tải…
                   </td>
                 </tr>
               ) : items.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-3 py-6 text-center text-gray-500">
+                  <td colSpan={3} className="px-3 py-6 text-center text-gray-500">
                     Chưa có câu hỏi.
                   </td>
                 </tr>
@@ -215,18 +209,10 @@ export default function SupportMissQueriesSection() {
                     key={row.id}
                     className="bg-white hover:bg-gray-50/80 dark:bg-transparent dark:hover:bg-white/[0.02]"
                   >
-                    <td className="max-w-[320px] px-3 py-2.5">
+                    <td className="max-w-[420px] px-3 py-2.5">
                       <p className="line-clamp-3 font-medium text-gray-900 dark:text-white/90">
                         {row.question}
                       </p>
-                    </td>
-                    <td className="px-3 py-2.5">
-                      <Badge size="sm" color="warning" variant="light">
-                        {row.hit_count ?? 1}
-                      </Badge>
-                    </td>
-                    <td className="px-3 py-2.5 text-xs text-gray-500">
-                      {row.username || "—"}
                     </td>
                     <td className="px-3 py-2.5 text-xs text-gray-400">
                       {row.updated_at
