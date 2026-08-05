@@ -85,9 +85,6 @@ export interface SupportEligibleUser {
 export interface SupportMissQuery {
   id: number;
   question: string;
-  user?: number | null;
-  username?: string | null;
-  hit_count?: number;
   created_at?: string;
   updated_at?: string;
 }

@@ -5,7 +5,7 @@
  * Extract dominant colors from an image and compare against brand palette.
  * Uses pure Node.js without external image processing dependencies.
  *
- * For full color extraction from images, integrate with ai-multimodal skill
+ * For full color extraction from images, use ImageMagick or Grok GenerateImage
  * or use ImageMagick via shell commands.
  *
  * Usage:
@@ -14,7 +14,7 @@
  *   node extract-colors.cjs --palette  # Show brand palette from guidelines
  *
  * Integration:
- *   For image color analysis, use: ai-multimodal skill or ImageMagick
+ *   For image color analysis, use ImageMagick or manual palette pick
  *   magick <image> -colors 10 -depth 8 -format "%c" histogram:info:
  */
 
@@ -287,11 +287,7 @@ function main() {
       "1. Run the ImageMagick command to extract colors:",
       `   ${generateImageMagickCommand(resolvedPath)}`,
       "",
-      "2. Or use the ai-multimodal skill:",
-      `   python .claude/skills/ai-multimodal/scripts/gemini_batch_process.py \\`,
-      `     --files "${resolvedPath}" \\`,
-      `     --task analyze \\`,
-      `     --prompt "Extract the 10 most dominant colors as hex values"`,
+      "2. Or use Grok GenerateImage / vision model to sample dominant hex colors",
       "",
       "3. Then compare extracted colors against brand palette",
     ],
