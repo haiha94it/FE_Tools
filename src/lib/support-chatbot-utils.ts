@@ -11,10 +11,10 @@ export function formatSupportAnswerText(
 }
 
 export const SUPPORT_MISS_FALLBACK =
-  "Em chưa có câu trả lời phù hợp. Anh/chị thử hỏi cách khác hoặc liên hệ hỗ trợ.";
+  "Xin lỗi chúng tôi chưa hiểu rõ ý của bạn. Xin vui lòng để lại câu hỏi cụ thể hơn";
 
 export const SUPPORT_WELCOME_TEXT =
-  "Xin chào! Em là trợ lý hỗ trợ sử dụng hệ thống. Anh/chị cần hỗ trợ gì ạ?";
+  "Xin vui lòng để lại câu hỏi tính năng bạn đang quan tâm và cần hỗ trợ!";
 
 export function normalizeSupportFaqList(data: unknown): {
   results: SupportFaq[];
