@@ -5,20 +5,27 @@ import { VIDEO_CREATOR_BASE } from "@/config/api";
 import { isZaloAccountActive } from "@/lib/zalo-account-utils";
 import { useZaloVideoStore } from "@/stores/use-zalo-video-store";
 import { useRouter } from "next/navigation";
+import { HiOutlineQueueList } from "react-icons/hi2";
 
 interface VideoCreatorHeaderProps {
   selectedAccountId: number | null;
+  bulkPostOpen?: boolean;
+  onOpenBulkPost?: () => void;
 }
 
 export default function VideoCreatorHeader({
   selectedAccountId,
+  bulkPostOpen = false,
+  onOpenBulkPost,
 }: VideoCreatorHeaderProps) {
   const router = useRouter();
   const accounts = useZaloVideoStore((s) => s.accounts);
   const loginLoading = useZaloVideoStore((s) => s.loginLoading);
   const resetChannelState = useZaloVideoStore((s) => s.resetChannelState);
 
-  const activeAccounts = accounts.filter((account) => isZaloAccountActive(account));
+  const activeAccounts = accounts.filter((account) =>
+    isZaloAccountActive(account),
+  );
 
   const handleSelect = (id: number) => {
     if (loginLoading) return;
@@ -39,12 +46,29 @@ export default function VideoCreatorHeader({
         <p className="text-theme-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
           Tài khoản kênh
         </p>
-        {loginLoading && (
-          <span className="flex items-center gap-1.5 text-theme-xs font-medium text-brand-600 dark:text-brand-400">
-            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-brand-500" />
-            Đang chuyển kênh…
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          {loginLoading && (
+            <span className="flex items-center gap-1.5 text-theme-xs font-medium text-brand-600 dark:text-brand-400">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-brand-500" />
+              Đang chuyển kênh…
+            </span>
+          )}
+          {onOpenBulkPost && (
+            <button
+              type="button"
+              disabled={loginLoading}
+              onClick={onOpenBulkPost}
+              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-theme-xs font-semibold transition disabled:opacity-60 ${
+                bulkPostOpen
+                  ? "bg-brand-500 text-white shadow-theme-xs"
+                  : "border border-brand-200 bg-brand-50 text-brand-700 hover:bg-brand-100 dark:border-brand-500/30 dark:bg-brand-500/10 dark:text-brand-300 dark:hover:bg-brand-500/20"
+              }`}
+            >
+              <HiOutlineQueueList size={14} aria-hidden className="shrink-0" />
+              Đăng hàng loạt
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="flex gap-2 overflow-x-auto overscroll-x-contain p-3 no-scrollbar snap-x snap-mandatory">

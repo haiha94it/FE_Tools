@@ -24,12 +24,20 @@ from pathlib import Path
 from datetime import datetime
 
 
+def _repo_root() -> Path:
+    """Repo root — path tương đối, không dùng home global."""
+    for parent in Path(__file__).resolve().parents:
+        if (parent / ".agents" / "AGENTS.md").is_file():
+            return parent
+    return Path.cwd()
+
+
 def load_env():
-    """Load .env files in priority order"""
+    """Load .env files in priority order (repo-relative)."""
+    root = _repo_root()
     env_paths = [
-        Path(__file__).parent.parent.parent / ".env",
-        Path.home() / ".claude" / "skills" / ".env",
-        Path.home() / ".claude" / ".env"
+        root / ".env",
+        root / ".agents" / "skills" / ".env",
     ]
     for env_path in env_paths:
         if env_path.exists():

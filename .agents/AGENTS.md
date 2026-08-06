@@ -2,13 +2,30 @@
 
 > Admin dashboard Zalo · TailAdmin Next.js 16 · React 19 · Tailwind CSS v4 · TypeScript
 
+**Monorepo:** workspace root = `ChotCare_v2_BE/`. Path code FE trong monorepo: `FE/src/…`.  
+Rule BE/cross-stack/envelope/cache/locate/caveman → **root** `.agents/AGENTS.md` (thắng file này khi conflict).
+
+## Skill priority (FE dual tree — bắt buộc)
+
+Không load 2 SSOT cùng topic. Thứ tự:
+
+| # | Scope | SSOT |
+|---|--------|------|
+| 1 | BE / cross-stack / agent modes / API envelope monorepo | **Root** `../.agents/AGENTS.md` + `../.agents/skills/` |
+| 2 | FE product TailAdmin / Zalo admin / toast / messenger UI | **`FE/.grok/skills/`** (`zalo-admin-*`, `add-admin-page`, `zalo-messenger`, …) |
+| 3 | FE workflow scaffold (page, component, zustand, perf, review) | **`FE/.agents/skills/skill-*`** |
+| 4 | Creative generic (`design`, `brand`, `banner-design`, `slides`, `ui-styling`, `ui-ux-pro-max`, `design-system`) | **Root** `../.agents/skills/<name>/` — bản `FE/.agents/skills/<name>` = **mirror** (sửa root rồi sync) |
+| 5 | Conflict | Root AGENTS + `chotcare-agent-policy` — cấm path `~/.claude` / absolute home trong skill repo |
+
+Chi tiết monorepo: root AGENTS § Path conventions → FE dual tree.
+
 ## Đọc trước khi làm việc
 
 1. `.grok/skills/zalo-admin-project/SKILL.md` — stack, cấu trúc thư mục, lệnh
 2. `.grok/skills/zalo-admin-ui/SKILL.md` — design tokens TailAdmin
 3. `.grok/skills/zalo-standards/SKILL.md` — quy chuẩn code
 4. `.grok/skills/zalo-toast-tooltip/SKILL.md` — Sonner toast + Radix tooltip
-4. Skill workflow phù hợp bên dưới
+5. Skill workflow phù hợp (§ Skill priority)
 
 ## Ngôn ngữ
 

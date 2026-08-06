@@ -65,13 +65,21 @@ def load_logo_image(logo_path):
         print(f"Error loading logo: {e}")
         return None
 
+def _repo_root() -> Path:
+    """Repo root — path tương đối, không dùng home global."""
+    for parent in Path(__file__).resolve().parents:
+        if (parent / ".agents" / "AGENTS.md").is_file():
+            return parent
+    return Path.cwd()
+
+
 # Load environment variables
 def load_env():
-    """Load environment variables from .env files"""
+    """Load environment variables from .env files (repo-relative)."""
+    root = _repo_root()
     env_paths = [
-        Path(__file__).parent.parent.parent / ".env",
-        Path.home() / ".claude" / "skills" / ".env",
-        Path.home() / ".claude" / ".env"
+        root / ".env",
+        root / ".agents" / "skills" / ".env",
     ]
     for env_path in env_paths:
         if env_path.exists():
@@ -427,7 +435,7 @@ Image Editing Mode:
         action = check_logo_required(args.brand, skip_prompt=args.no_logo_prompt)
         if action == 'generate':
             print("\n💡 To generate a logo, use the logo-design skill:")
-            print(f"   python ~/.claude/skills/design/scripts/logo/generate.py --brand \"{args.brand}\" --industry \"{args.industry}\"")
+            print(f"   python .agents/skills/design/scripts/logo/generate.py --brand \"{args.brand}\" --industry \"{args.industry}\"")
             print("\n   Then re-run this command with --logo <generated_logo.png>")
             sys.exit(0)
         elif action == 'exit':
