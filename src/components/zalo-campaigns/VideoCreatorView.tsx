@@ -15,6 +15,7 @@ import CategoryLabelPanel from "./CategoryLabelPanel";
 import ChannelPagePanel from "./ChannelPagePanel";
 import ChannelSettingsPanel from "./ChannelSettingsPanel";
 import CommentManagerPanel from "./CommentManagerPanel";
+import BulkPostVideoPanel from "./BulkPostVideoPanel";
 import PlaylistManagerPanel from "./PlaylistManagerPanel";
 import PostVideoPanel from "./PostVideoPanel";
 import VideoChannelGuideDialog from "./VideoChannelGuideDialog";
@@ -64,6 +65,7 @@ export default function VideoCreatorView() {
   const needsQr = useZaloVideoStore((s) => s.needsQr);
   const noChannel = useZaloVideoStore((s) => s.noChannel);
   const [guideOpen, setGuideOpen] = useState(false);
+  const [bulkPostOpen, setBulkPostOpen] = useState(false);
 
   useEffect(() => {
     void fetchAccounts();
@@ -146,86 +148,125 @@ export default function VideoCreatorView() {
         parents={[{ label: "Chiến dịch", href: VIDEO_CREATOR_BASE }]}
       />
 
-      <VideoCreatorHeader selectedAccountId={accountId} />
+      <VideoCreatorHeader
+        selectedAccountId={accountId}
+        bulkPostOpen={bulkPostOpen}
+        onOpenBulkPost={() => setBulkPostOpen((open) => !open)}
+      />
 
-      {!accountId && (
+      {bulkPostOpen ? (
         <div
-          className={`${adminDataPanelClass} items-center justify-center rounded-2xl border border-dashed border-gray-200 bg-white p-10 text-center dark:border-gray-700 dark:bg-white/[0.02]`}
+          className={`${adminDataPanelClass} custom-scrollbar overflow-y-auto rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-white/[0.03] sm:p-5`}
         >
-          <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gray-100 dark:bg-gray-800">
-            <HiOutlineUser size={24} className="shrink-0 text-gray-400" aria-hidden />
-          </span>
-          <p className="mt-4 text-base font-medium text-gray-800 dark:text-white/90">
-            Chọn tài khoản Zalo
-          </p>
-          <p className="mx-auto mt-1 max-w-sm text-sm text-gray-500 dark:text-gray-400">
-            Chọn tài khoản ở thanh trên để đăng nhập kênh video và quản lý nội
-            dung.
-          </p>
+          <BulkPostVideoPanel
+            defaultAccountId={accountId}
+            onClose={() => setBulkPostOpen(false)}
+          />
         </div>
-      )}
-
-      {accountId && (
-        <div
-          className={`${adminDataPanelClass} overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-white/[0.03]`}
-        >
-          {isBootstrapping && (
-            <div className="flex flex-1 items-center justify-center p-12">
-              <div className="text-center">
-                <div className="mx-auto h-9 w-9 animate-spin rounded-full border-2 border-brand-500 border-t-transparent" />
-                <p className="mt-3 text-sm text-gray-500">
-                  {loginLoading ? "Đang chuyển kênh…" : "Đang tải tài khoản…"}
-                </p>
-              </div>
-            </div>
-          )}
-
-          {channelError && !noChannel && !loginLoading && !isBootstrapping && (
-            <div className="shrink-0 border-b border-error-200 bg-error-50 px-4 py-3 text-sm text-error-700 dark:border-error-500/30 dark:bg-error-500/10 dark:text-error-300 sm:px-5">
-              {channelError}
-            </div>
-          )}
-
-          {noChannel && !isBootstrapping && (
-            <div className="flex flex-1 flex-col items-center justify-center p-8 text-center sm:p-12">
-              <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-50 dark:bg-amber-500/10">
-                <HiOutlineUser size={24} className="shrink-0 text-amber-600 dark:text-amber-400" aria-hidden />
+      ) : (
+        <>
+          {!accountId && (
+            <div
+              className={`${adminDataPanelClass} items-center justify-center rounded-2xl border border-dashed border-gray-200 bg-white p-10 text-center dark:border-gray-700 dark:bg-white/[0.02]`}
+            >
+              <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gray-100 dark:bg-gray-800">
+                <HiOutlineUser
+                  size={24}
+                  className="shrink-0 text-gray-400"
+                  aria-hidden
+                />
               </span>
-              <h3 className="mt-4 text-lg font-semibold text-gray-800 dark:text-white/90">
-                Chưa có kênh Zalo Video
-              </h3>
-              <p className="mt-2 max-w-md text-sm text-gray-600 dark:text-gray-400">
-                Tạo kênh trên ứng dụng Zalo để đăng video và quản lý nội dung.
+              <p className="mt-4 text-base font-medium text-gray-800 dark:text-white/90">
+                Chọn tài khoản Zalo
               </p>
-              <button
-                type="button"
-                onClick={() => setGuideOpen(true)}
-                className="mt-5 rounded-lg bg-brand-500 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-brand-600"
-              >
-                Xem hướng dẫn tạo kênh
-              </button>
+              <p className="mx-auto mt-1 max-w-sm text-sm text-gray-500 dark:text-gray-400">
+                Chọn tài khoản ở thanh trên để đăng nhập kênh video và quản lý
+                nội dung — hoặc dùng{" "}
+                <button
+                  type="button"
+                  onClick={() => setBulkPostOpen(true)}
+                  className="font-medium text-brand-600 underline-offset-2 hover:underline dark:text-brand-400"
+                >
+                  Đăng hàng loạt
+                </button>{" "}
+                để đăng một video lên nhiều kênh.
+              </p>
             </div>
           )}
 
-          {showQr && !isBootstrapping && (
-            <VideoCreatorQrPanel accountId={accountId} />
-          )}
+          {accountId && (
+            <div
+              className={`${adminDataPanelClass} overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-white/[0.03]`}
+            >
+              {isBootstrapping && (
+                <div className="flex flex-1 items-center justify-center p-12">
+                  <div className="text-center">
+                    <div className="mx-auto h-9 w-9 animate-spin rounded-full border-2 border-brand-500 border-t-transparent" />
+                    <p className="mt-3 text-sm text-gray-500">
+                      {loginLoading
+                        ? "Đang chuyển kênh…"
+                        : "Đang tải tài khoản…"}
+                    </p>
+                  </div>
+                </div>
+              )}
 
-          {showWorkspace && channelInfo && (
-            <>
-              <VideoCreatorChannelBar
-                accountId={accountId}
-                channelInfo={channelInfo}
-              />
-              <div className="flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row">
-                <VideoCreatorNav accountId={accountId} />
-                <main className="custom-scrollbar min-h-0 min-w-0 flex-1 overflow-y-auto bg-gray-50/60 p-4 dark:bg-black/10 sm:p-5">
-                  {panel}
-                </main>
-              </div>
-            </>
+              {channelError &&
+                !noChannel &&
+                !loginLoading &&
+                !isBootstrapping && (
+                  <div className="shrink-0 border-b border-error-200 bg-error-50 px-4 py-3 text-sm text-error-700 dark:border-error-500/30 dark:bg-error-500/10 dark:text-error-300 sm:px-5">
+                    {channelError}
+                  </div>
+                )}
+
+              {noChannel && !isBootstrapping && (
+                <div className="flex flex-1 flex-col items-center justify-center p-8 text-center sm:p-12">
+                  <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-50 dark:bg-amber-500/10">
+                    <HiOutlineUser
+                      size={24}
+                      className="shrink-0 text-amber-600 dark:text-amber-400"
+                      aria-hidden
+                    />
+                  </span>
+                  <h3 className="mt-4 text-lg font-semibold text-gray-800 dark:text-white/90">
+                    Chưa có kênh Zalo Video
+                  </h3>
+                  <p className="mt-2 max-w-md text-sm text-gray-600 dark:text-gray-400">
+                    Tạo kênh trên ứng dụng Zalo để đăng video và quản lý nội
+                    dung.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setGuideOpen(true)}
+                    className="mt-5 rounded-lg bg-brand-500 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-brand-600"
+                  >
+                    Xem hướng dẫn tạo kênh
+                  </button>
+                </div>
+              )}
+
+              {showQr && !isBootstrapping && (
+                <VideoCreatorQrPanel accountId={accountId} />
+              )}
+
+              {showWorkspace && channelInfo && (
+                <>
+                  <VideoCreatorChannelBar
+                    accountId={accountId}
+                    channelInfo={channelInfo}
+                  />
+                  <div className="flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row">
+                    <VideoCreatorNav accountId={accountId} />
+                    <main className="custom-scrollbar min-h-0 min-w-0 flex-1 overflow-y-auto bg-gray-50/60 p-4 dark:bg-black/10 sm:p-5">
+                      {panel}
+                    </main>
+                  </div>
+                </>
+              )}
+            </div>
           )}
-        </div>
+        </>
       )}
 
       <VideoChannelGuideDialog
