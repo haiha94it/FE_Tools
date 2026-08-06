@@ -5,6 +5,7 @@ import Badge from "@/components/ui/badge/Badge";
 import { STORE_PUBLIC_BASE } from "@/config/api";
 import { shopImageUrl } from "@/lib/shop-utils";
 import { toast } from "@/lib/toast";
+import { useAuthStore } from "@/stores/use-auth-store";
 import { useZaloShopAdminStore } from "@/stores/use-zalo-shop-admin-store";
 import type { ShopCategory } from "@/types/zalo-shop";
 import Image from "next/image";
@@ -20,6 +21,17 @@ interface ShopCategorySidebarProps {
   onDeleteCategory: (category: ShopCategory) => void;
 }
 
+/** NV chỉ xóa DM chờ duyệt do mình tạo/sửa cuối; manager xóa mọi. */
+function canDeleteCategory(
+  category: ShopCategory,
+  opts: { isManager?: boolean; username?: string },
+): boolean {
+  if (opts.isManager) return true;
+  const pending = category.status !== 1;
+  const mine = (category.creator_user_name || "") === (opts.username || "");
+  return pending && Boolean(opts.username) && mine;
+}
+
 export default function ShopCategorySidebar({
   userId,
   selectedCategoryId,
@@ -29,12 +41,14 @@ export default function ShopCategorySidebar({
   onDeleteCategory,
 }: ShopCategorySidebarProps) {
   const router = useRouter();
+  const authUser = useAuthStore((s) => s.user);
+  const isManager = Boolean(authUser?.isManager);
   const categories = useZaloShopAdminStore((s) => s.categories);
   const toggleCategoryStatus = useZaloShopAdminStore((s) => s.toggleCategoryStatus);
 
   const copyLink = (category: ShopCategory) => {
     const origin = domain || (typeof window !== "undefined" ? window.location.origin : "");
-    const url = `${origin}${STORE_PUBLIC_BASE}/${userId}/categories/${category.id}`;
+    const url = `${origin}${STORE_PUBLIC_BASE}/${userId}/${category.id}`;
     void navigator.clipboard.writeText(url).then(() => {
       toast.success("Đã sao chép liên kết danh mục");
     });
@@ -86,7 +100,7 @@ export default function ShopCategorySidebar({
                     {category.name}
                   </span>
                   <Badge size="sm" color={isPublished ? "success" : "warning"}>
-                    {isPublished ? "Hiện" : "Ẩn"}
+                    {isPublished ? "Hiện" : "Chờ duyệt"}
                   </Badge>
                 </button>
               );
@@ -98,6 +112,9 @@ export default function ShopCategorySidebar({
           <div className="mt-2 flex flex-wrap items-center gap-2 rounded-xl border border-gray-100 bg-gray-50/80 p-2 dark:border-gray-800 dark:bg-gray-800/40">
             <span className="min-w-0 flex-1 truncate px-1 text-xs font-medium text-gray-600 dark:text-gray-400">
               {selectedCategory.name}
+              {selectedCategory.creator_name
+                ? ` · ${selectedCategory.creator_name}`
+                : ""}
             </span>
             <div className="flex flex-wrap items-center gap-2">
               <AdminIconButton
@@ -114,27 +131,46 @@ export default function ShopCategorySidebar({
               >
                 <EditIcon />
               </AdminIconButton>
-              <AdminIconButton
-                label={
-                  selectedCategory.status === 1 ? "Ẩn danh mục" : "Hiện danh mục"
-                }
-                onClick={() =>
-                  toggleCategoryStatus(
-                    selectedCategory,
-                    selectedCategory.status !== 1,
-                  )
-                }
-                className={categoryActionClass}
-              >
-                {selectedCategory.status === 1 ? <EyeOffIcon /> : <EyeIcon />}
-              </AdminIconButton>
-              <AdminIconButton
-                label="Xóa"
-                onClick={() => onDeleteCategory(selectedCategory)}
-                className={`${categoryActionClass} hover:bg-error-50 hover:text-error-600 dark:hover:bg-error-500/10`}
-              >
-                <TrashIcon />
-              </AdminIconButton>
+              {isManager ? (
+                <AdminIconButton
+                  label={
+                    selectedCategory.status === 1
+                      ? "Ẩn danh mục"
+                      : selectedCategory.creator_name
+                        ? `Duyệt danh mục do ${selectedCategory.creator_name} tạo/sửa`
+                        : "Duyệt / hiện danh mục"
+                  }
+                  onClick={() =>
+                    toggleCategoryStatus(
+                      selectedCategory,
+                      selectedCategory.status !== 1,
+                    )
+                  }
+                  className={categoryActionClass}
+                >
+                  {selectedCategory.status === 1 ? (
+                    <EyeOffIcon />
+                  ) : (
+                    <EyeIcon />
+                  )}
+                </AdminIconButton>
+              ) : null}
+              {canDeleteCategory(selectedCategory, {
+                isManager,
+                username: authUser?.username,
+              }) ? (
+                <AdminIconButton
+                  label={
+                    selectedCategory.status === 1
+                      ? "Xóa"
+                      : "Xóa (chờ duyệt)"
+                  }
+                  onClick={() => onDeleteCategory(selectedCategory)}
+                  className={`${categoryActionClass} hover:bg-error-50 hover:text-error-600 dark:hover:bg-error-500/10`}
+                >
+                  <TrashIcon />
+                </AdminIconButton>
+              ) : null}
             </div>
           </div>
         ) : null}
@@ -192,11 +228,18 @@ export default function ShopCategorySidebar({
                     className="flex w-full items-center gap-3 px-3 py-2.5 text-left"
                   >
                     <ShopCategoryAvatar category={category} />
-                    <span className="min-w-0 flex-1 truncate text-sm font-medium text-gray-800 dark:text-white/90">
-                      {category.name}
-                    </span>
+                    <div className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium text-gray-800 dark:text-white/90">
+                        {category.name}
+                      </span>
+                      {category.creator_name ? (
+                        <span className="block truncate text-[11px] text-gray-400">
+                          {category.creator_name}
+                        </span>
+                      ) : null}
+                    </div>
                     <Badge size="sm" color={isPublished ? "success" : "warning"}>
-                      {isPublished ? "Hiện" : "Ẩn"}
+                      {isPublished ? "Hiện" : "Chờ duyệt"}
                     </Badge>
                   </button>
                   <div className="flex items-center gap-2 px-2 pb-2 opacity-100 transition lg:gap-1 lg:opacity-0 lg:group-hover:opacity-100">
@@ -215,21 +258,36 @@ export default function ShopCategorySidebar({
                     >
                       <EditIcon />
                     </AdminIconButton>
-                    <AdminIconButton
-                      label={isPublished ? "Ẩn danh mục" : "Hiện danh mục"}
-                      onClick={() => toggleCategoryStatus(category, !isPublished)}
-                      className={categoryActionClass}
-                    >
-                      {isPublished ? <EyeOffIcon /> : <EyeIcon />}
-                    </AdminIconButton>
-                    <AdminIconButton
-                      label="Xóa"
-                      side="left"
-                      onClick={() => onDeleteCategory(category)}
-                      className={`${categoryActionClass} hover:bg-error-50 hover:text-error-600 dark:hover:bg-error-500/10`}
-                    >
-                      <TrashIcon />
-                    </AdminIconButton>
+                    {isManager ? (
+                      <AdminIconButton
+                        label={
+                          isPublished
+                            ? "Ẩn danh mục"
+                            : category.creator_name
+                              ? `Duyệt do ${category.creator_name}`
+                              : "Duyệt / hiện danh mục"
+                        }
+                        onClick={() =>
+                          toggleCategoryStatus(category, !isPublished)
+                        }
+                        className={categoryActionClass}
+                      >
+                        {isPublished ? <EyeOffIcon /> : <EyeIcon />}
+                      </AdminIconButton>
+                    ) : null}
+                    {canDeleteCategory(category, {
+                      isManager,
+                      username: authUser?.username,
+                    }) ? (
+                      <AdminIconButton
+                        label={isPublished ? "Xóa" : "Xóa (chờ duyệt)"}
+                        side="left"
+                        onClick={() => onDeleteCategory(category)}
+                        className={`${categoryActionClass} hover:bg-error-50 hover:text-error-600 dark:hover:bg-error-500/10`}
+                      >
+                        <TrashIcon />
+                      </AdminIconButton>
+                    ) : null}
                   </div>
                 </div>
               );

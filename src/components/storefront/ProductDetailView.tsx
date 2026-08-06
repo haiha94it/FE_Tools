@@ -86,7 +86,7 @@ export default function ProductDetailView({
 
   const displayPrice = useMemo(() => {
     if (!selectedVariant) return 0;
-    return Number(selectedVariant.promotion_price || selectedVariant.price);
+    return Number(selectedVariant.price);
   }, [selectedVariant]);
 
   const maxQty = useMemo(() => {
@@ -149,7 +149,7 @@ export default function ProductDetailView({
           </Link>
           <span className="text-[var(--store-muted)]/40">/</span>
           <Link
-            href={`/store/${sellerId}/categories/${categoryId}`}
+            href={`/store/${sellerId}/${categoryId}`}
             className="cursor-pointer font-medium text-[var(--store-muted)] transition hover:text-[var(--store-accent)]"
           >
             Danh mục
@@ -251,7 +251,7 @@ export default function ProductDetailView({
                 </h2>
               </div>
               <Link
-                href={`/store/${sellerId}/categories/${categoryId}`}
+                href={`/store/${sellerId}/${categoryId}`}
                 className="inline-flex cursor-pointer items-center gap-2 text-sm font-medium text-white/70 transition hover:text-white"
               >
                 Xem tất cả

@@ -57,9 +57,8 @@ export default function StoreCartDrawer() {
           ) : (
             <ul className="space-y-4">
               {items.map((item) => {
-                const price = Number(
-                  item.product_variant.promotion_price || item.product_variant.price,
-                );
+                // price = giá bán; promotion_price = giá niêm yết cũ (nếu có)
+                const price = Number(item.product_variant.price);
                 return (
                   <li
                     key={item.id}
@@ -80,7 +79,10 @@ export default function StoreCartDrawer() {
                         <button
                           type="button"
                           onClick={() =>
-                            void updateQuantity(item.id, Math.max(0, item.quantity - 1))
+                            void updateQuantity(
+                              item.id_product_variant ?? item.product_variant.id!,
+                              Math.max(0, item.quantity - 1),
+                            )
                           }
                           className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg bg-white/10 text-sm transition hover:bg-white/20"
                         >
@@ -90,7 +92,10 @@ export default function StoreCartDrawer() {
                         <button
                           type="button"
                           onClick={() =>
-                            void updateQuantity(item.id, item.quantity + 1)
+                            void updateQuantity(
+                              item.id_product_variant ?? item.product_variant.id!,
+                              item.quantity + 1,
+                            )
                           }
                           className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg bg-white/10 text-sm transition hover:bg-white/20"
                         >

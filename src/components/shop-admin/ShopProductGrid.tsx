@@ -5,6 +5,7 @@ import Badge from "@/components/ui/badge/Badge";
 import { STORE_PUBLIC_BASE } from "@/config/api";
 import { formatPriceRange, shopImageUrl } from "@/lib/shop-utils";
 import { toast } from "@/lib/toast";
+import { useAuthStore } from "@/stores/use-auth-store";
 import { useZaloShopAdminStore } from "@/stores/use-zalo-shop-admin-store";
 import type { ShopProduct } from "@/types/zalo-shop";
 import Image from "next/image";
@@ -17,12 +18,26 @@ interface ShopProductGridProps {
   domain: string | null;
 }
 
+/** NV chỉ xóa SP chờ duyệt do mình tạo/sửa; manager xóa mọi. */
+function canDeleteProduct(
+  product: ShopProduct,
+  opts: { isManager?: boolean; username?: string },
+): boolean {
+  if (opts.isManager) return true;
+  const pending = product.status !== 1;
+  const mine =
+    (product.creator_user_name || "") === (opts.username || "");
+  return pending && mine;
+}
+
 export default function ShopProductGrid({
   userId,
   categoryId,
   domain,
 }: ShopProductGridProps) {
   const router = useRouter();
+  const authUser = useAuthStore((s) => s.user);
+  const isManager = Boolean(authUser?.isManager);
   const products = useZaloShopAdminStore((s) => s.products);
   const isLoading = useZaloShopAdminStore((s) => s.isLoading);
   const deleteProduct = useZaloShopAdminStore((s) => s.deleteProduct);
@@ -31,7 +46,7 @@ export default function ShopProductGrid({
 
   const handleCopyLink = (product: ShopProduct) => {
     const origin = domain || (typeof window !== "undefined" ? window.location.origin : "");
-    const url = `${origin}${STORE_PUBLIC_BASE}/${userId}/categories/${categoryId}/products/${product.id}`;
+    const url = `${origin}${STORE_PUBLIC_BASE}/${userId}/${categoryId}/${product.id}`;
     void navigator.clipboard.writeText(url).then(() => {
       toast.success("Đã sao chép liên kết sản phẩm");
     });
@@ -103,9 +118,9 @@ export default function ShopProductGrid({
                   </svg>
                 </div>
               )}
-              <div className="absolute left-2 top-2">
+              <div className="absolute left-2 top-2 flex flex-col gap-1">
                 <Badge size="sm" color={isPublished ? "success" : "warning"}>
-                  {isPublished ? "Đang bán" : "Ẩn"}
+                  {isPublished ? "Đang bán" : "Chờ duyệt"}
                 </Badge>
               </div>
               {product.is_hot ? (
@@ -124,6 +139,9 @@ export default function ShopProductGrid({
               </p>
               <p className="mt-1 text-xs text-gray-500">
                 {product.variants.length} phân loại
+                {product.creator_name
+                  ? ` · ${product.creator_name}`
+                  : ""}
               </p>
 
               <div className="mt-auto flex flex-wrap items-center justify-between gap-2 border-t border-gray-100 pt-3 dark:border-gray-800">
@@ -152,26 +170,39 @@ export default function ShopProductGrid({
                 >
                   <CopyIcon />
                 </AdminIconButton>
-                <AdminIconButton
-                  label={isPublished ? "Ẩn" : "Hiện"}
-                  onClick={() => toggleProductStatus(product, !isPublished)}
-                  className={productActionClass}
-                >
-                  {isPublished ? <EyeOffIcon /> : <EyeIcon />}
-                </AdminIconButton>
-                <AdminIconButton
-                  label="Xóa"
-                  side="left"
-                  onClick={() => {
-                    if (window.confirm(`Xóa sản phẩm "${product.title}"?`)) {
-                      void deleteProduct(userId, product.id);
-                      toast.success("Đã xóa sản phẩm");
+                {isManager ? (
+                  <AdminIconButton
+                    label={
+                      isPublished
+                        ? "Ẩn sản phẩm"
+                        : product.creator_name
+                          ? `Duyệt SP do ${product.creator_name}`
+                          : "Duyệt / hiện SP"
                     }
-                  }}
-                  className={`${productActionClass} hover:bg-error-50 hover:text-error-600 dark:hover:bg-error-500/10`}
-                >
-                  <TrashIcon />
-                </AdminIconButton>
+                    onClick={() => toggleProductStatus(product, !isPublished)}
+                    className={productActionClass}
+                  >
+                    {isPublished ? <EyeOffIcon /> : <EyeIcon />}
+                  </AdminIconButton>
+                ) : null}
+                {canDeleteProduct(product, {
+                  isManager,
+                  username: authUser?.username,
+                }) ? (
+                  <AdminIconButton
+                    label={isPublished ? "Xóa" : "Xóa (chờ duyệt)"}
+                    side="left"
+                    onClick={() => {
+                      if (window.confirm(`Xóa sản phẩm "${product.title}"?`)) {
+                        void deleteProduct(userId, product.id);
+                        toast.success("Đã xóa sản phẩm");
+                      }
+                    }}
+                    className={`${productActionClass} hover:bg-error-50 hover:text-error-600 dark:hover:bg-error-500/10`}
+                  >
+                    <TrashIcon />
+                  </AdminIconButton>
+                ) : null}
               </div>
             </div>
           </article>

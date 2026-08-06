@@ -1,6 +1,6 @@
 "use client";
 
-import { formatVnd } from "@/lib/shop-utils";
+import { formatVnd, shopImageUrl } from "@/lib/shop-utils";
 import type { ShopProduct, ShopProductVariant } from "@/types/zalo-shop";
 
 interface ProductBuyPanelProps {
@@ -23,10 +23,15 @@ function variantStock(variant: ShopProductVariant): number {
 }
 
 function variantPrice(variant: ShopProductVariant) {
-  const original = Number(variant.price);
-  const promo = variant.promotion_price ? Number(variant.promotion_price) : null;
-  const display = promo && promo < original ? promo : original;
-  return { original, display, hasDiscount: promo !== null && promo < original };
+  // BE/form: price = giá bán; promotion_price = giá niêm yết cũ (thường cao hơn)
+  const display = Number(variant.price);
+  const list = variant.promotion_price ? Number(variant.promotion_price) : null;
+  const hasDiscount = list != null && list > display;
+  return {
+    original: hasDiscount ? list! : display,
+    display,
+    hasDiscount,
+  };
 }
 
 const TRUST_ITEMS = [
@@ -76,7 +81,17 @@ export default function ProductBuyPanel({
     <div id={id} className="space-y-6 lg:sticky lg:top-28 lg:self-start">
       <div className="store-pdp-buy-panel rounded-[2rem] p-6 sm:p-8">
         <div className="flex flex-wrap items-center gap-2">
-          {product.is_hot ? (
+          {/* Hot: dùng image_hot nhỏ thay badge hồng (nếu có) */}
+          {product.is_hot && product.image_hot ? (
+            <span className="relative inline-flex h-7 w-auto max-w-[5.5rem] items-center overflow-hidden rounded-full bg-transparent">
+              {/* eslint-disable-next-line @next/next/no-img-element -- GIF hot cần animate, size badge */}
+              <img
+                src={shopImageUrl(product.image_hot)}
+                alt="Hot"
+                className="h-7 w-auto max-w-[5.5rem] object-contain object-left"
+              />
+            </span>
+          ) : product.is_hot ? (
             <span className="rounded-full bg-[var(--store-accent)] px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-white">
               Hot
             </span>

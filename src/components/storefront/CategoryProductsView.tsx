@@ -43,8 +43,10 @@ export default function CategoryProductsView({
         ]);
         if (cancelled) return;
         setCover(coverData);
-        setCategories(cateData.filter((c) => c.status === 1));
-        setCategory(cateData.find((c) => c.id === categoryId) ?? null);
+        const published = cateData.filter((c) => c.status === 1);
+        setCategories(published);
+        // Chỉ list DM đã duyệt cho khách
+        setCategory(published.find((c) => c.id === categoryId) ?? null);
         setProducts(productData.results.filter(isProductActive));
       } finally {
         if (!cancelled) setLoading(false);

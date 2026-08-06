@@ -351,7 +351,7 @@ export const API_CONSENT = {
   PDF: "/api/consent/message-processing/pdf/",
 } as const;
 
-/** Mini Shop / cửa hàng — đồng bộ ZaloCN minishop, shoplinkhome, showproduct */
+/** Shop (cửa hàng Care2; Care1: minishop) — cover, category, product, cart, order */
 export const API_ZALO_SHOP = {
   CATEGORY: "/api/shop/category",
   CATEGORY_CREATE: "/api/shop/category/create-or-update",
@@ -376,10 +376,15 @@ export const API_ZALO_SHOP = {
   ORDER_CANCEL: "/api/shop/order/cancel",
   ORDER_DELETE: "/api/shop/order/delete",
   ORDER_UPDATE: "/api/shop/order/update",
+  ORDER_NOTIFICATION_ACCOUNT: "/api/shop/order/notification-account",
+  ORDER_SUCCESS_MESSAGE: "/api/shop/order/order-successful-message",
+  ORDER_CONFIRM_MESSAGE: "/api/shop/order/confirm-message",
   COUPON: "/api/shop/coupon",
   COUPON_CREATE: "/api/shop/coupon/create",
   COUPON_DELETE: "/api/shop/coupon/delete",
   CITY: "/api/shop/city",
+  /** Import Vietnam_province_new.json → DB (auth) */
+  CITY_LOAD: "/api/shop/city/load",
   WARD: "/api/shop/ward",
   DISTRICT: "/api/shop/district",
   DOMAIN: "/api/users/domain",
