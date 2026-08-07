@@ -1,15 +1,11 @@
 "use client";
 
-import PageBreadcrumb from "@/components/common/PageBreadCrumb";
-import { adminDataPanelClass } from "@/components/ui/table/ScrollableTableContainer";
 import {
-  applyTemplateToData,
   DEFAULT_SHOP_PERSONALIZATION,
   groupTemplatesByCategory,
   resolveArchetypeId,
   resolvePersonalization,
   SHOP_TEMPLATE_PRESETS,
-  toSavePayload,
   type ShopTemplatePreset,
 } from "@/lib/shop-personalization";
 import { toast } from "@/lib/toast";
@@ -17,13 +13,11 @@ import { zaloShopService } from "@/services/zalo-shop.service";
 import { useAuthStore } from "@/stores/use-auth-store";
 import {
   PDP_TEMPLATE_PRESETS,
-  resolvePDPConfig,
   type PDPTemplateType,
 } from "@/types/pdp-template";
 import type {
   ShopArchetypeId,
   ShopPersonalizationData,
-  ShopTemplateId,
 } from "@/types/zalo-shop";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -361,22 +355,34 @@ export default function ShopThemeSettings() {
     };
   }, []);
 
-  const handleSelectTemplate = (id: ShopTemplateId) => {
-    setDraft((prev) => applyTemplateToData(prev, id, { keepCopy: true }));
+  const handleSelectTemplate = (presetId: ShopArchetypeId) => {
+    const preset = SHOP_TEMPLATE_PRESETS.find((p) => p.id === presetId);
+    if (!preset) return;
+    setDraft((prev) => ({
+      ...prev,
+      ...preset.data,
+      templateId: presetId,
+    }));
     setDirty(true);
+    toast.success(`Đã chọn mẫu kiến trúc: ${preset.name}`);
   };
 
   const handleSave = async () => {
     setSaving(true);
     try {
-      const payload = toSavePayload(draft);
-      const saved = await zaloShopService.savePersonalization(payload);
-      setRecordId(saved.id);
-      setDraft(resolvePersonalization(saved.data as ShopPersonalizationData));
+      const payload: ShopPersonalizationData = {
+        ...draft,
+        templateId: archetype,
+      };
+      const res = await zaloShopService.savePersonalization(payload);
+      if (res.id != null) setRecordId(res.id);
+      if (res.data) {
+        setDraft(resolvePersonalization(res.data as ShopPersonalizationData));
+      }
       setDirty(false);
-      toast.success("Đã lưu kiến trúc storefront");
+      toast.success("Đã lưu cấu hình giao diện thành công!");
     } catch {
-      toast.error("Lưu thất bại. Kiểm tra đăng nhập và thử lại.");
+      toast.error("Lưu cấu hình giao diện thất bại");
     } finally {
       setSaving(false);
     }
@@ -385,7 +391,7 @@ export default function ShopThemeSettings() {
   const handleReset = async () => {
     if (
       !window.confirm(
-        "Xóa personalization và về Bento Grid Tech mặc định?",
+        "Khôi phục cấu hình về mẫu Bento Grid Công Nghệ mặc định?",
       )
     ) {
       return;
@@ -396,30 +402,24 @@ export default function ShopThemeSettings() {
       setRecordId(null);
       setDraft({ ...DEFAULT_SHOP_PERSONALIZATION });
       setDirty(false);
-      toast.success("Đã đặt lại mặc định");
+      toast.success("Đã đặt lại cấu hình mặc định!");
     } catch {
-      toast.error("Không thể xóa cấu hình");
+      toast.error("Không thể đặt lại giao diện");
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden">
-      <PageBreadcrumb
-        pageTitle="Theme & Architecture"
-        parents={[{ label: "Cửa hàng", href: "/shop" }]}
-      />
-
-      <div className={`${adminDataPanelClass} flex min-h-0 flex-1 flex-col gap-4`}>
-        <div className="flex flex-col gap-3 border-b border-gray-100 pb-4 sm:flex-row sm:items-center sm:justify-between dark:border-gray-800">
-          <div className="min-w-0">
-            <h2 className="text-lg font-bold text-gray-900 dark:text-white">
-              8 kiến trúc storefront
-            </h2>
-            <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-              Mỗi template = DOM hierarchy + grid + UX flow khác hẳn (không chỉ đổi màu). Áp
-              dụng cho{" "}
+    <div className="flex min-h-0 flex-1 flex-col gap-4 p-4 md:p-6 lg:h-[calc(100vh-4rem)] lg:overflow-hidden">
+      <div className="flex min-h-0 flex-1 flex-col gap-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-xs dark:border-gray-800 dark:bg-gray-900 md:p-6 lg:overflow-hidden">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-gray-100 pb-4 dark:border-gray-800 shrink-0">
+          <div>
+            <h1 className="text-xl font-bold text-gray-900 dark:text-white">
+              Cấu Hình Mẫu Giao Diện Gian Hàng (Storefront Theme)
+            </h1>
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              Tự do chọn 1 trong 8 kiến trúc chuẩn quốc tế. Tùy chỉnh màu sắc, banner & thông tin liên hệ cho gian hàng{" "}
               {userId ? (
                 <Link
                   href={`/store/${userId}`}
@@ -431,11 +431,7 @@ export default function ShopThemeSettings() {
               ) : (
                 "/store/..."
               )}
-            </p>
-            <p className="mt-1 text-[11px] text-gray-400">
-              Đang chọn: <strong className="text-gray-700 dark:text-gray-200">{archetype}</strong>
-              {recordId != null ? ` · #${recordId}` : " · chưa lưu"}
-              {dirty ? " · có thay đổi" : ""}
+              {recordId != null ? ` (Mã cấu hình #${recordId})` : " (Chưa khởi tạo)"}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -445,7 +441,7 @@ export default function ShopThemeSettings() {
                 target="_blank"
                 className="inline-flex min-h-10 items-center rounded-lg border border-gray-200 bg-white px-3.5 py-2 text-xs font-semibold text-gray-700 shadow-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
               >
-                Xem storefront
+                Xem gian hàng
               </Link>
             ) : null}
             <button
@@ -454,27 +450,31 @@ export default function ShopThemeSettings() {
               disabled={saving || loading}
               className="min-h-10 rounded-lg border border-gray-200 bg-white px-3.5 py-2 text-xs font-semibold text-gray-600 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
             >
-              Đặt lại
+              Đặt lại mặc định
             </button>
             <button
               type="button"
               onClick={() => void handleSave()}
-              disabled={saving || loading || !dirty}
-              className="min-h-10 rounded-lg bg-brand-500 px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-brand-600 disabled:opacity-50"
+              disabled={saving || loading}
+              className={`min-h-10 rounded-lg px-4 py-2 text-xs font-bold text-white shadow-sm transition-all cursor-pointer disabled:opacity-50 ${
+                dirty
+                  ? "bg-brand-500 hover:bg-brand-600 ring-2 ring-brand-500/40 animate-pulse"
+                  : "bg-brand-500 hover:bg-brand-600"
+              }`}
             >
-              {saving ? "Đang lưu…" : "Lưu kiến trúc"}
+              {saving ? "Đang lưu…" : dirty ? "💾 Lưu Thay Đổi *" : "Lưu thay đổi"}
             </button>
           </div>
         </div>
 
         {loading ? (
           <div className="flex flex-1 items-center justify-center py-20 text-sm text-gray-500">
-            Đang tải…
+            Đang tải dữ liệu…
           </div>
         ) : (
-          <div className="custom-scrollbar flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto lg:flex-row lg:overflow-hidden">
-            <div className="flex min-w-0 flex-1 flex-col gap-4 lg:overflow-y-auto lg:pr-1">
-              <div className="flex flex-wrap gap-1 rounded-xl bg-gray-100 p-1 dark:bg-gray-800">
+          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto lg:flex-row lg:overflow-hidden">
+            <div className="custom-scrollbar flex min-w-0 flex-1 flex-col gap-4 lg:overflow-y-auto lg:pr-2">
+              <div className="sticky top-0 z-30 flex flex-wrap gap-1 rounded-xl border border-gray-200/60 bg-gray-100/95 p-1 shadow-sm backdrop-blur-md dark:border-gray-700/60 dark:bg-gray-800/95">
                 {TABS.map((t) => (
                   <button
                     key={t.id}
@@ -493,10 +493,6 @@ export default function ShopThemeSettings() {
 
               {tab === "templates" ? (
                 <div className="space-y-6">
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Chọn 1 trong {SHOP_TEMPLATE_PRESETS.length} kiến trúc. Wireframe bên dưới phản
-                    ánh DOM thật (sidebar / bento / masonry / 100vh / bottom nav…), không chỉ palette.
-                  </p>
                   {groupTemplatesByCategory().map((group) => (
                     <div key={group.category}>
                       <h3 className="mb-2.5 text-xs font-extrabold uppercase tracking-[0.14em] text-gray-400">
@@ -557,12 +553,7 @@ export default function ShopThemeSettings() {
               {tab === "pdp" ? (
                 <div className="space-y-4">
                   <p className="text-xs text-gray-500 dark:text-gray-400">
-                    UI trang{" "}
-                    <code className="rounded bg-gray-100 px-1 text-[11px] dark:bg-gray-800">
-                      /store/…/category/product
-                    </code>
-                    . 4 kiến trúc PDP độc lập với storefront home. Store template gợi ý
-                    default; bạn có thể override tại đây.
+                    Giao diện trang chi tiết sản phẩm (PDP). 4 mẫu kiến trúc độc lập với trang chủ cửa hàng.
                   </p>
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     {PDP_TEMPLATE_PRESETS.map((preset) => {
@@ -608,37 +599,37 @@ export default function ShopThemeSettings() {
               {tab === "colors" ? (
                 <div className="space-y-4">
                   <p className="text-xs text-gray-500">
-                    Màu tùy chỉnh chồng lên kiến trúc đã chọn — không đổi DOM hierarchy.
+                    Màu tùy chỉnh áp dụng trực tiếp lên mẫu giao diện đã chọn.
                   </p>
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <ColorField
-                      label="Primary"
+                      label="Màu chữ & Tiêu đề (Primary)"
                       value={resolved.primaryColor}
                       onChange={(v) => patch({ primaryColor: v })}
                     />
                     <ColorField
-                      label="Accent / CTA"
+                      label="Màu điểm nhấn & Nút bấm (Accent/CTA)"
                       value={resolved.accentColor}
                       onChange={(v) => patch({ accentColor: v })}
                     />
                     <ColorField
-                      label="Background"
+                      label="Màu nền trang (Background)"
                       value={resolved.backgroundColor}
                       onChange={(v) => patch({ backgroundColor: v })}
                     />
                     <ColorField
-                      label="Surface"
+                      label="Màu thẻ & Khung (Surface)"
                       value={resolved.surfaceColor}
                       onChange={(v) => patch({ surfaceColor: v })}
                     />
                     <ColorField
-                      label="Muted"
+                      label="Màu phụ & Mô tả (Muted)"
                       value={resolved.mutedColor}
                       onChange={(v) => patch({ mutedColor: v })}
                     />
                     <label className="flex flex-col gap-1.5">
                       <span className="text-xs font-semibold text-gray-600 dark:text-gray-300">
-                        Light / Dark
+                        Giao diện Sáng / Tối (Theme Mode)
                       </span>
                       <select
                         value={resolved.themeMode}
@@ -647,8 +638,8 @@ export default function ShopThemeSettings() {
                         }
                         className="h-10 cursor-pointer rounded-lg border border-gray-200 bg-white px-3 text-sm font-medium dark:border-gray-700 dark:bg-gray-900"
                       >
-                        <option value="light">Light</option>
-                        <option value="dark">Dark</option>
+                        <option value="light">Chế độ Sáng (Light)</option>
+                        <option value="dark">Chế độ Tối (Dark)</option>
                       </select>
                     </label>
                   </div>
@@ -656,59 +647,147 @@ export default function ShopThemeSettings() {
               ) : null}
 
               {tab === "content" ? (
-                <div className="grid grid-cols-1 gap-4">
-                  <label className="flex flex-col gap-1.5">
-                    <span className="text-xs font-semibold text-gray-600 dark:text-gray-300">
-                      Tiêu đề Hero
-                    </span>
-                    <input
-                      type="text"
-                      value={draft.heroTitle ?? ""}
-                      onChange={(e) => patch({ heroTitle: e.target.value })}
-                      className="h-11 rounded-lg border border-gray-200 bg-white px-3 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-white"
-                      placeholder="Headline kiến trúc"
-                    />
-                  </label>
-                  <label className="flex flex-col gap-1.5">
-                    <span className="text-xs font-semibold text-gray-600 dark:text-gray-300">
-                      Mô tả / sub-headline
-                    </span>
-                    <textarea
-                      value={draft.heroSubtitle ?? ""}
-                      onChange={(e) => patch({ heroSubtitle: e.target.value })}
-                      rows={3}
-                      className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-white"
-                    />
-                  </label>
-                  <label className="flex flex-col gap-1.5">
-                    <span className="text-xs font-semibold text-gray-600 dark:text-gray-300">
-                      CTA
-                    </span>
-                    <input
-                      type="text"
-                      value={draft.ctaText ?? ""}
-                      onChange={(e) => patch({ ctaText: e.target.value })}
-                      className="h-11 rounded-lg border border-gray-200 bg-white px-3 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-white"
-                    />
-                  </label>
-                  <label className="flex flex-col gap-1.5">
-                    <span className="text-xs font-semibold text-gray-600 dark:text-gray-300">
-                      Announcement bar
-                    </span>
-                    <input
-                      type="text"
-                      value={draft.announcement ?? ""}
-                      onChange={(e) => patch({ announcement: e.target.value })}
-                      className="h-11 rounded-lg border border-gray-200 bg-white px-3 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-white"
-                      placeholder="Chỉ hiện ở Deal Wall / Mobile nếu bật"
-                    />
-                  </label>
+                <div className="grid grid-cols-1 gap-6">
+                  {/* Hero & Banner Setup */}
+                  <div className="space-y-4 rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                      Nội Dung Banner & Hero
+                    </h3>
+                    <label className="flex flex-col gap-1.5">
+                      <span className="text-xs font-semibold text-gray-600 dark:text-gray-300">
+                        Tiêu đề Hero
+                      </span>
+                      <input
+                        type="text"
+                        value={draft.heroTitle ?? ""}
+                        onChange={(e) => patch({ heroTitle: e.target.value })}
+                        className="h-11 rounded-lg border border-gray-200 bg-white px-3 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                        placeholder="Headline kiến trúc (VD: Cửa Hàng Chuẩn PRO)"
+                      />
+                    </label>
+                    <label className="flex flex-col gap-1.5">
+                      <span className="text-xs font-semibold text-gray-600 dark:text-gray-300">
+                        Mô tả / sub-headline
+                      </span>
+                      <textarea
+                        value={draft.heroSubtitle ?? ""}
+                        onChange={(e) => patch({ heroSubtitle: e.target.value })}
+                        rows={2}
+                        className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                        placeholder="Mô tả ngắn gọn về sản phẩm/dịch vụ"
+                      />
+                    </label>
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <label className="flex flex-col gap-1.5">
+                        <span className="text-xs font-semibold text-gray-600 dark:text-gray-300">
+                          Nút CTA
+                        </span>
+                        <input
+                          type="text"
+                          value={draft.ctaText ?? ""}
+                          onChange={(e) => patch({ ctaText: e.target.value })}
+                          className="h-11 rounded-lg border border-gray-200 bg-white px-3 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                        />
+                      </label>
+                      <label className="flex flex-col gap-1.5">
+                        <span className="text-xs font-semibold text-gray-600 dark:text-gray-300">
+                          Thanh thông báo (Announcement)
+                        </span>
+                        <input
+                          type="text"
+                          value={draft.announcement ?? ""}
+                          onChange={(e) => patch({ announcement: e.target.value })}
+                          className="h-11 rounded-lg border border-gray-200 bg-white px-3 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                          placeholder="Chỉ hiện khi bật announcement"
+                        />
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Contact Info Setup */}
+                  <div className="space-y-4 rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                        📞 Thông Tin Liên Hệ & Mạng Xã Hội
+                      </h3>
+                      <span className="rounded-full bg-brand-50 px-2 py-0.5 text-[10px] font-bold text-brand-600 dark:bg-brand-500/10 dark:text-brand-400">
+                        Hiển thị chân trang & Header
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <label className="flex flex-col gap-1.5">
+                        <span className="text-xs font-semibold text-gray-600 dark:text-gray-300">
+                          Số điện thoại Hotline / Zalo
+                        </span>
+                        <input
+                          type="text"
+                          value={draft.contactPhone ?? ""}
+                          onChange={(e) => patch({ contactPhone: e.target.value })}
+                          className="h-11 rounded-lg border border-gray-200 bg-white px-3 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                          placeholder="VD: 0987654321"
+                        />
+                      </label>
+
+                      <label className="flex flex-col gap-1.5">
+                        <span className="text-xs font-semibold text-gray-600 dark:text-gray-300">
+                          Link Zalo / Zalo OA
+                        </span>
+                        <input
+                          type="text"
+                          value={draft.contactZalo ?? ""}
+                          onChange={(e) => patch({ contactZalo: e.target.value })}
+                          className="h-11 rounded-lg border border-gray-200 bg-white px-3 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                          placeholder="VD: https://zalo.me/0987654321"
+                        />
+                      </label>
+
+                      <label className="flex flex-col gap-1.5">
+                        <span className="text-xs font-semibold text-gray-600 dark:text-gray-300">
+                          Link Facebook / Fanpage
+                        </span>
+                        <input
+                          type="text"
+                          value={draft.contactFacebook ?? ""}
+                          onChange={(e) => patch({ contactFacebook: e.target.value })}
+                          className="h-11 rounded-lg border border-gray-200 bg-white px-3 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                          placeholder="VD: https://facebook.com/chotnhanh"
+                        />
+                      </label>
+
+                      <label className="flex flex-col gap-1.5">
+                        <span className="text-xs font-semibold text-gray-600 dark:text-gray-300">
+                          Link Website / Trang tùy chọn
+                        </span>
+                        <input
+                          type="text"
+                          value={draft.contactWebsite ?? ""}
+                          onChange={(e) => patch({ contactWebsite: e.target.value })}
+                          className="h-11 rounded-lg border border-gray-200 bg-white px-3 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                          placeholder="VD: https://chotnhanh.vn"
+                        />
+                      </label>
+                    </div>
+
+                    <label className="flex flex-col gap-1.5">
+                      <span className="text-xs font-semibold text-gray-600 dark:text-gray-300">
+                        Địa chỉ cửa hàng / Chi nhánh
+                      </span>
+                      <input
+                        type="text"
+                        value={draft.contactAddress ?? ""}
+                        onChange={(e) => patch({ contactAddress: e.target.value })}
+                        className="h-11 rounded-lg border border-gray-200 bg-white px-3 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                        placeholder="VD: 123 Nguyễn Trãi, Thanh Xuân, Hà Nội"
+                      />
+                    </label>
+                  </div>
                 </div>
               ) : null}
             </div>
 
-            <aside className="w-full shrink-0 lg:w-[320px] xl:w-[360px]">
-              <div className="lg:sticky lg:top-0">
+            <aside className="custom-scrollbar w-full shrink-0 lg:w-[320px] xl:w-[360px] lg:max-h-full lg:overflow-y-auto">
+              <div className="sticky top-0">
                 <p className="mb-2 text-xs font-bold uppercase tracking-wider text-gray-400">
                   Wireframe kiến trúc
                 </p>
