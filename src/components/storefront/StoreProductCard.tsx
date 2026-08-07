@@ -1,5 +1,6 @@
 "use client";
 
+import StoreProductImageTooltip from "@/components/storefront/StoreProductImageTooltip";
 import {
   buildStoreProductUrl,
   formatPriceRange,
@@ -83,24 +84,26 @@ export default function StoreProductCard({
     >
       {/* Standardized 1:1 image */}
       <div className="relative aspect-square w-full shrink-0 overflow-hidden bg-slate-100">
-        <Link href={href} className="absolute inset-0 block cursor-pointer" tabIndex={-1} aria-hidden>
-          {imageSrc ? (
-            <Image
-              src={imageSrc}
-              alt=""
-              fill
-              className="store-img-zoom object-cover"
-              sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
-              unoptimized
-            />
-          ) : (
-            <div className="flex h-full items-center justify-center text-slate-300">
-              <svg className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14" />
-              </svg>
-            </div>
-          )}
-        </Link>
+        <StoreProductImageTooltip product={product}>
+          <Link href={href} className="absolute inset-0 block cursor-pointer" tabIndex={-1} aria-hidden>
+            {imageSrc ? (
+              <Image
+                src={imageSrc}
+                alt=""
+                fill
+                className="store-img-zoom object-cover"
+                sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
+                unoptimized
+              />
+            ) : (
+              <div className="flex h-full items-center justify-center text-slate-300">
+                <svg className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14" />
+                </svg>
+              </div>
+            )}
+          </Link>
+        </StoreProductImageTooltip>
 
         {/* Clean coded badges — top-left only */}
         <div className="pointer-events-none absolute left-2 top-2 z-[2] flex flex-col gap-1">

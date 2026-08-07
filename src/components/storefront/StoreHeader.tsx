@@ -57,12 +57,22 @@ export default function StoreHeader({
   const logo = cover?.image_logo ? shopImageUrl(cover.image_logo) : null;
 
   const [focused, setFocused] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
   const [badgeKey, setBadgeKey] = useState(0);
   const prevCount = useRef(itemCount);
   const inputRef = useRef<HTMLInputElement>(null);
 
   /** Dark chrome = dark theme store OR branded style */
   const dark = darkChrome === true || (darkChrome !== false && branded);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 20);
+    };
+    handleScroll();
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   useEffect(() => {
     if (itemCount !== prevCount.current) {
@@ -85,25 +95,43 @@ export default function StoreHeader({
   const accent = accentColor || "var(--store-accent, #ec4899)";
 
   return (
-    <header className="store-header-enter sticky top-0 z-50 w-full">
+    <header
+      className={`store-header-enter sticky top-0 z-50 w-full transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+        scrolled ? "shadow-[0_12px_32px_rgba(0,0,0,0.12)]" : ""
+      }`}
+    >
       {/* Top bar — solid surfaces only */}
       <div
-        className="border-b backdrop-blur-xl"
+        className="border-b transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]"
         style={
           dark
             ? {
-                backgroundColor: "rgba(11, 15, 25, 0.96)",
-                borderColor: "rgba(255,255,255,0.1)",
+                backgroundColor: scrolled
+                  ? "rgba(11, 15, 25, 0.98)"
+                  : "rgba(11, 15, 25, 0.92)",
+                borderColor: scrolled
+                  ? "rgba(255,255,255,0.14)"
+                  : "rgba(255,255,255,0.08)",
                 color: "#F8FAFC",
+                backdropFilter: "blur(20px)",
               }
             : {
-                backgroundColor: "rgba(255,255,255,0.96)",
-                borderColor: "rgba(15,23,42,0.08)",
+                backgroundColor: scrolled
+                  ? "rgba(255,255,255,0.98)"
+                  : "rgba(255,255,255,0.92)",
+                borderColor: scrolled
+                  ? "rgba(15,23,42,0.12)"
+                  : "rgba(15,23,42,0.06)",
                 color: "#0F172A",
+                backdropFilter: "blur(20px)",
               }
         }
       >
-        <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-3 px-4 sm:h-16 sm:px-6">
+        <div
+          className={`mx-auto flex items-center justify-between gap-3 px-4 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] sm:px-6 ${
+            scrolled ? "h-13 sm:h-14" : "h-14 sm:h-16"
+          }`}
+        >
           <Link
             href={`/store/${sellerId}`}
             className="group flex min-w-0 cursor-pointer items-center gap-2.5"
@@ -171,12 +199,43 @@ export default function StoreHeader({
             </div>
           </Link>
 
-          {/* Cart — always high contrast */}
-          <button
-            type="button"
-            onClick={onCartClick}
-            aria-label={`Giỏ hàng${itemCount > 0 ? `, ${itemCount} sản phẩm` : ""}`}
-            className="store-press group relative flex h-11 min-w-11 cursor-pointer items-center gap-2 rounded-xl px-3 shadow-sm transition-all duration-200 sm:px-4"
+          <div className="flex items-center gap-2">
+            {scrolled && onSearchChange ? (
+              <button
+                type="button"
+                onClick={() => {
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                  setTimeout(() => inputRef.current?.focus(), 300);
+                }}
+                aria-label="Mở tìm kiếm"
+                className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-xl border transition-all duration-200"
+                style={
+                  dark
+                    ? {
+                        borderColor: "rgba(255,255,255,0.18)",
+                        backgroundColor: "rgba(255,255,255,0.1)",
+                        color: "#F8FAFC",
+                      }
+                    : {
+                        borderColor: "rgba(15,23,42,0.12)",
+                        backgroundColor: "#F1F5F9",
+                        color: "#0F172A",
+                      }
+                }
+              >
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <circle cx="11" cy="11" r="8" />
+                  <path d="M21 21l-4.35-4.35" />
+                </svg>
+              </button>
+            ) : null}
+
+            {/* Cart — always high contrast */}
+            <button
+              type="button"
+              onClick={onCartClick}
+              aria-label={`Giỏ hàng${itemCount > 0 ? `, ${itemCount} sản phẩm` : ""}`}
+              className="store-press group relative flex h-11 min-w-11 cursor-pointer items-center gap-2 rounded-xl px-3 shadow-sm transition-all duration-200 sm:px-4"
             style={
               dark
                 ? {
@@ -233,11 +292,16 @@ export default function StoreHeader({
           </button>
         </div>
       </div>
+    </div>
 
-      {/* Search — always light field for readability */}
+      {/* Search — always light field for readability, collapses smoothly on scroll */}
       {onSearchChange ? (
         <div
-          className="border-b backdrop-blur-md"
+          className={`border-b backdrop-blur-md transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+            scrolled
+              ? "max-h-0 opacity-0 border-b-0 pointer-events-none py-0 overflow-hidden"
+              : "max-h-24 opacity-100 overflow-visible"
+          }`}
           style={
             dark
               ? {
@@ -251,7 +315,7 @@ export default function StoreHeader({
           }
         >
           <div className="mx-auto max-w-7xl px-4 py-2.5 sm:px-6 sm:py-3">
-            <div className="relative">
+            <div className="relative z-50">
               <div
                 className="relative flex items-center rounded-xl border transition-all duration-200 focus-within:ring-2 focus-within:ring-[color-mix(in_srgb,var(--store-accent,#ec4899)_25%,transparent)]"
                 style={{
@@ -316,7 +380,7 @@ export default function StoreHeader({
 
               {showDropdown ? (
                 <div
-                  className="absolute left-0 right-0 top-[calc(100%+6px)] z-30 overflow-hidden rounded-xl border shadow-xl"
+                  className="absolute left-0 right-0 top-[calc(100%+6px)] z-[100] overflow-hidden rounded-xl border shadow-2xl animate-in fade-in-0 zoom-in-95"
                   style={{
                     backgroundColor: dark ? "#111827" : "#FFFFFF",
                     borderColor: dark

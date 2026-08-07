@@ -27,6 +27,8 @@ export interface ApiUserProfile {
   id_order_notification_account?: number | null;
   order_successful_message?: string | null;
   confirm_message?: string | null;
+  /** Bật/tắt thông báo tin nhắn từ WS */
+  new_message_notification?: boolean;
 }
 
 export interface AuthUser {
@@ -55,6 +57,8 @@ export interface AuthUser {
   idOrderNotificationAccount?: number | null;
   orderSuccessfulMessage?: string | null;
   confirmMessage?: string | null;
+  /** Bật/tắt thông báo tin nhắn từ WS */
+  newMessageNotification?: boolean;
 }
 
 export interface AcceptTermsPayload {

@@ -288,7 +288,7 @@ export default function ProductDetailView({
   const mainContent = (() => {
     if (templateId === "editorial-story") {
       return (
-        <div className="mt-6 grid gap-8 lg:grid-cols-[minmax(0,1.15fr)_minmax(280px,0.85fr)] lg:items-start lg:gap-10">
+        <div className="mt-4 grid gap-8 lg:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)] lg:items-start lg:gap-12">
           <div className="store-anim-slide-right store-delay-1">
             <ProductGallery
               {...galleryProps}
@@ -296,7 +296,11 @@ export default function ProductDetailView({
               sticky={false}
             />
           </div>
-          <div className="lg:sticky lg:top-24 lg:self-start">{buyPanel}</div>
+          <div className="lg:sticky lg:top-24 lg:self-start space-y-6">
+            <div className="rounded-3xl border border-slate-200/90 bg-white/95 p-6 shadow-xl backdrop-blur-2xl dark:border-slate-800 dark:bg-slate-900/95 sm:p-8">
+              {buyPanel}
+            </div>
+          </div>
         </div>
       );
     }

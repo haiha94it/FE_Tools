@@ -84,5 +84,6 @@ export function mapApiUser(profile: ApiUserProfile): AuthUser {
     idOrderNotificationAccount: profile.id_order_notification_account ?? 0,
     orderSuccessfulMessage: profile.order_successful_message ?? "",
     confirmMessage: profile.confirm_message ?? "",
+    newMessageNotification: profile.new_message_notification ?? true,
   };
 }

@@ -13,6 +13,7 @@ export default function UserDropdown() {
   const [isOpen, setIsOpen] = useState(false);
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
+  const toggleNewMessageNotification = useAuthStore((s) => s.toggleNewMessageNotification);
   const isLoading = useAuthStore((s) => s.isLoading);
 
   function toggleDropdown(e: React.MouseEvent<HTMLButtonElement, MouseEvent>) {
@@ -112,6 +113,40 @@ export default function UserDropdown() {
           </svg>
           Trang thông tin
         </Link>
+
+        {/* Action bật/tắt thông báo tin nhắn từ WS — Đồng bộ 100% UI menu */}
+        <div className="group mt-1 flex cursor-pointer items-center justify-between rounded-lg px-3 py-2 font-medium text-gray-700 text-theme-sm hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-gray-300">
+          <div className="flex items-center gap-3">
+            <svg
+              className="fill-gray-500 group-hover:fill-gray-700 dark:group-hover:fill-gray-300"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                fillRule="evenodd"
+                clipRule="evenodd"
+                d="M12 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 005 14h14a1 1 0 00.707-1.707L19 11.586V8a6 6 0 00-6-6zM8 8a4 4 0 118 0v4H8V8zm2 10a2 2 0 104 0h-4z"
+                fill="currentColor"
+              />
+            </svg>
+            <span>Thông báo tin nhắn</span>
+          </div>
+          <label className="relative inline-flex cursor-pointer items-center" onClick={(e) => e.stopPropagation()}>
+            <input
+              type="checkbox"
+              checked={user?.newMessageNotification !== false}
+              onChange={(e) => {
+                const val = e.target.checked;
+                void toggleNewMessageNotification(val);
+              }}
+              className="peer sr-only"
+            />
+            <div className="peer h-5 w-9 rounded-full bg-gray-300 after:absolute after:left-[2px] after:top-[2px] after:h-4 after:w-4 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-brand-500 peer-checked:after:translate-x-full dark:bg-gray-700" />
+          </label>
+        </div>
 
         <button
           type="button"

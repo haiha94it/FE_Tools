@@ -31,10 +31,8 @@ export default function BentoGridTechLayout({
 }: StorefrontLayoutProps) {
   const featured = products[0];
   const side = products.slice(1, 4);
-  const openCart = useShopCartStore((s) => s.openCart);
   const [showBuyBar, setShowBuyBar] = useState(false);
 
-  const shopName = cover?.name?.trim() || "Cửa hàng";
   // Chỉ dùng text user cấu hình; không fallback marketing “mù ngành hàng”
   const customTitle = config.heroTitle?.trim() || "";
   const customSub = config.heroSubtitle?.trim() || "";
@@ -59,26 +57,16 @@ export default function BentoGridTechLayout({
       }}
     >
       {/* Intro: tên shop + (tuỳ chọn) copy user tự ghi */}
-      <section className="mx-auto max-w-[1120px] px-5 pt-10 sm:px-8 sm:pt-14">
+      <section className="mx-auto max-w-[1120px] px-5 pt-4 sm:px-8 sm:pt-6">
         <StoreReveal variant="up" immediate className="mx-auto max-w-3xl text-center">
-          <p
-            className="text-[12px] font-semibold tracking-[0.04em]"
-            style={{ color: "var(--tech-blue)" }}
-          >
-            Gian hàng chính hãng
-          </p>
-          <h1
-            className="mt-3 text-[2rem] font-semibold leading-[1.15] tracking-[-0.02em] sm:text-[2.75rem] lg:text-[3rem]"
-            style={{ color: "var(--tech-ink)" }}
-          >
-            {customTitle
-              ? customTitle.split("\n").map((line, i) => (
-                  <span key={i} className="block">
-                    {line}
-                  </span>
-                ))
-              : shopName}
-          </h1>
+          {customTitle ? (
+            <h1
+              className="text-lg font-bold tracking-tight sm:text-xl"
+              style={{ color: "var(--tech-ink)" }}
+            >
+              {customTitle}
+            </h1>
+          ) : null}
           {customSub ? (
             <p
               className="mx-auto mt-4 max-w-xl text-[15px] leading-relaxed sm:text-[17px]"

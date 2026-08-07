@@ -18,7 +18,7 @@ import type {
 } from "@/types/zalo-shop";
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 interface StoreShellProps {
   sellerId: string;
@@ -44,13 +44,30 @@ function IslandHeader({
   itemCount: number;
 }) {
   const logo = cover?.image_logo ? shopImageUrl(cover.image_logo) : null;
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => setScrolled(window.scrollY > 20);
+    handleScroll();
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
   return (
-    <header className="store-header-enter sticky top-0 z-50 flex justify-center px-4 pt-3 sm:px-6 sm:pt-4">
+    <header className="store-header-enter sticky top-0 z-50 flex justify-center px-4 pt-3 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] sm:px-6 sm:pt-4">
       <div
-        className="flex h-12 w-full max-w-[720px] items-center justify-between gap-4 rounded-full px-2 pl-3 shadow-[0_4px_24px_rgba(0,0,0,0.08)] backdrop-blur-2xl sm:h-[52px] sm:px-2 sm:pl-4"
+        className={`flex w-full max-w-[720px] items-center justify-between gap-4 rounded-full px-2 pl-3 shadow-[0_4px_24px_rgba(0,0,0,0.08)] backdrop-blur-2xl transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] sm:px-2 sm:pl-4 ${
+          scrolled
+            ? "h-11 shadow-[0_10px_30px_rgba(0,0,0,0.15)] sm:h-[46px]"
+            : "h-12 sm:h-[52px]"
+        }`}
         style={{
-          backgroundColor: "rgba(255,255,255,0.82)",
-          border: "1px solid rgba(0,0,0,0.08)",
+          backgroundColor: scrolled
+            ? "rgba(255,255,255,0.92)"
+            : "rgba(255,255,255,0.82)",
+          border: scrolled
+            ? "1px solid rgba(0,0,0,0.12)"
+            : "1px solid rgba(0,0,0,0.08)",
         }}
       >
         <Link
@@ -128,8 +145,21 @@ function CompactHeader({
   itemCount: number;
   onSearchFocus?: () => void;
 }) {
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => setScrolled(window.scrollY > 20);
+    handleScroll();
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
   return (
-    <header className="store-header-enter sticky top-0 z-50 flex h-12 items-center justify-between border-b border-slate-100 bg-white px-3">
+    <header
+      className={`store-header-enter sticky top-0 z-50 flex items-center justify-between border-b border-slate-100 bg-white/95 px-3 backdrop-blur-lg transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+        scrolled ? "h-11 shadow-md" : "h-12"
+      }`}
+    >
       <Link href={`/store/${sellerId}`} className="truncate text-sm font-bold text-slate-900">
         {cover?.name || "Shop"}
       </Link>
@@ -215,7 +245,7 @@ export default function StoreShell({
 
   return (
     <div
-      className={`relative min-h-screen overflow-x-hidden ${
+      className={`relative min-h-screen overflow-x-clip ${
         isDark ? "store-theme-dark" : ""
       }`}
       style={{

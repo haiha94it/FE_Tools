@@ -16,6 +16,7 @@ import type {
   MessengerConversation,
   RawZaloMessage,
 } from "@/types/zalo-messenger";
+import { useAuthStore } from "@/stores/use-auth-store";
 import { toast as sonnerToast } from "sonner";
 import {
   clearMessengerTabAlert,
@@ -147,7 +148,7 @@ export function showMessengerGlobalToast(input: MessengerGlobalToastInput) {
     {
       id: input.toastId,
       duration: 8000,
-      position: "top-left",
+      position: "top-right",
       className: "messenger-global-toast",
       unstyled: true,
     },
@@ -156,6 +157,12 @@ export function showMessengerGlobalToast(input: MessengerGlobalToastInput) {
 
 /** In-page toast + Chrome tab title/favicon + optional desktop notification. */
 export function emitMessengerNotification(input: MessengerGlobalToastInput) {
+  // Chỉ hoạt động khi new_message_notification từ GET /api/users/me là true
+  const user = useAuthStore.getState().user;
+  if (user?.newMessageNotification === false) {
+    return;
+  }
+
   const showToast = shouldShowGlobalMessengerNotification();
   const showTab = shouldShowMessengerTabNotification();
 

@@ -100,35 +100,24 @@ export default function CategoryProductsView({
       products={products}
       personalization={personalization}
     >
-      <section className="mx-auto max-w-7xl px-4 pt-4 sm:px-6 sm:pt-5">
+      <section className="mx-auto max-w-7xl px-4 pt-3 sm:px-6 sm:pt-4">
         <StoreReveal variant="fade" immediate delay={0}>
-          <Link
-            href={`/store/${sellerId}`}
-            className="inline-flex cursor-pointer items-center gap-2 text-sm font-medium text-slate-500 transition hover:text-[var(--store-accent)]"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M19 12H5M12 19l-7-7 7-7" />
-            </svg>
-            Trang chủ
-          </Link>
-        </StoreReveal>
-
-        <StoreReveal variant="up" immediate delay={1} className="mt-3">
-          <div
-            className="flex flex-col gap-1 rounded-2xl border border-slate-200/80 px-5 py-5 shadow-sm sm:flex-row sm:items-end sm:justify-between sm:px-6 sm:py-6"
-            style={{ backgroundColor: "var(--store-surface, #fff)" }}
-          >
-            <div>
-              <p className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-[var(--store-accent)]">
-                Danh mục
-              </p>
-              <h1 className="store-display mt-1 text-2xl text-[var(--store-primary)] sm:text-3xl">
-                {category?.name || "Bộ sưu tập"}
-              </h1>
-            </div>
-            <p className="text-sm text-slate-500">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/80 pb-3">
+            <nav className="flex items-center gap-2 text-xs sm:text-sm font-medium text-slate-500">
+              <Link
+                href={`/store/${sellerId}`}
+                className="cursor-pointer transition hover:text-[var(--store-accent)]"
+              >
+                Trang chủ
+              </Link>
+              <span className="text-slate-300">/</span>
+              <span className="font-bold text-slate-900">
+                {category?.name || "Danh mục"}
+              </span>
+            </nav>
+            <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-full">
               {filteredProducts.length} sản phẩm
-            </p>
+            </span>
           </div>
         </StoreReveal>
       </section>

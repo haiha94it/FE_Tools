@@ -602,16 +602,6 @@ export default function ShopThemeSettings() {
                       );
                     })}
                   </div>
-                  <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50/80 p-3 text-[11px] text-gray-500 dark:border-gray-700 dark:bg-gray-900/40">
-                    Config hiện tại:{" "}
-                    <strong className="text-gray-700 dark:text-gray-200">
-                      {JSON.stringify(
-                        resolvePDPConfig(resolved.pdpTemplateId),
-                        null,
-                        0,
-                      )}
-                    </strong>
-                  </div>
                 </div>
               ) : null}
 

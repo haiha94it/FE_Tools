@@ -102,4 +102,11 @@ export const authService = {
       new_password: newPassword,
     });
   },
+
+  /** Bật/tắt thông báo tin nhắn — POST /api/users/change-new-message-notification */
+  async changeNewMessageNotification(enable: boolean): Promise<void> {
+    await api.post(API_AUTH.CHANGE_NEW_MESSAGE_NOTIFICATION, {
+      new_message_notification: enable,
+    });
+  },
 };

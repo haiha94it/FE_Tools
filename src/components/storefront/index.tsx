@@ -3,10 +3,12 @@
 import { StorefrontLayoutRouter } from "@/components/storefront/layouts";
 import StoreQuickViewModal from "@/components/storefront/StoreQuickViewModal";
 import StoreShell from "@/components/storefront/StoreShell";
-import { resolvePersonalization } from "@/lib/shop-personalization";
+import StorefrontLayoutSwitcherPill from "@/components/storefront/StorefrontLayoutSwitcherPill";
+import { resolveArchetypeId, resolvePersonalization } from "@/lib/shop-personalization";
 import { isProductActive, sortProducts } from "@/lib/shop-utils";
 import { zaloShopService } from "@/services/zalo-shop.service";
 import type {
+  ShopArchetypeId,
   ShopCategory,
   ShopCover,
   ShopPersonalizationData,
@@ -31,6 +33,8 @@ export default function StorefrontHome({ sellerId }: StorefrontHomeProps) {
   const [quickViewProduct, setQuickViewProduct] = useState<ShopProduct | null>(
     null,
   );
+  const [overrideArchetype, setOverrideArchetype] =
+    useState<ShopArchetypeId | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -62,10 +66,20 @@ export default function StorefrontHome({ sellerId }: StorefrontHomeProps) {
     };
   }, [sellerId]);
 
-  const config = useMemo(
+  const baseConfig = useMemo(
     () => resolvePersonalization(personalization),
     [personalization],
   );
+
+  const activeArchetype =
+    overrideArchetype ?? resolveArchetypeId(baseConfig.templateId);
+
+  const config = useMemo(() => {
+    return {
+      ...baseConfig,
+      templateId: activeArchetype,
+    };
+  }, [baseConfig, activeArchetype]);
 
   const filteredProducts = useMemo(() => {
     let list = products;
@@ -85,7 +99,7 @@ export default function StorefrontHome({ sellerId }: StorefrontHomeProps) {
       search={search}
       onSearchChange={setSearch}
       products={products}
-      personalization={personalization}
+      personalization={config}
     >
       <StorefrontLayoutRouter
         sellerId={sellerId}
@@ -106,6 +120,11 @@ export default function StorefrontHome({ sellerId }: StorefrontHomeProps) {
         product={quickViewProduct}
         sellerId={sellerId}
         onClose={() => setQuickViewProduct(null)}
+      />
+
+      <StorefrontLayoutSwitcherPill
+        currentArchetype={activeArchetype}
+        onSelectArchetype={setOverrideArchetype}
       />
     </StoreShell>
   );

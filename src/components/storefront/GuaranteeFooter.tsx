@@ -91,7 +91,7 @@ export default function GuaranteeFooter({
               Giao hàng · Đổi trả · Hỗ trợ Zalo
             </p>
           </div>
-          
+
           <a
             href="#products"
             className="inline-flex w-fit cursor-pointer items-center rounded-full px-5 py-2.5 text-xs font-extrabold uppercase tracking-wider text-white transition hover:opacity-90"
@@ -102,44 +102,46 @@ export default function GuaranteeFooter({
         </div>
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:gap-4">
-          {FEATURES.map((item) => (
-            <div
-              key={item.title}
-              className="flex items-start gap-3.5 rounded-2xl border border-white/10 bg-white/[0.04] p-4"
-            >
+          {FEATURES.map((item, idx) => {
+            const styles = [
+              { bg: "bg-amber-500/15", text: "text-amber-400", border: "border-amber-500/30" },
+              { bg: "bg-emerald-500/15", text: "text-emerald-400", border: "border-emerald-500/30" },
+              { bg: "bg-sky-500/15", text: "text-sky-400", border: "border-sky-500/30" },
+              { bg: "bg-pink-500/15", text: "text-pink-400", border: "border-pink-500/30" },
+            ][idx % 4];
+
+            return (
               <div
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
-                style={{
-                  backgroundColor: `color-mix(in srgb, ${typeof accent === "string" && accent.startsWith("#") ? accent : "#f43f5e"} 22%, transparent)`,
-                  color: accent,
-                }}
+                key={item.title}
+                className="flex items-start gap-3.5 rounded-2xl border border-white/10 bg-white/[0.04] p-4 transition hover:bg-white/[0.08]"
               >
-                <svg
-                  className="h-5 w-5"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={1.8}
+                <div
+                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border ${styles.bg} ${styles.text} ${styles.border}`}
                 >
-                  {item.icon}
-                </svg>
+                  <svg
+                    className="h-5 w-5 text-current"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    {item.icon}
+                  </svg>
+                </div>
+                <div className="min-w-0">
+                  <h4 className="text-sm font-bold text-white">{item.title}</h4>
+                  <p className="mt-1 text-xs leading-relaxed text-slate-400">
+                    {item.desc}
+                  </p>
+                </div>
               </div>
-              <div className="min-w-0">
-                <h4 className="text-sm font-bold text-white">{item.title}</h4>
-                <p className="mt-1 text-xs leading-relaxed text-slate-400">
-                  {item.desc}
-                </p>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         <div className="mt-8 flex flex-col gap-5 border-t border-white/10 pt-6 text-xs text-slate-400 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="font-semibold text-slate-200">
-              Đối tác vận chuyển &amp; thanh toán
-            </p>
-            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+            <div className="mt-2 flex flex-wrap items-center gap-1.5 !hidden">
               {["ZaloPay", "MoMo", "COD", "GHN", "GHTK"].map((label) => (
                 <span
                   key={label}
