@@ -294,10 +294,16 @@ export const API_ZALO_MESSENGER = {
   /** Tin nhắn nhanh — REST: GET list, POST create, PATCH/DELETE /{pk}, bulk DELETE */
   FAST_REPLY: "/api/message/fast-reply",
   UPLOAD_FILE: "/api/upload/file",
+  /** Default pack (keyword rỗng) + search — StickerPicker dùng path này. */
   STICKERS_SEARCH: "/api/message/stickers/search",
-  STICKERS_SUGGEST: "/api/message/stickers/suggest",
-  STICKERS_CATEGORY: "/api/message/stickers/category",
-  STICKERS_DETAIL: "/api/message/stickers/detail",
+  /**
+   * FE unused (2026-08): StickerPicker chuyển sang STICKERS_SEARCH (keyword rỗng).
+   * BE suggest bắt buộc keyword → empty state. Giữ constant deprecated, không gọi.
+   */
+  // STICKERS_SUGGEST: "/api/message/stickers/suggest",
+  /** FE unused — không gọi từ messenger; BE giữ stub comment. */
+  // STICKERS_CATEGORY: "/api/message/stickers/category",
+  // STICKERS_DETAIL: "/api/message/stickers/detail",
   MARK_READ_ALL: "/api/message/mark-read",
 } as const;
 

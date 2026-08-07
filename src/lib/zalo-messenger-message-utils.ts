@@ -107,7 +107,9 @@ function normalizeMessageQuote(quote: unknown): DisplayMessage["quote"] {
   return undefined;
 }
 
-/** URL ảnh sticker Zalo từ eid (id / id_sticker trong payload WS) */
+/** URL ảnh sticker Zalo từ eid (id / id_sticker trong payload WS).
+ * size=130: CDN webpc trả GIF thật (~11KB). size=64/128/256 với eid nhỏ hay trả body 5B rỗng.
+ */
 export function buildZaloStickerImageUrl(
   stickerId: string | number | null | undefined,
   size = 130,

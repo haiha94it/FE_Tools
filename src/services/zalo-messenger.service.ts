@@ -259,24 +259,20 @@ export const zaloMessengerService = {
     return getApiSuccessMessage(response);
   },
 
-  async fetchStickerSuggest(
-    id_account: number,
-    limit = 24,
-  ): Promise<MessengerStickerItem[]> {
-    const response = await api.get(API_ZALO_MESSENGER.STICKERS_SUGGEST, {
-      params: { id_account, limit },
-    });
-    const body = unwrapApiBody<unknown>(response.data);
-    return normalizeStickerList(body);
-  },
+  /**
+   * @deprecated FE unused — StickerPicker dùng searchStickers(keyword="") cho default/random.
+   * BE /stickers/suggest bắt buộc keyword → không dùng cho empty open.
+   */
+  // async fetchStickerSuggest(...) { ... STICKERS_SUGGEST ... }
 
+  /** keyword rỗng → BE default pack + frequent (có cache); có keyword → search Zalo. */
   async searchStickers(
     id_account: number,
     keyword: string,
-    limit = 24,
+    limit = 48,
   ): Promise<MessengerStickerItem[]> {
     const response = await api.get(API_ZALO_MESSENGER.STICKERS_SEARCH, {
-      params: { id_account, keyword, limit },
+      params: { id_account, keyword: keyword || "", limit },
     });
     const body = unwrapApiBody<unknown>(response.data);
     return normalizeStickerList(body);
