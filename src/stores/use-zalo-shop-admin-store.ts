@@ -15,11 +15,13 @@ interface ShopAdminState {
   products: ShopProduct[];
   productCount: number;
   cover: ShopCover | null;
+  /** null = chưa load; "" = chưa cấu hình; string = domain hiện tại */
   domain: string | null;
   selectedCategoryId: number | null;
   isLoading: boolean;
   error: string | null;
   loadDomain: () => Promise<void>;
+  saveDomain: (domain: string) => Promise<void>;
   loadCategories: (userId: number | string) => Promise<void>;
   loadCover: (userId: number | string) => Promise<void>;
   loadProducts: (
@@ -60,6 +62,13 @@ export const useZaloShopAdminStore = create<ShopAdminState>()((set, get) => ({
     await runAsyncAction(async () => {
       const domain = await zaloShopService.getDomain();
       set({ domain });
+    }, set);
+  },
+
+  saveDomain: async (domain) => {
+    await runAsyncAction(async () => {
+      await zaloShopService.editDomain(domain);
+      set({ domain: domain.trim().toLowerCase() });
     }, set);
   },
 

@@ -21,7 +21,8 @@ interface ShopCartState {
   closeCheckout: () => void;
   fetchCart: () => Promise<void>;
   addToCart: (payload: Omit<AddToCartPayload, "session_key">) => Promise<void>;
-  updateQuantity: (cartItemId: number, quantity: number) => Promise<void>;
+  /** quantity=0 → xóa dòng; variantId = product_variant.id */
+  updateQuantity: (variantId: number, quantity: number) => Promise<void>;
   clearAfterOrder: () => void;
 }
 
@@ -57,20 +58,25 @@ export const useShopCartStore = create<ShopCartState>()((set, get) => ({
   addToCart: async (payload) => {
     set({ isLoading: true });
     try {
-      const sessionKey = await zaloShopService.addToCart({
+      const cart = await zaloShopService.addToCart({
         ...payload,
         session_key: getShopSessionKey(),
       });
-      if (sessionKey) setShopSessionKey(sessionKey);
-      await get().fetchCart();
-      set({ isLoading: false, isCartOpen: true });
+      if (cart.session_key) setShopSessionKey(cart.session_key);
+      // Ưu tiên cart trả về từ add; fetch lại nếu thiếu items
+      if (cart.items && cart.items.length > 0) {
+        set({ cart, isLoading: false, isCartOpen: true });
+      } else {
+        await get().fetchCart();
+        set({ isLoading: false, isCartOpen: true });
+      }
       toast.success("Đã thêm vào giỏ hàng");
     } catch {
       set({ isLoading: false });
     }
   },
 
-  updateQuantity: async (cartItemId, quantity) => {
+  updateQuantity: async (variantId, quantity) => {
     const { sellerId } = get();
     if (!sellerId) return;
     set({ isLoading: true });
@@ -78,7 +84,7 @@ export const useShopCartStore = create<ShopCartState>()((set, get) => ({
       await zaloShopService.updateCartQuantity({
         id_employee: sellerId,
         session_key: getShopSessionKey(),
-        id_cart_item: cartItemId,
+        id_variant: variantId,
         quantity,
       });
       await get().fetchCart();

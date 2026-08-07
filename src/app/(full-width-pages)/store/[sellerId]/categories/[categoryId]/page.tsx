@@ -1,21 +1,12 @@
-import CategoryProductsView from "@/components/storefront/CategoryProductsView";
-import type { Metadata } from "next";
-
-export const metadata: Metadata = {
-  title: "Danh mục sản phẩm",
-  description: "Khám phá sản phẩm theo danh mục",
-};
+import { buildStoreCategoryUrl } from "@/lib/shop-utils";
+import { redirect } from "next/navigation";
 
 interface PageProps {
   params: Promise<{ sellerId: string; categoryId: string }>;
 }
 
-export default async function StoreCategoryPage({ params }: PageProps) {
+/** Legacy: /store/.../categories/... → /store/{seller}/{category} */
+export default async function LegacyStoreCategoryPage({ params }: PageProps) {
   const { sellerId, categoryId } = await params;
-  return (
-    <CategoryProductsView
-      sellerId={sellerId}
-      categoryId={Number(categoryId)}
-    />
-  );
+  redirect(buildStoreCategoryUrl(sellerId, categoryId));
 }

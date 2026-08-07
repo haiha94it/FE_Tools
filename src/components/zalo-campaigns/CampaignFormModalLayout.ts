@@ -5,14 +5,14 @@
  */
 
 export const campaignFormModalPanelClass = {
-  md: "box-border flex h-auto max-h-[calc(100dvh-1rem)] w-full min-w-0 max-w-full flex-col sm:max-w-5xl lg:h-[min(760px,calc(100dvh-2rem))]",
-  lg: "box-border flex h-auto max-h-[calc(100dvh-1rem)] w-full min-w-0 max-w-full flex-col sm:max-w-6xl lg:h-[min(820px,calc(100dvh-2rem))]",
-  xl: "box-border flex h-auto max-h-[calc(100dvh-1rem)] w-full min-w-0 max-w-full flex-col sm:max-w-6xl lg:h-[min(860px,calc(100dvh-2rem))]",
+  md: "box-border flex h-auto max-h-[calc(100dvh-1rem)] w-full min-w-0 flex-col sm:max-w-3xl lg:max-w-4xl lg:max-h-[min(760px,calc(100dvh-2rem))]",
+  lg: "box-border flex h-auto max-h-[calc(100dvh-1rem)] w-full min-w-0 flex-col sm:max-w-4xl lg:max-w-5xl lg:max-h-[min(820px,calc(100dvh-2rem))]",
+  xl: "box-border flex h-auto max-h-[calc(100dvh-1rem)] w-full min-w-0 flex-col sm:max-w-4xl lg:max-w-5xl lg:max-h-[min(860px,calc(100dvh-2rem))]",
 } as const;
 
 /** Mobile wizard: chiều cao cố định (iOS flex+max-h không đủ → list không scroll) */
 export const campaignFormModalPanelClassWizard =
-  "box-border flex h-[calc(100dvh-0.75rem)] max-h-[calc(100dvh-0.75rem)] w-full min-w-0 max-w-full flex-col sm:max-w-6xl";
+  "box-border flex h-auto max-h-[calc(100dvh-0.75rem)] w-full min-w-0 max-w-full flex-col sm:max-w-6xl";
 
 export const campaignFormBodyClass =
   "box-border flex min-h-0 min-w-0 max-w-full flex-1 flex-col overflow-hidden p-2.5 sm:p-5 lg:p-6";

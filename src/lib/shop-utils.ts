@@ -15,16 +15,17 @@ export function formatVnd(amount: number | string | null | undefined): string {
   return `${value.toLocaleString("vi-VN")} ₫`;
 }
 
+/** Giá bán = `price` (promotion_price chỉ là giá gạch/niêm yết cũ) */
 export function getMinVariantPrice(product: ShopProduct): number {
   const prices = product.variants
-    .map((v) => Number(v.promotion_price || v.price))
+    .map((v) => Number(v.price))
     .filter((p) => !Number.isNaN(p));
   return prices.length ? Math.min(...prices) : 0;
 }
 
 export function getMaxVariantPrice(product: ShopProduct): number {
   const prices = product.variants
-    .map((v) => Number(v.promotion_price || v.price))
+    .map((v) => Number(v.price))
     .filter((p) => !Number.isNaN(p));
   return prices.length ? Math.max(...prices) : 0;
 }
@@ -74,9 +75,22 @@ export function clearShopSessionKey() {
   localStorage.removeItem("session_key");
 }
 
+/**
+ * Storefront URL ngắn:
+ *  /store/{seller}
+ *  /store/{seller}/{category}
+ *  /store/{seller}/{category}/{product}
+ */
 export function buildStoreUrl(sellerId: number | string, path = ""): string {
   const base = `/store/${sellerId}`;
   return path ? `${base}${path.startsWith("/") ? path : `/${path}`}` : base;
+}
+
+export function buildStoreCategoryUrl(
+  sellerId: number | string,
+  categoryId: number | string,
+): string {
+  return `/store/${sellerId}/${categoryId}`;
 }
 
 export function buildStoreProductUrl(
@@ -84,7 +98,7 @@ export function buildStoreProductUrl(
   productId: number | string,
   categoryId: number | string,
 ): string {
-  return `/store/${sellerId}/categories/${categoryId}/products/${productId}`;
+  return `/store/${sellerId}/${categoryId}/${productId}`;
 }
 
 export function buildLegacyStoreRedirect(
@@ -93,9 +107,9 @@ export function buildLegacyStoreRedirect(
 ): string {
   if (type === "shoplinkhome") {
     const [sellerId, categoryId] = segments;
-    if (categoryId) return `/store/${sellerId}/categories/${categoryId}`;
-    return `/store/${sellerId}`;
+    if (categoryId) return buildStoreCategoryUrl(sellerId, categoryId);
+    return buildStoreUrl(sellerId);
   }
   const [sellerId, categoryId, productId] = segments;
-  return `/store/${sellerId}/categories/${categoryId}/products/${productId}`;
+  return buildStoreProductUrl(sellerId, productId, categoryId);
 }

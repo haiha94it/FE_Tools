@@ -35,6 +35,7 @@ interface AuthState {
     contractFilename?: string;
   }) => Promise<void>;
   logout: () => Promise<void>;
+  toggleNewMessageNotification: (enable: boolean) => Promise<void>;
   clearError: () => void;
 }
 
@@ -256,6 +257,15 @@ export const useAuthStore = create<AuthState>()(
           isLoading: false,
           error: null,
         });
+      },
+
+      toggleNewMessageNotification: async (enable: boolean) => {
+        await authService.changeNewMessageNotification(enable);
+        set((state) => ({
+          user: state.user
+            ? { ...state.user, newMessageNotification: enable }
+            : null,
+        }));
       },
 
       clearError: () => set({ error: null }),

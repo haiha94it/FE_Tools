@@ -81,5 +81,9 @@ export function mapApiUser(profile: ApiUserProfile): AuthUser {
         profile.is_superuser,
     ),
     acceptTerms: profile.accept_terms ?? false,
+    idOrderNotificationAccount: profile.id_order_notification_account ?? 0,
+    orderSuccessfulMessage: profile.order_successful_message ?? "",
+    confirmMessage: profile.confirm_message ?? "",
+    newMessageNotification: profile.new_message_notification ?? true,
   };
 }

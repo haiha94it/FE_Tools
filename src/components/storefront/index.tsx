@@ -1,14 +1,20 @@
 "use client";
 
-import StoreCategoryRail from "@/components/storefront/StoreCategoryRail";
-import StoreHero from "@/components/storefront/StoreHero";
-import StoreLoading from "@/components/storefront/StoreLoading";
-import StoreProductGrid from "@/components/storefront/StoreProductGrid";
+import { StorefrontLayoutRouter } from "@/components/storefront/layouts";
+import StoreQuickViewModal from "@/components/storefront/StoreQuickViewModal";
 import StoreShell from "@/components/storefront/StoreShell";
-import StoreToolbar from "@/components/storefront/StoreToolbar";
+import StorefrontLayoutSwitcherPill from "@/components/storefront/StorefrontLayoutSwitcherPill";
+import { resolveArchetypeId, resolvePersonalization } from "@/lib/shop-personalization";
 import { isProductActive, sortProducts } from "@/lib/shop-utils";
 import { zaloShopService } from "@/services/zalo-shop.service";
-import type { ShopCategory, ShopCover, ShopProduct, ShopSortOption } from "@/types/zalo-shop";
+import type {
+  ShopArchetypeId,
+  ShopCategory,
+  ShopCover,
+  ShopPersonalizationData,
+  ShopProduct,
+  ShopSortOption,
+} from "@/types/zalo-shop";
 import { useEffect, useMemo, useState } from "react";
 
 interface StorefrontHomeProps {
@@ -19,23 +25,38 @@ export default function StorefrontHome({ sellerId }: StorefrontHomeProps) {
   const [cover, setCover] = useState<ShopCover | null>(null);
   const [categories, setCategories] = useState<ShopCategory[]>([]);
   const [products, setProducts] = useState<ShopProduct[]>([]);
+  const [personalization, setPersonalization] =
+    useState<ShopPersonalizationData | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<ShopSortOption>("default");
+  const [quickViewProduct, setQuickViewProduct] = useState<ShopProduct | null>(
+    null,
+  );
+  const [overrideArchetype, setOverrideArchetype] =
+    useState<ShopArchetypeId | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     void (async () => {
       try {
-        const [coverData, cateData, productData] = await Promise.all([
-          zaloShopService.getCover(sellerId),
-          zaloShopService.listCategories(sellerId),
-          zaloShopService.listProducts({ employeeId: sellerId, pageSize: 50 }),
-        ]);
+        const [coverData, cateData, productData, personalData] =
+          await Promise.all([
+            zaloShopService.getCover(sellerId),
+            zaloShopService.listCategories(sellerId),
+            zaloShopService.listProducts({ employeeId: sellerId, pageSize: 50 }),
+            zaloShopService.getPersonalization(sellerId).catch(() => ({
+              id: null,
+              data: {},
+            })),
+          ]);
         if (cancelled) return;
         setCover(coverData);
         setCategories(cateData.filter((c) => c.status === 1));
         setProducts(productData.results.filter(isProductActive));
+        setPersonalization(
+          (personalData.data ?? {}) as ShopPersonalizationData,
+        );
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -44,6 +65,21 @@ export default function StorefrontHome({ sellerId }: StorefrontHomeProps) {
       cancelled = true;
     };
   }, [sellerId]);
+
+  const baseConfig = useMemo(
+    () => resolvePersonalization(personalization),
+    [personalization],
+  );
+
+  const activeArchetype =
+    overrideArchetype ?? resolveArchetypeId(baseConfig.templateId);
+
+  const config = useMemo(() => {
+    return {
+      ...baseConfig,
+      templateId: activeArchetype,
+    };
+  }, [baseConfig, activeArchetype]);
 
   const filteredProducts = useMemo(() => {
     let list = products;
@@ -57,38 +93,39 @@ export default function StorefrontHome({ sellerId }: StorefrontHomeProps) {
   const publishedCategories = categories.filter((c) => c.status === 1);
 
   return (
-    <StoreShell sellerId={sellerId} cover={cover}>
-      <StoreHero
-        cover={cover}
-        productCount={products.length}
-        categoryCount={publishedCategories.length}
-      />
-
-      <StoreCategoryRail
+    <StoreShell
+      sellerId={sellerId}
+      cover={cover}
+      search={search}
+      onSearchChange={setSearch}
+      products={products}
+      personalization={config}
+    >
+      <StorefrontLayoutRouter
         sellerId={sellerId}
+        cover={cover}
         categories={publishedCategories}
+        products={products}
+        filteredProducts={filteredProducts}
+        config={config}
+        loading={loading}
+        search={search}
+        onSearchChange={setSearch}
+        sort={sort}
+        onSortChange={setSort}
+        onQuickView={setQuickViewProduct}
       />
 
-      <section id="products" className="mx-auto max-w-7xl scroll-mt-28 px-4 pb-14 pt-8 sm:px-6 sm:pb-20 sm:pt-10">
-        <StoreToolbar
-          title="Sản phẩm nổi bật"
-          subtitle={`${filteredProducts.length} sản phẩm đang hiển thị`}
-          search={search}
-          onSearchChange={setSearch}
-          sort={sort}
-          onSortChange={setSort}
-        />
+      <StoreQuickViewModal
+        product={quickViewProduct}
+        sellerId={sellerId}
+        onClose={() => setQuickViewProduct(null)}
+      />
 
-        {loading ? (
-          <StoreLoading />
-        ) : (
-          <StoreProductGrid
-            products={filteredProducts}
-            sellerId={sellerId}
-            featured
-          />
-        )}
-      </section>
+      <StorefrontLayoutSwitcherPill
+        currentArchetype={activeArchetype}
+        onSelectArchetype={setOverrideArchetype}
+      />
     </StoreShell>
   );
 }

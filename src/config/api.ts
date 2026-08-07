@@ -39,6 +39,7 @@ export const API_AUTH = {
   REGISTER_RESULT: "/api/register/result",
   RESET_PASSWORD: "/api/users/reset-password/create",
   ACCEPT_TERMS: "/api/users/accept-terms",
+  CHANGE_NEW_MESSAGE_NOTIFICATION: "/api/users/change-new-message-notification",
 } as const;
 
 /** Popup / thông báo hệ thống */
@@ -357,7 +358,7 @@ export const API_CONSENT = {
   PDF: "/api/consent/message-processing/pdf/",
 } as const;
 
-/** Mini Shop / cửa hàng — đồng bộ ZaloCN minishop, shoplinkhome, showproduct */
+/** Shop (cửa hàng Care2; Care1: minishop) — cover, category, product, cart, order */
 export const API_ZALO_SHOP = {
   CATEGORY: "/api/shop/category",
   CATEGORY_CREATE: "/api/shop/category/create-or-update",
@@ -382,16 +383,25 @@ export const API_ZALO_SHOP = {
   ORDER_CANCEL: "/api/shop/order/cancel",
   ORDER_DELETE: "/api/shop/order/delete",
   ORDER_UPDATE: "/api/shop/order/update",
+  ORDER_NOTIFICATION_ACCOUNT: "/api/shop/order/notification-account",
+  ORDER_SUCCESS_MESSAGE: "/api/shop/order/order-successful-message",
+  ORDER_CONFIRM_MESSAGE: "/api/shop/order/confirm-message",
   COUPON: "/api/shop/coupon",
   COUPON_CREATE: "/api/shop/coupon/create",
   COUPON_DELETE: "/api/shop/coupon/delete",
   CITY: "/api/shop/city",
+  /** Import Vietnam_province_new.json → DB (auth) */
+  CITY_LOAD: "/api/shop/city/load",
   WARD: "/api/shop/ward",
   DISTRICT: "/api/shop/district",
   DOMAIN: "/api/users/domain",
   DOMAIN_EDIT: "/api/users/domain/edit",
   LINK_QR_ZALO: "/api/shop/get-link-zalo",
   PRODUCT_REVIEW: "/api/shop/product-review/all",
+  /** Cá nhân hóa storefront theo user — `data` JSON do FE định nghĩa */
+  PERSONALIZATION: "/api/shop/personalization",
+  PERSONALIZATION_CREATE: "/api/shop/personalization/create-or-update",
+  PERSONALIZATION_DELETE: "/api/shop/personalization/delete",
 } as const;
 
 export const SHOP_ADMIN_BASE = "/shop";

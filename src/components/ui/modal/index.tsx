@@ -26,7 +26,8 @@ export const Modal: React.FC<ModalProps> = ({
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
+    const timer = setTimeout(() => setMounted(true), 0);
+    return () => clearTimeout(timer);
   }, []);
 
   useEffect(() => {
@@ -60,9 +61,12 @@ export const Modal: React.FC<ModalProps> = ({
     return null;
   }
 
+  const hasCustomMaxWidth = /\bmax-w-/.test(className);
+  const defaultMaxWidth = hasCustomMaxWidth ? "" : "max-w-lg";
+
   const panelClasses = isFullscreen
     ? "relative z-10 h-full w-full"
-    : `relative z-10 box-border flex max-h-[calc(100dvh-1rem)] w-full min-w-0 max-w-full flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-theme-xl sm:max-h-[calc(100dvh-2rem)] sm:rounded-3xl dark:border-gray-800 dark:bg-gray-900 ${className}`;
+    : `relative z-10 box-border flex h-auto max-h-[calc(100dvh-1rem)] w-full min-w-0 ${defaultMaxWidth} flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-theme-xl sm:max-h-[calc(100dvh-2rem)] sm:rounded-3xl dark:border-gray-800 dark:bg-gray-900 ${className}`;
 
   const layerClass = layer === "top" ? "z-[100001]" : "z-[99999]";
 

@@ -23,6 +23,12 @@ export interface ApiUserProfile {
   /** Admin hoặc đã gán SupportFAQEditor */
   can_manage_support_faq?: boolean;
   accept_terms?: boolean;
+  /** Shop: nick Zalo gửi tin đơn hàng (0 = tắt) */
+  id_order_notification_account?: number | null;
+  order_successful_message?: string | null;
+  confirm_message?: string | null;
+  /** Bật/tắt thông báo tin nhắn từ WS */
+  new_message_notification?: boolean;
 }
 
 export interface AuthUser {
@@ -47,6 +53,12 @@ export interface AuthUser {
   /** Setup bot CSKH — admin hoặc editor đã gán */
   canManageSupportFaq?: boolean;
   acceptTerms?: boolean;
+  /** Shop order notify */
+  idOrderNotificationAccount?: number | null;
+  orderSuccessfulMessage?: string | null;
+  confirmMessage?: string | null;
+  /** Bật/tắt thông báo tin nhắn từ WS */
+  newMessageNotification?: boolean;
 }
 
 export interface AcceptTermsPayload {
