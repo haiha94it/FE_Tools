@@ -230,3 +230,125 @@ export interface UpdateCoverPayload {
 }
 
 export type ShopSortOption = "default" | "price_asc" | "price_desc" | "name_asc" | "name_desc";
+
+/**
+ * 8 architectural storefront archetypes — mỗi id = DOM/wireframe khác hẳn.
+ * String mở để dữ liệu cũ / BE không gãy; resolve map legacy → archetype.
+ */
+export type ShopTemplateId = string;
+
+/** Canonical archetype IDs (structural templates) */
+export type ShopArchetypeId =
+  | "bento-grid-tech"
+  | "deal-wall-flash"
+  | "catalog-first-masonry"
+  | "split-storyteller"
+  | "sidebar-commerce"
+  | "mobile-native"
+  | "magazine-editorial"
+  | "minimalist-essential";
+
+export type ShopProductCardStyle =
+  | "compact"
+  | "comfortable"
+  | "bordered"
+  | "overlay"
+  | "editorial"
+  | "list";
+
+export type ShopHeroLayout =
+  | "bento"
+  | "deal-split"
+  | "none"
+  | "full-viewport"
+  | "editorial-pair"
+  | "minimal-focus"
+  | "video-reel"
+  | "split"
+  | "centered"
+  | "banner"
+  /** legacy — kept for StoreHero fallback */
+  | "full-bleed"
+  | "mosaic"
+  | "minimal-strip"
+  | "showcase-left";
+
+export type ShopPageLayout =
+  | "bento-tech"
+  | "deal-wall"
+  | "catalog-masonry"
+  | "storyteller"
+  | "sidebar-app"
+  | "mobile-pwa"
+  | "magazine"
+  | "minimal-grid"
+  | "classic";
+
+export type ShopHeaderStyle =
+  | "minimal"
+  | "branded"
+  | "island"
+  | "utility"
+  | "compact"
+  | "hidden-for-sidebar";
+
+export type ShopGridDensity = "cozy" | "comfortable" | "dense" | "airy";
+export type ShopCategoryStyle =
+  | "pills"
+  | "chips"
+  | "icons"
+  | "underline"
+  | "stories"
+  | "tree";
+
+/**
+ * Object JSON personalization — FE sở hữu schema.
+ * BE chỉ lưu/trả nguyên `data`, không validate key.
+ */
+export interface ShopPersonalizationData {
+  templateId?: ShopTemplateId;
+  themeMode?: "light" | "dark";
+  primaryColor?: string;
+  accentColor?: string;
+  backgroundColor?: string;
+  surfaceColor?: string;
+  mutedColor?: string;
+  pageLayout?: ShopPageLayout;
+  heroLayout?: ShopHeroLayout;
+  headerStyle?: ShopHeaderStyle;
+  productCardStyle?: ShopProductCardStyle;
+  gridDensity?: ShopGridDensity;
+  categoryStyle?: ShopCategoryStyle;
+  heroTitle?: string;
+  heroSubtitle?: string;
+  ctaText?: string;
+  announcement?: string;
+  showHero?: boolean;
+  showAnnouncement?: boolean;
+  showFlashSale?: boolean;
+  showCategoryRail?: boolean;
+  showReviews?: boolean;
+  showTrustBadges?: boolean;
+  showHotBadge?: boolean;
+  showFlashBadge?: boolean;
+  /** Sticky buy bar (Bento Tech) */
+  showStickyBuyBar?: boolean;
+  /** Bottom tab bar (Mobile Native) */
+  showBottomNav?: boolean;
+  /** Cart summary drawer strip (Sidebar Commerce) */
+  showPersistentCartStrip?: boolean;
+  /**
+   * PDP template on /store/{id}/{cat}/{product}
+   * @see PDPTemplateType in types/pdp-template.ts
+   */
+  pdpTemplateId?: string;
+}
+
+/** Envelope row personalization từ BE */
+export interface ShopPersonalizationRecord {
+  id: number | null;
+  user?: number;
+  data: ShopPersonalizationData | Record<string, unknown>;
+  created_at?: string;
+  updated_at?: string;
+}

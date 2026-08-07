@@ -15,6 +15,8 @@ import type {
   ShopLocation,
   ShopOrder,
   ShopOrdersResponse,
+  ShopPersonalizationData,
+  ShopPersonalizationRecord,
   ShopProduct,
   ShopProductsResponse,
   UpdateCoverPayload,
@@ -317,5 +319,62 @@ export const zaloShopService = {
       throw new Error("EMPTY_ZALO_LINK");
     }
     return link;
+  },
+
+  /**
+   * Lấy personalization storefront.
+   * - Admin (JWT): không truyền `id_employee`
+   * - Public storefront: `id_employee` = sellerId trên URL
+   * Chưa setup → `id: null`, `data: {}`
+   */
+  async getPersonalization(
+    employeeId?: number | string,
+  ): Promise<ShopPersonalizationRecord> {
+    const client = employeeId != null && employeeId !== "" ? publicApi : api;
+    const url =
+      employeeId != null && employeeId !== ""
+        ? `${API_ZALO_SHOP.PERSONALIZATION}?id_employee=${employeeId}`
+        : API_ZALO_SHOP.PERSONALIZATION;
+    const response = await client.get(url);
+    const raw = (response.data ?? {}) as ShopPersonalizationRecord;
+    const data =
+      raw.data && typeof raw.data === "object" && !Array.isArray(raw.data)
+        ? raw.data
+        : {};
+    return {
+      id: raw.id ?? null,
+      user: raw.user,
+      data,
+      created_at: raw.created_at,
+      updated_at: raw.updated_at,
+    };
+  },
+
+  /** Ghi đè toàn bộ `data` của user đang login (auth bắt buộc). */
+  async savePersonalization(
+    data: ShopPersonalizationData | Record<string, unknown>,
+  ): Promise<ShopPersonalizationRecord> {
+    if (!data || typeof data !== "object" || Array.isArray(data)) {
+      throw new Error("DATA_INVALID");
+    }
+    const response = await api.post(API_ZALO_SHOP.PERSONALIZATION_CREATE, {
+      data,
+    });
+    const raw = (response.data ?? {}) as ShopPersonalizationRecord;
+    return {
+      id: raw.id ?? null,
+      user: raw.user,
+      data:
+        raw.data && typeof raw.data === "object" && !Array.isArray(raw.data)
+          ? raw.data
+          : data,
+      created_at: raw.created_at,
+      updated_at: raw.updated_at,
+    };
+  },
+
+  /** Xóa personalization của user login → GET lại `{}`. */
+  async deletePersonalization(): Promise<void> {
+    await api.post(API_ZALO_SHOP.PERSONALIZATION_DELETE, {});
   },
 };

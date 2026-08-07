@@ -391,6 +391,10 @@ export const API_ZALO_SHOP = {
   DOMAIN_EDIT: "/api/users/domain/edit",
   LINK_QR_ZALO: "/api/shop/get-link-zalo",
   PRODUCT_REVIEW: "/api/shop/product-review/all",
+  /** Cá nhân hóa storefront theo user — `data` JSON do FE định nghĩa */
+  PERSONALIZATION: "/api/shop/personalization",
+  PERSONALIZATION_CREATE: "/api/shop/personalization/create-or-update",
+  PERSONALIZATION_DELETE: "/api/shop/personalization/delete",
 } as const;
 
 export const SHOP_ADMIN_BASE = "/shop";

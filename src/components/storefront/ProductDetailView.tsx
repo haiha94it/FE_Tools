@@ -3,14 +3,31 @@
 import ProductBuyPanel from "@/components/storefront/ProductBuyPanel";
 import ProductGallery from "@/components/storefront/ProductGallery";
 import ProductStickyBar from "@/components/storefront/ProductStickyBar";
+import ProductTabs from "@/components/storefront/pdp/ProductTabs";
+import {
+  productSocialProof,
+  variantPrice,
+  variantStock,
+} from "@/components/storefront/pdp/pdp-utils";
 import StoreLoading from "@/components/storefront/StoreLoading";
 import StoreProductCard from "@/components/storefront/StoreProductCard";
+import StoreReveal from "@/components/storefront/StoreReveal";
 import StoreShell from "@/components/storefront/StoreShell";
+import { resolvePersonalization } from "@/lib/shop-personalization";
 import { isProductActive, shopImageUrl } from "@/lib/shop-utils";
 import { toast } from "@/lib/toast";
 import { zaloShopService } from "@/services/zalo-shop.service";
 import { useShopCartStore } from "@/stores/use-shop-cart-store";
-import type { ShopCover, ShopProduct, ShopProductVariant } from "@/types/zalo-shop";
+import {
+  resolvePDPConfig,
+  type PDPConfig,
+} from "@/types/pdp-template";
+import type {
+  ShopCover,
+  ShopPersonalizationData,
+  ShopProduct,
+  ShopProductVariant,
+} from "@/types/zalo-shop";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -19,8 +36,6 @@ interface ProductDetailViewProps {
   categoryId: number;
   productId: number;
 }
-
-type DetailTab = "description" | "shipping";
 
 export default function ProductDetailView({
   sellerId,
@@ -34,10 +49,12 @@ export default function ProductDetailView({
   const [cover, setCover] = useState<ShopCover | null>(null);
   const [product, setProduct] = useState<ShopProduct | null>(null);
   const [related, setRelated] = useState<ShopProduct[]>([]);
-  const [selectedVariant, setSelectedVariant] = useState<ShopProductVariant | null>(null);
+  const [personalization, setPersonalization] =
+    useState<ShopPersonalizationData | null>(null);
+  const [selectedVariant, setSelectedVariant] =
+    useState<ShopProductVariant | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<DetailTab>("description");
   const [showStickyBar, setShowStickyBar] = useState(false);
 
   const buyPanelRef = useRef<HTMLDivElement>(null);
@@ -46,16 +63,24 @@ export default function ProductDetailView({
     let cancelled = false;
     void (async () => {
       try {
-        const [coverData, productData] = await Promise.all([
+        const [coverData, productData, personalData] = await Promise.all([
           zaloShopService.getCover(sellerId),
           zaloShopService.listProducts({
             employeeId: sellerId,
             categoryId,
           }),
+          zaloShopService.getPersonalization(sellerId).catch(() => ({
+            id: null,
+            data: {},
+          })),
         ]);
         if (cancelled) return;
         setCover(coverData);
-        const found = productData.results.find((p) => p.id === productId) ?? null;
+        setPersonalization(
+          (personalData.data ?? {}) as ShopPersonalizationData,
+        );
+        const found =
+          productData.results.find((p) => p.id === productId) ?? null;
         setProduct(found);
         setSelectedVariant(found?.variants[0] ?? null);
         setRelated(
@@ -75,7 +100,6 @@ export default function ProductDetailView({
   useEffect(() => {
     const node = buyPanelRef.current;
     if (!node) return;
-
     const observer = new IntersectionObserver(
       ([entry]) => setShowStickyBar(!entry.isIntersecting),
       { threshold: 0, rootMargin: "0px 0px -80px 0px" },
@@ -84,6 +108,16 @@ export default function ProductDetailView({
     return () => observer.disconnect();
   }, [loading, product]);
 
+  const shopConfig = useMemo(
+    () => resolvePersonalization(personalization),
+    [personalization],
+  );
+
+  const pdp: PDPConfig = useMemo(
+    () => resolvePDPConfig(shopConfig.pdpTemplateId),
+    [shopConfig.pdpTemplateId],
+  );
+
   const displayPrice = useMemo(() => {
     if (!selectedVariant) return 0;
     return Number(selectedVariant.price);
@@ -91,9 +125,12 @@ export default function ProductDetailView({
 
   const maxQty = useMemo(() => {
     if (!selectedVariant) return 1;
-    const total = Number(selectedVariant.total_quantity);
-    const sold = Number(selectedVariant.sold_quantity ?? 0);
-    return Math.max(1, total - sold);
+    return Math.max(1, variantStock(selectedVariant));
+  }, [selectedVariant]);
+
+  const discountPct = useMemo(() => {
+    if (!selectedVariant) return 0;
+    return variantPrice(selectedVariant).discountPct;
   }, [selectedVariant]);
 
   const purchase = async (buyNow = false) => {
@@ -123,7 +160,9 @@ export default function ProductDetailView({
   if (!product) {
     return (
       <div className="store-theme store-mesh-bg flex min-h-screen flex-col items-center justify-center px-4 text-center">
-        <p className="store-display text-xl text-[var(--store-primary)]">Không tìm thấy sản phẩm</p>
+        <p className="store-display text-xl text-[var(--store-primary)]">
+          Không tìm thấy sản phẩm
+        </p>
         <Link
           href={`/store/${sellerId}`}
           className="mt-4 cursor-pointer text-sm font-medium text-[var(--store-accent)]"
@@ -136,143 +175,186 @@ export default function ProductDetailView({
 
   const images = product.images.map(shopImageUrl);
   const storeName = cover?.name || "Cửa hàng";
+  const proof = productSocialProof(product);
+  const templateId = pdp.templateId;
 
-  return (
-    <StoreShell sellerId={sellerId} cover={cover}>
-      <div className="mx-auto max-w-7xl px-4 pb-28 sm:px-6 lg:pb-16 lg:pt-2">
-        <nav className="flex flex-wrap items-center gap-2 text-sm">
-          <Link
-            href={`/store/${sellerId}`}
-            className="cursor-pointer font-medium text-[var(--store-muted)] transition hover:text-[var(--store-accent)]"
-          >
-            {storeName}
-          </Link>
-          <span className="text-[var(--store-muted)]/40">/</span>
-          <Link
-            href={`/store/${sellerId}/${categoryId}`}
-            className="cursor-pointer font-medium text-[var(--store-muted)] transition hover:text-[var(--store-accent)]"
-          >
-            Danh mục
-          </Link>
-          <span className="text-[var(--store-muted)]/40">/</span>
-          <span className="line-clamp-1 font-medium text-[var(--store-primary)]">{product.title}</span>
-        </nav>
+  const breadcrumb = (
+    <StoreReveal variant="fade" immediate delay={0}>
+      <nav className="flex flex-wrap items-center gap-2 text-sm">
+        <Link
+          href={`/store/${sellerId}`}
+          className="cursor-pointer font-medium text-[var(--store-muted)] transition hover:text-[var(--store-accent)]"
+        >
+          {storeName}
+        </Link>
+        <span className="text-[var(--store-muted)]/40">/</span>
+        <Link
+          href={`/store/${sellerId}/${categoryId}`}
+          className="cursor-pointer font-medium text-[var(--store-muted)] transition hover:text-[var(--store-accent)]"
+        >
+          Danh mục
+        </Link>
+        <span className="text-[var(--store-muted)]/40">/</span>
+        <span className="line-clamp-1 font-medium text-[var(--store-primary)]">
+          {product.title}
+        </span>
+      </nav>
+    </StoreReveal>
+  );
 
-        <div className="mt-6 grid gap-10 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:gap-14 xl:gap-20">
-          <ProductGallery images={images} title={product.title} />
+  const buyPanel = (
+    <div ref={buyPanelRef} className="store-anim-slide-left store-delay-2">
+      <ProductBuyPanel
+        product={product}
+        selectedVariant={selectedVariant}
+        onSelectVariant={setSelectedVariant}
+        quantity={quantity}
+        onQuantityChange={setQuantity}
+        maxQty={maxQty}
+        isLoading={isLoading}
+        onAddToCart={() => void purchase(false)}
+        onBuyNow={() => void purchase(true)}
+        panelStyle={pdp.buyPanelStyle}
+        showCountdown={pdp.showCountdownTimer || Boolean(product.is_flash_sale)}
+        showStockBar={pdp.showStockProgressBar}
+        dense={templateId === "dense-deal"}
+        minimal={templateId === "minimal-gallery"}
+      />
+    </div>
+  );
 
-          <div ref={buyPanelRef}>
-            <ProductBuyPanel
-              product={product}
-              selectedVariant={selectedVariant}
-              onSelectVariant={setSelectedVariant}
-              quantity={quantity}
-              onQuantityChange={setQuantity}
-              maxQty={maxQty}
-              isLoading={isLoading}
-              onAddToCart={() => void purchase(false)}
-              onBuyNow={() => void purchase(true)}
-            />
+  const galleryProps = {
+    images,
+    title: product.title,
+    product,
+    discountPct,
+    aspect: pdp.galleryAspect,
+  };
+
+  const tabs = (
+    <StoreReveal variant="up" delay={2}>
+      <ProductTabs
+        product={product}
+        layout={pdp.tabsLayout}
+        reviewCount={proof.reviews}
+      />
+    </StoreReveal>
+  );
+
+  const relatedBlock =
+    related.length > 0 ? (
+      <StoreReveal variant="up" delay={1} className="mt-14 sm:mt-20">
+        <section>
+          <div className="store-pdp-related-head flex flex-col gap-4 rounded-[2rem] px-6 py-7 sm:flex-row sm:items-end sm:justify-between sm:px-10">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--store-accent)]">
+                Gợi ý cho bạn
+              </p>
+              <h2 className="store-display mt-2 text-2xl text-white sm:text-3xl">
+                Có thể bạn thích
+              </h2>
+            </div>
+            <Link
+              href={`/store/${sellerId}/${categoryId}`}
+              className="inline-flex cursor-pointer items-center gap-2 text-sm font-medium text-white/70 transition hover:text-white"
+            >
+              Xem tất cả →
+            </Link>
           </div>
-        </div>
-
-        <section className="store-pdp-details mt-12 rounded-[2rem] p-6 sm:mt-16 sm:p-8">
-          <div className="flex gap-1 rounded-2xl bg-zinc-100/80 p-1">
-            {(
-              [
-                { id: "description" as const, label: "Mô tả sản phẩm" },
-                { id: "shipping" as const, label: "Giao hàng & đổi trả" },
-              ] as const
-            ).map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex-1 cursor-pointer rounded-xl px-4 py-2.5 text-sm font-semibold transition-all duration-200 ${
-                  activeTab === tab.id
-                    ? "bg-white text-[var(--store-primary)] shadow-sm"
-                    : "text-[var(--store-muted)] hover:text-[var(--store-primary)]"
-                }`}
-              >
-                {tab.label}
-              </button>
+          <div className="mt-7 grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-4">
+            {related.map((item, index) => (
+              <StoreProductCard
+                key={item.id}
+                product={item}
+                sellerId={sellerId}
+                categoryId={categoryId}
+                index={index}
+              />
             ))}
           </div>
-
-          <div className="mt-6">
-            {activeTab === "description" ? (
-              product.description ? (
-                <div className="whitespace-pre-wrap text-sm leading-[1.8] text-[var(--store-primary)]/85 sm:text-base">
-                  {product.description}
-                </div>
-              ) : (
-                <p className="text-sm text-[var(--store-muted)]">Chưa có mô tả cho sản phẩm này.</p>
-              )
-            ) : (
-              <ul className="space-y-4 text-sm leading-relaxed text-[var(--store-primary)]/85 sm:text-base">
-                <li className="flex gap-3">
-                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--store-accent)]" />
-                  Giao hàng toàn quốc, thời gian 2–5 ngày làm việc tùy khu vực.
-                </li>
-                <li className="flex gap-3">
-                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--store-accent)]" />
-                  Hỗ trợ thanh toán COD — kiểm tra hàng trước khi thanh toán.
-                </li>
-                <li className="flex gap-3">
-                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--store-accent)]" />
-                  Đổi trả trong 7 ngày nếu sản phẩm lỗi hoặc không đúng mô tả.
-                </li>
-                {product.phone_number ? (
-                  <li className="flex gap-3">
-                    <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--store-accent)]" />
-                    Liên hệ hỗ trợ:{" "}
-                    <a
-                      href={`tel:${product.phone_number}`}
-                      className="font-semibold text-[var(--store-accent)]"
-                    >
-                      {product.phone_number}
-                    </a>
-                  </li>
-                ) : null}
-              </ul>
-            )}
-          </div>
         </section>
+      </StoreReveal>
+    ) : null;
 
-        {related.length > 0 ? (
-          <section className="mt-16 sm:mt-24">
-            <div className="store-pdp-related-head flex flex-col gap-4 rounded-[2rem] px-6 py-8 sm:flex-row sm:items-end sm:justify-between sm:px-10">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--store-accent)]">
-                  Gợi ý cho bạn
-                </p>
-                <h2 className="store-display mt-2 text-2xl text-white sm:text-3xl">
-                  Có thể bạn thích
-                </h2>
-              </div>
-              <Link
-                href={`/store/${sellerId}/${categoryId}`}
-                className="inline-flex cursor-pointer items-center gap-2 text-sm font-medium text-white/70 transition hover:text-white"
-              >
-                Xem tất cả
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M5 12h14M12 5l7 7-7 7" />
-                </svg>
-              </Link>
-            </div>
-            <div className="mt-8 grid grid-cols-2 gap-4 sm:gap-5 lg:grid-cols-4">
-              {related.map((item, index) => (
-                <StoreProductCard
-                  key={item.id}
-                  product={item}
-                  sellerId={sellerId}
-                  categoryId={categoryId}
-                  index={index}
-                />
-              ))}
-            </div>
-          </section>
-        ) : null}
+  /** TEMPLATE: dense-deal — flash banner top */
+  const denseBanner =
+    templateId === "dense-deal" ? (
+      <div className="store-anim-fade-up store-delay-1 mb-4 rounded-xl bg-gradient-to-r from-orange-600 via-rose-600 to-pink-600 px-4 py-3 text-center text-sm font-extrabold text-white shadow-md sm:text-base">
+        FLASH SALE · {proof.soldLabel}+ đã bán · Ưu đãi có hạn
+      </div>
+    ) : null;
+
+  /** TEMPLATE: editorial-story — stacked gallery + fixed sidebar buy */
+  const mainContent = (() => {
+    if (templateId === "editorial-story") {
+      return (
+        <div className="mt-6 grid gap-8 lg:grid-cols-[minmax(0,1.15fr)_minmax(280px,0.85fr)] lg:items-start lg:gap-10">
+          <div className="store-anim-slide-right store-delay-1">
+            <ProductGallery
+              {...galleryProps}
+              layout="stacked"
+              sticky={false}
+            />
+          </div>
+          <div className="lg:sticky lg:top-24 lg:self-start">{buyPanel}</div>
+        </div>
+      );
+    }
+
+    if (templateId === "minimal-gallery") {
+      return (
+        <div className="mt-8 space-y-10">
+          <div className="store-anim-scale-in store-delay-1">
+            <ProductGallery
+              {...galleryProps}
+              aspect="square"
+              layout="mosaic-grid"
+              sticky={false}
+            />
+          </div>
+          <div className="mx-auto max-w-xl border-y border-neutral-200 py-8">
+            {buyPanel}
+          </div>
+        </div>
+      );
+    }
+
+    // bento-tech + dense-deal: classic 2-col
+    return (
+      <div
+        className={`mt-6 grid gap-8 lg:gap-12 ${
+          templateId === "dense-deal"
+            ? "lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]"
+            : "lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] xl:gap-16"
+        }`}
+      >
+        <div className="store-anim-slide-right store-delay-1">
+          <ProductGallery
+            {...galleryProps}
+            layout="thumbs"
+            sticky
+          />
+        </div>
+        {buyPanel}
+      </div>
+    );
+  })();
+
+  return (
+    <StoreShell
+      sellerId={sellerId}
+      cover={cover}
+      personalization={personalization}
+    >
+      <div
+        className="mx-auto max-w-7xl px-4 pb-28 sm:px-6 lg:pb-16 lg:pt-2"
+        data-pdp-template={templateId}
+      >
+        {breadcrumb}
+        {denseBanner}
+        {mainContent}
+        <div className="mt-4">{tabs}</div>
+        {relatedBlock}
       </div>
 
       <ProductStickyBar

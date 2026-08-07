@@ -147,6 +147,7 @@ export function showMessengerGlobalToast(input: MessengerGlobalToastInput) {
     {
       id: input.toastId,
       duration: 8000,
+      position: "top-left",
       className: "messenger-global-toast",
       unstyled: true,
     },

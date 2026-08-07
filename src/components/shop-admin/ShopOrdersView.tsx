@@ -305,6 +305,14 @@ export default function ShopOrdersView() {
     [],
   );
 
+  const totalRevenue = useMemo(() => {
+    return orders.reduce((sum, o) => sum + (Number(o.total_amount) || 0), 0);
+  }, [orders]);
+
+  const pendingCount = useMemo(() => orders.filter((o) => Number(o.status) === 2).length, [orders]);
+  const confirmedCount = useMemo(() => orders.filter((o) => Number(o.status) === 1).length, [orders]);
+  const cancelledCount = useMemo(() => orders.filter((o) => Number(o.status) === 0).length, [orders]);
+
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden">
       <PageBreadcrumb
@@ -315,17 +323,17 @@ export default function ShopOrdersView() {
       <div
         className={`custom-scrollbar ${adminDataPanelClass} flex min-h-0 flex-1 flex-col overflow-hidden`}
       >
-        <div className="mb-4 flex shrink-0 flex-col gap-3 border-b border-gray-100 pb-4 dark:border-gray-800">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mb-4 flex shrink-0 flex-col gap-4 border-b border-gray-100 pb-4 dark:border-gray-800">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h2 className="text-base font-semibold text-gray-800 dark:text-white/90">
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white">
                 Quản lý đơn hàng
               </h2>
               <p className="text-xs text-gray-500">
-                {count} đơn · status 0 hủy · 1 xác nhận · 2 chờ
+                Theo dõi & xử lý đơn hàng từ Storefront trực tuyến
               </p>
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <Button size="sm" variant="outline" onClick={() => void loadOrders()}>
                 Làm mới
               </Button>
@@ -337,17 +345,48 @@ export default function ShopOrdersView() {
                   size="sm"
                   variant="outline"
                   onClick={() => void handleDelete(selectedIds)}
-                  className="!text-error-600"
+                  className="!text-error-600 border-error-200 hover:bg-error-50"
                 >
                   Xóa đã chọn ({selectedIds.length})
                 </Button>
               ) : null}
               <Link
                 href="/shop"
-                className="inline-flex min-h-9 items-center text-sm font-medium text-brand-600 hover:text-brand-700"
+                className="inline-flex min-h-9 items-center rounded-lg bg-gray-100 px-3 text-xs font-semibold text-gray-700 transition hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-200"
               >
-                ← Cửa hàng
+                ← Về Cửa hàng
               </Link>
+            </div>
+          </div>
+
+          {/* Inline Metric Stats Bar */}
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-xl bg-gray-50 p-3 dark:bg-gray-800/50 text-xs">
+            <div className="flex items-center gap-2">
+              <span className="text-gray-500">Tổng số đơn:</span>
+              <span className="font-bold text-gray-900 dark:text-white tabular-nums">{count}</span>
+            </div>
+            <div className="h-3 w-px bg-gray-200 dark:bg-gray-700" />
+            <div className="flex items-center gap-2">
+              <span className="flex h-2 w-2 rounded-full bg-warning-500" />
+              <span className="text-gray-500">Chờ xác nhận:</span>
+              <span className="font-bold text-warning-600 dark:text-warning-400 tabular-nums">{pendingCount}</span>
+            </div>
+            <div className="h-3 w-px bg-gray-200 dark:bg-gray-700" />
+            <div className="flex items-center gap-2">
+              <span className="flex h-2 w-2 rounded-full bg-success-500" />
+              <span className="text-gray-500">Đã xác nhận:</span>
+              <span className="font-bold text-success-600 dark:text-success-400 tabular-nums">{confirmedCount}</span>
+            </div>
+            <div className="h-3 w-px bg-gray-200 dark:bg-gray-700" />
+            <div className="flex items-center gap-2">
+              <span className="flex h-2 w-2 rounded-full bg-error-500" />
+              <span className="text-gray-500">Đã hủy:</span>
+              <span className="font-bold text-error-600 dark:text-error-400 tabular-nums">{cancelledCount}</span>
+            </div>
+            <div className="h-3 w-px bg-gray-200 dark:bg-gray-700" />
+            <div className="flex items-center gap-2 ml-auto">
+              <span className="text-gray-500">Doanh thu trang này:</span>
+              <span className="font-bold text-brand-600 dark:text-brand-400 tabular-nums">{formatVnd(totalRevenue)}</span>
             </div>
           </div>
 
@@ -361,9 +400,9 @@ export default function ShopOrdersView() {
                     setStatusFilter(tab.value);
                     setPage(1);
                   }}
-                  className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                  className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
                     statusFilter === tab.value
-                      ? "bg-brand-500 text-white"
+                      ? "bg-brand-500 text-white shadow-xs"
                       : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300"
                   }`}
                 >
@@ -379,7 +418,7 @@ export default function ShopOrdersView() {
                   setEmployeeFilter(v === "" ? "" : Number(v));
                   setPage(1);
                 }}
-                className="h-9 rounded-lg border border-gray-200 bg-white px-2 text-xs dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+                className="h-9 rounded-lg border border-gray-200 bg-white px-2.5 text-xs dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
               >
                 <option value="">Tất cả nhân viên + tôi</option>
                 {employees.map((emp) => (
@@ -393,7 +432,7 @@ export default function ShopOrdersView() {
               <Input
                 value={keyword}
                 onChange={(e) => setKeyword(e.target.value)}
-                placeholder="Tìm SP / phân loại…"
+                placeholder="Tìm tên / SĐT / địa chỉ..."
                 className="flex-1"
               />
               <Button

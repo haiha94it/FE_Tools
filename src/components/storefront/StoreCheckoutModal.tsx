@@ -35,7 +35,8 @@ export default function StoreCheckoutModal() {
   });
 
   useEffect(() => {
-    setMounted(true);
+    const timer = setTimeout(() => setMounted(true), 0);
+    return () => clearTimeout(timer);
   }, []);
 
   useEffect(() => {
@@ -44,10 +45,7 @@ export default function StoreCheckoutModal() {
   }, [isOpen]);
 
   useEffect(() => {
-    if (!selectedCityId) {
-      setWards([]);
-      return;
-    }
+    if (!selectedCityId) return;
     void zaloShopService.listWards(selectedCityId).then(setWards);
   }, [selectedCityId]);
 

@@ -142,47 +142,67 @@ export default function ShopAdminView({ categoryId }: ShopAdminViewProps) {
       />
 
       <div className={`${adminDataPanelClass} flex min-h-0 flex-1 flex-col gap-4`}>
-        <div className="flex flex-col gap-3 border-b border-gray-100 pb-4 sm:flex-row sm:items-start sm:justify-between dark:border-gray-800">
+        <div className="flex flex-col gap-4 border-b border-gray-100 pb-5 sm:flex-row sm:items-center sm:justify-between dark:border-gray-800">
           <div className="min-w-0">
-            <h2 className="truncate text-base font-semibold text-gray-800 dark:text-white/90">
-              {cover?.name || "Cửa hàng"}
-            </h2>
-            <p className="text-sm text-gray-500">
-              Quản lý danh mục, sản phẩm và liên kết bán hàng
-            </p>
-            {domain !== null ? (
-              <button
-                type="button"
-                onClick={() => setDomainModalOpen(true)}
-                className="mt-1.5 inline-flex max-w-full items-center gap-1.5 text-left text-xs text-gray-500 transition hover:text-brand-600 dark:hover:text-brand-400"
-              >
-                <span
-                  className={`inline-block h-1.5 w-1.5 shrink-0 rounded-full ${
-                    domain ? "bg-success-500" : "bg-warning-500"
+            <div className="flex items-center gap-2.5">
+              <h2 className="truncate text-lg font-bold text-gray-900 dark:text-white">
+                {cover?.name || "Quản lý Cửa hàng"}
+              </h2>
+              {domain !== null ? (
+                <button
+                  type="button"
+                  onClick={() => setDomainModalOpen(true)}
+                  className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold transition ${
+                    domain
+                      ? "bg-success-50 text-success-700 dark:bg-success-500/10 dark:text-success-400"
+                      : "bg-warning-50 text-warning-700 dark:bg-warning-500/10 dark:text-warning-300"
                   }`}
-                />
-                <span className="truncate">
-                  {domain
-                    ? `Domain: ${domain}`
-                    : "Chưa cấu hình tên miền — nhấn để setup"}
-                </span>
-              </button>
-            ) : null}
+                >
+                  <span
+                    className={`h-1.5 w-1.5 rounded-full ${
+                      domain ? "bg-success-500" : "bg-warning-500"
+                    }`}
+                  />
+                  {domain ? domain : "Chưa gắn tên miền"}
+                </button>
+              ) : null}
+            </div>
+            <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
+              <span>Quản lý danh mục, sản phẩm & đơn hàng trực tuyến</span>
+              {userId ? (
+                <>
+                  <span>•</span>
+                  <Link
+                    href={`/store/${userId}`}
+                    target="_blank"
+                    className="inline-flex items-center gap-1 text-brand-600 hover:underline dark:text-brand-400 font-medium"
+                  >
+                    Xem Storefront ➔
+                  </Link>
+                </>
+              ) : null}
+            </div>
           </div>
           <div className="grid w-full shrink-0 grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center">
+            <Link
+              href="/shop/theme"
+              className="inline-flex min-h-10 touch-manipulation items-center justify-center gap-1.5 rounded-lg border border-brand-200 bg-brand-50 px-3.5 py-2 text-xs font-semibold text-brand-700 shadow-sm transition hover:bg-brand-100 dark:border-brand-500/30 dark:bg-brand-500/10 dark:text-brand-300 sm:min-h-0"
+            >
+              Theme & Template
+            </Link>
             <button
               type="button"
               onClick={() => setSettingsOpen(true)}
-              className="min-h-11 touch-manipulation rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-white/[0.03] sm:min-h-0"
+              className="min-h-10 touch-manipulation rounded-lg border border-gray-200 bg-white px-3.5 py-2 text-xs font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-750 sm:min-h-0"
             >
-              Cài đặt shop
+              Cài đặt Bìa & Logo
             </button>
             <button
               type="button"
               onClick={() => setDomainModalOpen(true)}
-              className={`min-h-11 touch-manipulation rounded-lg border px-3 py-2 text-sm font-medium transition sm:min-h-0 ${
+              className={`min-h-10 touch-manipulation rounded-lg border px-3.5 py-2 text-xs font-semibold transition shadow-sm sm:min-h-0 ${
                 domain
-                  ? "border-gray-200 text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-white/[0.03]"
+                  ? "border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
                   : "border-warning-300 bg-warning-50 text-warning-700 hover:bg-warning-100 dark:border-warning-700 dark:bg-warning-500/10 dark:text-warning-300"
               }`}
             >
@@ -194,21 +214,21 @@ export default function ShopAdminView({ categoryId }: ShopAdminViewProps) {
                 onClick={() => void handleLoadGeo()}
                 disabled={loadingGeo}
                 title="Import Vietnam_province_new.json vào DB (chỉ khi chưa có tỉnh)"
-                className="min-h-11 touch-manipulation rounded-lg border border-brand-200 bg-brand-50 px-3 py-2 text-sm font-medium text-brand-700 transition hover:bg-brand-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-brand-500/30 dark:bg-brand-500/10 dark:text-brand-300 sm:min-h-0"
+                className="min-h-10 touch-manipulation rounded-lg border border-brand-200 bg-brand-50 px-3.5 py-2 text-xs font-semibold text-brand-700 transition hover:bg-brand-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-brand-500/30 dark:bg-brand-500/10 dark:text-brand-300 sm:min-h-0"
               >
                 {loadingGeo ? "Đang đồng bộ…" : "Đồng bộ địa giới VN"}
               </button>
             ) : null}
             <Link
               href="/shop/orders"
-              className="inline-flex min-h-11 touch-manipulation items-center justify-center rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-white/[0.03] sm:min-h-0"
+              className="inline-flex min-h-10 touch-manipulation items-center justify-center rounded-lg border border-gray-200 bg-white px-3.5 py-2 text-xs font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-750 sm:min-h-0"
             >
               Đơn hàng
             </Link>
             {categoryId ? (
               <Link
                 href={`/shop/categories/${categoryId}/products/new`}
-                className="col-span-2 inline-flex min-h-11 touch-manipulation items-center justify-center rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-600 sm:col-span-1 sm:min-h-0"
+                className="col-span-2 inline-flex min-h-10 touch-manipulation items-center justify-center gap-1.5 rounded-lg bg-brand-500 px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-brand-600 sm:col-span-1 sm:min-h-0"
               >
                 + Thêm sản phẩm
               </Link>
