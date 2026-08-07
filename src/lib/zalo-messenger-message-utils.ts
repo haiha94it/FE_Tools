@@ -108,11 +108,11 @@ function normalizeMessageQuote(quote: unknown): DisplayMessage["quote"] {
 }
 
 /** URL ảnh sticker Zalo từ eid (id / id_sticker trong payload WS).
- * size=128: đủ nét cho bubble ~64–80px, tránh request quá lớn + vỡ nét upscale.
+ * size=130: CDN webpc trả GIF thật (~11KB). size=64/128/256 với eid nhỏ hay trả body 5B rỗng.
  */
 export function buildZaloStickerImageUrl(
   stickerId: string | number | null | undefined,
-  size = 128,
+  size = 130,
 ): string | null {
   if (stickerId == null || stickerId === "") return null;
   return `https://zalo-api.zadn.vn/api/emoticon/sticker/webpc?eid=${encodeURIComponent(String(stickerId))}&size=${size}`;
