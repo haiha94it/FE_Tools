@@ -60,38 +60,40 @@ export default function VariantPicker({
               onClick={() => onSelect(variant)}
               className={`store-press cursor-pointer rounded-2xl border px-3.5 py-3 text-left transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-40 ${
                 isSelected
-                  ? "border-[var(--store-primary)] bg-[var(--store-primary)] text-white shadow-md"
-                  : "border-slate-200 bg-white hover:border-[var(--store-accent)]/50 hover:shadow-sm hover:-translate-y-0.5"
+                  ? "border-stone-900 bg-stone-900 text-white shadow-md dark:border-white dark:bg-white dark:text-stone-950"
+                  : "border-stone-200 bg-white text-stone-900 hover:border-stone-400 hover:shadow-sm dark:border-stone-800 dark:bg-stone-900 dark:text-white"
               }`}
             >
               <span
                 className={`block text-sm font-bold ${
-                  isSelected ? "text-white" : "text-[var(--store-primary)]"
+                  isSelected ? "text-white dark:text-stone-950" : "text-stone-900 dark:text-white"
                 }`}
               >
                 {variant.classify}
               </span>
               <span
                 className={`mt-0.5 flex flex-wrap items-center gap-1.5 text-xs ${
-                  isSelected ? "text-white/80" : "text-[var(--store-muted)]"
+                  isSelected
+                    ? "text-stone-200 dark:text-stone-700"
+                    : "text-stone-500 dark:text-stone-400"
                 }`}
               >
                 <span className="font-semibold">{formatVnd(vp.display)}</span>
                 {out ? (
-                  <span className="rounded bg-rose-100 px-1.5 py-0.5 text-[10px] font-bold text-rose-700">
+                  <span className="rounded bg-rose-100 px-1.5 py-0.5 text-[10px] font-bold text-rose-700 dark:bg-rose-950/40 dark:text-rose-400">
                     Hết hàng
                   </span>
                 ) : (
                   <span
                     className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${
                       isSelected
-                        ? "bg-white/20 text-white"
+                        ? "bg-white/20 text-white dark:bg-stone-900/20 dark:text-stone-900"
                         : stock <= 5
-                          ? "bg-amber-50 text-amber-700"
-                          : "bg-emerald-50 text-emerald-700"
+                          ? "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400"
+                          : "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"
                     }`}
                   >
-                    {stock <= 5 ? `Còn ${stock}` : `In stock (${stock})`}
+                    {stock <= 5 ? `Còn ${stock}` : `Còn ${stock}`}
                   </span>
                 )}
               </span>

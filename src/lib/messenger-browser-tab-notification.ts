@@ -29,17 +29,32 @@ function isBrowser(): boolean {
   return typeof window !== "undefined" && typeof document !== "undefined";
 }
 
+function cleanTitleCount(title: string): string {
+  return title
+    .replace(/^\(\d+\)\s*/, "")
+    .replace(/^Zalo\s*·\s*/, "")
+    .replace(/^●\s*/, "")
+    .trim();
+}
+
 function captureBaseTitle() {
   if (!isBrowser()) return;
   const current = document.title || DEFAULT_BASE_TITLE;
-  if (!/^\(\d+\)\s/.test(current) && current !== "● Tin nhắn mới") {
-    baseTitle = current || DEFAULT_BASE_TITLE;
+  const cleaned = cleanTitleCount(current);
+  if (cleaned) {
+    baseTitle = cleaned;
+  }
+  if (/^\(\d+\)/.test(document.title)) {
+    document.title = document.title.replace(/^\(\d+\)\s*/, "");
   }
 }
 
 function ensureVisibilityListener() {
   if (!isBrowser() || visibilityBound) return;
   visibilityBound = true;
+  if (/^\(\d+\)/.test(document.title)) {
+    document.title = document.title.replace(/^\(\d+\)\s*/, "");
+  }
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden) {
       stopFlash();
@@ -132,12 +147,13 @@ function restoreFavicon() {
 
 function applyTitle() {
   if (!isBrowser()) return;
+  const clean = cleanTitleCount(baseTitle);
   if (unreadCount <= 0) {
-    document.title = baseTitle;
+    document.title = clean;
     return;
   }
   const preview = latestLine || "Tin nhắn mới";
-  document.title = `(${unreadCount}) ${preview} · ${baseTitle}`;
+  document.title = `${preview} · ${clean}`;
 }
 
 function stopFlash() {
@@ -157,6 +173,7 @@ function startFlash() {
 
   stopFlash();
   flashShowAlert = true;
+  const clean = cleanTitleCount(baseTitle);
   flashTimer = setInterval(() => {
     if (!isBrowser() || unreadCount <= 0) {
       stopFlash();
@@ -168,8 +185,8 @@ function startFlash() {
       return;
     }
     document.title = flashShowAlert
-      ? `(${unreadCount}) ${latestLine || "Tin nhắn mới"}`
-      : baseTitle;
+      ? `${latestLine || "Tin nhắn mới"}`
+      : clean;
     flashShowAlert = !flashShowAlert;
   }, 1100);
 }
@@ -196,7 +213,7 @@ export function clearMessengerTabAlert() {
   latestLine = "";
   stopFlash();
   captureBaseTitle();
-  document.title = baseTitle;
+  document.title = cleanTitleCount(baseTitle);
   restoreFavicon();
 }
 

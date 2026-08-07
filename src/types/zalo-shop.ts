@@ -342,6 +342,12 @@ export interface ShopPersonalizationData {
    * @see PDPTemplateType in types/pdp-template.ts
    */
   pdpTemplateId?: string;
+  /** Thông tin liên hệ & mạng xã hội */
+  contactPhone?: string;
+  contactZalo?: string;
+  contactFacebook?: string;
+  contactWebsite?: string;
+  contactAddress?: string;
 }
 
 /** Envelope row personalization từ BE */

@@ -433,7 +433,7 @@ function MessageContent({
     body = !videoSrc ? (
       <span className="text-sm">Video</span>
     ) : (
-      <div className="space-y-1">
+      <div className="w-full max-w-[min(100%,260px)] space-y-1">
         <VideoMessageContent
           src={videoSrc}
           thumb={attachment?.thumb}
@@ -450,7 +450,7 @@ function MessageContent({
     const thumb = attachment.thumb || attachment.href;
     const fullSrc = attachment.href || thumb;
     body = (
-      <div className="space-y-1">
+      <div className="w-full max-w-[min(100%,260px)] space-y-1">
         <button
           type="button"
           onClick={() =>
@@ -460,14 +460,14 @@ function MessageContent({
               title: text || attachment.title,
             })
           }
-          className="block max-w-full overflow-hidden rounded-xl transition hover:opacity-90"
+          className="block w-full overflow-hidden rounded-xl transition hover:opacity-90"
         >
           <Image
             src={thumb}
             alt="Ảnh"
             width={220}
             height={220}
-            className="h-auto max-h-56 max-w-full min-h-0 cursor-zoom-in rounded-xl object-cover"
+            className="h-auto max-h-56 w-full min-h-0 cursor-zoom-in rounded-xl object-cover"
             unoptimized
           />
         </button>
@@ -622,10 +622,12 @@ export function MessageList({
         const centered = isCenteredChatMessage(message);
         const isGroupMedia = message.msgType === "group.media";
         const shell = getMessageBubbleShell(message);
+        /** Ảnh/video/sticker/gif — meta ngoài bubble, sát lề hơn tin text */
+        const isMediaShell = shell === "media" || isGroupMedia;
         // Tin gửi: nền xanh nhạt + chữ tối (Zalo PC) — meta luôn tone sáng
         const ownLightBubble =
           own && (shell === "text" || shell === "card");
-        const onLightMeta = ownLightBubble || shell === "media" || !own;
+        const onLightMeta = ownLightBubble || isMediaShell || !own;
 
         return (
           <div
@@ -664,14 +666,20 @@ export function MessageList({
             ) : (
             <div
               className={`group/row relative flex w-full min-w-0 items-end overflow-visible ${
-                isGroupMedia ? "max-md:gap-0 md:gap-2" : "gap-1.5 sm:gap-2"
-              } ${own ? "justify-end max-md:pl-10 max-md:pr-1 sm:pl-12" : "justify-start max-md:pr-10 max-md:pl-1 sm:pr-12"} ${
-                compact ? "mt-1" : "mt-2.5 sm:mt-3"
-              }`}
+                isMediaShell ? "max-md:gap-0 md:gap-2" : "gap-1.5 sm:gap-2"
+              } ${
+                own
+                  ? isMediaShell
+                    ? "justify-end max-md:pl-8 max-md:pr-0 sm:pl-10 sm:pr-0"
+                    : "justify-end max-md:pl-10 max-md:pr-1 sm:pl-12"
+                  : isMediaShell
+                    ? "justify-start max-md:pr-8 max-md:pl-0 sm:pr-10 sm:pl-0"
+                    : "justify-start max-md:pr-10 max-md:pl-1 sm:pr-12"
+              } ${compact ? "mt-1" : "mt-2.5 sm:mt-3"}`}
             >
               {showAvatar ? (
                 <div
-                  className={`w-8 shrink-0 ${isGroupMedia ? "max-md:hidden" : ""}`}
+                  className={`w-8 shrink-0 ${isMediaShell ? "max-md:hidden" : ""}`}
                 >
                   {!compact ? (
                     <ContactAvatar
@@ -688,13 +696,15 @@ export function MessageList({
                 className={`flex min-w-0 flex-col ${
                   isGroupMedia
                     ? "w-full max-w-[min(88vw,360px)] sm:max-w-[min(90%,420px)]"
-                    : "max-w-[min(75vw,280px)] sm:max-w-[min(82%,320px)] md:max-w-[min(88%,360px)]"
+                    : isMediaShell
+                      ? "max-w-[min(78vw,280px)] sm:max-w-[min(85%,300px)] md:max-w-[min(90%,320px)]"
+                      : "max-w-[min(75vw,280px)] sm:max-w-[min(82%,320px)] md:max-w-[min(88%,360px)]"
                 } ${own ? "items-end" : "items-start"}`}
               >
                 {showSenderHeader ? (
                   <p
                     className={`mb-1 text-[11px] font-medium text-gray-500 dark:text-gray-400 ${
-                      isGroupMedia ? "px-0.5" : "px-1"
+                      isMediaShell ? "px-0.5" : "px-1"
                     }`}
                   >
                     {senderName}
@@ -702,8 +712,8 @@ export function MessageList({
                 ) : null}
 
                 <div
-                  className={`relative w-max min-w-0 max-w-full ${
-                    isGroupMedia ? "w-full" : ""
+                  className={`relative min-w-0 max-w-full ${
+                    isGroupMedia ? "w-full" : "w-max"
                   } ${own ? "max-md:mr-0" : "max-md:ml-0"}`}
                 >
                   <div
@@ -726,10 +736,11 @@ export function MessageList({
                     <QuotePreview message={message} />
                     <MessageContent
                       message={message}
-                      own={false}
+                      own={own}
                       onOpenPreview={setPreviewItem}
                     />
-                    {!isGroupMedia ? (
+                    {/* Text/card: meta trong bubble; media: meta ngoài để video/ảnh sát lề */}
+                    {!isMediaShell ? (
                       <MessageMetaFooter
                         message={message}
                         own={own}
@@ -790,21 +801,20 @@ export function MessageList({
                     }
                   />
                 </div>
-                {isGroupMedia ? (
+                {isMediaShell ? (
                   <MessageMetaFooter
                     message={message}
                     own={own}
+                    onLight
                     sentByLabel={sentByLabel}
-                    className="mt-1.5 max-md:justify-start md:justify-end"
+                    className={`mt-1 ${own ? "justify-end" : "justify-start"}`}
                   />
                 ) : null}
               </div>
 
-              {isGroup && own ? (
-                <span
-                  className={`w-8 shrink-0 ${isGroupMedia ? "max-md:hidden" : ""}`}
-                  aria-hidden="true"
-                />
+              {/* Media (video/ảnh): không chèn spacer w-8 — sát lề phải/trái như Zalo */}
+              {isGroup && own && !isMediaShell ? (
+                <span className="w-8 shrink-0" aria-hidden="true" />
               ) : null}
             </div>
             )}

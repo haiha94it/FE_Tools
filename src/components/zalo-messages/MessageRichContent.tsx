@@ -698,7 +698,7 @@ export function VideoMessageContent({
           title,
         })
       }
-      className="group relative block max-w-[min(100%,260px)] overflow-hidden rounded-xl bg-gray-900/90"
+      className="group relative block w-full max-w-[min(100%,260px)] overflow-hidden rounded-xl bg-gray-900/90"
     >
       {thumb ? (
         <Image

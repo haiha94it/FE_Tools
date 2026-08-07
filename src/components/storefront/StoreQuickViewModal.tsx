@@ -24,7 +24,8 @@ export default function StoreQuickViewModal({
   const openCheckout = useShopCartStore((s) => s.openCheckout);
   const isLoading = useShopCartStore((s) => s.isLoading);
 
-  const [userSelectedVariant, setUserSelectedVariant] = useState<ShopProductVariant | null>(null);
+  const [userSelectedVariant, setUserSelectedVariant] =
+    useState<ShopProductVariant | null>(null);
   const [quantity, setQuantity] = useState(1);
 
   if (!product) return null;
@@ -32,7 +33,11 @@ export default function StoreQuickViewModal({
   const selectedVariant = userSelectedVariant ?? product.variants[0] ?? null;
 
   const maxQty = selectedVariant
-    ? Math.max(0, Number(selectedVariant.total_quantity) - Number(selectedVariant.sold_quantity ?? 0))
+    ? Math.max(
+        0,
+        Number(selectedVariant.total_quantity) -
+          Number(selectedVariant.sold_quantity ?? 0),
+      )
     : 99;
 
   const handlePurchase = async (isBuyNow: boolean) => {
@@ -42,7 +47,11 @@ export default function StoreQuickViewModal({
         id_employee: Number(sellerId),
         options: [{ id_variant: selectedVariant.id, quantity }],
       });
-      toast.success(isBuyNow ? "Đang chuyển đến trang thanh toán" : "Đã thêm vào giỏ hàng!");
+      toast.success(
+        isBuyNow
+          ? "Đang chuyển đến trang thanh toán"
+          : "Đã thêm vào giỏ hàng!",
+      );
       onClose();
       if (isBuyNow) {
         openCheckout();
@@ -57,18 +66,23 @@ export default function StoreQuickViewModal({
       isOpen={Boolean(product)}
       onClose={onClose}
       layer="top"
-      className="max-w-4xl overflow-y-auto rounded-3xl p-5 sm:p-7 dark:bg-slate-900"
+      showCloseButton={false}
+      className="max-w-4xl overflow-y-auto rounded-3xl border border-stone-200/90 bg-white p-5 shadow-2xl dark:border-stone-800 dark:bg-stone-900 sm:p-7"
     >
-      <div className="flex items-center justify-between border-b border-slate-100 pb-4 dark:border-slate-800">
-        <div className="flex items-center gap-2">
-          <span className="rounded-full bg-rose-50 px-2.5 py-0.5 text-xs font-bold text-rose-600 dark:bg-rose-500/10 dark:text-rose-400">
+      <div className="flex items-center justify-between border-b border-stone-100 pb-4 dark:border-stone-800">
+        <div className="flex items-center gap-2.5">
+          <span className="rounded-full bg-amber-400 px-3 py-1 text-xs font-bold uppercase text-stone-950">
             ⚡ Xem nhanh sản phẩm
+          </span>
+          <span className="hidden sm:inline-flex items-center gap-1 rounded-full bg-stone-100 px-3 py-1 text-[11px] font-bold text-stone-700 dark:bg-stone-800 dark:text-stone-300">
+            ⭐ 100% Chính Hãng
           </span>
         </div>
         <button
           type="button"
           onClick={onClose}
-          className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300"
+          aria-label="Đóng cửa sổ"
+          className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-stone-100 text-stone-500 hover:bg-stone-200 dark:bg-stone-800 dark:text-stone-300"
         >
           ✕
         </button>

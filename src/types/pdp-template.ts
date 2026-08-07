@@ -38,8 +38,8 @@ export const PDP_TEMPLATE_PRESETS: {
     id: "bento-tech",
     name: "Bento Tech PDP",
     description:
-      "2 cột 55/45 · gallery sticky · buy panel card · tabs ngang · premium electronics",
-    inspiredBy: "Apple / Premium Electronics",
+      "2 cột 55/45 · gallery dính cố định · bảng mua hàng dạng thẻ · tab thông tin ngang · đồ điện tử cao cấp",
+    inspiredBy: "Phong cách Apple / Đồ điện tử cao cấp",
     config: {
       templateId: "bento-tech",
       galleryPosition: "left",
@@ -54,8 +54,8 @@ export const PDP_TEMPLATE_PRESETS: {
     id: "dense-deal",
     name: "Dense Deal PDP",
     description:
-      "Banner flash full-width · countdown · stock bar · voucher · typography compact",
-    inspiredBy: "Amazon / Shopee Flash",
+      "Banner flash sale tràn lề · đếm ngược · thanh tồn kho · mã giảm giá · chữ gọn gàng",
+    inspiredBy: "Phong cách Shopee / Săn Flash Sale",
     config: {
       templateId: "dense-deal",
       galleryPosition: "left",
@@ -70,8 +70,8 @@ export const PDP_TEMPLATE_PRESETS: {
     id: "editorial-story",
     name: "Editorial Story PDP",
     description:
-      "Ảnh dọc stack full · buy panel float cố định · headline serif · luxury fashion",
-    inspiredBy: "Nike / Zara Luxury",
+      "Ảnh sản phẩm xếp dọc tràn khung · bảng mua hàng nổi cố định · tiêu đề sang trọng · thời trang cao cấp",
+    inspiredBy: "Phong cách Nike / Zara Luxury",
     config: {
       templateId: "editorial-story",
       galleryPosition: "left",
@@ -86,8 +86,8 @@ export const PDP_TEMPLATE_PRESETS: {
     id: "minimal-gallery",
     name: "Minimal Gallery PDP",
     description:
-      "Grid 2×2 trên · info centered dưới · accordion specs · MUJI clean",
-    inspiredBy: "MUJI / Minimal",
+      "Lưới 2×2 ảnh phía trên · thông tin căn giữa phía dưới · dạng thu gọn accordion · phong cách tối giản",
+    inspiredBy: "Phong cách MUJI / Tối giản Nhật Bản",
     config: {
       templateId: "minimal-gallery",
       galleryPosition: "top-full",

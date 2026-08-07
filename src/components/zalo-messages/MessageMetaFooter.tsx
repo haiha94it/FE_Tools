@@ -33,9 +33,14 @@ function MessageMetaFooter({
     ? "font-medium text-[#0068FF] dark:text-blue-400"
     : "font-medium text-amber-200";
 
+  // className có thể override justify (vd. justify-start / justify-center)
+  const hasJustifyOverride = /\bjustify-/.test(className);
+
   return (
     <div
-      className={`mt-1 inline-flex max-w-full items-center justify-end gap-1 text-[10px] leading-none ${className}`}
+      className={`mt-1 flex max-w-full items-center gap-1 text-[10px] leading-none ${
+        hasJustifyOverride ? "" : "justify-end"
+      } ${className}`}
     >
       {sentByLabel ? (
         <>

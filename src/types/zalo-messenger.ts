@@ -123,6 +123,10 @@ export interface MessengerMessageAttachment {
   linkCaption?: string;
   /** Thời lượng voice/video (ms) */
   durationMs?: number;
+  /** Chiều rộng video/ảnh (px) */
+  width?: number;
+  /** Chiều cao video/ảnh (px) */
+  height?: number;
   /** share.file — phần mở rộng từ content.params */
   fileExt?: string;
   fileSizeBytes?: number;
@@ -156,6 +160,8 @@ export interface MessengerGroupMediaItem {
   href?: string;
   thumb?: string;
   durationMs?: number;
+  width?: number;
+  height?: number;
   msgId?: string;
 }
 

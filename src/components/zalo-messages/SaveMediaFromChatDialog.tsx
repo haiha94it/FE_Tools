@@ -7,12 +7,13 @@ import { Modal } from "@/components/ui/modal";
 import {
   buildSaveAlbumPayloadFromMessage,
   buildSaveVideoPayloadFromMessage,
+  detectVideoDimensions,
 } from "@/lib/message-media-from-chat";
 import { getApiErrorMessage } from "@/lib/errors";
 import { toast } from "@/lib/toast";
 import { messageMediaService } from "@/services/message-media.service";
 import type { DisplayMessage } from "@/types/zalo-messenger";
-import { memo, useEffect, useState } from "react";
+import { memo, useState } from "react";
 
 export type SaveMediaKind = "video" | "album";
 
@@ -33,11 +34,15 @@ function SaveMediaFromChatDialog({
 }: SaveMediaFromChatDialogProps) {
   const [name, setName] = useState("");
   const [saving, setSaving] = useState(false);
+  const [activeKey, setActiveKey] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!open) return;
-    setName("");
-  }, [open, kind, message?.msgId]);
+  const currentKey = open ? `${kind}-${message?.msgId ?? ""}` : null;
+  if (currentKey !== activeKey) {
+    setActiveKey(currentKey);
+    if (open) {
+      setName("");
+    }
+  }
 
   const handleSave = async () => {
     if (!message) return;
@@ -55,6 +60,14 @@ function SaveMediaFromChatDialog({
           toast.error("Không lấy được metadata video từ tin nhắn.");
           return;
         }
+
+        // Tự động đo kích thước thực tế của video nếu thiếu width/height
+        if (!payload.width || !payload.height) {
+          const dims = await detectVideoDimensions(payload.videoUrl);
+          payload.width = dims.width;
+          payload.height = dims.height;
+        }
+
         await messageMediaService.saveVideo(payload);
         toast.success("Video đã được lưu thành công");
       } else {

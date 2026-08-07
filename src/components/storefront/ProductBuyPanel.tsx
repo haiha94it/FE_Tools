@@ -107,7 +107,7 @@ export default function ProductBuyPanel({
             minimal
               ? "text-2xl font-normal tracking-tight sm:text-3xl"
               : "store-display text-2xl font-bold leading-[1.15] sm:text-3xl"
-          } text-[var(--store-primary)]`}
+          } text-stone-900 dark:text-white`}
         >
           {product.title}
         </h1>
@@ -120,11 +120,11 @@ export default function ProductBuyPanel({
               ★★★★★
             </span>
           </span>
-          <span className="text-[var(--store-muted)]">
+          <span className="text-stone-500 dark:text-stone-400">
             ({proof.reviews} đánh giá)
           </span>
-          <span className="hidden text-slate-300 sm:inline">|</span>
-          <span className="font-medium text-[var(--store-muted)]">
+          <span className="hidden text-stone-300 dark:text-stone-700 sm:inline">|</span>
+          <span className="font-medium text-stone-500 dark:text-stone-400">
             Đã bán {proof.soldLabel}
           </span>
         </div>
@@ -133,8 +133,8 @@ export default function ProductBuyPanel({
         <div
           className={`rounded-2xl ${
             dense
-              ? "bg-gradient-to-r from-orange-50 to-rose-50 p-3.5"
-              : "bg-slate-50 p-4"
+              ? "bg-gradient-to-r from-amber-50 to-rose-50 p-3.5 dark:from-stone-900 dark:to-stone-900"
+              : "bg-stone-100 p-4 dark:bg-stone-900"
           }`}
         >
           <div className="flex flex-wrap items-baseline gap-2.5">
@@ -242,13 +242,12 @@ export default function ProductBuyPanel({
             </>
           )}
         </div>
-      </div>
 
-      {!minimal ? (
-        <div className="mt-4">
-          <TrustBadges compact={dense} />
+        {/* Integrated Trust Badges Block */}
+        <div className="pt-2">
+          <TrustBadges compact={true} />
         </div>
-      ) : null}
+      </div>
     </div>
   );
 }

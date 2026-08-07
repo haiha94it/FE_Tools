@@ -2,7 +2,7 @@
 
 import StoreReveal from "@/components/storefront/StoreReveal";
 import Image from "next/image";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 interface ReviewItem {
   id: number;
@@ -221,10 +221,13 @@ export default function CustomerReviewsCarousel({
   const trackRef = useRef<HTMLDivElement>(null);
   const offsetRef = useRef(0);
   const pausedRef = useRef(false);
-  const rafRef = useRef(0);
   const lastTsRef = useRef(0);
   const [paused, setPaused] = useState(false);
-  const [reducedMotion, setReducedMotion] = useState(false);
+  const [reducedMotion, setReducedMotion] = useState(() =>
+    typeof window !== "undefined"
+      ? window.matchMedia("(prefers-reduced-motion: reduce)").matches
+      : false,
+  );
 
   // Duplicate list for seamless loop
   const loopItems = [...REVIEWS, ...REVIEWS];
@@ -232,7 +235,6 @@ export default function CustomerReviewsCarousel({
   useEffect(() => {
     if (typeof window === "undefined") return;
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-    setReducedMotion(mq.matches);
     const onChange = () => setReducedMotion(mq.matches);
     mq.addEventListener("change", onChange);
     return () => mq.removeEventListener("change", onChange);
@@ -242,11 +244,15 @@ export default function CustomerReviewsCarousel({
     pausedRef.current = paused;
   }, [paused]);
 
-  const tick = useCallback(
-    (ts: number) => {
+  useEffect(() => {
+    if (reducedMotion) return;
+    let frameId = 0;
+    lastTsRef.current = 0;
+
+    const stepAnimation = (ts: number) => {
       const track = trackRef.current;
       if (!track) {
-        rafRef.current = requestAnimationFrame(tick);
+        frameId = requestAnimationFrame(stepAnimation);
         return;
       }
 
@@ -256,7 +262,6 @@ export default function CustomerReviewsCarousel({
 
       if (!pausedRef.current) {
         offsetRef.current += speed * dt;
-        // Half width = one full set of reviews
         const half = track.scrollWidth / 2;
         if (half > 0 && offsetRef.current >= half) {
           offsetRef.current -= half;
@@ -264,19 +269,14 @@ export default function CustomerReviewsCarousel({
         track.style.transform = `translate3d(${-offsetRef.current}px, 0, 0)`;
       }
 
-      rafRef.current = requestAnimationFrame(tick);
-    },
-    [speed],
-  );
-
-  useEffect(() => {
-    if (reducedMotion) return;
-    lastTsRef.current = 0;
-    rafRef.current = requestAnimationFrame(tick);
-    return () => {
-      cancelAnimationFrame(rafRef.current);
+      frameId = requestAnimationFrame(stepAnimation);
     };
-  }, [tick, reducedMotion]);
+
+    frameId = requestAnimationFrame(stepAnimation);
+    return () => {
+      cancelAnimationFrame(frameId);
+    };
+  }, [speed, reducedMotion]);
 
   const pause = () => setPaused(true);
   const resume = () => setPaused(false);

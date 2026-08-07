@@ -66,8 +66,16 @@ export default function StoreHeader({
   const dark = darkChrome === true || (darkChrome !== false && branded);
 
   useEffect(() => {
+    let isScrolled = false;
     const handleScroll = () => {
-      setScrolled(window.scrollY > 20);
+      const y = window.scrollY;
+      if (!isScrolled && y > 80) {
+        isScrolled = true;
+        setScrolled(true);
+      } else if (isScrolled && y < 15) {
+        isScrolled = false;
+        setScrolled(false);
+      }
     };
     handleScroll();
     window.addEventListener("scroll", handleScroll, { passive: true });
@@ -127,18 +135,14 @@ export default function StoreHeader({
               }
         }
       >
-        <div
-          className={`mx-auto flex items-center justify-between gap-3 px-4 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] sm:px-6 ${
-            scrolled ? "h-13 sm:h-14" : "h-14 sm:h-16"
-          }`}
-        >
+        <div className="mx-auto flex h-14 w-full max-w-7xl items-center justify-between gap-2.5 px-4 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] sm:h-16 sm:gap-4 sm:px-6 lg:px-8">
           <Link
             href={`/store/${sellerId}`}
-            className="group flex min-w-0 cursor-pointer items-center gap-2.5"
+            className="group flex min-w-0 flex-1 sm:flex-none cursor-pointer items-center gap-2 sm:gap-2.5"
           >
             {logo ? (
               <div
-                className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full ring-2 transition-transform duration-200 group-hover:scale-105 sm:h-10 sm:w-10"
+                className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full ring-2 transition-transform duration-200 group-hover:scale-105 sm:h-10 sm:w-10"
                 style={{
                   boxShadow: dark
                     ? "0 0 0 2px rgba(255,255,255,0.25)"
@@ -156,7 +160,7 @@ export default function StoreHeader({
               </div>
             ) : (
               <div
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white shadow-sm transition-transform duration-200 group-hover:scale-105 sm:h-10 sm:w-10"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs sm:text-sm font-bold text-white shadow-sm transition-transform duration-200 group-hover:scale-105 sm:h-10 sm:w-10"
                 style={{
                   backgroundColor: dark
                     ? "rgba(255,255,255,0.15)"
@@ -168,16 +172,16 @@ export default function StoreHeader({
                 {(cover?.name ?? "S").charAt(0).toUpperCase()}
               </div>
             )}
-            <div className="min-w-0">
-              <div className="flex items-center gap-1.5">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1">
                 <p
-                  className="truncate text-sm font-bold sm:text-base"
+                  className="truncate text-xs font-bold sm:text-base"
                   style={{ color: dark ? "#F8FAFC" : "#0F172A" }}
                 >
                   {cover?.name || "Cửa hàng"}
                 </p>
                 <svg
-                  className="h-4 w-4 shrink-0"
+                  className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0"
                   style={{ color: "#3B82F6" }}
                   viewBox="0 0 20 20"
                   fill="currentColor"
@@ -199,7 +203,7 @@ export default function StoreHeader({
             </div>
           </Link>
 
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
             {scrolled && onSearchChange ? (
               <button
                 type="button"
@@ -208,7 +212,7 @@ export default function StoreHeader({
                   setTimeout(() => inputRef.current?.focus(), 300);
                 }}
                 aria-label="Mở tìm kiếm"
-                className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-xl border transition-all duration-200"
+                className="flex h-9 w-9 sm:h-10 sm:w-10 cursor-pointer items-center justify-center rounded-xl border transition-all duration-200"
                 style={
                   dark
                     ? {
@@ -223,7 +227,7 @@ export default function StoreHeader({
                       }
                 }
               >
-                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <svg className="h-4 w-4 sm:h-5 sm:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <circle cx="11" cy="11" r="8" />
                   <path d="M21 21l-4.35-4.35" />
                 </svg>
@@ -235,72 +239,71 @@ export default function StoreHeader({
               type="button"
               onClick={onCartClick}
               aria-label={`Giỏ hàng${itemCount > 0 ? `, ${itemCount} sản phẩm` : ""}`}
-              className="store-press group relative flex h-11 min-w-11 cursor-pointer items-center gap-2 rounded-xl px-3 shadow-sm transition-all duration-200 sm:px-4"
-            style={
-              dark
-                ? {
-                    border: "1px solid rgba(255,255,255,0.18)",
-                    backgroundColor: "rgba(255,255,255,0.1)",
-                    color: "#F8FAFC",
-                  }
-                : {
-                    border: "1px solid rgba(15,23,42,0.12)",
-                    backgroundColor: "#0F172A",
-                    color: "#FFFFFF",
-                  }
-            }
-          >
-            <div className="relative">
-              <svg
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4H6z" />
-                <path d="M3 6h18M16 10a4 4 0 01-8 0" />
-              </svg>
-              {itemCount > 0 ? (
+              className="store-press group relative flex h-9 min-w-9 sm:h-10 sm:min-w-10 cursor-pointer items-center gap-2 rounded-xl px-2.5 sm:px-3.5 shadow-sm transition-all duration-200"
+              style={
+                dark
+                  ? {
+                      border: "1px solid rgba(255,255,255,0.18)",
+                      backgroundColor: "rgba(255,255,255,0.1)",
+                      color: "#F8FAFC",
+                    }
+                  : {
+                      border: "1px solid rgba(15,23,42,0.12)",
+                      backgroundColor: "#0F172A",
+                      color: "#FFFFFF",
+                    }
+              }
+            >
+              <div className="relative flex items-center justify-center">
+                <svg
+                  className="h-4 w-4 sm:h-5 sm:w-5"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4H6z" />
+                  <path d="M3 6h18M16 10a4 4 0 01-8 0" />
+                </svg>
+                {itemCount > 0 ? (
+                  <span
+                    key={badgeKey}
+                    className="store-cart-badge-pop absolute -right-2 -top-2 flex h-4.5 min-w-4.5 items-center justify-center rounded-full px-1 text-[9px] sm:text-[10px] font-extrabold text-white shadow-md ring-2 ring-white"
+                    style={{
+                      backgroundColor: accent.startsWith("#")
+                        ? accent
+                        : "#EC4899",
+                    }}
+                  >
+                    {itemCount > 99 ? "99+" : itemCount}
+                  </span>
+                ) : null}
+              </div>
+              <div className="hidden flex-col items-start md:flex">
                 <span
-                  key={badgeKey}
-                  className="store-cart-badge-pop absolute -right-2 -top-2 flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-extrabold text-white shadow-md ring-2 ring-white"
+                  className="text-[9px] font-medium uppercase tracking-wide"
                   style={{
-                    backgroundColor: accent.startsWith("#")
-                      ? accent
-                      : "#EC4899",
+                    color: dark ? "rgba(248,250,252,0.6)" : "rgba(255,255,255,0.7)",
                   }}
                 >
-                  {itemCount > 99 ? "99+" : itemCount}
+                  Giỏ hàng
                 </span>
-              ) : null}
-            </div>
-            <div className="hidden flex-col items-start sm:flex">
-              <span
-                className="text-[10px] font-medium uppercase tracking-wide"
-                style={{
-                  color: dark ? "rgba(248,250,252,0.6)" : "rgba(255,255,255,0.7)",
-                }}
-              >
-                Giỏ hàng
-              </span>
-              <span className="text-xs font-bold">
-                {total > 0 ? formatVnd(total) : "Trống"}
-              </span>
-            </div>
-          </button>
+                <span className="text-xs font-bold leading-none">
+                  {total > 0 ? formatVnd(total) : "Trống"}
+                </span>
+              </div>
+            </button>
+          </div>
         </div>
       </div>
-    </div>
 
-      {/* Search — always light field for readability, collapses smoothly on scroll */}
+      {/* Search — smooth sliding + fade animation on scroll */}
       {onSearchChange ? (
         <div
-          className={`border-b backdrop-blur-md transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+          className={`grid border-b backdrop-blur-md transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
             scrolled
-              ? "max-h-0 opacity-0 border-b-0 pointer-events-none py-0 overflow-hidden"
-              : "max-h-24 opacity-100 overflow-visible"
+              ? "grid-rows-[0fr] opacity-0 border-b-0 pointer-events-none"
+              : "grid-rows-[1fr] opacity-100"
           }`}
           style={
             dark
@@ -314,7 +317,8 @@ export default function StoreHeader({
                 }
           }
         >
-          <div className="mx-auto max-w-7xl px-4 py-2.5 sm:px-6 sm:py-3">
+          <div className="overflow-hidden">
+            <div className="mx-auto max-w-7xl px-4 py-2.5 sm:px-6 lg:px-8 sm:py-3">
             <div className="relative z-50">
               <div
                 className="relative flex items-center rounded-xl border transition-all duration-200 focus-within:ring-2 focus-within:ring-[color-mix(in_srgb,var(--store-accent,#ec4899)_25%,transparent)]"
@@ -489,6 +493,7 @@ export default function StoreHeader({
             </div>
           </div>
         </div>
+      </div>
       ) : null}
     </header>
   );

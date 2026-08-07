@@ -307,7 +307,7 @@ export default function ProductDetailView({
 
     if (templateId === "minimal-gallery") {
       return (
-        <div className="mt-8 space-y-10">
+        <div className="mt-6 grid gap-8 lg:grid-cols-[minmax(0,1.2fr)_minmax(340px,0.8fr)] lg:items-start lg:gap-12">
           <div className="store-anim-scale-in store-delay-1">
             <ProductGallery
               {...galleryProps}
@@ -316,8 +316,10 @@ export default function ProductDetailView({
               sticky={false}
             />
           </div>
-          <div className="mx-auto max-w-xl border-y border-neutral-200 py-8">
-            {buyPanel}
+          <div className="lg:sticky lg:top-24 lg:self-start">
+            <div className="rounded-3xl border border-stone-200/90 bg-white/95 p-6 shadow-xl backdrop-blur-xl dark:border-stone-800 dark:bg-stone-900/95 sm:p-8">
+              {buyPanel}
+            </div>
           </div>
         </div>
       );

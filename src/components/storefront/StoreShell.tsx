@@ -1,6 +1,8 @@
 "use client";
 
 import GuaranteeFooter from "@/components/storefront/GuaranteeFooter";
+import FloatingContactButtons from "@/components/storefront/FloatingContactButtons";
+import MobilePwaBottomNav from "@/components/storefront/MobilePwaBottomNav";
 import StoreCartDrawer from "@/components/storefront/StoreCartDrawer";
 import StoreCheckoutModal from "@/components/storefront/StoreCheckoutModal";
 import StoreHeader from "@/components/storefront/StoreHeader";
@@ -47,7 +49,17 @@ function IslandHeader({
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 20);
+    let isScrolled = false;
+    const handleScroll = () => {
+      const y = window.scrollY;
+      if (!isScrolled && y > 35) {
+        isScrolled = true;
+        setScrolled(true);
+      } else if (isScrolled && y < 15) {
+        isScrolled = false;
+        setScrolled(false);
+      }
+    };
     handleScroll();
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
@@ -56,10 +68,10 @@ function IslandHeader({
   return (
     <header className="store-header-enter sticky top-0 z-50 flex justify-center px-4 pt-3 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] sm:px-6 sm:pt-4">
       <div
-        className={`flex w-full max-w-[720px] items-center justify-between gap-4 rounded-full px-2 pl-3 shadow-[0_4px_24px_rgba(0,0,0,0.08)] backdrop-blur-2xl transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] sm:px-2 sm:pl-4 ${
+        className={`flex h-12 w-full max-w-[720px] items-center justify-between gap-4 rounded-full px-3 shadow-[0_4px_24px_rgba(0,0,0,0.08)] backdrop-blur-2xl transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] sm:h-[50px] sm:px-4 ${
           scrolled
-            ? "h-11 shadow-[0_10px_30px_rgba(0,0,0,0.15)] sm:h-[46px]"
-            : "h-12 sm:h-[52px]"
+            ? "shadow-[0_10px_30px_rgba(0,0,0,0.15)]"
+            : ""
         }`}
         style={{
           backgroundColor: scrolled
@@ -148,7 +160,17 @@ function CompactHeader({
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 20);
+    let isScrolled = false;
+    const handleScroll = () => {
+      const y = window.scrollY;
+      if (!isScrolled && y > 35) {
+        isScrolled = true;
+        setScrolled(true);
+      } else if (isScrolled && y < 15) {
+        isScrolled = false;
+        setScrolled(false);
+      }
+    };
     handleScroll();
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
@@ -156,8 +178,8 @@ function CompactHeader({
 
   return (
     <header
-      className={`store-header-enter sticky top-0 z-50 flex items-center justify-between border-b border-slate-100 bg-white/95 px-3 backdrop-blur-lg transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
-        scrolled ? "h-11 shadow-md" : "h-12"
+      className={`store-header-enter sticky top-0 z-50 flex h-12 items-center justify-between border-b border-slate-100 bg-white/95 px-3 backdrop-blur-lg transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+        scrolled ? "shadow-md" : ""
       }`}
     >
       <Link href={`/store/${sellerId}`} className="truncate text-sm font-bold text-slate-900">
@@ -229,9 +251,7 @@ export default function StoreShell({
   }, [sellerId, setSellerId, fetchCart]);
 
   const isDark = config.themeMode === "dark";
-  const hideChromeHeader =
-    config.headerStyle === "hidden-for-sidebar" ||
-    archetype === "sidebar-commerce";
+  const hideChromeHeader = false;
   const useIsland = config.headerStyle === "island" || archetype === "bento-grid-tech";
   const useCompact =
     config.headerStyle === "compact" || archetype === "mobile-native";
@@ -299,22 +319,24 @@ export default function StoreShell({
         />
       )}
 
-      <main className="store-page-enter relative">{children}</main>
+      <main className="store-page-enter relative min-h-[calc(100vh-4rem)] pt-1 sm:pt-2">
+        {children}
+      </main>
       <StoreCartDrawer />
       <StoreCheckoutModal />
 
-      {/* Footer always themed — padding extra when bottom chrome (nav/cart strip) */}
-      <div
-        className={
-          needsSafeFooter
-            ? "store-footer-enter mt-8 pb-20 sm:mt-10 sm:pb-16"
-            : "store-footer-enter mt-8 sm:mt-12"
-        }
-      >
+      {/* Footer always themed */}
+      <div className="store-footer-enter mt-8 sm:mt-12">
         <GuaranteeFooter
           shopName={cover?.name}
           accentColor={config.accentColor}
+          isDark={isDark}
           safeBottom={needsSafeFooter}
+          contactPhone={config.contactPhone}
+          contactZalo={config.contactZalo}
+          contactFacebook={config.contactFacebook}
+          contactWebsite={config.contactWebsite}
+          contactAddress={config.contactAddress}
         />
       </div>
 
@@ -324,6 +346,20 @@ export default function StoreShell({
           {itemCount} · {formatVnd(cart?.total_amount ?? 0)}
         </div>
       ) : null}
+
+      {/* Floating Speed-Dial Contact Buttons (Góc dưới bên phải) */}
+      <FloatingContactButtons
+        contactPhone={config.contactPhone}
+        contactZalo={config.contactZalo}
+        contactFacebook={config.contactFacebook}
+        contactWebsite={config.contactWebsite}
+      />
+
+      {/* Mobile PWA Floating Bottom Navigation Bar */}
+      <MobilePwaBottomNav
+        sellerId={sellerId}
+        contactZalo={config.contactZalo}
+      />
     </div>
   );
 }

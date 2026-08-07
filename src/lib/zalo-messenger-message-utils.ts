@@ -678,9 +678,40 @@ export function normalizeIncomingMessage(raw: RawZaloMessage): DisplayMessage {
       const title = trimToString(record?.title);
       const description = trimToString(record?.description);
       const caption = title || description;
-      const duration = Number(params?.duration);
+      const duration = Number(params?.duration ?? record?.duration);
       const durationMs =
         Number.isFinite(duration) && duration > 0 ? duration : undefined;
+      const rawW = Number(
+        params?.video_width ??
+          params?.videoWidth ??
+          params?.width ??
+          params?.w ??
+          record?.video_width ??
+          record?.videoWidth ??
+          record?.width ??
+          record?.w,
+      );
+      const rawH = Number(
+        params?.video_height ??
+          params?.videoHeight ??
+          params?.height ??
+          params?.h ??
+          record?.video_height ??
+          record?.videoHeight ??
+          record?.height ??
+          record?.h,
+      );
+      const rawSize = Number(
+        params?.fileSize ??
+          params?.file_size ??
+          params?.fileSizeBytes ??
+          record?.fileSize ??
+          record?.file_size,
+      );
+      const width = Number.isFinite(rawW) && rawW > 0 ? rawW : undefined;
+      const height = Number.isFinite(rawH) && rawH > 0 ? rawH : undefined;
+      const fileSizeBytes =
+        Number.isFinite(rawSize) && rawSize > 0 ? rawSize : undefined;
       const groupLayout = extractGroupLayoutMeta(raw, content);
       return {
         ...base,
@@ -694,6 +725,9 @@ export function normalizeIncomingMessage(raw: RawZaloMessage): DisplayMessage {
                   description,
                   action: "video",
                   durationMs,
+                  width,
+                  height,
+                  fileSizeBytes,
                 },
               ]
             : [],

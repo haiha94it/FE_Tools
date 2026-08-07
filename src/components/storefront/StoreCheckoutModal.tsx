@@ -66,11 +66,11 @@ export default function StoreCheckoutModal() {
     e.preventDefault();
     if (!sellerId) return;
     if (!form.full_name || !form.phone_number || !form.address) {
-      toast.error("Vui lòng nhập đầy đủ thông tin");
+      toast.error("Vui lòng nhập đầy đủ họ tên, số điện thoại và địa chỉ!");
       return;
     }
     if (!selectedCity?.city || !selectedWard?.ward) {
-      toast.error("Vui lòng chọn tỉnh/thành và phường/xã");
+      toast.error("Vui lòng chọn Tỉnh/Thành phố và Phường/Xã!");
       return;
     }
 
@@ -99,7 +99,7 @@ export default function StoreCheckoutModal() {
       clearAfterOrder();
       toast.success("Đặt hàng thành công!");
     } catch {
-      toast.error("Đặt hàng thất bại");
+      toast.error("Đặt hàng thất bại, vui lòng thử lại sau!");
     } finally {
       setSubmitting(false);
     }
@@ -119,77 +119,92 @@ export default function StoreCheckoutModal() {
 
   return createPortal(
     <div
-      className="store-checkout-root fixed inset-0 z-[100001] flex items-end justify-center p-0 sm:items-center sm:p-4"
+      className="store-checkout-root fixed inset-0 z-[100001] flex items-end justify-center p-0 sm:items-center sm:p-4 transition-all duration-300"
       role="dialog"
       aria-modal="true"
       aria-labelledby="store-checkout-title"
     >
+      {/* Dark Glass Backdrop */}
       <div
-        className="fixed inset-0 bg-zinc-900/60 backdrop-blur-sm"
+        className="fixed inset-0 bg-stone-950/70 backdrop-blur-md transition-opacity duration-300"
         onClick={handleClose}
         aria-hidden
       />
 
+      {/* Modal Surface Container */}
       <div
-        className="relative z-10 flex max-h-[92dvh] w-full max-w-2xl flex-col overflow-hidden rounded-t-[1.75rem] bg-white shadow-2xl sm:max-h-[90dvh] sm:rounded-[1.75rem]"
+        className="relative z-10 flex max-h-[92dvh] w-full max-w-3xl flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl border border-stone-200/90 dark:border-stone-800 dark:bg-stone-900 sm:max-h-[90dvh] sm:rounded-3xl transition-all duration-300"
         onClick={(e) => e.stopPropagation()}
       >
         {success ? (
           <SuccessView onClose={handleClose} />
         ) : (
           <>
-            <header className="flex shrink-0 items-start justify-between border-b border-zinc-100 px-6 py-5 sm:px-8">
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#ec4899]">
-                  Thanh toán
-                </p>
-                <h2
-                  id="store-checkout-title"
-                  className="mt-1 font-[family-name:var(--font-calistoga,'Calistoga',Georgia,serif)] text-2xl text-zinc-900"
-                >
-                  Thông tin giao hàng
-                </h2>
+            {/* Modal Header */}
+            <header className="flex shrink-0 items-center justify-between border-b border-stone-100 dark:border-stone-800 px-6 py-4.5 sm:px-8">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-amber-400/20 text-amber-500 border border-amber-400/30">
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8 4H6a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-2m-4-1v8m0 0l3-3m-3 3L9 8m-5 5h2.586a1 1 0 01.707.293l2.414 2.414a1 1 0 00.707.293h3.172a1 1 0 00.707-.293l2.414-2.414a1 1 0 01.707-.293H20" />
+                  </svg>
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-amber-500">
+                      ⚡ Đơn Hàng B2B / Bán Lẻ
+                    </span>
+                    <span className="text-[10px] text-stone-400">| 🔒 Bảo mật 100%</span>
+                  </div>
+                  <h2
+                    id="store-checkout-title"
+                    className="text-lg sm:text-xl font-black text-stone-900 dark:text-white tracking-tight"
+                  >
+                    Thông Tin Giao Hàng
+                  </h2>
+                </div>
               </div>
               <button
                 type="button"
                 onClick={handleClose}
-                className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full bg-zinc-100 text-zinc-500 transition hover:bg-zinc-200 hover:text-zinc-800"
+                className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-2xl bg-stone-100 text-stone-500 dark:bg-stone-800 dark:text-stone-400 hover:bg-stone-200 dark:hover:bg-stone-700 hover:text-stone-900 dark:hover:text-white transition-all"
                 aria-label="Đóng"
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                   <line x1="18" y1="6" x2="6" y2="18" />
                   <line x1="6" y1="6" x2="18" y2="18" />
                 </svg>
               </button>
             </header>
 
+            {/* Modal Body */}
             <div className="flex min-h-0 flex-1 flex-col overflow-y-auto lg:flex-row">
+              {/* Form Side */}
               <form
                 id="store-checkout-form"
                 onSubmit={(e) => void handleSubmit(e)}
                 className="flex-1 space-y-4 px-6 py-5 sm:px-8 sm:py-6"
               >
-                <StoreField label="Họ và tên *">
+                <StoreField label="Họ và tên người nhận *">
                   <StoreInput
                     value={form.full_name}
                     onChange={(e) => setForm((f) => ({ ...f, full_name: e.target.value }))}
-                    placeholder="Nguyễn Văn A"
+                    placeholder="Nhập họ và tên đầy đủ..."
                     autoComplete="name"
                   />
                 </StoreField>
 
-                <StoreField label="Số điện thoại *">
+                <StoreField label="Số điện thoại liên hệ *">
                   <StoreInput
                     type="tel"
                     value={form.phone_number}
                     onChange={(e) => setForm((f) => ({ ...f, phone_number: e.target.value }))}
-                    placeholder="09xx xxx xxx"
+                    placeholder="Số điện thoại nhận hàng (ví dụ: 0912 345 678)..."
                     autoComplete="tel"
                   />
                 </StoreField>
 
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <StoreField label="Tỉnh / Thành *">
+                  <StoreField label="Tỉnh / Thành phố *">
                     <StoreSelect
                       value={selectedCityId ?? ""}
                       onChange={(e) => {
@@ -197,7 +212,7 @@ export default function StoreCheckoutModal() {
                         setSelectedWardId(null);
                       }}
                     >
-                      <option value="">Chọn tỉnh/thành</option>
+                      <option value="">-- Chọn tỉnh/thành --</option>
                       {cities.map((city) => (
                         <option key={city.id} value={city.id}>
                           {city.city}
@@ -212,7 +227,7 @@ export default function StoreCheckoutModal() {
                       onChange={(e) => setSelectedWardId(Number(e.target.value) || null)}
                       disabled={!selectedCityId}
                     >
-                      <option value="">Chọn phường/xã</option>
+                      <option value="">-- Chọn phường/xã --</option>
                       {wards.map((ward) => (
                         <option key={ward.id} value={ward.id}>
                           {ward.ward}
@@ -226,84 +241,111 @@ export default function StoreCheckoutModal() {
                   <StoreInput
                     value={form.address}
                     onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
-                    placeholder="Số nhà, tên đường, tòa nhà..."
+                    placeholder="Số nhà, tên đường, tòa nhà, căn hộ..."
                     autoComplete="street-address"
                   />
                 </StoreField>
 
-                <StoreField label="Ghi chú đơn hàng">
+                <StoreField label="Ghi chú đơn hàng (Tùy chọn)">
                   <StoreInput
                     value={form.note}
                     onChange={(e) => setForm((f) => ({ ...f, note: e.target.value }))}
-                    placeholder="Thời gian giao hàng, hướng dẫn tìm nhà..."
+                    placeholder="Ví dụ: Giao giờ hành chính, gọi trước khi giao..."
                   />
                 </StoreField>
 
-                <div className="flex gap-3 pt-2 lg:hidden">
+                {/* Mobile Actions */}
+                <div className="flex gap-3 pt-3 lg:hidden">
                   <button
                     type="button"
                     onClick={handleClose}
-                    className="flex-1 cursor-pointer rounded-xl border border-zinc-200 py-3.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50"
+                    className="flex-1 cursor-pointer rounded-2xl border border-stone-200 py-3 text-xs font-bold text-stone-700 dark:border-stone-800 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800 transition-all"
                   >
                     Hủy
                   </button>
                   <button
                     type="submit"
                     disabled={submitting}
-                    className="flex-1 cursor-pointer rounded-xl bg-zinc-900 py-3.5 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:opacity-50"
+                    className="flex-1 cursor-pointer rounded-2xl bg-amber-400 py-3 text-xs font-black text-stone-950 hover:bg-amber-300 shadow-md transition-all disabled:opacity-50"
                   >
                     {submitting ? "Đang xử lý..." : "Đặt hàng"}
                   </button>
                 </div>
               </form>
 
-              <aside className="shrink-0 border-t border-zinc-100 bg-zinc-50 px-6 py-5 sm:px-8 lg:w-72 lg:border-l lg:border-t-0">
-                <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
-                  Đơn hàng
-                </p>
-                <p className="mt-2 text-sm text-zinc-600">
-                  {itemCount} sản phẩm
-                </p>
-
-                <ul className="mt-4 max-h-40 space-y-2 overflow-y-auto lg:max-h-52">
-                  {cart?.items?.map((item) => (
-                    <li
-                      key={item.id}
-                      className="flex justify-between gap-2 text-sm text-zinc-700"
-                    >
-                      <span className="line-clamp-2 min-w-0 flex-1">
-                        {item.title}
-                        <span className="text-zinc-400"> ×{item.quantity}</span>
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-
-                <div className="mt-5 border-t border-zinc-200 pt-4">
-                  <div className="flex items-end justify-between">
-                    <span className="text-sm text-zinc-500">Tổng thanh toán</span>
-                    <span className="font-[family-name:var(--font-calistoga,'Calistoga',Georgia,serif)] text-2xl text-zinc-900">
-                      {formatVnd(cart?.total_amount)}
+              {/* Order Summary Sidebar */}
+              <aside className="shrink-0 border-t border-stone-100 bg-stone-50 dark:bg-stone-950/60 dark:border-stone-800 px-6 py-5 sm:px-8 lg:w-80 lg:border-l lg:border-t-0 flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between">
+                    <p className="text-[11px] font-black uppercase tracking-wider text-stone-400 dark:text-stone-500">
+                      📦 Chi Tiết Đơn Hàng
+                    </p>
+                    <span className="rounded-full bg-amber-400/20 px-2 py-0.5 text-[10px] font-extrabold text-amber-500 border border-amber-400/30">
+                      {itemCount} sản phẩm
                     </span>
                   </div>
-                  <p className="mt-1 text-xs text-zinc-400">Thanh toán khi nhận hàng (COD)</p>
+
+                  {/* Items List */}
+                  <ul className="mt-4 max-h-48 space-y-2.5 overflow-y-auto custom-scrollbar pr-1 lg:max-h-60">
+                    {cart?.items?.map((item) => (
+                      <li
+                        key={item.id}
+                        className="flex items-start justify-between gap-3 text-xs font-medium text-stone-700 dark:text-stone-300 rounded-xl bg-white dark:bg-stone-900 p-2.5 border border-stone-200/80 dark:border-stone-800 shadow-2xs"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p className="font-bold text-stone-900 dark:text-white line-clamp-1">
+                            {item.title}
+                          </p>
+                          <p className="text-[10px] text-stone-400 mt-0.5">
+                            {item.product_variant.classify || "Tiêu chuẩn"} × {item.quantity}
+                          </p>
+                        </div>
+                        <span className="font-extrabold text-stone-950 dark:text-white shrink-0">
+                          {formatVnd(Number(item.product_variant.price ?? 0) * item.quantity)}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+
+                  {/* Payment Method Badge */}
+                  <div className="mt-5 rounded-2xl bg-amber-400/10 p-3 border border-amber-400/20">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm">💵</span>
+                      <div>
+                        <p className="text-[10px] font-black uppercase text-amber-600 dark:text-amber-400">Hình Thức Thanh Toán</p>
+                        <p className="text-xs font-bold text-stone-800 dark:text-stone-200">Thanh toán khi nhận hàng (COD)</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Total summary */}
+                  <div className="mt-5 border-t border-stone-200 dark:border-stone-800 pt-4">
+                    <div className="flex items-baseline justify-between">
+                      <span className="text-xs font-extrabold text-stone-500 dark:text-stone-400">Tổng thanh toán:</span>
+                      <span className="text-xl sm:text-2xl font-black text-amber-500">
+                        {formatVnd(cart?.total_amount)}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-[10px] text-stone-400 text-right">Miễn phí giao hàng cho đơn từ 500k</p>
+                  </div>
                 </div>
 
-                <div className="mt-5 hidden gap-3 lg:flex lg:flex-col">
+                {/* Desktop Actions */}
+                <div className="mt-6 hidden gap-2.5 lg:flex lg:flex-col">
                   <button
                     type="submit"
                     form="store-checkout-form"
                     disabled={submitting}
-                    className="w-full cursor-pointer rounded-xl bg-zinc-900 py-3.5 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:opacity-50"
+                    className="w-full cursor-pointer rounded-2xl bg-amber-400 py-3.5 text-xs font-black text-stone-950 hover:bg-amber-300 shadow-md transition-all hover:scale-102 disabled:opacity-50"
                   >
-                    {submitting ? "Đang xử lý..." : "Xác nhận đặt hàng"}
+                    {submitting ? "Đang xử lý..." : "⚡ Xác Nhận Đặt Hàng"}
                   </button>
                   <button
                     type="button"
                     onClick={handleClose}
-                    className="w-full cursor-pointer rounded-xl border border-zinc-200 py-3.5 text-sm font-medium text-zinc-600 transition hover:bg-white"
+                    className="w-full cursor-pointer rounded-2xl border border-stone-200 py-2.5 text-xs font-bold text-stone-600 dark:border-stone-800 dark:text-stone-400 hover:bg-white dark:hover:bg-stone-900 transition-all"
                   >
-                    Hủy
+                    Quay lại
                   </button>
                 </div>
               </aside>
@@ -318,26 +360,24 @@ export default function StoreCheckoutModal() {
 
 function SuccessView({ onClose }: { onClose: () => void }) {
   return (
-    <div className="px-6 py-12 text-center sm:px-10 sm:py-14">
-      <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-[#fce7f3]">
-        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#ec4899] text-white">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-            <path d="M20 6L9 17l-5-5" />
-          </svg>
-        </div>
+    <div className="px-6 py-12 text-center sm:px-12 sm:py-16">
+      <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-emerald-400/20 text-emerald-500 border border-emerald-400/30 shadow-lg">
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+        </svg>
       </div>
-      <h3 className="font-[family-name:var(--font-calistoga,'Calistoga',Georgia,serif)] text-2xl text-zinc-900">
-        Đặt hàng thành công!
+      <h3 className="text-2xl font-black text-stone-900 dark:text-white tracking-tight sm:text-3xl">
+        Đặt Hàng Thành Công! 🎉
       </h3>
-      <p className="mx-auto mt-3 max-w-sm text-sm leading-relaxed text-zinc-500">
-        Cảm ơn bạn đã tin tưởng. Chúng tôi sẽ liên hệ xác nhận và giao hàng trong thời gian sớm nhất.
+      <p className="mx-auto mt-3 max-w-md text-xs sm:text-sm font-medium leading-relaxed text-stone-600 dark:text-stone-300">
+        Cảm ơn bạn đã tin tưởng đơn hàng! Nhân viên tư vấn sẽ liên hệ với bạn trong thời gian sớm nhất để xác nhận và giao hàng.
       </p>
       <button
         type="button"
         onClick={onClose}
-        className="mt-8 w-full max-w-xs cursor-pointer rounded-xl bg-[#ec4899] py-3.5 text-sm font-semibold text-white transition hover:bg-[#db2777] sm:w-auto sm:px-10"
+        className="mt-8 w-full max-w-xs cursor-pointer rounded-2xl bg-amber-400 py-3.5 text-xs font-black text-stone-950 hover:bg-amber-300 shadow-md transition-all hover:scale-105 sm:w-auto sm:px-10"
       >
-        Tiếp tục mua sắm
+        Tiếp Tục Mua Sắm →
       </button>
     </div>
   );

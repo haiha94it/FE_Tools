@@ -362,10 +362,10 @@ export default function SplitStorytellerLayout({
 
   const activeProducts = products.filter(isProductActive);
   const heroProduct = activeProducts[0];
-  const heroImg = heroProduct?.images[0]
-    ? shopImageUrl(heroProduct.images[0])
-    : cover?.image
-      ? shopImageUrl(cover.image)
+  const heroImg = cover?.image
+    ? shopImageUrl(cover.image)
+    : heroProduct?.images[0]
+      ? shopImageUrl(heroProduct.images[0])
       : null;
 
   const chapterA = activeProducts.slice(0, 4);
