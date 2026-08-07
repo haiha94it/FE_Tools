@@ -443,9 +443,30 @@ function MessageContent({
         {text ? <p className={messageTextClass}>{text}</p> : null}
       </div>
     );
+  } else if (sticker?.id != null || message.msgType === "chat.sticker") {
+    // Phải TRƯỚC nhánh photo: chat.sticker cũng gắn attachments[{href,thumb}]
+    // → condition `attachment.thumb` cũ nuốt sticker thành "Ảnh" hỏng.
+    // Hiển thị gọn (64–80px); CDN size=128
+    const stickerSrc = resolveStickerImageUrl(message);
+    body = stickerSrc ? (
+      <Image
+        src={stickerSrc}
+        alt="Sticker"
+        width={80}
+        height={80}
+        unoptimized
+        className="h-16 w-16 max-h-20 max-w-20 object-contain sm:h-20 sm:w-20"
+      />
+    ) : (
+      <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-white/50 text-xs text-gray-500 dark:bg-black/20">
+        Sticker #{sticker?.id ?? "?"}
+      </div>
+    );
   } else if (
     attachment?.href &&
-    (message.msgType === "chat.photo" || attachment.thumb)
+    message.msgType !== "chat.sticker" &&
+    (message.msgType === "chat.photo" ||
+      (attachment.thumb && message.msgType !== "chat.gif"))
   ) {
     const thumb = attachment.thumb || attachment.href;
     const fullSrc = attachment.href || thumb;
@@ -486,22 +507,6 @@ function MessageContent({
         downloadOnly={attachment?.downloadOnly}
         onOpenPreview={onOpenPreview}
       />
-    );
-  } else if (sticker?.id || message.msgType === "chat.sticker") {
-    const stickerSrc = resolveStickerImageUrl(message);
-    body = stickerSrc ? (
-      <Image
-        src={stickerSrc}
-        alt="Sticker"
-        width={120}
-        height={120}
-        unoptimized
-        className="h-28 w-28 object-contain"
-      />
-    ) : (
-      <div className="flex h-24 w-24 items-center justify-center rounded-xl bg-white/50 text-xs text-gray-500 dark:bg-black/20">
-        Sticker #{sticker?.id ?? "?"}
-      </div>
     );
   } else if (text) {
     // Tin webchat chỉ là shortcode Zalo (vd. `/-strong`) → icon lớn

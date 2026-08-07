@@ -107,10 +107,12 @@ function normalizeMessageQuote(quote: unknown): DisplayMessage["quote"] {
   return undefined;
 }
 
-/** URL ảnh sticker Zalo từ eid (id / id_sticker trong payload WS) */
+/** URL ảnh sticker Zalo từ eid (id / id_sticker trong payload WS).
+ * size=128: đủ nét cho bubble ~64–80px, tránh request quá lớn + vỡ nét upscale.
+ */
 export function buildZaloStickerImageUrl(
   stickerId: string | number | null | undefined,
-  size = 130,
+  size = 128,
 ): string | null {
   if (stickerId == null || stickerId === "") return null;
   return `https://zalo-api.zadn.vn/api/emoticon/sticker/webpc?eid=${encodeURIComponent(String(stickerId))}&size=${size}`;

@@ -14,6 +14,29 @@ interface StickerPickerProps {
   placement?: "inline" | "popover";
 }
 
+/** Shuffle in-place copy — random gợi ý khi không keyword */
+function shuffleStickers(items: MessengerStickerItem[]): MessengerStickerItem[] {
+  const arr = items.slice();
+  for (let i = arr.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const tmp = arr[i];
+    arr[i] = arr[j]!;
+    arr[j] = tmp!;
+  }
+  return arr;
+}
+
+/**
+ * URL thumb picker — size nhỏ gọn, không phóng to vỡ nét.
+ * Ưu tiên URL BE; fallback CDN Zalo eid size=64.
+ */
+function stickerPickerSrc(sticker: MessengerStickerItem): string | null {
+  const raw = (sticker.thumb || sticker.url || "").trim();
+  if (raw) return raw;
+  if (sticker.id == null || sticker.id === "") return null;
+  return `https://zalo-api.zadn.vn/api/emoticon/sticker/webpc?eid=${encodeURIComponent(String(sticker.id))}&size=64`;
+}
+
 function StickerPicker({
   accountId,
   open,
@@ -33,13 +56,13 @@ function StickerPicker({
 
     const load = async () => {
       try {
-        const data = keyword.trim()
-          ? await zaloMessengerService.searchStickers(
-              accountId,
-              keyword.trim(),
-            )
-          : await zaloMessengerService.fetchStickerSuggest(accountId);
-        if (active) setStickers(data);
+        // Không keyword → STICKERS_SEARCH (default pack + frequent), KHÔNG dùng suggest
+        // (suggest bắt buộc keyword → empty "Không có sticker").
+        // Search rỗng: shuffle random để picker tươi mỗi lần mở.
+        const q = keyword.trim();
+        const data = await zaloMessengerService.searchStickers(accountId, q, 48);
+        if (!active) return;
+        setStickers(q ? data : shuffleStickers(data));
       } catch {
         if (active) setStickers([]);
       } finally {
@@ -82,33 +105,34 @@ function StickerPicker({
         </button>
       </div>
 
-      <div className="custom-scrollbar grid max-h-52 grid-cols-4 gap-2 overflow-y-auto p-2">
+      {/* grid 5 cột, cell compact — tránh sticker quá to/vỡ nét */}
+      <div className="custom-scrollbar grid max-h-56 grid-cols-5 gap-1.5 overflow-y-auto p-2">
         {loading ? (
-          <div className="col-span-4 flex justify-center py-8">
+          <div className="col-span-5 flex justify-center py-8">
             <div className="h-6 w-6 animate-spin rounded-full border-2 border-brand-500 border-t-transparent" />
           </div>
         ) : stickers.length === 0 ? (
-          <p className="col-span-4 py-6 text-center text-xs text-gray-500">
-            Không có sticker
+          <p className="col-span-5 py-6 text-center text-xs text-gray-500">
+            {keyword.trim() ? "Không có sticker" : "Đang tải sticker..."}
           </p>
         ) : (
           stickers.map((sticker) => {
-            const src = sticker.thumb || sticker.url;
+            const src = stickerPickerSrc(sticker);
             return (
               <button
                 key={`${sticker.catId ?? "c"}-${sticker.id}`}
                 type="button"
                 onClick={() => onSelect(sticker)}
-                className="flex aspect-square items-center justify-center rounded-xl hover:bg-gray-50 dark:hover:bg-white/[0.03]"
+                className="flex h-12 w-full items-center justify-center rounded-lg p-1 hover:bg-gray-50 dark:hover:bg-white/[0.03]"
               >
                 {src ? (
                   <Image
                     src={src}
                     alt={sticker.name || "Sticker"}
-                    width={64}
-                    height={64}
+                    width={40}
+                    height={40}
                     unoptimized
-                    className="h-14 w-14 object-contain"
+                    className="h-10 w-10 object-contain"
                   />
                 ) : (
                   <span className="text-[10px] text-gray-400">#{sticker.id}</span>
