@@ -22,10 +22,13 @@ import type {
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-type TabId = "templates" | "pdp" | "colors" | "content";
+import ShopLiveDragDropCanvas from "@/components/shop-admin/ShopLiveDragDropCanvas";
+
+type TabId = "templates" | "builder" | "pdp" | "colors" | "content";
 
 const TABS: { id: TabId; label: string }[] = [
   { id: "templates", label: "Kiến trúc layout" },
+  { id: "builder", label: "🎨 Kéo thả Canvas" },
   { id: "pdp", label: "Trang chi tiết SP" },
   { id: "colors", label: "Màu sắc" },
   { id: "content", label: "Nội dung" },
@@ -44,6 +47,20 @@ function ArchetypeWireframe({ id, colors }: { id: ShopArchetypeId; colors: ShopT
   );
 
   switch (id) {
+    case "custom-drag-drop":
+      return (
+        <div className="flex h-full w-full flex-col items-center justify-center bg-gradient-to-br from-stone-900 via-stone-800 to-stone-950 p-4 text-center text-white">
+          <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-amber-500/20 text-amber-400 text-lg font-black mb-1 shadow-inner border border-amber-400/30">
+            🎨
+          </span>
+          <span className="text-[11px] font-black uppercase text-amber-300 tracking-wider">
+            Visual Live Drag & Drop Canvas
+          </span>
+          <span className="mt-0.5 text-[9px] text-stone-400">
+            Tự do kéo thả UI thật trực quan trên màn hình
+          </span>
+        </div>
+      );
     case "bento-grid-tech":
       return (
         <div className="flex h-full flex-col gap-1 p-2" style={{ background: bg }}>
@@ -364,6 +381,9 @@ export default function ShopThemeSettings() {
       templateId: presetId,
     }));
     setDirty(true);
+    if (presetId === "custom-drag-drop") {
+      setTab("builder");
+    }
     toast.success(`Đã chọn mẫu kiến trúc: ${preset.name}`);
   };
 
@@ -547,6 +567,16 @@ export default function ShopThemeSettings() {
                       </div>
                     </div>
                   ))}
+                </div>
+              ) : null}
+
+              {tab === "builder" ? (
+                <div className="space-y-4">
+                  <ShopLiveDragDropCanvas
+                    data={resolved}
+                    onChange={(updated) => patch(updated)}
+                    sellerId={userId}
+                  />
                 </div>
               ) : null}
 
@@ -786,14 +816,16 @@ export default function ShopThemeSettings() {
               ) : null}
             </div>
 
-            <aside className="custom-scrollbar w-full shrink-0 lg:w-[320px] xl:w-[360px] lg:max-h-full lg:overflow-y-auto">
-              <div className="sticky top-0">
-                <p className="mb-2 text-xs font-bold uppercase tracking-wider text-gray-400">
-                  Wireframe kiến trúc
-                </p>
-                <ThemePreview data={resolved} />
-              </div>
-            </aside>
+            {tab !== "builder" && (
+              <aside className="custom-scrollbar w-full shrink-0 lg:w-[320px] xl:w-[360px] lg:max-h-full lg:overflow-y-auto">
+                <div className="sticky top-0">
+                  <p className="mb-2 text-xs font-bold uppercase tracking-wider text-gray-400">
+                    Wireframe kiến trúc
+                  </p>
+                  <ThemePreview data={resolved} />
+                </div>
+              </aside>
+            )}
           </div>
         )}
       </div>

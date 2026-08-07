@@ -35,8 +35,6 @@ export default function TeamEmployeesView() {
     }
 
     try {
-      // initial: key cố định → gộp Strict Mode double effect
-      // background: key riêng → luôn fetch mới sau create/delete
       const list = await dedupeInflight(
         options?.background
           ? `team:listEmployees:refresh:${Date.now()}`
@@ -57,8 +55,29 @@ export default function TeamEmployeesView() {
   }, []);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    let mounted = true;
+    void (async () => {
+      try {
+        const list = await dedupeInflight(
+          "team:listEmployees",
+          () => teamPermissionsService.listEmployees(),
+        );
+        if (mounted) {
+          setEmployees((current) =>
+            isSameTeamEmployeeList(current, list) ? current : list,
+          );
+          hasLoadedRef.current = true;
+        }
+      } catch (error) {
+        if (mounted) toast.error(getApiErrorMessage(error));
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const handleOpenCreate = useCallback(() => {
     setCreateOpen(true);
@@ -122,7 +141,7 @@ export default function TeamEmployeesView() {
   }, [editEmployee, setupEmployee]);
 
   return (
-    <div className="custom-scrollbar flex h-0 min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-contain pr-1">
+    <div className="space-y-6 pb-12 w-full min-w-0 max-w-full">
       <PageBreadcrumb pageTitle="Quản lý nhân viên" />
 
       <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] sm:p-6">

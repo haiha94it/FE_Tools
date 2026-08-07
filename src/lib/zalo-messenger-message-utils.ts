@@ -618,6 +618,10 @@ export function normalizeIncomingMessage(raw: RawZaloMessage): DisplayMessage {
     idTo: raw.idTo,
     ts: raw.ts,
     conversation_id: raw.conversation_id,
+    id_account:
+      raw.id_account ??
+      ((raw as Record<string, unknown>).account_id as number | undefined),
+    dName: raw.dName ? String(raw.dName).trim() : undefined,
     text_message: [],
     quote: normalizeMessageQuote(raw.quote),
     mentions: Array.isArray(raw.mentions)

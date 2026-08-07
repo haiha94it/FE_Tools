@@ -7,6 +7,7 @@ import { useChatbotTrainingStore } from "@/stores/use-chatbot-training-store";
 import type { CreateTrainingDataPayload } from "@/types/chatbot";
 import { useRef, useState } from "react";
 import { FiAlertCircle, FiDownload, FiInfo, FiUploadCloud } from "react-icons/fi";
+import * as XLSX from "xlsx";
 
 interface ImportTrainingModalProps {
   open: boolean;
@@ -135,26 +136,18 @@ export default function ImportTrainingModal({
   const isSavingTraining = useChatbotTrainingStore((s) => s.isSavingTraining);
 
   const [questionsToImport, setQuestionsToImport] = useState<ParsedQuestionRow[]>([]);
-  const [importType, setImportType] = useState<"txt" | "csv" | null>(null);
+  const [importType, setImportType] = useState<"txt" | "csv" | "xlsx" | null>(null);
 
-  const handleDownloadCsvTemplate = () => {
+  const handleDownloadXlsxTemplate = () => {
     const headers = ["Câu hỏi", "Câu trả lời", "Danh mục (Tùy chọn)"];
     const sampleRows = [
       ["Shop có mở cửa Chủ Nhật không?", "Dạ có ạ, shop mở cửa từ 8:00 đến 21:00 tất cả các ngày trong tuần.", "Giờ làm việc"],
       ["Địa chỉ shop ở đâu vậy?", "Dạ, cửa hàng tại số 123 Đường Nguyễn Trãi, Quận 1, TP. HCM ạ.", "Liên hệ"],
     ];
-    const csvContent = [
-      headers.join(","),
-      ...sampleRows.map((row) => row.map((val) => `"${val}"`).join(",")),
-    ].join("\n");
-
-    const blob = new Blob([`\uFEFF${csvContent}`], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "Template_Import_Huon_Luyen.csv";
-    link.click();
-    URL.revokeObjectURL(url);
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...sampleRows]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Huấn Luyện QnA");
+    XLSX.writeFile(wb, "Template_Import_Huon_Luyen.xlsx");
   };
 
   const handleDownloadTxtTemplate = () => {
@@ -178,11 +171,79 @@ export default function ImportTrainingModal({
     if (!file) return;
 
     const fileName = file.name.toLowerCase();
+    const isXlsx = fileName.endsWith(".xlsx") || fileName.endsWith(".xls");
     const isCsv = fileName.endsWith(".csv");
     const isTxt = fileName.endsWith(".txt") || file.type === "text/plain";
 
-    if (!isCsv && !isTxt) {
-      toast.error("Vui lòng tải lên file định dạng .csv (Excel) hoặc .txt");
+    if (!isXlsx && !isCsv && !isTxt) {
+      toast.error("Vui lòng tải lên file định dạng .xlsx, .csv hoặc .txt");
+      return;
+    }
+
+    if (isXlsx) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const data = new Uint8Array(event.target?.result as ArrayBuffer);
+          const workbook = XLSX.read(data, { type: "array" });
+          const firstSheetName = workbook.SheetNames[0];
+          if (!firstSheetName) {
+            toast.error("File Excel không có trang tính (sheet) nào.");
+            return;
+          }
+          const worksheet = workbook.Sheets[firstSheetName];
+          const jsonRows = XLSX.utils.sheet_to_json<Array<string | number>>(worksheet, { header: 1 });
+
+          if (!jsonRows || jsonRows.length <= 1) {
+            toast.error("File Excel trống hoặc chỉ có dòng tiêu đề.");
+            return;
+          }
+
+          const parsedList: ParsedQuestionRow[] = [];
+          for (let i = 1; i < jsonRows.length; i++) {
+            const row = jsonRows[i];
+            if (!row || !row.length) continue;
+            const question = String(row[0] ?? "").trim();
+            const answer = String(row[1] ?? "").trim();
+            const categoryName = String(row[2] ?? "").trim();
+
+            let rowError = "";
+            if (!question) rowError = "Thiếu câu hỏi.";
+            if (!answer) rowError = rowError ? `${rowError} Thiếu câu trả lời.` : "Thiếu câu trả lời.";
+
+            let matchedCatId: number | null = null;
+            if (categoryName) {
+              const normalizedName = normalizeCompareString(categoryName);
+              const matched = categories.find((cat) => normalizeCompareString(cat.name) === normalizedName);
+              if (matched) {
+                matchedCatId = matched.id;
+              }
+            }
+
+            parsedList.push({
+              question,
+              answer,
+              categoryName: categoryName || undefined,
+              categoryId: matchedCatId,
+              rowNumber: i + 1,
+              status: "pending",
+              error: rowError || undefined,
+            });
+          }
+
+          if (!parsedList.length) {
+            toast.error("Không tìm thấy dòng dữ liệu hợp lệ trong file Excel.");
+            return;
+          }
+
+          setQuestionsToImport(parsedList);
+          setImportType("xlsx");
+          if (fileInputRef.current) fileInputRef.current.value = "";
+        } catch {
+          toast.error("Không đọc được cấu trúc file Excel (.xlsx / .xls).");
+        }
+      };
+      reader.readAsArrayBuffer(file);
       return;
     }
 
@@ -290,12 +351,12 @@ export default function ImportTrainingModal({
             Nhập dữ liệu huấn luyện Q&A
           </h3>
           <p className="text-xs text-gray-500 mt-1">
-            Nạp hàng loạt câu hỏi - câu trả lời từ file Excel/CSV hoặc file TXT kịch bản.
+            Nạp hàng loạt câu hỏi - câu trả lời từ file Excel (.xlsx / .csv) hoặc file TXT kịch bản.
           </p>
         </div>
-        <div className="flex gap-2 pr-10 sm:pr-14">
-          <Button variant="outline" size="sm" onClick={handleDownloadCsvTemplate} className="gap-1.5 text-xs">
-            <FiDownload size={13} /> Mẫu Excel (.csv)
+        <div className="flex flex-wrap gap-2 pr-6 sm:pr-10">
+          <Button variant="outline" size="sm" onClick={handleDownloadXlsxTemplate} className="gap-1.5 text-xs">
+            <FiDownload size={13} /> Mẫu Excel (.xlsx / .csv)
           </Button>
           <Button variant="outline" size="sm" onClick={handleDownloadTxtTemplate} className="gap-1.5 text-xs">
             <FiDownload size={13} /> Mẫu Text (.txt)
@@ -313,12 +374,12 @@ export default function ImportTrainingModal({
             <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">
               Nhấp để chọn file hoặc kéo thả file vào đây
             </p>
-            <p className="text-xs text-gray-400 mt-1">Hỗ trợ định dạng .csv hoặc .txt</p>
+            <p className="text-xs text-gray-400 mt-1">Hỗ trợ định dạng .xlsx, .xls, .csv hoặc .txt</p>
             <input
               type="file"
               ref={fileInputRef}
               onChange={handleFileChange}
-              accept=".csv,.txt"
+              accept=".xlsx,.xls,.csv,.txt,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv,text/plain"
               className="hidden"
             />
           </div>

@@ -246,7 +246,8 @@ export type ShopArchetypeId =
   | "sidebar-commerce"
   | "mobile-native"
   | "magazine-editorial"
-  | "minimalist-essential";
+  | "minimalist-essential"
+  | "custom-drag-drop";
 
 export type ShopProductCardStyle =
   | "compact"
@@ -282,7 +283,8 @@ export type ShopPageLayout =
   | "mobile-pwa"
   | "magazine"
   | "minimal-grid"
-  | "classic";
+  | "classic"
+  | "custom-builder";
 
 export type ShopHeaderStyle =
   | "minimal"
@@ -300,6 +302,18 @@ export type ShopCategoryStyle =
   | "underline"
   | "stories"
   | "tree";
+
+export interface ShopBlockConfig {
+  customTitle?: string;
+  customSubtitle?: string;
+  columnSpan?: "full" | "half" | "third";
+  bgStyle?: "default" | "dark" | "gradient-amber" | "gradient-rose" | "gradient-emerald" | "white" | "custom";
+  customBgColor?: string;
+  customTextColor?: string;
+  customBorderColor?: string;
+  padding?: "compact" | "normal" | "spacious";
+  borderRadius?: "rounded-xl" | "rounded-2xl" | "rounded-3xl";
+}
 
 /**
  * Object JSON personalization — FE sở hữu schema.
@@ -337,6 +351,12 @@ export interface ShopPersonalizationData {
   showBottomNav?: boolean;
   /** Cart summary drawer strip (Sidebar Commerce) */
   showPersistentCartStrip?: boolean;
+  /** Thứ tự sắp xếp các khối UI trong Custom Builder */
+  sectionOrder?: string[];
+  /** Trạng thái bật/tắt hiển thị từng khối UI */
+  sectionVisibility?: Record<string, boolean>;
+  /** Cấu hình chi tiết tùy biến từng khối UI (Tiêu đề tùy chỉnh, xếp 2 khối cùng 1 hàng, màu nền) */
+  blockConfigs?: Record<string, ShopBlockConfig>;
   /**
    * PDP template on /store/{id}/{cat}/{product}
    * @see PDPTemplateType in types/pdp-template.ts

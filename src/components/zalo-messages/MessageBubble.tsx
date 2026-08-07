@@ -36,6 +36,7 @@ import {
   shouldShowSentByLabel,
 } from "@/lib/team-collaboration-utils";
 import { useAuthStore } from "@/stores/use-auth-store";
+import { useZaloMessengerStore } from "@/stores/use-zalo-messenger-store";
 import type { ZaloGroupMember } from "@/types/zalo-contacts";
 import type {
   DisplayMessage,
@@ -561,6 +562,14 @@ export function MessageList({
   onShare?: (message: DisplayMessage) => void;
 }) {
   const currentUserId = useAuthStore((s) => s.user?.id);
+  const selectedAccountId = useZaloMessengerStore((s) => s.selectedAccountId);
+  const accounts = useZaloMessengerStore((s) => s.accounts);
+  const currentAccount = useMemo(
+    () => accounts.find((a) => a.id === selectedAccountId),
+    [accounts, selectedAccountId],
+  );
+  const accountUid = currentAccount?.uid;
+
   const display = filterDisplayMessages(messages);
   const reactionMap = useMemo(
     () => groupReactionsByCliMsgId(messages),
@@ -604,14 +613,24 @@ export function MessageList({
 
       {display.map((message, index) => {
         const previous = display[index - 1];
-        const own = isOwnMessage(message);
+        const own = isOwnMessage(message, accountUid, selectedAccountId);
         const compact = isCompactMessageGroup(message, previous);
         const showDivider = shouldShowDateDivider(message, previous);
         const senderName = isGroup
-          ? resolveSenderName(message, groupMembers)
+          ? resolveSenderName(
+              message,
+              groupMembers,
+              accountUid,
+              selectedAccountId,
+            )
           : null;
         const senderAvatar = isGroup
-          ? resolveSenderAvatar(message, groupMembers)
+          ? resolveSenderAvatar(
+              message,
+              groupMembers,
+              accountUid,
+              selectedAccountId,
+            )
           : null;
         const showSenderHeader =
           isGroup && !own && !compact && Boolean(senderName);

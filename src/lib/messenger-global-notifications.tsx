@@ -193,7 +193,8 @@ export function notifyZaloIncomingMessage(
   conversation?: MessengerConversation | null,
 ) {
   const message = normalizeIncomingMessage(raw);
-  if (isOwnMessage(message)) return;
+  const accountId = Number(conversation?.account ?? raw.id_account);
+  if (isOwnMessage(message, null, accountId)) return;
   if (
     !shouldShowGlobalMessengerNotification() &&
     !shouldShowMessengerTabNotification()
@@ -202,7 +203,6 @@ export function notifyZaloIncomingMessage(
   }
 
   const conversationId = Number(message.conversation_id ?? conversation?.id);
-  const accountId = Number(conversation?.account);
   if (!Number.isFinite(conversationId) || !Number.isFinite(accountId)) return;
 
   const senderName = conversation

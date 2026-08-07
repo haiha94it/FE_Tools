@@ -11,12 +11,18 @@ import SplitStorytellerLayout from "@/components/storefront/layouts/SplitStoryte
 import type { StorefrontLayoutProps } from "@/components/storefront/layouts/types";
 import { resolveArchetypeId } from "@/lib/shop-personalization";
 
+import CustomCanvasLayout from "@/components/storefront/layouts/CustomCanvasLayout";
+
 /**
  * Renders a COMPLETELY different DOM tree per architectural archetype.
  * Not a color/CSS swap — hierarchy, grid, and UX chrome change.
  */
 export default function StorefrontLayoutRouter(props: StorefrontLayoutProps) {
   const archetype = resolveArchetypeId(props.config.templateId);
+
+  if (props.config.pageLayout === "custom-builder" || (archetype as string) === "custom-drag-drop") {
+    return <CustomCanvasLayout {...props} />;
+  }
 
   switch (archetype) {
     case "deal-wall-flash":

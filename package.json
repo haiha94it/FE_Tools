@@ -48,6 +48,7 @@
     "swiper": "^11.2.10",
     "swr": "^2.4.2",
     "tailwind-merge": "^2.6.0",
+    "xlsx": "^0.18.5",
     "zustand": "^5.0.14"
   },
   "devDependencies": {

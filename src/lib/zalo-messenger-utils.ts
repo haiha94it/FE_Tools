@@ -275,7 +275,8 @@ export function prepareConversationsFromGlobalUpdate(
     const updatedTime =
       msgTs > convTs ? latest.ts : conversation.updated_time;
 
-    const isIncoming = String(latest.uidFrom || "") !== "0";
+    const uid = String(latest.uidFrom || "").trim();
+    const isIncoming = uid !== "0" && latest.sent_by == null;
     const isActive = options?.activeConversationId === conversation.id;
     const newMessage =
       isIncoming && !isActive ? true : conversation.new_message;
@@ -504,8 +505,43 @@ export function getMessageText(message: DisplayMessage): string {
   return chunks.join("\n");
 }
 
-export function isOwnMessage(message: DisplayMessage): boolean {
-  return message.uidFrom === "0";
+export function isOwnMessage(
+  message: DisplayMessage,
+  accountUid?: string | null,
+  accountId?: number | null,
+): boolean {
+  if (!message) return false;
+  const uid = String(message.uidFrom ?? "").trim();
+
+  // 1. uidFrom === "0" là mặc định tin nhắn xuất phát từ nick đang đăng nhập
+  if (uid === "0") return true;
+
+  // 2. Tin nhắn có thông tin nhân viên gửi trên hệ thống (sent_by)
+  if (message.sent_by != null) return true;
+
+  // 3. uidFrom trùng với UID của tài khoản Zalo đang xem (accountUid)
+  if (accountUid && uid !== "" && uid === String(accountUid).trim()) {
+    return true;
+  }
+
+  // 4. id_account thuộc nick Zalo đang xem và uidFrom là "0" hoặc trùng accountUid
+  const msgAccId =
+    message.id_account ?? (message as Record<string, unknown>).account_id;
+  if (
+    accountId != null &&
+    msgAccId != null &&
+    Number(msgAccId) === Number(accountId)
+  ) {
+    if (
+      message.sent_by != null ||
+      uid === "0" ||
+      (accountUid && uid === String(accountUid).trim())
+    ) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 function findGroupMemberByUid(
@@ -523,10 +559,15 @@ function findGroupMemberByUid(
 export function resolveSenderName(
   message: DisplayMessage,
   members: ZaloGroupMember[],
+  accountUid?: string | null,
+  accountId?: number | null,
 ): string | null {
-  if (isOwnMessage(message)) return null;
+  if (isOwnMessage(message, accountUid, accountId)) return null;
   const uid = trimToString(message.uidFrom);
   if (!uid || uid === "0") return null;
+
+  const dName = trimToString(message.dName);
+  if (dName) return dName;
 
   const member = findGroupMemberByUid(members, uid);
   if (member) return getGroupMemberDisplay(member).name;
@@ -536,8 +577,10 @@ export function resolveSenderName(
 export function resolveSenderAvatar(
   message: DisplayMessage,
   members: ZaloGroupMember[],
+  accountUid?: string | null,
+  accountId?: number | null,
 ): string | null {
-  if (isOwnMessage(message)) return null;
+  if (isOwnMessage(message, accountUid, accountId)) return null;
   const uid = trimToString(message.uidFrom);
   if (!uid || uid === "0") return null;
 

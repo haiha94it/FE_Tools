@@ -99,6 +99,7 @@ export interface RawZaloMessage {
   mentions?: MessengerMention[];
   actionId?: string;
   conversation_id?: number;
+  id_account?: number;
   sent_by?: SentByPayload | null;
   /** Nguồn outbound rõ nghĩa; chỉ có `chatbot` với reply do chatbot gửi. */
   sender_type?: "chatbot" | null;
@@ -199,6 +200,8 @@ export interface DisplayMessage {
   idTo?: string;
   ts?: number | string;
   conversation_id?: number;
+  id_account?: number;
+  dName?: string;
   text_message?: Array<{ text?: unknown }>;
   mentions?: MessengerMention[];
   attachments?: MessengerMessageAttachment[];

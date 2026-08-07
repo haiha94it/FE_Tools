@@ -60,51 +60,127 @@ export default function LayoutProductTile({
 
   /* ── Overlay (catalog masonry / fashion) ── */
   if (variant === "overlay" || variant === "masonry") {
+    const v0 = product.variants[0];
+    const price = Number(v0?.price || 0);
+    const promoPrice = v0?.promotion_price != null ? Number(v0.promotion_price) : null;
+
+    const discount =
+      promoPrice && price > promoPrice
+        ? Math.round(((price - promoPrice) / price) * 100)
+        : null;
+
+
     return (
-      <Link
-        href={href}
-        className={`group relative block overflow-hidden rounded-2xl border border-stone-200/80 bg-stone-900 shadow-md transition-all duration-300 hover:-translate-y-1 hover:border-amber-400/80 hover:shadow-xl dark:border-stone-800 ${motion} ${
-          tall ? "min-h-[280px] sm:min-h-[360px]" : "min-h-[200px] sm:min-h-[240px]"
+      <div
+        className={`group relative flex flex-col overflow-hidden rounded-2xl border border-stone-200/90 bg-stone-950 shadow-md transition-all duration-500 hover:-translate-y-1.5 hover:border-amber-400/90 hover:shadow-2xl hover:shadow-amber-500/10 dark:border-stone-800 ${motion} ${
+          tall ? "aspect-[3/4] sm:aspect-[4/5]" : "aspect-[4/5] sm:aspect-square"
         } ${className}`}
       >
-        {img ? (
-          <Image
-            src={img}
-            alt={product.title}
-            fill
-            className="object-cover transition-transform duration-500 group-hover:scale-105"
-            unoptimized
-            sizes="(max-width: 768px) 50vw, 33vw"
-          />
-        ) : null}
-        <div className="absolute inset-0 bg-gradient-to-t from-stone-950 via-stone-950/30 to-transparent opacity-90 transition-opacity group-hover:opacity-100" />
-        <div className="absolute inset-x-0 bottom-0 p-3.5 sm:p-4">
-          <span className="inline-block text-[10px] font-extrabold uppercase tracking-wider text-amber-300">
-            Sản Phẩm Đổi Mới
-          </span>
-          <h3 className="mt-1 line-clamp-2 text-xs sm:text-sm font-bold text-white leading-snug">
-            {product.title}
-          </h3>
-          <p className="mt-1.5 text-sm sm:text-base font-black text-amber-400">
-            {formatPriceRange(product)}
-          </p>
-        </div>
-        {onQuickView ? (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              onQuickView(product);
-            }}
-            className="absolute right-3 top-3 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-white/95 text-xs font-bold text-stone-950 shadow-md opacity-0 backdrop-blur-md transition-all duration-200 group-hover:opacity-100 hover:scale-110"
-            aria-label="Xem nhanh"
-          >
-            🔍
-          </button>
-        ) : null}
-      </Link>
+        <Link href={href} className="relative h-full w-full overflow-hidden block">
+          {img ? (
+            <Image
+              src={img}
+              alt={product.title}
+              fill
+              className="object-cover transition-transform duration-700 ease-out group-hover:scale-110"
+              unoptimized
+              sizes="(max-width: 768px) 50vw, 33vw"
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center bg-stone-900 text-stone-600">
+              🖼️
+            </div>
+          )}
+          {/* Multi-layered gradient depth */}
+          <div className="absolute inset-0 bg-gradient-to-t from-stone-950 via-stone-950/40 to-transparent opacity-85 transition-opacity duration-300 group-hover:opacity-95" />
+          <div className="absolute inset-0 bg-gradient-to-b from-stone-950/50 via-transparent to-transparent opacity-60" />
+
+          {/* Top Badges */}
+          <div className="absolute left-3 top-3 flex flex-wrap items-center gap-1.5 z-10">
+            {discount ? (
+              <span className="rounded-full bg-rose-600 px-2.5 py-0.5 text-[9px] font-black uppercase text-white shadow-sm">
+                -{discount}%
+              </span>
+            ) : showBadges && product.is_flash_sale ? (
+              <span className="rounded-full bg-gradient-to-r from-amber-400 to-amber-500 px-2.5 py-0.5 text-[9px] font-black uppercase text-stone-950 shadow-sm">
+                ⚡ Flash
+              </span>
+            ) : (
+              <span className="rounded-full bg-white/20 backdrop-blur-md px-2.5 py-0.5 text-[9px] font-extrabold uppercase tracking-wider text-amber-300 border border-white/10">
+                Editorial
+              </span>
+            )}
+          </div>
+
+          {/* Top Right Floating Actions */}
+          <div className="absolute right-3 top-3 flex items-center gap-1.5 z-10 opacity-90 transition-all duration-300 group-hover:opacity-100">
+            {onQuickView ? (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onQuickView(product);
+                }}
+                className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-white/90 text-stone-900 shadow-md backdrop-blur-md transition-all duration-200 hover:bg-amber-400 hover:text-stone-950 hover:scale-110 dark:bg-stone-900/90 dark:text-white"
+                aria-label="Xem nhanh"
+                title="Xem nhanh sản phẩm"
+              >
+                👁️
+              </button>
+            ) : null}
+          </div>
+
+          {/* Bottom Info Overlay */}
+          <div className="absolute inset-x-0 bottom-0 p-3.5 sm:p-5 z-10 flex flex-col justify-end">
+            <div className="flex items-center gap-1 text-[10px] font-bold text-amber-400/90">
+              <span>★ 4.9</span>
+              <span className="text-stone-400">· Best Choice</span>
+            </div>
+
+            <h3 className="mt-1 line-clamp-2 text-xs sm:text-sm font-bold text-white leading-snug drop-shadow-sm transition-colors group-hover:text-amber-200">
+              {product.title}
+            </h3>
+
+            <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-white/15 pt-2">
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-sm sm:text-base font-black text-amber-300">
+                  {formatPriceRange(product)}
+                </span>
+                {promoPrice && price > promoPrice ? (
+                  <span className="text-[10px] text-stone-400 line-through">
+                    {price.toLocaleString("vi-VN")}đ
+                  </span>
+                ) : null}
+              </div>
+
+              {/* Quick Add to Cart Button */}
+              <button
+                type="button"
+                onClick={handleAdd}
+                disabled={adding}
+                title="Thêm vào giỏ hàng"
+                className="flex h-8 px-3 shrink-0 cursor-pointer items-center gap-1 rounded-xl bg-amber-400 text-stone-950 font-extrabold text-xs shadow-md transition-all duration-200 hover:bg-amber-300 hover:scale-105 active:scale-95 disabled:opacity-50"
+              >
+                {adding ? (
+                  <span className="text-[10px] animate-pulse">…</span>
+                ) : (
+                  <>
+                    <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                    </svg>
+                    <span className="hidden sm:inline">Giỏ</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </Link>
+      </div>
     );
   }
+
+
 
   /* ── Editorial vertical Luxury (Compact 1:1 Aspect Ratio) ── */
   if (variant === "editorial" || variant === "vertical") {

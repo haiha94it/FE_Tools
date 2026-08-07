@@ -102,7 +102,7 @@ export default function TeamCampaignNotificationCard() {
                 Nick Zalo gửi thông báo
               </Label>
             </div>
-            <div className="custom-scrollbar h-64 min-w-0 max-w-full overflow-x-hidden overflow-y-auto rounded-xl border border-gray-200 bg-white p-1.5 sm:p-2 dark:border-gray-700 dark:bg-gray-900">
+            <div className="custom-scrollbar max-h-64 sm:max-h-72 min-h-[160px] min-w-0 max-w-full overflow-x-hidden overflow-y-auto rounded-xl border border-gray-200 bg-white p-1.5 sm:p-2 dark:border-gray-700 dark:bg-gray-900">
               {accountsLoading ? (
                 <p className="flex h-full items-center justify-center text-center text-sm text-gray-500">
                   Đang tải danh sách nick...
@@ -193,7 +193,7 @@ export default function TeamCampaignNotificationCard() {
             <div
               ref={groupsListRef}
               onScroll={handleGroupsScroll}
-              className="custom-scrollbar h-52 min-w-0 max-w-full overflow-x-hidden overflow-y-auto rounded-xl border border-gray-200 bg-white p-1.5 sm:p-2 dark:border-gray-700 dark:bg-gray-900"
+              className="custom-scrollbar max-h-64 sm:max-h-72 min-h-[160px] min-w-0 max-w-full overflow-x-hidden overflow-y-auto rounded-xl border border-gray-200 bg-white p-1.5 sm:p-2 dark:border-gray-700 dark:bg-gray-900"
             >
               {groupsLoading ? (
                 <p className="flex h-full items-center justify-center text-center text-sm text-gray-500">
