@@ -13,7 +13,9 @@ export type StoreRevealVariant =
   | "fade"
   | "scale"
   | "left"
-  | "right";
+  | "right"
+  | "blur"
+  | "zoom";
 
 const VARIANT_CLASS: Record<StoreRevealVariant, string> = {
   up: "store-reveal",
@@ -21,6 +23,8 @@ const VARIANT_CLASS: Record<StoreRevealVariant, string> = {
   scale: "store-reveal-scale",
   left: "store-reveal-left",
   right: "store-reveal-right",
+  blur: "store-reveal-blur",
+  zoom: "store-reveal-zoom",
 };
 
 export function storeDelayClass(index: number): string {

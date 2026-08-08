@@ -245,23 +245,41 @@ export default function StoreShell({
 
   const archetype = resolveArchetypeId(config.templateId);
 
+  /** Custom canvas tự render HEADER/FOOTER — không bọc chrome shell (tránh double header) */
+  const isCustomCanvas =
+    config.pageLayout === "custom-builder" ||
+    archetype === "custom-drag-drop";
+
+  const canvasSections = config.layoutCanvas?.sections;
+  const canvasHasFooter = Boolean(
+    isCustomCanvas &&
+      canvasSections?.some(
+        (s) => s.type === "CONTACT_FOOTER" && s.enabled !== false,
+      ),
+  );
+
   useEffect(() => {
     setSellerId(sellerId);
     void fetchCart();
   }, [sellerId, setSellerId, fetchCart]);
 
   const isDark = config.themeMode === "dark";
-  const hideChromeHeader = false;
-  const useIsland = config.headerStyle === "island" || archetype === "bento-grid-tech";
+  const hideChromeHeader = isCustomCanvas;
+  const useIsland =
+    !isCustomCanvas &&
+    (config.headerStyle === "island" || archetype === "bento-grid-tech");
   const useCompact =
-    config.headerStyle === "compact" || archetype === "mobile-native";
+    !isCustomCanvas &&
+    (config.headerStyle === "compact" || archetype === "mobile-native");
   const useUtility =
-    config.headerStyle === "utility" || archetype === "deal-wall-flash";
+    !isCustomCanvas &&
+    (config.headerStyle === "utility" || archetype === "deal-wall-flash");
   const needsSafeFooter =
-    archetype === "mobile-native" ||
-    archetype === "sidebar-commerce" ||
-    config.showBottomNav ||
-    config.showPersistentCartStrip;
+    !isCustomCanvas &&
+    (archetype === "mobile-native" ||
+      archetype === "sidebar-commerce" ||
+      config.showBottomNav ||
+      config.showPersistentCartStrip);
 
   return (
     <div
@@ -325,20 +343,22 @@ export default function StoreShell({
       <StoreCartDrawer />
       <StoreCheckoutModal />
 
-      {/* Footer always themed */}
-      <div className="store-footer-enter mt-8 sm:mt-12">
-        <GuaranteeFooter
-          shopName={cover?.name}
-          accentColor={config.accentColor}
-          isDark={isDark}
-          safeBottom={needsSafeFooter}
-          contactPhone={config.contactPhone}
-          contactZalo={config.contactZalo}
-          contactFacebook={config.contactFacebook}
-          contactWebsite={config.contactWebsite}
-          contactAddress={config.contactAddress}
-        />
-      </div>
+      {/* Footer shell — ẩn khi canvas đã có CONTACT_FOOTER (tránh footer trùng) */}
+      {canvasHasFooter ? null : (
+        <div className="store-footer-enter mt-8 sm:mt-12">
+          <GuaranteeFooter
+            shopName={cover?.name}
+            accentColor={config.accentColor}
+            isDark={isDark}
+            safeBottom={needsSafeFooter}
+            contactPhone={config.contactPhone}
+            contactZalo={config.contactZalo}
+            contactFacebook={config.contactFacebook}
+            contactWebsite={config.contactWebsite}
+            contactAddress={config.contactAddress}
+          />
+        </div>
+      )}
 
       {/* Debug-free total hint for utility header cart state */}
       {useUtility && itemCount > 0 ? (

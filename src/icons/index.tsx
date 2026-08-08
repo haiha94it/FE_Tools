@@ -14,6 +14,7 @@ import AudioIcon from "./audio.svg";
 import GridIcon from "./grid.svg";
 import FileIcon from "./file.svg";
 import DownloadIcon from "./download.svg";
+import UploadIcon from "./upload.svg";
 import ArrowRightIcon from "./arrow-right.svg";
 import GroupIcon from "./group.svg";
 import BoxIconLine from "./box-line.svg";
@@ -54,6 +55,7 @@ import BellIcon from "./bell.svg";
 
 export {
   DownloadIcon,
+  UploadIcon,
   BellIcon,
   MoreDotIcon,
   FileIcon,

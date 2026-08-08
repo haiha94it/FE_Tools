@@ -586,6 +586,161 @@
 }
 
 /* ═══════════════════════════════════════════════════════════
+ * Layout Canvas — section motion + effect utilities
+ * ═══════════════════════════════════════════════════════════ */
+
+.canvas-stagger-item {
+  opacity: 0;
+  animation: store-fade-up 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* ── Shadow ── */
+.canvas-shadow-glow {
+  box-shadow:
+    0 0 0 1px rgba(56, 88, 233, 0.12),
+    0 8px 32px -8px rgba(56, 88, 233, 0.35),
+    0 2px 8px rgba(15, 23, 42, 0.06);
+}
+
+/* ── Blur / glass ── */
+.canvas-blur-sm {
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+.canvas-blur-md {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.canvas-blur-lg {
+  backdrop-filter: blur(20px) saturate(1.15);
+  -webkit-backdrop-filter: blur(20px) saturate(1.15);
+}
+.canvas-blur-glass {
+  backdrop-filter: blur(16px) saturate(1.35);
+  -webkit-backdrop-filter: blur(16px) saturate(1.35);
+  background-color: color-mix(in srgb, #ffffff 58%, transparent) !important;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.5) inset,
+    0 8px 28px -10px rgba(15, 23, 42, 0.12);
+}
+.canvas-blur-frosted {
+  backdrop-filter: blur(22px) saturate(1.5) brightness(1.05);
+  -webkit-backdrop-filter: blur(22px) saturate(1.5) brightness(1.05);
+  background-color: color-mix(in srgb, #ffffff 42%, transparent) !important;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+}
+
+/* ── Hover presets (section-level) ── */
+.canvas-hover-lift {
+  transition:
+    transform 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.28s ease;
+}
+.canvas-hover-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 14px 32px -10px rgba(15, 23, 42, 0.18);
+}
+
+.canvas-hover-scale {
+  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.canvas-hover-scale:hover {
+  transform: scale(1.015);
+}
+
+.canvas-hover-glow {
+  transition:
+    box-shadow 0.3s ease,
+    transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.canvas-hover-glow:hover {
+  box-shadow:
+    0 0 0 1px rgba(56, 88, 233, 0.2),
+    0 12px 36px -8px rgba(56, 88, 233, 0.4);
+  transform: translateY(-2px);
+}
+
+.canvas-hover-brightness {
+  transition: filter 0.25s ease;
+}
+.canvas-hover-brightness:hover {
+  filter: brightness(1.06);
+}
+
+.canvas-hover-border {
+  transition:
+    border-color 0.25s ease,
+    box-shadow 0.25s ease;
+}
+.canvas-hover-border:hover {
+  border-color: color-mix(in srgb, var(--store-accent, #3858e9) 55%, transparent) !important;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--store-accent, #3858e9) 25%, transparent);
+}
+
+.canvas-img-zoom {
+  transition: transform 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.group:hover .canvas-img-zoom {
+  transform: scale(1.04);
+}
+
+/* ── Extra entrance animations ── */
+@keyframes canvas-blur-in {
+  from {
+    opacity: 0;
+    filter: blur(10px);
+    transform: translate3d(0, 12px, 0);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes canvas-zoom-soft {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.store-reveal-blur {
+  opacity: 0;
+  filter: blur(10px);
+  transform: translate3d(0, 12px, 0);
+  transition:
+    opacity 0.55s cubic-bezier(0.16, 1, 0.3, 1),
+    filter 0.55s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.store-reveal-blur.is-visible {
+  opacity: 1;
+  filter: blur(0);
+  transform: translate3d(0, 0, 0);
+}
+
+.store-reveal-zoom {
+  opacity: 0;
+  transform: scale(0.96);
+  transition:
+    opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.store-reveal-zoom.is-visible {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* ═══════════════════════════════════════════════════════════
  * Brand / D2C — Split Storyteller (premium editorial tokens)
  * ═══════════════════════════════════════════════════════════ */
 
@@ -715,6 +870,26 @@
   .store-reveal-left,
   .store-reveal-right {
     opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+
+  .canvas-stagger-item {
+    opacity: 1 !important;
+    animation: none !important;
+  }
+
+  .canvas-hover-lift:hover,
+  .canvas-hover-scale:hover,
+  .canvas-hover-glow:hover,
+  .group:hover .canvas-img-zoom {
+    transform: none !important;
+  }
+
+  .store-reveal-blur,
+  .store-reveal-zoom {
+    opacity: 1 !important;
+    filter: none !important;
     transform: none !important;
     transition: none !important;
   }
