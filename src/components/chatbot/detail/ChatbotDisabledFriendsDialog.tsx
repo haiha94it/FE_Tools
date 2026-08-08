@@ -59,12 +59,30 @@ function getZaloFriendLabel(friend: Pick<ZaloFriendItem, "uid" | "name" | "alias
   return friend.alias_name?.trim() || friend.name?.trim() || friend.uid;
 }
 
+/** Giữ 1 row / uid — API đôi khi trả trùng → React key warning. */
+function dedupeFriendsByUid(friendList: ZaloFriendItem[]): ZaloFriendItem[] {
+  const seen = new Set<string>();
+  const out: ZaloFriendItem[] = [];
+  for (const friend of friendList) {
+    const uid = (friend.uid || "").trim();
+    if (!uid) {
+      out.push(friend);
+      continue;
+    }
+    if (seen.has(uid)) continue;
+    seen.add(uid);
+    out.push(friend);
+  }
+  return out;
+}
+
 function mergeFriendList(
   friendList: ZaloFriendItem[],
   extraFriends: ChatbotDisabledFriendInfo[],
 ) {
+  const base = dedupeFriendsByUid(friendList);
   const extras = extraFriends
-    .filter((item) => item.uid && !friendList.some((friend) => friend.uid === item.uid))
+    .filter((item) => item.uid && !base.some((friend) => friend.uid === item.uid))
     .map((item) => ({
       id: 0,
       uid: item.uid,
@@ -73,7 +91,7 @@ function mergeFriendList(
       avatar: item.avatar,
     }));
 
-  return [...friendList, ...extras];
+  return [...base, ...extras];
 }
 
 function parseUidsFromTxt(text: string): string[] {
@@ -452,7 +470,11 @@ export default function ChatbotDisabledFriendsDialog({
           : response?.count ?? 0;
 
         const shouldMergeExtras = page === 1 && !searchKey.trim();
-        setFriends(shouldMergeExtras ? mergeFriendList(results, extras) : results);
+        setFriends(
+          shouldMergeExtras
+            ? mergeFriendList(results, extras)
+            : dedupeFriendsByUid(results),
+        );
         setFriendResultCount(count);
       } catch {
         setLoadError("Không tải được danh sách bạn bè.");
@@ -683,15 +705,20 @@ export default function ChatbotDisabledFriendsDialog({
           )}
 
           <ul className="space-y-2">
-            {friends.map((friend) => {
+            {friends.map((friend, index) => {
               const autoReplyEnabled = isAutoReplyEnabled(friend.uid);
               const reminderEnabled = !reminderPausedUidSet.has(friend.uid);
               const label = getZaloFriendLabel(friend);
               const uidPending = pendingUidSet.has(friend.uid);
               const switchDisabled = uidPending || bulkPending;
+              // uid có thể trùng / rỗng (merge extras id=0) → key phải unique
+              const rowKey =
+                friend.id != null && friend.id > 0
+                  ? `friend-${friend.id}`
+                  : `friend-${friend.uid || "unknown"}-${index}`;
 
               return (
-                <li key={friend.uid}>
+                <li key={rowKey}>
                   <div
                     className={`flex items-center gap-3 rounded-xl border px-3.5 py-2.5 transition duration-150 ${
                       autoReplyEnabled

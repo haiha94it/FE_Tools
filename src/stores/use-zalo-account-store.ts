@@ -890,12 +890,19 @@ export const useZaloAccountStore = create<ZaloAccountState>((set, get) => ({
 
     try {
       const response = await zaloAccountService.pollGroupScanResult(taskId);
-      if (response.status === "PENDING") return;
+      const status = (
+        response.task_status ??
+        response.status ??
+        ""
+      ).toUpperCase();
+      if (status === "PENDING" || status === "PROGRESS") return;
 
-      if (response.status === "SUCCESS") {
+      if (status === "SUCCESS") {
         set((state) => ({
           groupScanTaskIdsByAccountId: Object.fromEntries(
-            Object.entries(state.groupScanTaskIdsByAccountId).filter(([id]) => Number(id) !== accountId),
+            Object.entries(state.groupScanTaskIdsByAccountId).filter(
+              ([id]) => Number(id) !== accountId,
+            ),
           ),
         }));
         await get().fetchGroupsByAccount(accountId, 1);
@@ -904,18 +911,23 @@ export const useZaloAccountStore = create<ZaloAccountState>((set, get) => ({
 
       set((state) => ({
         groupScanTaskIdsByAccountId: Object.fromEntries(
-          Object.entries(state.groupScanTaskIdsByAccountId).filter(([id]) => Number(id) !== accountId),
+          Object.entries(state.groupScanTaskIdsByAccountId).filter(
+            ([id]) => Number(id) !== accountId,
+          ),
         ),
         groupErrorsByAccountId: {
           ...state.groupErrorsByAccountId,
-          [accountId]: "Quét danh sách nhóm thất bại.",
+          [accountId]:
+            response.message || "Quét danh sách nhóm thất bại.",
         },
       }));
     } catch (error) {
       const message = getApiErrorMessage(error);
       set((state) => ({
         groupScanTaskIdsByAccountId: Object.fromEntries(
-          Object.entries(state.groupScanTaskIdsByAccountId).filter(([id]) => Number(id) !== accountId),
+          Object.entries(state.groupScanTaskIdsByAccountId).filter(
+            ([id]) => Number(id) !== accountId,
+          ),
         ),
         groupErrorsByAccountId: {
           ...state.groupErrorsByAccountId,
@@ -936,11 +948,14 @@ export const useZaloAccountStore = create<ZaloAccountState>((set, get) => ({
     }));
 
     try {
-      const data = await zaloAccountService.fetchGroupMembers(groupId);
+      // service đã extractGroupMembersFromPoll → mảng member chuẩn
+      const members = (await zaloAccountService.fetchGroupMembers(
+        groupId,
+      )) as ZaloGroupMember[];
       set((state) => ({
         groupMembersByGroupId: {
           ...state.groupMembersByGroupId,
-          [groupId]: data.data ?? [],
+          [groupId]: Array.isArray(members) ? members : [],
         },
         loadingGroupMemberIds: state.loadingGroupMemberIds.filter((id) => id !== groupId),
       }));
@@ -1006,13 +1021,17 @@ export const useZaloAccountStore = create<ZaloAccountState>((set, get) => ({
 
     try {
       const response = await zaloAccountService.pollGroupMemberScanResult(taskId);
-      if (response.status === "PENDING") return;
+      const status = (response.task_status ?? response.status ?? "").toUpperCase();
+      if (status === "PENDING" || status === "PROGRESS") return;
 
-      if (response.status === "SUCCESS") {
+      if (status === "SUCCESS") {
+        const members = (
+          Array.isArray(response.data) ? response.data : []
+        ) as ZaloGroupMember[];
         set((state) => ({
           groupMembersByGroupId: {
             ...state.groupMembersByGroupId,
-            [groupId]: response.data ?? [],
+            [groupId]: members,
           },
           scanningGroupMemberIds: state.scanningGroupMemberIds.filter((id) => id !== groupId),
           groupMemberScanTaskIdsByGroupId: Object.fromEntries(
