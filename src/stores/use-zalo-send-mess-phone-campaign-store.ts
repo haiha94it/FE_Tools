@@ -288,24 +288,21 @@ export const useZaloSendMessPhoneCampaignStore = create<SendMessPhoneCampaignSta
           }),
           zaloSendMessPhoneCampaignService.fetchStatistics(resultsCampaignId),
         ]);
-        const [failedPhones, phoneNumbersError, accountLimits] =
-          await Promise.all([
-            zaloSendMessPhoneCampaignService
-              .fetchFailedPhones(resultsCampaignId)
-              .catch(() => (silent ? get().failedPhones : [])),
-            zaloSendMessPhoneCampaignService
-              .fetchPhoneNumbersError(resultsCampaignId)
-              .catch(() => (silent ? get().phoneNumbersError : [])),
-            zaloSendMessPhoneCampaignService
-              .fetchAccountLimit(resultsCampaignId)
-              .catch(() => (silent ? get().accountLimits : [])),
-          ]);
+        // Không fetch phoneNumbersError lên UI — lỗi kỹ thuật/parse làm rối người dùng.
+        const [failedPhones, accountLimits] = await Promise.all([
+          zaloSendMessPhoneCampaignService
+            .fetchFailedPhones(resultsCampaignId)
+            .catch(() => (silent ? get().failedPhones : [])),
+          zaloSendMessPhoneCampaignService
+            .fetchAccountLimit(resultsCampaignId)
+            .catch(() => (silent ? get().accountLimits : [])),
+        ]);
         set({
           results: pageData.results ?? [],
           resultsTotal: pageData.count ?? pageData.results?.length ?? 0,
           statistics,
           failedPhones,
-          phoneNumbersError,
+          phoneNumbersError: [],
           accountLimits,
           resultsLoading: false,
         });
