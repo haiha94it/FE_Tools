@@ -41,7 +41,10 @@ import {
 } from "@/lib/zalo-contacts-utils";
 import { getApiErrorMessage } from "@/lib/errors";
 import { toast } from "@/lib/toast";
-import { fetchCampaignCommonGroups } from "@/services/zalo-campaign-all-group.service";
+import {
+  fetchCampaignCommonGroups,
+  fetchCampaignCommonGroupsPage,
+} from "@/services/zalo-campaign-all-group.service";
 import { zaloGroupService } from "@/services/zalo-group.service";
 import { zaloSendMessMemberGrCampaignService } from "@/services/zalo-send-mess-member-gr-campaign.service";
 import { useZaloSendMessMemberGrCampaignStore } from "@/stores/use-zalo-send-mess-member-gr-campaign-store";
@@ -126,7 +129,11 @@ export default function SendMessMemberGrCampaignFormModal({
     useState<SendMessMemberGrAssignMode>("distribute");
   const [members, setMembers] = useState<SendMessMemberGrGroupMember[]>([]);
   const [groupSearch, setGroupSearch] = useState("");
+  const [debouncedGroupSearch, setDebouncedGroupSearch] = useState("");
   const [memberSearch, setMemberSearch] = useState("");
+  const [groupPage, setGroupPage] = useState(1);
+  const [groupTotal, setGroupTotal] = useState(0);
+  const [memberPage, setMemberPage] = useState(1);
   const [groupsLoading, setGroupsLoading] = useState(false);
   const [membersLoading, setMembersLoading] = useState(false);
   const [scanningGroups, setScanningGroups] = useState(false);
@@ -140,6 +147,10 @@ export default function SendMessMemberGrCampaignFormModal({
   const loadMembersSeqRef = useRef(0);
   const pendingGroupGlobalIdRef = useRef<string | null>(null);
 
+  const GROUP_PAGE_SIZE = 50;
+  const MEMBER_PAGE_SIZE = 50;
+  const SEARCH_DEBOUNCE_MS = 350;
+
   const targetsEditable = editingCampaign
     ? canEditSendMessMemberGrTargets(editingCampaign.status)
     : true;
@@ -152,12 +163,12 @@ export default function SendMessMemberGrCampaignFormModal({
   const selectedKey = accountIdsKey(selectedAccountIds);
   const multiNick = selectedAccountIds.length >= 2;
 
-  const filteredGroups = useMemo(() => {
-    const key = groupSearch.trim().toLowerCase();
-    if (!key) return groups;
-    return groups.filter((item) => item.name.toLowerCase().includes(key));
-  }, [groups, groupSearch]);
+  const groupTotalPages = Math.max(
+    1,
+    Math.ceil(groupTotal / GROUP_PAGE_SIZE) || 1,
+  );
 
+  /** TV: filter client + sort role, rồi phân trang UI. */
   const filteredMembers = useMemo(() => {
     const key = memberSearch.trim().toLowerCase();
     const matched = key
@@ -172,6 +183,36 @@ export default function SendMessMemberGrCampaignFormModal({
       return leftRole - rightRole;
     });
   }, [members, memberSearch]);
+
+  const memberTotalPages = Math.max(
+    1,
+    Math.ceil(filteredMembers.length / MEMBER_PAGE_SIZE) || 1,
+  );
+
+  const pageMembers = useMemo(() => {
+    const start = (memberPage - 1) * MEMBER_PAGE_SIZE;
+    return filteredMembers.slice(start, start + MEMBER_PAGE_SIZE);
+  }, [filteredMembers, memberPage]);
+
+  const allPageMembersSelected =
+    pageMembers.length > 0 &&
+    pageMembers.every((m) =>
+      selectedMemberGlobalIds.includes(m.member_global_id),
+    );
+
+  const allFilteredMembersSelected =
+    filteredMembers.length > 0 &&
+    filteredMembers.every((m) =>
+      selectedMemberGlobalIds.includes(m.member_global_id),
+    );
+
+  const resetGroupPaging = useCallback(() => {
+    setGroupPage(1);
+    setGroupTotal(0);
+    setGroups([]);
+    setGroupSearch("");
+    setDebouncedGroupSearch("");
+  }, []);
 
   const resetForm = useCallback(() => {
     setName("");
@@ -188,15 +229,15 @@ export default function SendMessMemberGrCampaignFormModal({
     setStartTime(defaultStart());
     setEndTime(defaultEnd());
     setSelectedAccountIds([]);
-    setGroups([]);
     setSelectedGroupGlobalId(null);
     setSelectedMemberGlobalIds([]);
     setAssignMode("distribute");
     setMembers([]);
-    setGroupSearch("");
     setMemberSearch("");
+    setMemberPage(1);
+    resetGroupPaging();
     pendingGroupGlobalIdRef.current = null;
-  }, []);
+  }, [resetGroupPaging]);
 
   useEffect(() => {
     if (!open) return;
@@ -252,20 +293,46 @@ export default function SendMessMemberGrCampaignFormModal({
     setSelectedMemberGlobalIds(
       (editingCampaign.list_member_global ?? []).map(String).filter(Boolean),
     );
-    setGroups([]);
     setMembers([]);
-    setGroupSearch("");
     setMemberSearch("");
-  }, [open, editingCampaign, resetForm]);
+    setMemberPage(1);
+    resetGroupPaging();
+  }, [open, editingCampaign, resetForm, resetGroupPaging]);
+
+  useEffect(() => {
+    if (!open) return;
+    const t = window.setTimeout(() => {
+      setDebouncedGroupSearch(groupSearch.trim());
+      setGroupPage(1);
+    }, SEARCH_DEBOUNCE_MS);
+    return () => window.clearTimeout(t);
+  }, [groupSearch, open]);
+
+  useEffect(() => {
+    setMemberPage(1);
+  }, [memberSearch, selectedGroupGlobalId]);
+
+  // Drop nick không còn active
+  useEffect(() => {
+    if (!open || !activeAccounts.length) return;
+    setSelectedAccountIds((prev) => {
+      const next = prev.filter((id) =>
+        activeAccounts.some((account) => account.id === id),
+      );
+      return next.length === prev.length ? prev : next;
+    });
+  }, [open, activeAccounts]);
 
   const loadGroups = useCallback(
     async (
       accountIds: number[],
-      keyword?: string,
+      keyword: string,
+      page: number,
       options?: { silentEmpty?: boolean },
     ) => {
       if (!accountIds.length) {
         setGroups([]);
+        setGroupTotal(0);
         setSelectedGroupGlobalId(null);
         return;
       }
@@ -273,13 +340,20 @@ export default function SendMessMemberGrCampaignFormModal({
       const seq = ++loadGroupsSeqRef.current;
       try {
         setGroupsLoading(true);
-        const loaded = await fetchCampaignCommonGroups({
+        const data = await fetchCampaignCommonGroupsPage({
           accountIds,
-          keyword,
+          keyword: keyword || undefined,
+          page,
+          pageSize: GROUP_PAGE_SIZE,
         });
         if (seq !== loadGroupsSeqRef.current) return;
 
+        const loaded = data.results;
         setGroups(loaded);
+        // count = tổng mọi trang (BE list_common_joined_groups)
+        setGroupTotal(
+          typeof data.count === "number" ? data.count : loaded.length,
+        );
 
         const pending = pendingGroupGlobalIdRef.current;
         if (pending) {
@@ -287,15 +361,28 @@ export default function SendMessMemberGrCampaignFormModal({
           if (matched?.globalId) {
             setSelectedGroupGlobalId(matched.globalId);
             pendingGroupGlobalIdRef.current = null;
+          } else if (page === 1 && !keyword) {
+            try {
+              const all = await fetchCampaignCommonGroups({ accountIds });
+              if (seq !== loadGroupsSeqRef.current) return;
+              const found = all.find((item) => item.globalId === pending);
+              if (found?.globalId) {
+                setSelectedGroupGlobalId(found.globalId);
+                pendingGroupGlobalIdRef.current = null;
+              }
+            } catch {
+              /* ignore */
+            }
           }
         } else {
           setSelectedGroupGlobalId((prev) => {
             if (!prev) return null;
-            return loaded.some((item) => item.globalId === prev) ? prev : null;
+            // Giữ selection khi lật trang (không có trên page hiện tại)
+            return prev;
           });
         }
 
-        if (!loaded.length && !options?.silentEmpty) {
+        if (!loaded.length && data.count === 0 && !options?.silentEmpty) {
           toast.error(
             accountIds.length >= 2
               ? "Không có nhóm chung / chưa sync global giữa các nick đã chọn."
@@ -305,6 +392,7 @@ export default function SendMessMemberGrCampaignFormModal({
       } catch (error) {
         if (seq !== loadGroupsSeqRef.current) return;
         setGroups([]);
+        setGroupTotal(0);
         toast.error(getApiErrorMessage(error));
       } finally {
         if (seq === loadGroupsSeqRef.current) {
@@ -352,6 +440,7 @@ export default function SendMessMemberGrCampaignFormModal({
     if (!open) return;
     if (!selectedAccountIds.length) {
       setGroups([]);
+      setGroupTotal(0);
       if (!editingCampaign) {
         setSelectedGroupGlobalId(null);
         setMembers([]);
@@ -359,9 +448,19 @@ export default function SendMessMemberGrCampaignFormModal({
       }
       return;
     }
-    void loadGroups(selectedAccountIds, undefined, { silentEmpty: true });
-    // selectedKey ổn định theo sort ids — tránh double dep selectedAccountIds + selectedKey
-  }, [open, selectedKey, editingCampaign?.id, loadGroups, selectedAccountIds, editingCampaign]);
+    void loadGroups(selectedAccountIds, debouncedGroupSearch, groupPage, {
+      silentEmpty: true,
+    });
+  }, [
+    open,
+    selectedKey,
+    editingCampaign?.id,
+    loadGroups,
+    selectedAccountIds,
+    debouncedGroupSearch,
+    groupPage,
+    editingCampaign,
+  ]);
 
   useEffect(() => {
     if (!open || !selectedGroupGlobalId || !selectedAccountIds.length) {
@@ -369,7 +468,6 @@ export default function SendMessMemberGrCampaignFormModal({
       return;
     }
     void loadMembers(selectedAccountIds, selectedGroupGlobalId);
-    // Strict Mode: service fetchGroupMembers đã dedupeInflight
   }, [open, selectedKey, selectedGroupGlobalId, loadMembers, selectedAccountIds]);
 
   const handleScanGroupResult = useCallback(
@@ -381,13 +479,14 @@ export default function SendMessMemberGrCampaignFormModal({
       if (status === "SUCCESS") {
         toast.success("Quét danh sách nhóm thành công.");
         if (selectedAccountIds.length) {
-          void loadGroups(selectedAccountIds, groupSearch || undefined);
+          setGroupPage(1);
+          void loadGroups(selectedAccountIds, debouncedGroupSearch, 1);
         }
       } else {
         toast.error(result.message || result.error || "Quét danh sách nhóm thất bại.");
       }
     },
-    [selectedAccountIds, groupSearch, loadGroups],
+    [selectedAccountIds, debouncedGroupSearch, loadGroups],
   );
 
   useScanTaskPoll({
@@ -398,6 +497,10 @@ export default function SendMessMemberGrCampaignFormModal({
 
   const toggleAccount = (accountId: number) => {
     if (!targetsEditable) return;
+    if (!activeAccounts.some((item) => item.id === accountId)) {
+      toast.error("Chỉ chọn nick đang hoạt động.");
+      return;
+    }
     setSelectedAccountIds((prev) => {
       const next = prev.includes(accountId)
         ? prev.filter((id) => id !== accountId)
@@ -405,8 +508,9 @@ export default function SendMessMemberGrCampaignFormModal({
       if (next.length !== prev.length) {
         setSelectedGroupGlobalId(null);
         setSelectedMemberGlobalIds([]);
-        setGroups([]);
         setMembers([]);
+        setMemberPage(1);
+        resetGroupPaging();
         pendingGroupGlobalIdRef.current = null;
       }
       return next;
@@ -422,8 +526,9 @@ export default function SendMessMemberGrCampaignFormModal({
     setSelectedAccountIds(allSelected ? [] : allIds);
     setSelectedGroupGlobalId(null);
     setSelectedMemberGlobalIds([]);
-    setGroups([]);
     setMembers([]);
+    setMemberPage(1);
+    resetGroupPaging();
     pendingGroupGlobalIdRef.current = null;
   };
 
@@ -438,6 +543,7 @@ export default function SendMessMemberGrCampaignFormModal({
     setSelectedGroupGlobalId(globalId);
     setSelectedMemberGlobalIds([]);
     setMemberSearch("");
+    setMemberPage(1);
   };
 
   const toggleMember = (memberGlobalId: string) => {
@@ -449,13 +555,30 @@ export default function SendMessMemberGrCampaignFormModal({
     );
   };
 
-  const toggleSelectAllMembers = () => {
+  /** Chọn / bỏ chọn TV trên trang UI hiện tại. */
+  const toggleAllPageMembers = () => {
+    if (!targetsEditable || !pageMembers.length) return;
+    const pageIds = new Set(pageMembers.map((m) => m.member_global_id));
+    setSelectedMemberGlobalIds((current) =>
+      allPageMembersSelected
+        ? current.filter((id) => !pageIds.has(id))
+        : Array.from(new Set([...current, ...pageIds])),
+    );
+  };
+
+  /** Chọn tất cả TV khớp filter tìm (mọi trang client). */
+  const selectAllFilteredMembers = () => {
     if (!targetsEditable) return;
     const allIds = filteredMembers.map((m) => m.member_global_id);
-    const allSelected =
-      allIds.length > 0 &&
-      allIds.every((id) => selectedMemberGlobalIds.includes(id));
-    setSelectedMemberGlobalIds(allSelected ? [] : allIds);
+    if (!allIds.length) return;
+    setSelectedMemberGlobalIds((prev) =>
+      Array.from(new Set([...prev, ...allIds])),
+    );
+  };
+
+  const clearAllSelectedMembers = () => {
+    if (!targetsEditable) return;
+    setSelectedMemberGlobalIds([]);
   };
 
   const handleScanGroups = async () => {
@@ -1210,17 +1333,17 @@ export default function SendMessMemberGrCampaignFormModal({
 
   const groupsListBody = !selectedAccountIds.length ? (
     <p className="px-3 py-6 text-center text-xs text-gray-500">
-      Chọn tài khoản để xem nhóm chung
+      Chọn tài khoản đang hoạt động để xem nhóm chung
     </p>
   ) : groupsLoading ? (
     <p className="px-3 py-6 text-center text-xs text-gray-500">Đang tải...</p>
-  ) : filteredGroups.length === 0 ? (
+  ) : groups.length === 0 ? (
     <p className="px-3 py-6 text-center text-xs text-gray-500">
       Không có nhóm chung / chưa sync global
     </p>
   ) : (
     <ul className="space-y-0.5">
-      {filteredGroups.map((group) => {
+      {groups.map((group) => {
         const globalId = group.globalId ?? "";
         const active = Boolean(globalId && selectedGroupGlobalId === globalId);
         return (
@@ -1240,19 +1363,12 @@ export default function SendMessMemberGrCampaignFormModal({
                 avatar={groupAvatar(group)}
                 size="sm"
               />
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-gray-800 dark:text-white/90">
-                  {group.name}
-                </span>
-                {typeof group.total_member === "number" ? (
-                  <span className="text-theme-xs text-gray-500">
-                    {group.total_member} TV
-                  </span>
-                ) : null}
+              <span className="min-w-0 flex-1 truncate text-gray-800 dark:text-white/90">
+                {group.name}
               </span>
               {active ? (
                 <span className="shrink-0 text-theme-xs font-semibold text-brand-600 dark:text-brand-400">
-                  ✓ Đã chọn
+                  ✓
                 </span>
               ) : null}
             </button>
@@ -1274,11 +1390,16 @@ export default function SendMessMemberGrCampaignFormModal({
         <span className="flex size-6 items-center justify-center rounded-md bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-400">
           <GroupIcon className="size-3.5" />
         </span>
-        <span className="text-sm font-semibold text-gray-800 dark:text-white/90">
-          Nhóm chung
-        </span>
+        <div className="min-w-0 flex-1">
+          <span className="text-sm font-semibold text-gray-800 dark:text-white/90">
+            Nhóm chung
+          </span>
+          <p className="text-[11px] leading-tight text-gray-500">
+            1 nhóm · all-group phân trang
+          </p>
+        </div>
         {selectedGroupGlobalId ? (
-          <span className="ml-auto rounded-full bg-brand-50 px-2 py-0.5 text-theme-xs font-medium text-brand-600 dark:bg-brand-500/10 dark:text-brand-400">
+          <span className="rounded-full bg-brand-50 px-2 py-0.5 text-theme-xs font-medium text-brand-600 dark:bg-brand-500/10 dark:text-brand-400">
             Đã chọn
           </span>
         ) : null}
@@ -1315,6 +1436,35 @@ export default function SendMessMemberGrCampaignFormModal({
       >
         {groupsListBody}
       </div>
+      {selectedAccountIds.length > 0 && groupTotal > 0 ? (
+        <div className="flex shrink-0 items-center justify-between gap-2 border-t border-gray-100 px-3 py-2 dark:border-gray-800">
+          <span className="text-theme-xs text-gray-500">
+            Trang {groupPage}/{groupTotalPages} — {groupTotal} nhóm
+          </span>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={groupPage <= 1 || groupsLoading || saving}
+              onClick={() => setGroupPage((p) => Math.max(1, p - 1))}
+            >
+              Trước
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={
+                groupPage >= groupTotalPages || groupsLoading || saving
+              }
+              onClick={() =>
+                setGroupPage((p) => Math.min(groupTotalPages, p + 1))
+              }
+            >
+              Sau
+            </Button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 
@@ -1330,7 +1480,7 @@ export default function SendMessMemberGrCampaignFormModal({
     </p>
   ) : (
     <ul className="space-y-0.5">
-      {filteredMembers.map((member) => {
+      {pageMembers.map((member) => {
         const selected = selectedMemberGlobalIds.includes(member.member_global_id);
         return (
           <li key={member.member_global_id}>
@@ -1379,28 +1529,46 @@ export default function SendMessMemberGrCampaignFormModal({
           : "flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.02]"
       }
     >
-      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-gray-100 px-3 py-2 dark:border-gray-800">
-        <div className="flex items-center gap-2">
-          <span className="flex size-6 items-center justify-center rounded-md bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-400">
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-gray-100 px-3 py-2 dark:border-gray-800">
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-400">
             <UserIcon className="size-3.5" />
           </span>
-          <span className="text-sm font-semibold text-gray-800 dark:text-white/90">
-            Thành viên
-          </span>
+          <div className="min-w-0">
+            <span className="text-sm font-semibold text-gray-800 dark:text-white/90">
+              Thành viên
+            </span>
+            <p className="text-[11px] leading-tight text-gray-500">
+              Tick nhiều trang — giữ lựa chọn khi lật trang
+            </p>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-x-2 gap-y-1">
+          <button
+            type="button"
+            disabled={!targetsEditable || saving || !pageMembers.length}
+            onClick={toggleAllPageMembers}
+            className="text-theme-xs font-semibold text-brand-600 hover:underline disabled:opacity-50 dark:text-brand-400"
+          >
+            {allPageMembersSelected ? "Bỏ chọn trang" : "Chọn trang"}
+          </button>
           <button
             type="button"
             disabled={!targetsEditable || saving || !filteredMembers.length}
-            onClick={toggleSelectAllMembers}
-            className="text-theme-xs font-medium text-brand-600 hover:underline disabled:opacity-50 dark:text-brand-400"
+            onClick={selectAllFilteredMembers}
+            className="text-theme-xs font-semibold text-brand-600 hover:underline disabled:opacity-50 dark:text-brand-400"
           >
-            {filteredMembers.length > 0 &&
-            filteredMembers.every((m) =>
-              selectedMemberGlobalIds.includes(m.member_global_id),
-            )
-              ? "Bỏ chọn"
-              : "Chọn hết"}
+            {allFilteredMembersSelected ? "Đã chọn hết filter" : "Chọn tất cả"}
+          </button>
+          <button
+            type="button"
+            disabled={
+              !targetsEditable || saving || selectedMemberGlobalIds.length === 0
+            }
+            onClick={clearAllSelectedMembers}
+            className="text-theme-xs font-semibold text-error-600 hover:underline disabled:opacity-50 dark:text-error-400"
+          >
+            Bỏ chọn hết
           </button>
           <span className="rounded-full bg-brand-50 px-2 py-0.5 text-theme-xs font-medium text-brand-600 dark:bg-brand-500/10 dark:text-brand-400">
             {selectedMemberGlobalIds.length} đã chọn
@@ -1453,6 +1621,37 @@ export default function SendMessMemberGrCampaignFormModal({
       >
         {membersListBody}
       </div>
+
+      {selectedGroupGlobalId && filteredMembers.length > 0 ? (
+        <div className="flex shrink-0 items-center justify-between gap-2 border-t border-gray-100 px-3 py-2 dark:border-gray-800">
+          <span className="text-theme-xs text-gray-500">
+            Trang {Math.min(memberPage, memberTotalPages)}/{memberTotalPages} —{" "}
+            {filteredMembers.length} TV
+          </span>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={memberPage <= 1 || membersLoading || saving}
+              onClick={() => setMemberPage((p) => Math.max(1, p - 1))}
+            >
+              Trước
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={
+                memberPage >= memberTotalPages || membersLoading || saving
+              }
+              onClick={() =>
+                setMemberPage((p) => Math.min(memberTotalPages, p + 1))
+              }
+            >
+              Sau
+            </Button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 

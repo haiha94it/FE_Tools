@@ -162,10 +162,14 @@ export default function SendMesFrCampaignFormModal({
   const [selectedAccountId, setSelectedAccountId] = useState<number | null>(null);
   const [selectedFriendIds, setSelectedFriendIds] = useState<number[]>([]);
   const [friendSearch, setFriendSearch] = useState("");
+  const [debouncedFriendSearch, setDebouncedFriendSearch] = useState("");
   const [friendLabelId, setFriendLabelId] = useState<number | null>(null);
   const [labelCategories, setLabelCategories] = useState<ZaloLabelCategory[]>([]);
   const [friends, setFriends] = useState<ZaloFriendItem[]>([]);
+  const [friendPage, setFriendPage] = useState(1);
+  const [friendTotal, setFriendTotal] = useState(0);
   const [friendsLoading, setFriendsLoading] = useState(false);
+  const [selectingAllFriends, setSelectingAllFriends] = useState(false);
   const [scanningFriends, setScanningFriends] = useState(false);
   const [scanTaskId, setScanTaskId] = useState<string | number | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -174,22 +178,38 @@ export default function SendMesFrCampaignFormModal({
     ? canEditSendMesFrFriends(editingCampaign.status)
     : true;
 
+  const FRIEND_PAGE_SIZE = 50;
+  const FRIEND_SEARCH_DEBOUNCE_MS = 350;
+
   const activeAccounts = useMemo(
     () => accounts.filter((item) => item.checkpoint === false),
     [accounts],
   );
 
-  const filteredFriends = useMemo(() => {
-    const key = friendSearch.trim().toLowerCase();
-    if (!key) return friends;
-    return friends.filter((item) =>
-      getZaloFriendDisplayName(item).toLowerCase().includes(key),
-    );
-  }, [friends, friendSearch]);
+  const isSelectedAccountActive = useMemo(
+    () =>
+      selectedAccountId != null &&
+      activeAccounts.some((item) => item.id === selectedAccountId),
+    [selectedAccountId, activeAccounts],
+  );
 
-  const allFilteredFriendsSelected =
-    filteredFriends.length > 0 &&
-    filteredFriends.every((friend) => selectedFriendIds.includes(friend.id));
+  const pageFriends = isSelectedAccountActive ? friends : [];
+  const friendTotalPages = Math.max(
+    1,
+    Math.ceil(friendTotal / FRIEND_PAGE_SIZE) || 1,
+  );
+  const allPageFriendsSelected =
+    pageFriends.length > 0 &&
+    pageFriends.every((friend) => selectedFriendIds.includes(friend.id));
+
+  const resetFriendPaging = useCallback(() => {
+    setFriendPage(1);
+    setFriendTotal(0);
+    setFriends([]);
+    setFriendSearch("");
+    setDebouncedFriendSearch("");
+    setFriendLabelId(null);
+  }, []);
 
   const resetForm = useCallback(() => {
     setName("");
@@ -204,11 +224,9 @@ export default function SendMesFrCampaignFormModal({
     setEndTime(defaultEnd());
     setSelectedAccountId(null);
     setSelectedFriendIds([]);
-    setFriendSearch("");
-    setFriendLabelId(null);
     setLabelCategories([]);
-    setFriends([]);
-  }, []);
+    resetFriendPaging();
+  }, [resetFriendPaging]);
 
   useEffect(() => {
     if (!open) return;
@@ -235,28 +253,63 @@ export default function SendMesFrCampaignFormModal({
     setEndTime(parseTimeToDate(editingCampaign.to_time) ?? defaultEnd());
     setSelectedAccountId(editingCampaign.account ?? null);
     setSelectedFriendIds(editingCampaign.friend ?? []);
-  }, [open, editingCampaign, resetForm]);
+    resetFriendPaging();
+  }, [open, editingCampaign, resetForm, resetFriendPaging]);
+
+  useEffect(() => {
+    if (!open) return;
+    const t = window.setTimeout(() => {
+      setDebouncedFriendSearch(friendSearch.trim());
+      setFriendPage(1);
+    }, FRIEND_SEARCH_DEBOUNCE_MS);
+    return () => window.clearTimeout(t);
+  }, [friendSearch, open]);
+
+  useEffect(() => {
+    if (!open || accountsLoading) return;
+    if (selectedAccountId == null) return;
+    if (isSelectedAccountActive) return;
+    const wasCampaign = editingCampaign?.account === selectedAccountId;
+    setSelectedAccountId(null);
+    setSelectedFriendIds([]);
+    setLabelCategories([]);
+    resetFriendPaging();
+    if (wasCampaign) {
+      toast.warning(
+        "Nick gốc của kịch bản không còn hoạt động. Chọn nick đang hoạt động.",
+      );
+    }
+  }, [
+    open,
+    accountsLoading,
+    selectedAccountId,
+    isSelectedAccountActive,
+    editingCampaign?.account,
+    resetFriendPaging,
+  ]);
 
   const loadFriends = useCallback(
-    async (accountId: number, search: string, categoryId: number | null) => {
+    async (
+      accountId: number,
+      search: string,
+      categoryId: number | null,
+      page: number,
+    ) => {
       setFriendsLoading(true);
       try {
-        const page = await zaloFriendService.list({
+        const data = await zaloFriendService.list({
           accountId,
-          page: 1,
-          pageSize: 200,
-          name: search || undefined,
+          page,
+          pageSize: FRIEND_PAGE_SIZE,
+          name: search.trim() || undefined,
           categoryId: categoryId ?? undefined,
+          mode: "list",
         });
-        const list = page.results ?? [];
-        if (!list.length) {
-          setFriends([]);
-          return;
-        }
-        const enriched = await zaloFriendService.fetchDetails(list);
-        setFriends(enriched);
+        setFriends(data.results ?? []);
+        setFriendTotal(data.count ?? data.results?.length ?? 0);
       } catch {
         setFriends([]);
+        setFriendTotal(0);
       } finally {
         setFriendsLoading(false);
       }
@@ -264,19 +317,96 @@ export default function SendMesFrCampaignFormModal({
     [],
   );
 
-  useEffect(() => {
-    if (!open || !selectedAccountId) return;
-    void zaloLabelService
-      .listCategories(selectedAccountId)
-      .then(setLabelCategories)
-      .catch(() => setLabelCategories([]));
-    void loadFriends(selectedAccountId, friendSearch, friendLabelId);
-  }, [open, selectedAccountId, friendLabelId, loadFriends]);
+  const fetchMatchingFriendIds = useCallback(
+    async (
+      accountId: number,
+      options?: { search?: string; categoryId?: number | null },
+    ) => {
+      const page = await zaloFriendService.list({
+        accountId,
+        mode: "simple",
+        name: options?.search?.trim() || undefined,
+        categoryId: options?.categoryId ?? undefined,
+      });
+      return (page.results ?? []).map((item) => item.id);
+    },
+    [],
+  );
 
   useEffect(() => {
-    if (!open || !selectedAccountId || !editingCampaign?.friend?.length) return;
-    void loadFriends(selectedAccountId, "", null);
-  }, [open, selectedAccountId, editingCampaign, loadFriends]);
+    if (!open || !isSelectedAccountActive || selectedAccountId == null) {
+      if (!isSelectedAccountActive) setLabelCategories([]);
+      return;
+    }
+    let cancelled = false;
+    void zaloLabelService
+      .listCategories(selectedAccountId)
+      .then((list) => {
+        if (!cancelled) setLabelCategories(list);
+      })
+      .catch(() => {
+        if (!cancelled) setLabelCategories([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, isSelectedAccountActive, selectedAccountId]);
+
+  useEffect(() => {
+    if (!open || !isSelectedAccountActive || selectedAccountId == null) {
+      if (!isSelectedAccountActive) {
+        setFriends([]);
+        setFriendTotal(0);
+        setFriendsLoading(false);
+      }
+      return;
+    }
+    void loadFriends(
+      selectedAccountId,
+      debouncedFriendSearch,
+      friendLabelId,
+      friendPage,
+    );
+  }, [
+    open,
+    isSelectedAccountActive,
+    selectedAccountId,
+    debouncedFriendSearch,
+    friendLabelId,
+    friendPage,
+    loadFriends,
+  ]);
+
+  useEffect(() => {
+    if (!open || !isSelectedAccountActive || selectedAccountId == null) return;
+    if (!editingCampaign?.friend?.length) return;
+    if (editingCampaign.account !== selectedAccountId) return;
+    const raw = editingCampaign.friend;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const allowed = new Set(await fetchMatchingFriendIds(selectedAccountId));
+        if (cancelled) return;
+        setSelectedFriendIds((prev) => {
+          const isSeed =
+            prev.length === raw.length && raw.every((id) => prev.includes(id));
+          if (!isSeed) return prev;
+          return prev.filter((id) => allowed.has(id));
+        });
+      } catch {
+        /* ignore */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    open,
+    isSelectedAccountActive,
+    selectedAccountId,
+    editingCampaign,
+    fetchMatchingFriendIds,
+  ]);
 
   useEffect(() => {
     if (!scanTaskId) return;
@@ -291,24 +421,39 @@ export default function SendMesFrCampaignFormModal({
           : [];
         if (scanData[0]?.status === true || status === "SUCCESS") {
           toast.success("Quét danh sách bạn bè thành công.");
-          if (selectedAccountId) void loadFriends(selectedAccountId, friendSearch, friendLabelId);
+          if (isSelectedAccountActive && selectedAccountId) {
+            setFriendPage(1);
+            void loadFriends(
+              selectedAccountId,
+              debouncedFriendSearch,
+              friendLabelId,
+              1,
+            );
+          }
         } else {
           toast.error("Quét danh sách bạn bè thất bại.");
         }
       });
     }, 3000);
     return () => window.clearInterval(interval);
-  }, [scanTaskId, selectedAccountId, friendSearch, friendLabelId, loadFriends]);
+  }, [
+    scanTaskId,
+    isSelectedAccountActive,
+    selectedAccountId,
+    debouncedFriendSearch,
+    friendLabelId,
+    loadFriends,
+  ]);
 
   const handleSelectAccount = (accountId: number) => {
     if (selectedAccountId === accountId) return;
-    setSelectedAccountId(accountId);
-    if (!editingCampaign) {
-      setSelectedFriendIds([]);
+    if (!activeAccounts.some((item) => item.id === accountId)) {
+      toast.error("Chỉ chọn nick đang hoạt động.");
+      return;
     }
-    setFriends([]);
-    setFriendSearch("");
-    setFriendLabelId(null);
+    setSelectedAccountId(accountId);
+    setSelectedFriendIds([]);
+    resetFriendPaging();
   };
 
   const toggleFriend = (friendId: number) => {
@@ -320,19 +465,44 @@ export default function SendMesFrCampaignFormModal({
     );
   };
 
-  /** Chọn hoặc bỏ chọn toàn bộ bạn bè đang hiển thị theo bộ lọc hiện tại. */
-  const toggleAllFilteredFriends = () => {
-    if (!friendsEditable || !filteredFriends.length) return;
-    const filteredIds = new Set(filteredFriends.map((friend) => friend.id));
+  const toggleAllPageFriends = () => {
+    if (!friendsEditable || !pageFriends.length) return;
+    const pageIds = new Set(pageFriends.map((f) => f.id));
     setSelectedFriendIds((current) =>
-      allFilteredFriendsSelected
-        ? current.filter((id) => !filteredIds.has(id))
-        : Array.from(new Set([...current, ...filteredIds])),
+      allPageFriendsSelected
+        ? current.filter((id) => !pageIds.has(id))
+        : Array.from(new Set([...current, ...pageIds])),
     );
   };
 
+  const selectAllMatchingFriends = async () => {
+    if (!friendsEditable || !isSelectedAccountActive || !selectedAccountId) return;
+    setSelectingAllFriends(true);
+    try {
+      const ids = await fetchMatchingFriendIds(selectedAccountId, {
+        search: debouncedFriendSearch,
+        categoryId: friendLabelId,
+      });
+      if (!ids.length) {
+        toast.info("Không có bạn bè khớp bộ lọc để chọn.");
+        return;
+      }
+      setSelectedFriendIds((prev) => Array.from(new Set([...prev, ...ids])));
+      toast.success(`Đã chọn ${ids.length} bạn bè.`);
+    } catch {
+      toast.error("Không tải được danh sách bạn bè để chọn tất cả.");
+    } finally {
+      setSelectingAllFriends(false);
+    }
+  };
+
+  const clearAllSelectedFriends = () => {
+    if (!friendsEditable) return;
+    setSelectedFriendIds([]);
+  };
+
   const handleScanFriends = async () => {
-    if (!selectedAccountId) return;
+    if (!selectedAccountId || !isSelectedAccountActive) return;
     try {
       setScanningFriends(true);
       const taskId = await zaloFriendService.startScan(selectedAccountId);
@@ -363,8 +533,8 @@ export default function SendMesFrCampaignFormModal({
       toast.error("Vui lòng nhập tên kịch bản.");
       return;
     }
-    if (!selectedAccountId) {
-      toast.error("Chọn tài khoản Zalo.");
+    if (!selectedAccountId || !isSelectedAccountActive) {
+      toast.error("Chọn tài khoản Zalo đang hoạt động.");
       return;
     }
     if (!contents.length && !contentType) {
@@ -485,8 +655,8 @@ export default function SendMesFrCampaignFormModal({
         return true;
       }
       if (step === 1) {
-        if (!selectedAccountId) {
-          toast.error("Chọn tài khoản Zalo.");
+        if (!selectedAccountId || !isSelectedAccountActive) {
+          toast.error("Chọn tài khoản Zalo đang hoạt động.");
           return false;
         }
         return true;
@@ -502,6 +672,7 @@ export default function SendMesFrCampaignFormModal({
       images,
       selectedMediaId,
       selectedAccountId,
+      isSelectedAccountActive,
     ],
   );
 
@@ -680,19 +851,19 @@ export default function SendMesFrCampaignFormModal({
     </div>
   );
 
-  const friendsListBody = !selectedAccountId ? (
+  const friendsListBody = !isSelectedAccountActive ? (
     <p className="px-3 py-6 text-center text-xs text-gray-500">
-      Chọn tài khoản để xem bạn bè
+      Chọn tài khoản đang hoạt động để xem bạn bè
     </p>
   ) : friendsLoading ? (
     <p className="px-3 py-6 text-center text-xs text-gray-500">Đang tải...</p>
-  ) : filteredFriends.length === 0 ? (
+  ) : pageFriends.length === 0 ? (
     <p className="px-3 py-6 text-center text-xs text-gray-500">
       Không có bạn bè phù hợp
     </p>
   ) : (
     <ul className="space-y-0.5">
-      {filteredFriends.map((friend) => {
+      {pageFriends.map((friend) => {
         const selected = selectedFriendIds.includes(friend.id);
         const friendName = getZaloFriendDisplayName(friend);
         return (
@@ -733,36 +904,73 @@ export default function SendMesFrCampaignFormModal({
           : "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.02]"
       }
     >
-      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-gray-100 px-3 py-2 dark:border-gray-800">
-        <div className="flex items-center gap-2">
-          <span className="flex size-6 items-center justify-center rounded-md bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-400">
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-gray-100 px-3 py-2 dark:border-gray-800">
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-400">
             <UserIcon className="size-3.5" />
           </span>
-          <span className="text-sm font-semibold text-gray-800 dark:text-white/90">
-            Chọn bạn bè
-          </span>
+          <div className="min-w-0">
+            <span className="text-sm font-semibold text-gray-800 dark:text-white/90">
+              Chọn bạn bè
+            </span>
+            <p className="text-[11px] leading-tight text-gray-500">
+              Tick nhiều trang — giữ lựa chọn khi lật trang
+            </p>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-x-2 gap-y-1">
           <button
             type="button"
-            onClick={toggleAllFilteredFriends}
+            onClick={toggleAllPageFriends}
             disabled={
               !friendsEditable ||
               saving ||
               friendsLoading ||
-              filteredFriends.length === 0
+              selectingAllFriends ||
+              pageFriends.length === 0
             }
             className="text-theme-xs font-semibold text-brand-600 hover:text-brand-700 disabled:cursor-not-allowed disabled:opacity-40 dark:text-brand-400 dark:hover:text-brand-300"
           >
-            {allFilteredFriendsSelected ? "Bỏ chọn tất cả" : "Chọn tất cả"}
+            {allPageFriendsSelected ? "Bỏ chọn trang" : "Chọn trang"}
+          </button>
+          <button
+            type="button"
+            onClick={() => void selectAllMatchingFriends()}
+            disabled={
+              !friendsEditable ||
+              saving ||
+              friendsLoading ||
+              selectingAllFriends ||
+              friendTotal === 0
+            }
+            className="text-theme-xs font-semibold text-brand-600 hover:text-brand-700 disabled:cursor-not-allowed disabled:opacity-40 dark:text-brand-400 dark:hover:text-brand-300"
+          >
+            {selectingAllFriends ? "Đang chọn..." : "Chọn tất cả"}
+          </button>
+          <button
+            type="button"
+            onClick={clearAllSelectedFriends}
+            disabled={
+              !friendsEditable ||
+              saving ||
+              selectingAllFriends ||
+              selectedFriendIds.length === 0
+            }
+            className="text-theme-xs font-semibold text-error-600 hover:text-error-700 disabled:cursor-not-allowed disabled:opacity-40 dark:text-error-400"
+          >
+            Bỏ chọn hết
           </button>
           <span className="rounded-full bg-brand-50 px-2 py-0.5 text-theme-xs font-medium text-brand-600 dark:bg-brand-500/10 dark:text-brand-400">
-            {selectedFriendIds.length} đã chọn
+            {isSelectedAccountActive ? selectedFriendIds.length : 0} đã chọn
           </span>
         </div>
       </div>
 
-      {!friendsEditable ? (
+      {!isSelectedAccountActive ? (
+        <p className="shrink-0 border-b border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
+          Chưa chọn nick đang hoạt động — không tải danh sách bạn bè.
+        </p>
+      ) : !friendsEditable ? (
         <p className="shrink-0 border-b border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
           Kịch bản đang chạy — không thể thay đổi bạn bè.
         </p>
@@ -776,8 +984,11 @@ export default function SendMesFrCampaignFormModal({
           <LabelChipFilter
             labels={labelCategories}
             value={friendLabelId}
-            onChange={setFriendLabelId}
-            disabled={!selectedAccountId || saving}
+            onChange={(id) => {
+              setFriendLabelId(id);
+              setFriendPage(1);
+            }}
+            disabled={!isSelectedAccountActive || saving}
           />
         </div>
         <div className="flex h-10 items-stretch gap-2">
@@ -786,7 +997,7 @@ export default function SendMesFrCampaignFormModal({
               value={friendSearch}
               onChange={(e) => setFriendSearch(e.target.value)}
               placeholder="Tìm bạn bè..."
-              disabled={!selectedAccountId || saving}
+              disabled={!isSelectedAccountActive || saving}
               className="!h-full !min-h-10 !px-3 !py-2 !text-sm"
             />
           </div>
@@ -794,7 +1005,7 @@ export default function SendMesFrCampaignFormModal({
             size="sm"
             variant="outline"
             className="h-10 shrink-0 whitespace-nowrap !py-0 px-3 text-xs"
-            disabled={!selectedAccountId || scanningFriends || saving}
+            disabled={!isSelectedAccountActive || scanningFriends || saving}
             onClick={() => void handleScanFriends()}
           >
             {scanningFriends ? "Đang quét..." : "Quét bạn bè"}
@@ -821,6 +1032,36 @@ export default function SendMesFrCampaignFormModal({
       >
         {friendsListBody}
       </div>
+
+      {isSelectedAccountActive && friendTotal > 0 ? (
+        <div className="flex shrink-0 items-center justify-between gap-2 border-t border-gray-100 px-3 py-2 dark:border-gray-800">
+          <span className="text-theme-xs text-gray-500">
+            Trang {friendPage}/{friendTotalPages} — {friendTotal} bạn
+          </span>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={friendPage <= 1 || friendsLoading || saving}
+              onClick={() => setFriendPage((p) => Math.max(1, p - 1))}
+            >
+              Trước
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={
+                friendPage >= friendTotalPages || friendsLoading || saving
+              }
+              onClick={() =>
+                setFriendPage((p) => Math.min(friendTotalPages, p + 1))
+              }
+            >
+              Sau
+            </Button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 

@@ -20,21 +20,31 @@ import type {
 } from "@/types/zalo-contacts";
 
 export const zaloFriendService = {
+  /**
+   * List bạn bè theo nick.
+   * - simple: mảng id (prune / chọn tất cả)
+   * - list: id/name/avatar paginated (picker kịch bản)
+   * - detail: full FriendDetail (contacts/messenger)
+   */
   async list(params: {
     accountId: number;
     page?: number;
     pageSize?: number;
     name?: string;
     categoryId?: number;
-    /** false/undefined → type=simple + hydrate; true → full FriendDetail (§2.1 contract) */
+    mode?: "simple" | "list" | "detail";
+    /** @deprecated Ưu tiên `mode`. true→detail, false→simple. */
     detail?: boolean;
   }): Promise<PaginatedResponse<ZaloFriendItem>> {
+    const mode = params.mode ?? (params.detail ? "detail" : "simple");
+    const typeParam =
+      mode === "simple" ? "simple" : mode === "detail" ? "detail" : "list";
     const response = await api.get(API_ZALO_FRIEND.LIST, {
       params: {
         id_account: params.accountId,
         page: params.page ?? 1,
         number_per_page: params.pageSize ?? 100,
-        ...(params.detail ? {} : { type: "simple" }),
+        type: typeParam,
         ...(params.name ? { name: params.name } : {}),
         ...(params.categoryId
           ? { id_category_message: params.categoryId }
@@ -48,7 +58,7 @@ export const zaloFriendService = {
     };
   },
 
-  /** Lấy avatar/chi tiết — list API type=simple không trả ảnh */
+  /** Enrich id-only — picker nên dùng list({ mode: "list" }). */
   async fetchDetails(friends: ZaloFriendItem[]): Promise<ZaloFriendItem[]> {
     const idFriends = buildFriendFetchPayload(friends as unknown[]);
     if (!idFriends.length) return [];
