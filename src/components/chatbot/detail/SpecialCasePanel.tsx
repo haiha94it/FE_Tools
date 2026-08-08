@@ -22,6 +22,7 @@ import {
   CHATBOT_MAX_KEYWORDS,
 } from "@/types/chatbot";
 import { useEffect, useMemo, useRef, useState } from "react";
+import * as XLSX from "xlsx";
 
 interface SpecialCasePanelProps {
   chatbotId: number;
@@ -145,7 +146,36 @@ export default function SpecialCasePanel({ chatbotId }: SpecialCasePanelProps) {
 
   const handleImportKeywordsFile = async (typeValue: string, file: File) => {
     try {
-      const text = await file.text();
+      let text = "";
+      const isExcel =
+        file.name.endsWith(".xlsx") ||
+        file.name.endsWith(".xls") ||
+        file.type.includes("spreadsheetml") ||
+        file.type.includes("ms-excel");
+
+      if (isExcel) {
+        const data = await file.arrayBuffer();
+        const workbook = XLSX.read(data, { type: "array" });
+        const firstSheetName = workbook.SheetNames[0];
+        if (!firstSheetName) {
+          toast.warning("File Excel không có dữ liệu.");
+          return;
+        }
+        const worksheet = workbook.Sheets[firstSheetName];
+        const jsonRows = XLSX.utils.sheet_to_json<Array<unknown>>(worksheet, {
+          header: 1,
+        });
+        text = jsonRows
+          .flat()
+          .map((cell) =>
+            cell !== null && cell !== undefined ? String(cell).trim() : "",
+          )
+          .filter(Boolean)
+          .join(",");
+      } else {
+        text = await file.text();
+      }
+
       const parsed = parseCommaSeparatedKeywords(text);
       if (parsed.length === 0) {
         toast.warning("File không có từ khóa hợp lệ.");
@@ -381,7 +411,7 @@ export default function SpecialCasePanel({ chatbotId }: SpecialCasePanelProps) {
                         fileInputRefs.current[type.value] = el;
                       }}
                       type="file"
-                      accept=".txt,.csv,text/plain"
+                      accept=".txt,.csv,.xlsx,.xls,text/plain,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
                       className="hidden"
                       onChange={(e) => {
                         const file = e.target.files?.[0];

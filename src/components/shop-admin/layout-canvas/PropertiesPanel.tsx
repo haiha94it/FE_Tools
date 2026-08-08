@@ -16,12 +16,20 @@ import {
   LAYOUT_SECTION_TYPE_META,
 } from "@/lib/shop-layout-canvas";
 import type {
+  LayoutAlignItems,
   LayoutAnimationPreset,
   LayoutBgPreset,
   LayoutBlurPreset,
   LayoutBorderPreset,
   LayoutContainerChild,
+  LayoutDisplayMode,
+  LayoutFlexDirection,
+  LayoutFlexGridConfig,
+  LayoutFlexWrap,
+  LayoutGapSize,
+  LayoutGridCols,
   LayoutHoverPreset,
+  LayoutJustify,
   LayoutRadiusPreset,
   LayoutSection,
   LayoutSectionStyling,
@@ -225,6 +233,60 @@ const BORDER_OPTIONS: { value: LayoutBorderPreset; label: string }[] = [
   { value: "solid", label: "Solid" },
   { value: "dashed", label: "Dash" },
   { value: "accent", label: "Accent" },
+];
+
+const DISPLAY_OPTIONS: { value: LayoutDisplayMode; label: string }[] = [
+  { value: "block", label: "Block" },
+  { value: "flex", label: "Flex" },
+  { value: "grid", label: "Grid" },
+];
+
+const FLEX_DIR_OPTIONS: { value: LayoutFlexDirection; label: string }[] = [
+  { value: "row", label: "Row →" },
+  { value: "column", label: "Col ↓" },
+  { value: "row-reverse", label: "← Row" },
+  { value: "column-reverse", label: "↑ Col" },
+];
+
+const FLEX_WRAP_OPTIONS: { value: LayoutFlexWrap; label: string }[] = [
+  { value: "nowrap", label: "No wrap" },
+  { value: "wrap", label: "Wrap" },
+  { value: "wrap-reverse", label: "Wrap ↺" },
+];
+
+const JUSTIFY_OPTIONS: { value: LayoutJustify; label: string }[] = [
+  { value: "start", label: "Start" },
+  { value: "center", label: "Center" },
+  { value: "end", label: "End" },
+  { value: "between", label: "Between" },
+  { value: "around", label: "Around" },
+  { value: "evenly", label: "Evenly" },
+];
+
+const ALIGN_OPTIONS: { value: LayoutAlignItems; label: string }[] = [
+  { value: "start", label: "Start" },
+  { value: "center", label: "Center" },
+  { value: "end", label: "End" },
+  { value: "stretch", label: "Stretch" },
+  { value: "baseline", label: "Base" },
+];
+
+const GAP_OPTIONS: { value: LayoutGapSize; label: string }[] = [
+  { value: "none", label: "0" },
+  { value: "xs", label: "XS" },
+  { value: "sm", label: "S" },
+  { value: "md", label: "M" },
+  { value: "lg", label: "L" },
+  { value: "xl", label: "XL" },
+];
+
+const COLS_OPTIONS: { value: string; label: string }[] = [
+  { value: "1", label: "1" },
+  { value: "2", label: "2" },
+  { value: "3", label: "3" },
+  { value: "4", label: "4" },
+  { value: "5", label: "5" },
+  { value: "6", label: "6" },
 ];
 
 /* ─────────────────────────────────────────────────────────────
@@ -1401,6 +1463,197 @@ const NESTABLE_BLOCK_TYPES: LayoutSectionType[] =
     (m) => m.type !== "HEADER" || !m.lockedByDefault,
   ).map((m) => m.type);
 
+function FlexGridInspector({
+  flexGrid,
+  styleDevice,
+  onChange,
+}: {
+  flexGrid?: LayoutFlexGridConfig;
+  styleDevice: "desktop" | "mobile";
+  onChange: (next: LayoutFlexGridConfig) => void;
+}) {
+  const fg = flexGrid ?? {};
+  const isMobileTab = styleDevice === "mobile";
+
+  /** Giá trị đang edit theo tab */
+  const display: LayoutDisplayMode = isMobileTab
+    ? (fg.mobile?.display ?? fg.display ?? "block")
+    : (fg.display ?? "block");
+  const direction: LayoutFlexDirection = isMobileTab
+    ? (fg.mobile?.direction ?? fg.direction ?? "row")
+    : (fg.direction ?? "row");
+  const wrap: LayoutFlexWrap = isMobileTab
+    ? (fg.mobile?.wrap ?? fg.wrap ?? "nowrap")
+    : (fg.wrap ?? "nowrap");
+  const justify: LayoutJustify = isMobileTab
+    ? (fg.mobile?.justify ?? fg.justify ?? "start")
+    : (fg.justify ?? "start");
+  const align: LayoutAlignItems = isMobileTab
+    ? (fg.mobile?.align ?? fg.align ?? "stretch")
+    : (fg.align ?? "stretch");
+  const gap: LayoutGapSize = isMobileTab
+    ? (fg.mobile?.gap ?? fg.gap ?? "md")
+    : (fg.gap ?? "md");
+  const cols: LayoutGridCols = isMobileTab
+    ? (fg.mobile?.cols ?? fg.cols ?? 1)
+    : (fg.cols ?? 1);
+
+  const patchDesktop = (partial: Partial<LayoutFlexGridConfig>) => {
+    onChange({ ...fg, ...partial });
+  };
+
+  const patchMobile = (
+    partial: NonNullable<LayoutFlexGridConfig["mobile"]>,
+  ) => {
+    onChange({
+      ...fg,
+      // đảm bảo desktop có display nếu mobile bật flex/grid
+      display: fg.display ?? "block",
+      mobile: { ...(fg.mobile ?? {}), ...partial },
+    });
+  };
+
+  const setField = <K extends keyof LayoutFlexGridConfig>(
+    key: K,
+    value: LayoutFlexGridConfig[K],
+  ) => {
+    if (isMobileTab) {
+      if (key === "colsMd" || key === "colsLg") return;
+      patchMobile({ [key]: value } as NonNullable<LayoutFlexGridConfig["mobile"]>);
+    } else {
+      patchDesktop({ [key]: value });
+    }
+  };
+
+  return (
+    <PanelSection title="Flex / Grid · Responsive">
+      <p className="mb-2 text-[10px] leading-relaxed text-gray-400">
+        {isMobileTab
+          ? "Đang chỉnh override cho mobile (&lt; md). Kế thừa desktop nếu không đổi."
+          : "Cấu hình display desktop. Chuyển tab Mobile để override responsive."}
+      </p>
+
+      <div className="space-y-3">
+        <div>
+          <FieldLabel>Display</FieldLabel>
+          <SegmentedControl
+            value={display}
+            options={DISPLAY_OPTIONS}
+            onChange={(v) => setField("display", v)}
+          />
+        </div>
+
+        {(display === "flex" || display === "grid") && (
+          <>
+            {display === "flex" ? (
+              <>
+                <div>
+                  <FieldLabel>Hướng (direction)</FieldLabel>
+                  <SegmentedControl
+                    value={direction}
+                    options={FLEX_DIR_OPTIONS}
+                    onChange={(v) => setField("direction", v)}
+                  />
+                </div>
+                <div>
+                  <FieldLabel>Wrap</FieldLabel>
+                  <SegmentedControl
+                    value={wrap}
+                    options={FLEX_WRAP_OPTIONS}
+                    onChange={(v) => setField("wrap", v)}
+                  />
+                </div>
+              </>
+            ) : (
+              <>
+                <div>
+                  <FieldLabel>
+                    {isMobileTab ? "Cột (mobile)" : "Cột (base)"}
+                  </FieldLabel>
+                  <SegmentedControl
+                    value={String(cols)}
+                    options={COLS_OPTIONS}
+                    onChange={(v) =>
+                      setField("cols", Number(v) as LayoutGridCols)
+                    }
+                  />
+                </div>
+                {!isMobileTab ? (
+                  <>
+                    <div>
+                      <FieldLabel hint="≥ md">Cột tablet+</FieldLabel>
+                      <SegmentedControl
+                        value={String(fg.colsMd ?? cols)}
+                        options={COLS_OPTIONS}
+                        onChange={(v) =>
+                          patchDesktop({
+                            colsMd: Number(v) as LayoutGridCols,
+                          })
+                        }
+                      />
+                    </div>
+                    <div>
+                      <FieldLabel hint="≥ lg">Cột desktop large</FieldLabel>
+                      <SegmentedControl
+                        value={String(fg.colsLg ?? fg.colsMd ?? cols)}
+                        options={COLS_OPTIONS}
+                        onChange={(v) =>
+                          patchDesktop({
+                            colsLg: Number(v) as LayoutGridCols,
+                          })
+                        }
+                      />
+                    </div>
+                  </>
+                ) : null}
+              </>
+            )}
+
+            <div>
+              <FieldLabel>Justify</FieldLabel>
+              <SegmentedControl
+                value={justify}
+                options={JUSTIFY_OPTIONS}
+                onChange={(v) => setField("justify", v)}
+              />
+            </div>
+            <div>
+              <FieldLabel>Align items</FieldLabel>
+              <SegmentedControl
+                value={align}
+                options={ALIGN_OPTIONS}
+                onChange={(v) => setField("align", v)}
+              />
+            </div>
+            <div>
+              <FieldLabel>Gap</FieldLabel>
+              <SegmentedControl
+                value={gap}
+                options={GAP_OPTIONS}
+                onChange={(v) => setField("gap", v)}
+              />
+            </div>
+          </>
+        )}
+
+        {isMobileTab && display === "block" && fg.display && fg.display !== "block" ? (
+          <p className="text-[10px] text-amber-600">
+            Mobile đang Block — ghi đè desktop {fg.display}. Đổi Display để
+            bật flex/grid trên mobile.
+          </p>
+        ) : null}
+
+        {!isMobileTab && (fg.mobile?.display || fg.mobile?.cols) ? (
+          <p className="text-[10px] text-gray-400">
+            Đã có override mobile: display=
+            {fg.mobile?.display ?? "—"}, cols={fg.mobile?.cols ?? "—"}.
+          </p>
+        ) : null}
+      </div>
+    </PanelSection>
+  );
+}
+
 function ContainerContentFields({
   section,
   patchData,
@@ -1947,12 +2200,19 @@ export default function PropertiesPanel({
           <FieldLabel hint="Không nhập %">Boxed model</FieldLabel>
           <div className="grid grid-cols-3 gap-1.5">
             {WIDTH_SIMPLE.map((opt) => {
-              const active = section.widthPreset === opt.value;
+              const active =
+                (styleDevice === "mobile"
+                  ? section.widthPresetMobile ?? section.widthPreset
+                  : section.widthPreset) === opt.value;
               return (
                 <button
                   key={opt.value}
                   type="button"
-                  onClick={() => emit({ widthPreset: opt.value })}
+                  onClick={() =>
+                    styleDevice === "mobile"
+                      ? emit({ widthPresetMobile: opt.value })
+                      : emit({ widthPreset: opt.value })
+                  }
                   className={`flex cursor-pointer flex-col items-center gap-1 rounded-xl border px-2 py-2.5 transition ${
                     active
                       ? "border-brand-500 bg-brand-50 text-brand-700 ring-2 ring-brand-500/20 dark:bg-brand-500/10 dark:text-brand-300"
@@ -1970,12 +2230,19 @@ export default function PropertiesPanel({
             <FieldLabel hint="Split / grid">Layout rhythm</FieldLabel>
             <div className="flex flex-wrap gap-1">
               {WIDTH_LAYOUT.map((opt) => {
-                const active = section.widthPreset === opt.value;
+                const active =
+                  (styleDevice === "mobile"
+                    ? section.widthPresetMobile ?? section.widthPreset
+                    : section.widthPreset) === opt.value;
                 return (
                   <button
                     key={opt.value}
                     type="button"
-                    onClick={() => emit({ widthPreset: opt.value })}
+                    onClick={() =>
+                      styleDevice === "mobile"
+                        ? emit({ widthPresetMobile: opt.value })
+                        : emit({ widthPreset: opt.value })
+                    }
                     className={`cursor-pointer rounded-lg border px-2 py-1.5 text-[10px] font-bold transition ${
                       active
                         ? "border-brand-500 bg-brand-50 text-brand-700 dark:bg-brand-500/10 dark:text-brand-300"
@@ -1997,6 +2264,26 @@ export default function PropertiesPanel({
             ) : null}
           </div>
         </PanelSection>
+
+        {/* Flex / Grid display + responsive */}
+        <FlexGridInspector
+          flexGrid={
+            // Luôn edit flexGrid trên desktop styling; mobile = nested .mobile
+            styleDevice === "mobile"
+              ? section.styling.flexGrid
+              : activeStyling.flexGrid
+          }
+          styleDevice={styleDevice}
+          onChange={(flexGrid) => {
+            // Ghi vào styling desktop (kể cả khi tab Mobile — override nằm trong flexGrid.mobile)
+            emit({
+              styling: {
+                ...section.styling,
+                flexGrid,
+              },
+            });
+          }}
+        />
 
         {/* Spacing */}
         <PanelSection title="Khoảng đệm (spacing)">

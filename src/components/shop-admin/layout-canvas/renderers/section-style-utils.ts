@@ -8,10 +8,18 @@ import {
   widthPresetToClass,
 } from "@/lib/shop-layout-canvas";
 import type {
+  LayoutAlignItems,
   LayoutBgPreset,
   LayoutBlurPreset,
   LayoutBorderPreset,
+  LayoutDisplayMode,
+  LayoutFlexDirection,
+  LayoutFlexGridConfig,
+  LayoutFlexWrap,
+  LayoutGapSize,
+  LayoutGridCols,
   LayoutHoverPreset,
+  LayoutJustify,
   LayoutRadiusPreset,
   LayoutSection,
   LayoutSectionStyling,
@@ -156,6 +164,190 @@ export function borderClass(preset: LayoutBorderPreset | undefined): string {
   }
 }
 
+/* ─── Flex / Grid utilities ─── */
+
+const GAP: Record<LayoutGapSize, string> = {
+  none: "gap-0",
+  xs: "gap-1",
+  sm: "gap-2",
+  md: "gap-4",
+  lg: "gap-6",
+  xl: "gap-8",
+};
+
+const GAP_MAX_MD: Record<LayoutGapSize, string> = {
+  none: "max-md:gap-0",
+  xs: "max-md:gap-1",
+  sm: "max-md:gap-2",
+  md: "max-md:gap-4",
+  lg: "max-md:gap-6",
+  xl: "max-md:gap-8",
+};
+
+const COLS: Record<LayoutGridCols, string> = {
+  1: "grid-cols-1",
+  2: "grid-cols-2",
+  3: "grid-cols-3",
+  4: "grid-cols-4",
+  5: "grid-cols-5",
+  6: "grid-cols-6",
+};
+
+const COLS_MD: Record<LayoutGridCols, string> = {
+  1: "md:grid-cols-1",
+  2: "md:grid-cols-2",
+  3: "md:grid-cols-3",
+  4: "md:grid-cols-4",
+  5: "md:grid-cols-5",
+  6: "md:grid-cols-6",
+};
+
+const COLS_LG: Record<LayoutGridCols, string> = {
+  1: "lg:grid-cols-1",
+  2: "lg:grid-cols-2",
+  3: "lg:grid-cols-3",
+  4: "lg:grid-cols-4",
+  5: "lg:grid-cols-5",
+  6: "lg:grid-cols-6",
+};
+
+const COLS_MAX_MD: Record<LayoutGridCols, string> = {
+  1: "max-md:grid-cols-1",
+  2: "max-md:grid-cols-2",
+  3: "max-md:grid-cols-3",
+  4: "max-md:grid-cols-4",
+  5: "max-md:grid-cols-5",
+  6: "max-md:grid-cols-6",
+};
+
+function justifyClass(j: LayoutJustify | undefined): string {
+  switch (j) {
+    case "center":
+      return "justify-center";
+    case "end":
+      return "justify-end";
+    case "between":
+      return "justify-between";
+    case "around":
+      return "justify-around";
+    case "evenly":
+      return "justify-evenly";
+    case "start":
+    default:
+      return "justify-start";
+  }
+}
+
+function alignClass(a: LayoutAlignItems | undefined): string {
+  switch (a) {
+    case "center":
+      return "items-center";
+    case "end":
+      return "items-end";
+    case "stretch":
+      return "items-stretch";
+    case "baseline":
+      return "items-baseline";
+    case "start":
+    default:
+      return "items-start";
+  }
+}
+
+function directionClass(d: LayoutFlexDirection | undefined): string {
+  switch (d) {
+    case "column":
+      return "flex-col";
+    case "row-reverse":
+      return "flex-row-reverse";
+    case "column-reverse":
+      return "flex-col-reverse";
+    case "row":
+    default:
+      return "flex-row";
+  }
+}
+
+function wrapClass(w: LayoutFlexWrap | undefined): string {
+  switch (w) {
+    case "wrap":
+      return "flex-wrap";
+    case "wrap-reverse":
+      return "flex-wrap-reverse";
+    case "nowrap":
+    default:
+      return "flex-nowrap";
+  }
+}
+
+/**
+ * Build Tailwind classes for flexGrid config.
+ * Desktop base + md/lg breakpoints + mobile override (&lt; md via max-md:).
+ */
+export function flexGridClass(cfg?: LayoutFlexGridConfig | null): string {
+  if (!cfg) return "";
+  const display: LayoutDisplayMode = cfg.display ?? "block";
+  if (display === "block") {
+    if (!cfg.mobile?.display || cfg.mobile.display === "block") return "";
+  }
+
+  const parts: string[] = [];
+
+  if (display === "flex") {
+    parts.push(
+      "flex",
+      directionClass(cfg.direction),
+      wrapClass(cfg.wrap),
+      justifyClass(cfg.justify),
+      alignClass(cfg.align),
+      GAP[cfg.gap ?? "md"],
+    );
+  } else if (display === "grid") {
+    const baseCols = cfg.cols ?? 1;
+    parts.push(
+      "grid",
+      COLS[baseCols],
+      cfg.colsMd ? COLS_MD[cfg.colsMd] : COLS_MD[baseCols],
+      cfg.colsLg ? COLS_LG[cfg.colsLg] : "",
+      justifyClass(cfg.justify),
+      alignClass(cfg.align),
+      GAP[cfg.gap ?? "md"],
+    );
+  } else if (cfg.mobile?.display) {
+    parts.push("block");
+  }
+
+  const m = cfg.mobile;
+  if (m) {
+    if (m.display === "flex") {
+      parts.push("max-md:flex");
+      if (m.direction === "column") parts.push("max-md:flex-col");
+      else if (m.direction === "column-reverse")
+        parts.push("max-md:flex-col-reverse");
+      else if (m.direction === "row-reverse")
+        parts.push("max-md:flex-row-reverse");
+      else if (m.direction === "row") parts.push("max-md:flex-row");
+      if (m.wrap === "wrap") parts.push("max-md:flex-wrap");
+      if (m.justify === "center") parts.push("max-md:justify-center");
+      else if (m.justify === "between") parts.push("max-md:justify-between");
+      else if (m.justify === "end") parts.push("max-md:justify-end");
+      else if (m.justify === "around") parts.push("max-md:justify-around");
+      if (m.align === "center") parts.push("max-md:items-center");
+      else if (m.align === "stretch") parts.push("max-md:items-stretch");
+      else if (m.align === "end") parts.push("max-md:items-end");
+      if (m.gap) parts.push(GAP_MAX_MD[m.gap]);
+    } else if (m.display === "grid") {
+      parts.push("max-md:grid");
+      parts.push(COLS_MAX_MD[m.cols ?? 1]);
+      if (m.gap) parts.push(GAP_MAX_MD[m.gap]);
+    } else if (m.display === "block") {
+      parts.push("max-md:block");
+    }
+  }
+
+  return parts.filter(Boolean).join(" ");
+}
+
 /** Background + text color pair from brand presets */
 export function bgPresetClasses(preset: LayoutBgPreset): {
   outer: string;
@@ -257,6 +449,7 @@ export function buildSectionShellClasses(
   const hover = styling.hover ?? "none";
   const border = styling.border ?? "none";
   const radius = styling.radius ?? "xl";
+  const flexGrid = flexGridClass(styling.flexGrid);
 
   // Glass/frosted cần nền bán trong suốt nếu inherit
   if (
@@ -280,6 +473,7 @@ export function buildSectionShellClasses(
     blurClass(blur),
     hoverClass(hover),
     borderClass(border),
+    flexGrid,
     // isolation giúp blur/shadow không “chảy” sang section khác
     blur !== "none" || shadow === "glow" ? "isolate" : "",
     hide,

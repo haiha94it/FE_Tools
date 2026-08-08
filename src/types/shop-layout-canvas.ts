@@ -152,6 +152,60 @@ export type LayoutBorderPreset =
   | "dashed"
   | "accent";
 
+/* ─── Flex / Grid display config ─── */
+
+export type LayoutDisplayMode = "block" | "flex" | "grid";
+export type LayoutFlexDirection =
+  | "row"
+  | "column"
+  | "row-reverse"
+  | "column-reverse";
+export type LayoutFlexWrap = "nowrap" | "wrap" | "wrap-reverse";
+export type LayoutJustify =
+  | "start"
+  | "center"
+  | "end"
+  | "between"
+  | "around"
+  | "evenly";
+export type LayoutAlignItems =
+  | "start"
+  | "center"
+  | "end"
+  | "stretch"
+  | "baseline";
+export type LayoutGridCols = 1 | 2 | 3 | 4 | 5 | 6;
+export type LayoutGapSize = "none" | "xs" | "sm" | "md" | "lg" | "xl";
+
+/**
+ * Cấu hình Flex/Grid cho khối — desktop + override mobile.
+ * Áp vào shell section (display layout).
+ */
+export interface LayoutFlexGridConfig {
+  display?: LayoutDisplayMode;
+  /** Flex */
+  direction?: LayoutFlexDirection;
+  wrap?: LayoutFlexWrap;
+  justify?: LayoutJustify;
+  align?: LayoutAlignItems;
+  /** Grid columns */
+  cols?: LayoutGridCols;
+  colsMd?: LayoutGridCols;
+  colsLg?: LayoutGridCols;
+  /** Gap */
+  gap?: LayoutGapSize;
+  /** Override &lt; md */
+  mobile?: {
+    display?: LayoutDisplayMode;
+    direction?: LayoutFlexDirection;
+    wrap?: LayoutFlexWrap;
+    justify?: LayoutJustify;
+    align?: LayoutAlignItems;
+    cols?: LayoutGridCols;
+    gap?: LayoutGapSize;
+  };
+}
+
 export interface LayoutSectionStyling {
   bgPreset: LayoutBgPreset;
   /** Chỉ dùng khi bgPreset === "custom" */
@@ -180,6 +234,8 @@ export interface LayoutSectionStyling {
    * `none` = tắt; mặc định `fade-up` cho khối nội dung.
    */
   animation?: LayoutAnimationPreset;
+  /** Flex / Grid + responsive display */
+  flexGrid?: LayoutFlexGridConfig;
 }
 
 /* ─── Content data — discriminated by type ─── */
