@@ -61,10 +61,10 @@ export type LayoutSectionUpdate = {
 export interface PropertiesPanelProps {
   /**
    * Section đang active. `null` → panel ẩn (return null).
-   * Parent resolve: `sections.find(s => s.id === activeSectionId) ?? null`
+   * Parent resolve: findSectionDeep (hỗ trợ nested trong Container)
    */
   section: LayoutSection | null;
-  /** Realtime update — parent merge vào layout array */
+  /** Realtime update — parent merge vào layout array (deep) */
   onSectionUpdate: (sectionId: string, update: LayoutSectionUpdate) => void;
   /** Đóng panel / clear selection */
   onClose?: () => void;
@@ -77,6 +77,8 @@ export interface PropertiesPanelProps {
   /** Shop data for binding */
   products?: import("@/types/zalo-shop").ShopProduct[];
   categories?: import("@/types/zalo-shop").ShopCategory[];
+  /** Chọn nested block từ danh sách trong Container */
+  onSelectSection?: (id: string) => void;
 }
 
 /* ─────────────────────────────────────────────────────────────
@@ -425,11 +427,13 @@ function ContentFields({
   patchData,
   products = [],
   categories = [],
+  onSelectSection,
 }: {
   section: LayoutSection;
   patchData: (partial: Record<string, unknown>) => void;
   products?: import("@/types/zalo-shop").ShopProduct[];
   categories?: import("@/types/zalo-shop").ShopCategory[];
+  onSelectSection?: (id: string) => void;
 }) {
   switch (section.type) {
     case "HERO":
@@ -1375,7 +1379,11 @@ function ContentFields({
 
     case "CONTAINER":
       return (
-        <ContainerContentFields section={section} patchData={patchData} />
+        <ContainerContentFields
+          section={section}
+          patchData={patchData}
+          onSelectSection={onSelectSection}
+        />
       );
 
     default:
@@ -1396,9 +1404,11 @@ const NESTABLE_BLOCK_TYPES: LayoutSectionType[] =
 function ContainerContentFields({
   section,
   patchData,
+  onSelectSection,
 }: {
   section: Extract<LayoutSection, { type: "CONTAINER" }>;
   patchData: (partial: Record<string, unknown>) => void;
+  onSelectSection?: (id: string) => void;
 }) {
   const children = section.data.children ?? [];
   const nestedBlocks = section.data.nestedBlocks ?? [];
@@ -1686,14 +1696,19 @@ function ContainerContentFields({
               key={block.id}
               className="flex items-center justify-between gap-2 rounded-xl border border-brand-200/60 bg-brand-50/30 px-2.5 py-2 dark:border-brand-500/25 dark:bg-brand-500/10"
             >
-              <div className="min-w-0">
+              <button
+                type="button"
+                onClick={() => onSelectSection?.(block.id)}
+                className="min-w-0 flex-1 cursor-pointer text-left"
+                title="Click để mở Properties block này"
+              >
                 <p className="truncate text-[11px] font-bold text-gray-800 dark:text-gray-100">
                   {block.label?.trim() || getSectionTypeLabel(block.type)}
                 </p>
-                <p className="font-mono text-[9px] text-gray-400">
-                  {block.type}
+                <p className="font-mono text-[9px] text-brand-600">
+                  {block.type} · Click để sửa
                 </p>
-              </div>
+              </button>
               <div className="flex shrink-0 gap-0.5">
                 <button
                   type="button"
@@ -1722,9 +1737,8 @@ function ContainerContentFields({
             </div>
           ))}
           <p className="text-[10px] text-gray-400">
-            Chỉnh nội dung chi tiết của block lồng: tạm thời sửa qua data khi
-            export, hoặc xóa rồi thêm lại. Widget text/ảnh sửa trực tiếp bên
-            trên.
+            Click tên block → mở Properties đầy đủ (nội dung + style). Hoặc
+            click block trên canvas (nhãn “Click để sửa”).
           </p>
         </div>
       ) : null}
@@ -1752,6 +1766,7 @@ export default function PropertiesPanel({
   onStyleDeviceChange,
   products = [],
   categories = [],
+  onSelectSection,
 }: PropertiesPanelProps) {
   // Hooks luôn chạy (tránh early-return trước hooks)
   const sectionId = section?.id ?? null;
@@ -2126,6 +2141,7 @@ export default function PropertiesPanel({
               patchData={patchData}
               products={products}
               categories={categories}
+              onSelectSection={onSelectSection}
             />
           )}
         </PanelSection>

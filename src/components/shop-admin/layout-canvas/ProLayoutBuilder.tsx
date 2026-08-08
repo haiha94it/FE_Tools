@@ -22,6 +22,11 @@ import type { LayoutRenderTheme } from "@/components/shop-admin/layout-canvas/re
 import { auditLayoutSections } from "@/lib/layout-canvas-a11y";
 import { getPatternById } from "@/lib/layout-canvas-patterns";
 import {
+  deleteSectionDeep,
+  findSectionDeep,
+  updateSectionDeep,
+} from "@/lib/layout-canvas-nested";
+import {
   clearLayoutDraft,
   deleteLayoutVersion,
   exportLayoutDocument,
@@ -206,28 +211,16 @@ export default function ProLayoutBuilder({
 
   const handleSectionUpdate = useCallback(
     (sectionId: string, update: LayoutSectionUpdate) => {
-      const next = sections.map((sec) => {
-        if (sec.id !== sectionId) return sec;
-        return {
-          ...sec,
-          ...(update.enabled !== undefined ? { enabled: update.enabled } : {}),
-          ...(update.widthPreset ? { widthPreset: update.widthPreset } : {}),
-          ...(update.widthPresetMobile !== undefined
-            ? { widthPresetMobile: update.widthPresetMobile }
-            : {}),
-          ...(update.label !== undefined ? { label: update.label } : {}),
-          ...(update.groupId !== undefined ? { groupId: update.groupId } : {}),
-          ...(update.editorLocked !== undefined
-            ? { editorLocked: update.editorLocked }
-            : {}),
-          styling: update.styling
-            ? { ...sec.styling, ...update.styling }
-            : sec.styling,
-          stylingMobile: update.stylingMobile
-            ? { ...(sec.stylingMobile ?? {}), ...update.stylingMobile }
-            : sec.stylingMobile,
-          data: update.data ? { ...sec.data, ...update.data } : sec.data,
-        } as LayoutSection;
+      const next = updateSectionDeep(sections, sectionId, {
+        enabled: update.enabled,
+        widthPreset: update.widthPreset,
+        widthPresetMobile: update.widthPresetMobile,
+        label: update.label,
+        groupId: update.groupId,
+        editorLocked: update.editorLocked,
+        styling: update.styling,
+        stylingMobile: update.stylingMobile,
+        data: update.data,
       });
       handleSectionsChange(next);
     },
@@ -284,8 +277,14 @@ export default function ProLayoutBuilder({
   );
 
   const a11yIssues = useMemo(() => auditLayoutSections(sections), [sections]);
-  const activeSection =
-    sections.find((s) => s.id === activeSectionId) ?? null;
+  /** Hỗ trợ chọn block lồng trong Container */
+  const activeSection = useMemo(
+    () =>
+      activeSectionId
+        ? findSectionDeep(sections, activeSectionId)
+        : null,
+    [sections, activeSectionId],
+  );
 
   // Performance mode: strip heavy effects in theme for preview
   const renderTheme = useMemo(() => {
@@ -558,6 +557,7 @@ export default function ProLayoutBuilder({
               onStyleDeviceChange={setStyleDevice}
               products={products}
               categories={categories}
+              onSelectSection={setActiveSectionId}
             />
           ) : (
             <div className="flex flex-1 flex-col items-center justify-center px-6 py-12 text-center">

@@ -643,6 +643,9 @@ interface CanvasBlockProps {
     id: string,
     partial: Record<string, unknown>,
   ) => void;
+  /** Active id có thể là nested block */
+  treeActiveSectionId?: string | null;
+  onSelectTreeSection?: (id: string) => void;
 }
 
 function CanvasBlock({
@@ -670,6 +673,8 @@ function CanvasBlock({
   onInsertAfter,
   insertDisabled,
   onPatchSectionData,
+  treeActiveSectionId,
+  onSelectTreeSection,
 }: CanvasBlockProps) {
   const label = getSectionTypeLabel(section.type);
   const badge = getSectionTypeBadge(section.type);
@@ -861,12 +866,21 @@ function CanvasBlock({
                 motionIndex={Math.min(index, 11)}
                 motionImmediate
                 previewMode
-                inlineEdit={isActive && !section.editorLocked}
-                onPatchData={(partial) =>
-                  onPatchSectionData?.(section.id, partial)
+                inlineEdit={
+                  (treeActiveSectionId === section.id || isActive) &&
+                  !section.editorLocked
                 }
-                activeSectionId={undefined}
-                onSelectSection={undefined}
+                onPatchData={(partial) =>
+                  onPatchSectionData?.(
+                    treeActiveSectionId &&
+                      treeActiveSectionId !== section.id
+                      ? treeActiveSectionId
+                      : section.id,
+                    partial,
+                  )
+                }
+                activeSectionId={treeActiveSectionId ?? null}
+                onSelectSection={onSelectTreeSection}
               />
             </div>
           </div>
@@ -1401,7 +1415,15 @@ export default function LayoutCanvas({
                               key={section.id}
                               section={section}
                               index={index}
-                              isActive={activeSectionId === section.id}
+                              isActive={
+                                activeSectionId === section.id ||
+                                (section.type === "CONTAINER" &&
+                                  !!activeSectionId &&
+                                  !!findSectionDeep(
+                                    section.data.nestedBlocks ?? [],
+                                    activeSectionId,
+                                  ))
+                              }
                               isHovered={hoveredId === section.id}
                               disabled={disabled}
                               products={products}
@@ -1443,16 +1465,23 @@ export default function LayoutCanvas({
                                 handleAdd(type, index + 1)
                               }
                               onPatchSectionData={(id, partial) => {
-                                const cur = sectionsRef.current.find(
-                                  (s) => s.id === id,
+                                const cur = findSectionDeep(
+                                  sectionsRef.current,
+                                  id,
                                 );
                                 if (!cur || cur.editorLocked) return;
-                                patchSection(id, {
-                                  data: {
-                                    ...cur.data,
-                                    ...partial,
-                                  },
-                                } as Partial<LayoutSection>);
+                                commit(
+                                  updateSectionDeep(sectionsRef.current, id, {
+                                    data: {
+                                      ...cur.data,
+                                      ...partial,
+                                    } as Record<string, unknown>,
+                                  }),
+                                );
+                              }}
+                              treeActiveSectionId={activeSectionId}
+                              onSelectTreeSection={(id) => {
+                                onSelectSection(id);
                               }}
                             />
                           ))
