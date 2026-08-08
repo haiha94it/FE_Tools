@@ -86,6 +86,29 @@ export function canEditSendMesGroupGroups(
   return status === null || status === 2 || status === 4;
 }
 
+/**
+ * Giữ id_group chỉ thuộc nick (cùng tập GET /api/group/?id_account=&type=simple).
+ * Copy/edit kịch bản có thể seed M2M group của nick khác → phải prune trước save.
+ */
+export function filterGroupIdsForAccount(
+  selectedIds: number[],
+  accountGroupIds: Iterable<number>,
+): number[] {
+  if (!selectedIds.length) return [];
+  const allowed = accountGroupIds instanceof Set
+    ? accountGroupIds
+    : new Set(accountGroupIds);
+  if (!allowed.size) return [];
+  const seen = new Set<number>();
+  const kept: number[] = [];
+  for (const id of selectedIds) {
+    if (!allowed.has(id) || seen.has(id)) continue;
+    seen.add(id);
+    kept.push(id);
+  }
+  return kept;
+}
+
 export function getSendMesGroupMediaUrl(path: string): string {
   const raw = (path || "").trim();
   if (!raw) return "";
