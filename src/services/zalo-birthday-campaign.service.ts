@@ -50,8 +50,9 @@ export const zaloBirthdayCampaignService = {
   },
 
   async startCampaign(id: number): Promise<void> {
+    // BE: id_category (hoặc URL /category/<id>/start/). id_categories chỉ dùng stop/batch.
     await api.post(API_ZALO_BIRTHDAY_CAMPAIGN.START, {
-      id_categories: [id],
+      id_category: id,
     });
   },
 

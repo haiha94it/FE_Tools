@@ -1,10 +1,11 @@
 "use client";
 
+import SupportImageLightbox from "@/components/support-chatbot/SupportImageLightbox";
 import Button from "@/components/ui/button/Button";
 import type { CampaignAttachType } from "@/types/message-media";
 import Image from "next/image";
-import { useRef } from "react";
-import { HiOutlinePhotograph, HiOutlineTrash } from "react-icons/hi";
+import { useState, useRef } from "react";
+import { HiOutlineEye, HiOutlinePhotograph, HiOutlineTrash } from "react-icons/hi";
 import CampaignMediaLibraryPicker from "./CampaignMediaLibraryPicker";
 
 interface CampaignAttachmentFieldsProps {
@@ -29,6 +30,7 @@ const TYPE_OPTIONS: { value: CampaignAttachType; label: string }[] = [
 
 /**
  * Khối đính kèm chuẩn campaign mess: none | image | video | album.
+ * Mode 1 ảnh: icon mắt → lightbox phóng to (reuse SupportImageLightbox).
  */
 export default function CampaignAttachmentFields({
   contentType,
@@ -43,11 +45,13 @@ export default function CampaignAttachmentFields({
   onUploadImage,
 }: CampaignAttachmentFieldsProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
 
   const handleTypeChange = (next: CampaignAttachType) => {
     onContentTypeChange(next);
     if (next !== "image") onImagesChange([]);
     if (next !== "video" && next !== "album") onSelectedMediaIdChange(null);
+    setLightboxSrc(null);
   };
 
   const handleFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -112,7 +116,7 @@ export default function CampaignAttachmentFields({
           </div>
           {images[0] ? (
             <div className="relative inline-block">
-              <span className="relative block h-24 w-24 overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
+              <span className="group relative block h-24 w-24 overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
                 <Image
                   src={resolveImageUrl(images[0])}
                   alt="attachment"
@@ -120,12 +124,28 @@ export default function CampaignAttachmentFields({
                   unoptimized
                   className="object-cover"
                 />
+                <button
+                  type="button"
+                  title="Xem phóng to"
+                  aria-label="Xem phóng to"
+                  onClick={() => setLightboxSrc(resolveImageUrl(images[0]))}
+                  className="absolute inset-0 flex items-center justify-center bg-black/0 transition group-hover:bg-black/35"
+                >
+                  <span className="flex size-9 items-center justify-center rounded-full bg-white/95 text-gray-800 opacity-90 shadow-md transition group-hover:opacity-100 dark:bg-gray-900/95 dark:text-white">
+                    <HiOutlineEye size={18} />
+                  </span>
+                </button>
               </span>
               <button
                 type="button"
                 disabled={disabled}
-                onClick={() => onImagesChange([])}
-                className="absolute -right-1 -top-1 rounded-full bg-error-500 p-0.5 text-white"
+                aria-label="Xóa ảnh"
+                title="Xóa ảnh"
+                onClick={() => {
+                  setLightboxSrc(null);
+                  onImagesChange([]);
+                }}
+                className="absolute -right-1 -top-1 z-10 rounded-full bg-error-500 p-0.5 text-white"
               >
                 <HiOutlineTrash size={12} />
               </button>
@@ -151,6 +171,12 @@ export default function CampaignAttachmentFields({
           onSelect={onSelectedMediaIdChange}
         />
       ) : null}
+
+      <SupportImageLightbox
+        src={lightboxSrc}
+        alt="Ảnh đính kèm phóng to"
+        onClose={() => setLightboxSrc(null)}
+      />
     </div>
   );
 }
