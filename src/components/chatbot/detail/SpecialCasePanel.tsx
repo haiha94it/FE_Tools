@@ -5,6 +5,13 @@ import Switch from "@/components/form/switch/Switch";
 import Badge from "@/components/ui/badge/Badge";
 import Button from "@/components/ui/button/Button";
 import {
+  CopyIcon,
+  DownloadIcon,
+  TrashBinIcon,
+  UploadIcon,
+} from "@/icons";
+import {
+  formatCommaSeparatedKeywords,
   mergeKeywords,
   parseCommaSeparatedKeywords,
 } from "@/lib/chatbot-utils";
@@ -14,7 +21,7 @@ import {
   CHATBOT_MAX_KEYWORD_LENGTH,
   CHATBOT_MAX_KEYWORDS,
 } from "@/types/chatbot";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 interface SpecialCasePanelProps {
   chatbotId: number;
@@ -43,6 +50,8 @@ export default function SpecialCasePanel({ chatbotId }: SpecialCasePanelProps) {
   const isSaving = useChatbotSpecialCaseStore((s) => s.isSaving);
   const fetchAll = useChatbotSpecialCaseStore((s) => s.fetchAll);
   const saveConfig = useChatbotSpecialCaseStore((s) => s.saveConfig);
+
+  const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   const [drafts, setDrafts] = useState<
     Record<
@@ -74,6 +83,7 @@ export default function SpecialCasePanel({ chatbotId }: SpecialCasePanelProps) {
         keywordInput: "",
       };
     }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setDrafts(next);
     // Chỉ hydrate khi load xong configs/types
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -83,6 +93,147 @@ export default function SpecialCasePanel({ chatbotId }: SpecialCasePanelProps) {
     const map = new Map(configs.map((c) => [c.case_type, c]));
     return map;
   }, [configs]);
+
+  const getAllKeywordsForExport = (draft: {
+    keywords: string[];
+    keywordInput: string;
+  }) => {
+    const pendingKeyword = draft.keywordInput.trim();
+    if (!pendingKeyword) return draft.keywords;
+    return mergeKeywords(draft.keywords, [pendingKeyword]).keywords;
+  };
+
+  const handleCopyKeywords = async (typeValue: string) => {
+    const draft = drafts[typeValue];
+    if (!draft) return;
+    const keywords = getAllKeywordsForExport(draft);
+    if (keywords.length === 0) {
+      toast.info("Chưa có từ khóa để sao chép.");
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(
+        formatCommaSeparatedKeywords(keywords),
+      );
+      toast.success("Đã sao chép danh sách từ khóa.");
+    } catch {
+      toast.error("Không sao chép được từ khóa.");
+    }
+  };
+
+  const handleExportKeywords = (typeValue: string) => {
+    const draft = drafts[typeValue];
+    if (!draft) return;
+    const keywords = getAllKeywordsForExport(draft);
+    if (keywords.length === 0) {
+      toast.info("Chưa có từ khóa để xuất file.");
+      return;
+    }
+
+    const content = formatCommaSeparatedKeywords(keywords);
+    const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const slug = typeValue || "tu-khoa";
+    link.href = url;
+    link.download = `tu-khoa-${slug}.txt`;
+    link.click();
+    URL.revokeObjectURL(url);
+    toast.success("Đã xuất file từ khóa.");
+  };
+
+  const handleImportKeywordsFile = async (typeValue: string, file: File) => {
+    try {
+      const text = await file.text();
+      const parsed = parseCommaSeparatedKeywords(text);
+      if (parsed.length === 0) {
+        toast.warning("File không có từ khóa hợp lệ.");
+        return;
+      }
+
+      const merged = mergeKeywords([], parsed);
+      setDrafts((prev) => ({
+        ...prev,
+        [typeValue]: {
+          ...(prev[typeValue] || {
+            is_active: false,
+            auto_reply: "",
+            keywords: [],
+            keywordInput: "",
+          }),
+          keywords: merged.keywords,
+          keywordInput: "",
+        },
+      }));
+
+      toast.success(`Đã nhập ${merged.keywords.length} từ khóa từ file.`);
+      if (merged.skippedTooLongCount > 0) {
+        toast.warning(
+          `Bỏ qua ${merged.skippedTooLongCount} từ khóa vượt quá ${CHATBOT_MAX_KEYWORD_LENGTH} ký tự.`,
+        );
+      }
+      if (merged.limitReached) {
+        toast.warning(`Đã đạt giới hạn tối đa ${CHATBOT_MAX_KEYWORDS} từ khóa.`);
+      }
+    } catch {
+      toast.error("Không đọc được file từ khóa.");
+    }
+  };
+
+  const handleClearAllKeywords = (typeValue: string) => {
+    const draft = drafts[typeValue];
+    if (!draft || (draft.keywords.length === 0 && !draft.keywordInput.trim())) {
+      toast.info("Chưa có từ khóa để xóa.");
+      return;
+    }
+
+    setDrafts((prev) => ({
+      ...prev,
+      [typeValue]: {
+        ...prev[typeValue],
+        keywords: [],
+        keywordInput: "",
+      },
+    }));
+    toast.success("Đã xóa tất cả từ khóa.");
+  };
+
+  const handleKeywordPaste = (
+    typeValue: string,
+    event: React.ClipboardEvent<HTMLInputElement>,
+  ) => {
+    const text = event.clipboardData.getData("text");
+    if (!text.includes(",")) return;
+
+    event.preventDefault();
+    const draft = drafts[typeValue];
+    if (!draft) return;
+
+    const incoming = parseCommaSeparatedKeywords(text);
+    const merged = mergeKeywords(draft.keywords, incoming);
+
+    setDrafts((prev) => ({
+      ...prev,
+      [typeValue]: {
+        ...prev[typeValue],
+        keywords: merged.keywords,
+        keywordInput: "",
+      },
+    }));
+
+    if (merged.addedCount > 0) {
+      toast.success(`Đã thêm ${merged.addedCount} từ khóa.`);
+    }
+    if (merged.skippedTooLongCount > 0) {
+      toast.warning(
+        `Bỏ qua ${merged.skippedTooLongCount} từ khóa vượt quá ${CHATBOT_MAX_KEYWORD_LENGTH} ký tự.`,
+      );
+    }
+    if (merged.limitReached) {
+      toast.warning(`Đã đạt giới hạn tối đa ${CHATBOT_MAX_KEYWORDS} từ khóa.`);
+    }
+  };
 
   if (isLoading && configs.length === 0) {
     return (
@@ -174,14 +325,71 @@ export default function SpecialCasePanel({ chatbotId }: SpecialCasePanelProps) {
 
                 {type.supports_keywords !== false ? (
                   <div>
-                    <div className="mb-1.5 flex items-center justify-between">
-                      <label className="text-sm font-medium text-gray-700 dark:text-gray-400">
-                        Từ khóa
-                      </label>
-                      <Badge size="sm" color="primary" variant="light">
-                        {draft.keywords.length} / {CHATBOT_MAX_KEYWORDS}
-                      </Badge>
+                    <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <label className="text-sm font-medium text-gray-700 dark:text-gray-400">
+                          Từ khóa
+                        </label>
+                        <Badge size="sm" color="primary" variant="light">
+                          {draft.keywords.length} / {CHATBOT_MAX_KEYWORDS}
+                        </Badge>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => void handleCopyKeywords(type.value)}
+                          className="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 py-1 text-xs font-medium text-gray-700 shadow-xs hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                        >
+                          <CopyIcon className="size-3.5" />
+                          Sao chép
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleExportKeywords(type.value)}
+                          className="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 py-1 text-xs font-medium text-gray-700 shadow-xs hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                        >
+                          <DownloadIcon className="size-3.5" />
+                          Xuất file
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            fileInputRefs.current[type.value]?.click()
+                          }
+                          className="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 py-1 text-xs font-medium text-gray-700 shadow-xs hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                        >
+                          <UploadIcon className="size-3.5" />
+                          Nhập file
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleClearAllKeywords(type.value)}
+                          disabled={
+                            draft.keywords.length === 0 &&
+                            !draft.keywordInput.trim()
+                          }
+                          className="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-error-200 bg-white px-2.5 py-1 text-xs font-medium text-error-600 shadow-xs hover:bg-error-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-error-800 dark:bg-gray-800 dark:text-error-400 dark:hover:bg-error-950/30"
+                        >
+                          <TrashBinIcon className="size-3.5" />
+                          Xóa tất cả
+                        </button>
+                      </div>
                     </div>
+
+                    <input
+                      ref={(el) => {
+                        fileInputRefs.current[type.value] = el;
+                      }}
+                      type="file"
+                      accept=".txt,.csv,text/plain"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        e.target.value = "";
+                        if (file) void handleImportKeywordsFile(type.value, file);
+                      }}
+                    />
+
                     <div className="mb-2 flex flex-wrap gap-1.5">
                       {draft.keywords.map((kw) => (
                         <button
@@ -192,7 +400,9 @@ export default function SpecialCasePanel({ chatbotId }: SpecialCasePanelProps) {
                               ...prev,
                               [type.value]: {
                                 ...draft,
-                                keywords: draft.keywords.filter((k) => k !== kw),
+                                keywords: draft.keywords.filter(
+                                  (k) => k !== kw,
+                                ),
                               },
                             }))
                           }
@@ -214,6 +424,7 @@ export default function SpecialCasePanel({ chatbotId }: SpecialCasePanelProps) {
                             },
                           }))
                         }
+                        onPaste={(e) => handleKeywordPaste(type.value, e)}
                         onKeyDown={(e) => {
                           if (e.key !== "Enter") return;
                           e.preventDefault();

@@ -17,18 +17,22 @@ import {
 } from "@/types/pdp-template";
 import type {
   ShopArchetypeId,
+  ShopCategory,
+  ShopCover,
   ShopPersonalizationData,
+  ShopProduct,
 } from "@/types/zalo-shop";
+import { shopImageUrl } from "@/lib/shop-utils";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import ShopLiveDragDropCanvas from "@/components/shop-admin/ShopLiveDragDropCanvas";
+import { ProLayoutBuilder } from "@/components/shop-admin/layout-canvas";
 
 type TabId = "templates" | "builder" | "pdp" | "colors" | "content";
 
 const TABS: { id: TabId; label: string }[] = [
   { id: "templates", label: "Kiến trúc layout" },
-  { id: "builder", label: "🎨 Kéo thả Canvas" },
+  { id: "builder", label: "Trình tạo trang" },
   { id: "pdp", label: "Trang chi tiết SP" },
   { id: "colors", label: "Màu sắc" },
   { id: "content", label: "Nội dung" },
@@ -337,9 +341,36 @@ export default function ShopThemeSettings() {
     ...DEFAULT_SHOP_PERSONALIZATION,
   });
   const [dirty, setDirty] = useState(false);
+  /** Data shop thật cho canvas (SP, danh mục, cover/logo) */
+  const [shopProducts, setShopProducts] = useState<ShopProduct[]>([]);
+  const [shopCategories, setShopCategories] = useState<ShopCategory[]>([]);
+  const [shopCover, setShopCover] = useState<ShopCover | null>(null);
+  const [shopDataLoading, setShopDataLoading] = useState(false);
 
   const resolved = useMemo(() => resolvePersonalization(draft), [draft]);
   const archetype = resolveArchetypeId(resolved.templateId);
+
+  /** Theme branding truyền vào renderer (logo, cover, liên hệ, copy) */
+  const canvasTheme = useMemo(
+    () => ({
+      primaryColor: resolved.primaryColor,
+      accentColor: resolved.accentColor,
+      backgroundColor: resolved.backgroundColor,
+      shopName: shopCover?.name?.trim() || "Cửa hàng",
+      logoUrl: shopImageUrl(shopCover?.image_logo) || undefined,
+      coverImageUrl: shopImageUrl(shopCover?.image) || undefined,
+      contactPhone: resolved.contactPhone,
+      contactZalo: resolved.contactZalo,
+      contactFacebook: resolved.contactFacebook,
+      contactWebsite: resolved.contactWebsite,
+      contactAddress: resolved.contactAddress,
+      heroTitle: resolved.heroTitle,
+      heroSubtitle: resolved.heroSubtitle,
+      ctaText: resolved.ctaText,
+      announcement: resolved.announcement,
+    }),
+    [resolved, shopCover],
+  );
 
   const patch = useCallback((partial: Partial<ShopPersonalizationData>) => {
     setDraft((prev) => ({ ...prev, ...partial }));
@@ -372,6 +403,45 @@ export default function ShopThemeSettings() {
     };
   }, []);
 
+  /** Load SP + danh mục + cover để canvas hiển thị data thật */
+  useEffect(() => {
+    if (!userId) {
+      setShopProducts([]);
+      setShopCategories([]);
+      setShopCover(null);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      setShopDataLoading(true);
+      try {
+        const [productsRes, categories, cover] = await Promise.all([
+          zaloShopService.listProducts({
+            employeeId: userId,
+            pageSize: 100,
+          }),
+          zaloShopService.listCategories(userId),
+          zaloShopService.getCover(userId),
+        ]);
+        if (cancelled) return;
+        setShopProducts(productsRes.results ?? []);
+        setShopCategories(categories ?? []);
+        setShopCover(cover ?? null);
+      } catch {
+        if (!cancelled) {
+          setShopProducts([]);
+          setShopCategories([]);
+          setShopCover(null);
+        }
+      } finally {
+        if (!cancelled) setShopDataLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
+
   const handleSelectTemplate = (presetId: ShopArchetypeId) => {
     const preset = SHOP_TEMPLATE_PRESETS.find((p) => p.id === presetId);
     if (!preset) return;
@@ -390,23 +460,44 @@ export default function ShopThemeSettings() {
   const handleSave = async () => {
     setSaving(true);
     try {
+      // Chỉ khi user chọn/đang ở custom (sửa canvas đã set templateId)
+      const isCustom =
+        resolveArchetypeId(draft.templateId) === "custom-drag-drop" ||
+        draft.pageLayout === "custom-builder" ||
+        archetype === "custom-drag-drop";
+
       const payload: ShopPersonalizationData = {
         ...draft,
-        templateId: archetype,
+        templateId: isCustom ? "custom-drag-drop" : archetype,
+        pageLayout: isCustom ? "custom-builder" : draft.pageLayout,
       };
       const res = await zaloShopService.savePersonalization(payload);
       if (res.id != null) setRecordId(res.id);
       if (res.data) {
         setDraft(resolvePersonalization(res.data as ShopPersonalizationData));
+      } else {
+        setDraft((prev) => resolvePersonalization({ ...prev, ...payload }));
       }
       setDirty(false);
-      toast.success("Đã lưu cấu hình giao diện thành công!");
+      toast.success(
+        isCustom
+          ? "Đã lưu layout canvas — mở gian hàng để xem giống builder"
+          : "Đã lưu cấu hình giao diện thành công!",
+      );
     } catch {
       toast.error("Lưu cấu hình giao diện thất bại");
     } finally {
       setSaving(false);
     }
   };
+
+  useEffect(() => {
+    const onSave = () => {
+      void handleSave();
+    };
+    window.addEventListener("layout-builder-save", onSave);
+    return () => window.removeEventListener("layout-builder-save", onSave);
+  });
 
   const handleReset = async () => {
     if (
@@ -430,36 +521,88 @@ export default function ShopThemeSettings() {
     }
   };
 
+  const isBuilder = tab === "builder";
+
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4 p-4 md:p-6 lg:h-[calc(100vh-4rem)] lg:overflow-hidden">
-      <div className="flex min-h-0 flex-1 flex-col gap-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-xs dark:border-gray-800 dark:bg-gray-900 md:p-6 lg:overflow-hidden">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-gray-100 pb-4 dark:border-gray-800 shrink-0">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-white">
-              Cấu Hình Mẫu Giao Diện Gian Hàng (Storefront Theme)
+    <div
+      className={
+        isBuilder
+          ? /* Full-bleed editor: tràn hết vùng main, bỏ padding AdminShell */
+            "flex min-h-0 flex-1 flex-col lg:-m-6 lg:h-[calc(100dvh-4rem)] lg:max-h-[calc(100dvh-4rem)] lg:w-[calc(100%+3rem)] lg:max-w-none lg:overflow-hidden"
+          : "flex min-h-0 flex-1 flex-col gap-4 lg:h-[calc(100vh-4rem)] lg:overflow-hidden"
+      }
+    >
+      <div
+        className={
+          isBuilder
+            ? "flex min-h-0 flex-1 flex-col overflow-hidden bg-white dark:bg-gray-900"
+            : "flex min-h-0 flex-1 flex-col gap-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-xs dark:border-gray-800 dark:bg-gray-900 md:p-6 lg:overflow-hidden"
+        }
+      >
+        {/* Header — gọn hơn khi builder để nhường chỗ canvas */}
+        <div
+          className={`flex shrink-0 flex-col gap-2 border-b border-gray-100 dark:border-gray-800 sm:flex-row sm:items-center sm:justify-between ${
+            isBuilder ? "px-3 py-2.5 md:px-4" : "pb-4"
+          }`}
+        >
+          <div className="min-w-0">
+            <h1
+              className={`font-bold text-gray-900 dark:text-white ${
+                isBuilder ? "text-base md:text-lg" : "text-xl"
+              }`}
+            >
+              {isBuilder
+                ? "Trình tạo trang gian hàng"
+                : "Cấu Hình Mẫu Giao Diện Gian Hàng (Storefront Theme)"}
             </h1>
-            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              Tự do chọn 1 trong 8 kiến trúc chuẩn quốc tế. Tùy chỉnh màu sắc, banner & thông tin liên hệ cho gian hàng{" "}
-              {userId ? (
-                <Link
-                  href={`/store/${userId}`}
-                  target="_blank"
-                  className="font-semibold text-brand-600 hover:underline dark:text-brand-400"
-                >
-                  /store/{userId}
-                </Link>
-              ) : (
-                "/store/..."
-              )}
-              {recordId != null ? ` (Mã cấu hình #${recordId})` : " (Chưa khởi tạo)"}
-            </p>
+            {!isBuilder ? (
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                Tự do chọn 1 trong 8 kiến trúc chuẩn quốc tế. Tùy chỉnh màu sắc,
+                banner & thông tin liên hệ cho gian hàng{" "}
+                {userId ? (
+                  <Link
+                    href={`/store/${userId}`}
+                    target="_blank"
+                    className="font-semibold text-brand-600 hover:underline dark:text-brand-400"
+                  >
+                    /store/{userId}
+                  </Link>
+                ) : (
+                  "/store/..."
+                )}
+                {recordId != null
+                  ? ` (Mã cấu hình #${recordId})`
+                  : " (Chưa khởi tạo)"}
+              </p>
+            ) : (
+              <p className="truncate text-[11px] text-gray-400">
+                Visual editor full-width
+                {userId ? (
+                  <>
+                    {" · "}
+                    <Link
+                      href={`/store/${userId}`}
+                      target="_blank"
+                      className="font-semibold text-brand-600 hover:underline dark:text-brand-400"
+                    >
+                      /store/{userId}
+                    </Link>
+                  </>
+                ) : null}
+                {dirty ? (
+                  <span className="ml-1 font-semibold text-amber-600">
+                    · Chưa lưu
+                  </span>
+                ) : null}
+              </p>
+            )}
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {userId ? (
               <Link
                 href={`/store/${userId}`}
                 target="_blank"
-                className="inline-flex min-h-10 items-center rounded-lg border border-gray-200 bg-white px-3.5 py-2 text-xs font-semibold text-gray-700 shadow-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+                className="inline-flex min-h-9 items-center rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
               >
                 Xem gian hàng
               </Link>
@@ -468,21 +611,21 @@ export default function ShopThemeSettings() {
               type="button"
               onClick={() => void handleReset()}
               disabled={saving || loading}
-              className="min-h-10 rounded-lg border border-gray-200 bg-white px-3.5 py-2 text-xs font-semibold text-gray-600 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
+              className="min-h-9 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-600 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
             >
-              Đặt lại mặc định
+              Đặt lại
             </button>
             <button
               type="button"
               onClick={() => void handleSave()}
               disabled={saving || loading}
-              className={`min-h-10 rounded-lg px-4 py-2 text-xs font-bold text-white shadow-sm transition-all cursor-pointer disabled:opacity-50 ${
+              className={`min-h-9 cursor-pointer rounded-lg px-4 py-1.5 text-xs font-bold text-white shadow-sm transition-all disabled:opacity-50 ${
                 dirty
-                  ? "bg-brand-500 hover:bg-brand-600 ring-2 ring-brand-500/40 animate-pulse"
+                  ? "bg-brand-500 ring-2 ring-brand-500/40 hover:bg-brand-600"
                   : "bg-brand-500 hover:bg-brand-600"
               }`}
             >
-              {saving ? "Đang lưu…" : dirty ? "💾 Lưu Thay Đổi *" : "Lưu thay đổi"}
+              {saving ? "Đang lưu…" : dirty ? "Lưu *" : "Lưu thay đổi"}
             </button>
           </div>
         </div>
@@ -492,25 +635,53 @@ export default function ShopThemeSettings() {
             Đang tải dữ liệu…
           </div>
         ) : (
-          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto lg:flex-row lg:overflow-hidden">
-            <div className="custom-scrollbar flex min-w-0 flex-1 flex-col gap-4 lg:overflow-y-auto lg:pr-2">
-              <div className="sticky top-0 z-30 flex flex-wrap gap-1 rounded-xl border border-gray-200/60 bg-gray-100/95 p-1 shadow-sm backdrop-blur-md dark:border-gray-700/60 dark:bg-gray-800/95">
-                {TABS.map((t) => (
-                  <button
-                    key={t.id}
-                    type="button"
-                    onClick={() => setTab(t.id)}
-                    className={`min-h-9 flex-1 cursor-pointer rounded-lg px-3 py-2 text-xs font-bold transition sm:flex-none ${
-                      tab === t.id
-                        ? "bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-white"
-                        : "text-gray-500 hover:text-gray-800 dark:text-gray-400"
-                    }`}
-                  >
-                    {t.label}
-                  </button>
-                ))}
-              </div>
+          <div
+            className={`flex min-h-0 flex-1 flex-col overflow-hidden ${
+              isBuilder ? "gap-0" : "gap-3"
+            }`}
+          >
+            <div
+              className={`z-30 flex shrink-0 flex-wrap gap-1 bg-gray-100/95 p-1 dark:bg-gray-800/95 ${
+                isBuilder
+                  ? "rounded-none border-b border-gray-200 px-2 dark:border-gray-800"
+                  : "rounded-xl border border-gray-200/60 shadow-sm backdrop-blur-md dark:border-gray-700/60"
+              }`}
+            >
+              {TABS.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => setTab(t.id)}
+                  className={`min-h-9 flex-1 cursor-pointer rounded-lg px-3 py-2 text-xs font-bold transition sm:flex-none ${
+                    tab === t.id
+                      ? "bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-white"
+                      : "text-gray-500 hover:text-gray-800 dark:text-gray-400"
+                  }`}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
 
+            {/* ── Builder: Pro shell (patterns, a11y, tokens, preview…) ── */}
+            {isBuilder ? (
+              <div className="min-h-0 flex-1 overflow-hidden">
+                <ProLayoutBuilder
+                  userId={userId}
+                  sellerId={userId}
+                  draft={resolved}
+                  onDraftChange={patch}
+                  products={shopProducts}
+                  categories={shopCategories}
+                  theme={canvasTheme}
+                  dataLoading={shopDataLoading}
+                  onDirty={() => setDirty(true)}
+                />
+              </div>
+            ) : (
+              /* ── Tab khác: 1 scroll content + preview ── */
+              <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden lg:flex-row">
+                <div className="custom-scrollbar min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain pr-1">
               {tab === "templates" ? (
                 <div className="space-y-6">
                   {groupTemplatesByCategory().map((group) => (
@@ -567,16 +738,6 @@ export default function ShopThemeSettings() {
                       </div>
                     </div>
                   ))}
-                </div>
-              ) : null}
-
-              {tab === "builder" ? (
-                <div className="space-y-4">
-                  <ShopLiveDragDropCanvas
-                    data={resolved}
-                    onChange={(updated) => patch(updated)}
-                    sellerId={userId}
-                  />
                 </div>
               ) : null}
 
@@ -814,17 +975,17 @@ export default function ShopThemeSettings() {
                   </div>
                 </div>
               ) : null}
-            </div>
-
-            {tab !== "builder" && (
-              <aside className="custom-scrollbar w-full shrink-0 lg:w-[320px] xl:w-[360px] lg:max-h-full lg:overflow-y-auto">
-                <div className="sticky top-0">
-                  <p className="mb-2 text-xs font-bold uppercase tracking-wider text-gray-400">
-                    Wireframe kiến trúc
-                  </p>
-                  <ThemePreview data={resolved} />
                 </div>
-              </aside>
+
+                <aside className="w-full shrink-0 lg:w-[320px] xl:w-[360px]">
+                  <div className="lg:sticky lg:top-0">
+                    <p className="mb-2 text-xs font-bold uppercase tracking-wider text-gray-400">
+                      Wireframe kiến trúc
+                    </p>
+                    <ThemePreview data={resolved} />
+                  </div>
+                </aside>
+              </div>
             )}
           </div>
         )}

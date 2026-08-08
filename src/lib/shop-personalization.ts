@@ -1,3 +1,4 @@
+import { createSampleLayoutCanvas } from "@/lib/shop-layout-canvas";
 import type {
   ShopArchetypeId,
   ShopPersonalizationData,
@@ -51,6 +52,8 @@ export const DEFAULT_SHOP_PERSONALIZATION: Required<ShopPersonalizationData> = {
     reviews: true,
   },
   blockConfigs: {},
+  /** Canvas builder — sample Header + Hero + Grid stack */
+  layoutCanvas: createSampleLayoutCanvas(),
   pdpTemplateId: "bento-tech",
   contactPhone: "",
   contactZalo: "",
@@ -674,6 +677,18 @@ export function resolvePersonalization(
       (typeof fromTemplate.pdpTemplateId === "string" &&
         fromTemplate.pdpTemplateId) ||
       DEFAULT_SHOP_PERSONALIZATION.pdpTemplateId,
+    layoutCanvas:
+      input.layoutCanvas &&
+      typeof input.layoutCanvas === "object" &&
+      Array.isArray(input.layoutCanvas.sections) &&
+      input.layoutCanvas.sections.length > 0
+        ? input.layoutCanvas
+        : fromTemplate.layoutCanvas &&
+            typeof fromTemplate.layoutCanvas === "object" &&
+            Array.isArray(fromTemplate.layoutCanvas.sections) &&
+            fromTemplate.layoutCanvas.sections.length > 0
+          ? fromTemplate.layoutCanvas
+          : DEFAULT_SHOP_PERSONALIZATION.layoutCanvas,
   };
 }
 

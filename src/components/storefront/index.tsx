@@ -50,9 +50,20 @@ export default function StorefrontHome({ sellerId }: StorefrontHomeProps) {
         setCover(coverData);
         setCategories(cateData.filter((c) => c.status === 1));
         setProducts(productData.results.filter(isProductActive));
-        setPersonalization(
-          (personalData.data ?? {}) as ShopPersonalizationData,
-        );
+
+        // Draft preview from builder (?preview=1)
+        let data = (personalData.data ?? {}) as ShopPersonalizationData;
+        if (typeof window !== "undefined") {
+          const params = new URLSearchParams(window.location.search);
+          if (params.get("preview") === "1") {
+            const { readPreviewDraft } = await import(
+              "@/lib/layout-canvas-storage"
+            );
+            const draft = readPreviewDraft(sellerId);
+            if (draft) data = draft;
+          }
+        }
+        setPersonalization(data);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -87,6 +98,10 @@ export default function StorefrontHome({ sellerId }: StorefrontHomeProps) {
 
   const publishedCategories = categories.filter((c) => c.status === 1);
 
+  const isPreview =
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("preview") === "1";
+
   return (
     <StoreShell
       sellerId={sellerId}
@@ -96,6 +111,11 @@ export default function StorefrontHome({ sellerId }: StorefrontHomeProps) {
       products={products}
       personalization={config}
     >
+      {isPreview ? (
+        <div className="sticky top-0 z-[100] bg-amber-500 px-3 py-1.5 text-center text-[11px] font-bold text-white shadow">
+          PREVIEW bản nháp từ Builder — chưa lưu server
+        </div>
+      ) : null}
       <StorefrontLayoutRouter
         sellerId={sellerId}
         cover={cover}

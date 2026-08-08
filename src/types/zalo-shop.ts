@@ -1,3 +1,5 @@
+import type { LayoutCanvasDocument } from "@/types/shop-layout-canvas";
+
 /** Danh mục cửa hàng */
 export interface ShopCategory {
   id: number;
@@ -351,12 +353,18 @@ export interface ShopPersonalizationData {
   showBottomNav?: boolean;
   /** Cart summary drawer strip (Sidebar Commerce) */
   showPersistentCartStrip?: boolean;
-  /** Thứ tự sắp xếp các khối UI trong Custom Builder */
+  /** Thứ tự sắp xếp các khối UI trong Custom Builder (legacy — dual-write từ layoutCanvas) */
   sectionOrder?: string[];
-  /** Trạng thái bật/tắt hiển thị từng khối UI */
+  /** Trạng thái bật/tắt hiển thị từng khối UI (legacy) */
   sectionVisibility?: Record<string, boolean>;
-  /** Cấu hình chi tiết tùy biến từng khối UI (Tiêu đề tùy chỉnh, xếp 2 khối cùng 1 hàng, màu nền) */
+  /** Cấu hình chi tiết từng khối (legacy — map từ LayoutSection.styling/data) */
   blockConfigs?: Record<string, ShopBlockConfig>;
+  /**
+   * Layout Canvas Builder v1 — source of truth cho stack section kéo-thả.
+   * @see types/shop-layout-canvas.ts
+   * Legacy sectionOrder / sectionVisibility / blockConfigs được sync khi save.
+   */
+  layoutCanvas?: LayoutCanvasDocument;
   /**
    * PDP template on /store/{id}/{cat}/{product}
    * @see PDPTemplateType in types/pdp-template.ts

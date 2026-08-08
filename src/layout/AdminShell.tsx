@@ -29,7 +29,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
           className={`flex h-dvh min-w-0 flex-1 flex-col overflow-hidden transition-all duration-300 ease-in-out ${mainContentMargin}`}
         >
           <AppHeader />
-          <main className="custom-scrollbar mx-auto flex h-0 min-h-0 w-full max-w-(--breakpoint-2xl) flex-1 flex-col overflow-x-hidden overflow-y-auto p-4 md:p-6">
+          <main className="custom-scrollbar mx-auto flex h-0 min-h-0 w-full max-w-none flex-1 flex-col overflow-x-hidden overflow-y-auto p-4 md:p-6">
             {children}
           </main>
         </div>

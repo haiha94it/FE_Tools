@@ -294,6 +294,10 @@ export function parseCommaSeparatedKeywords(value: string): string[] {
     .filter(Boolean);
 }
 
+export function formatCommaSeparatedKeywords(keywords: string[]): string {
+  return keywords.join(", ");
+}
+
 export function sortCategories(categories: ChatbotCategory[]): ChatbotCategory[] {
   return [...categories].sort((a, b) =>
     a.name.localeCompare(b.name, "vi", { sensitivity: "base" }),

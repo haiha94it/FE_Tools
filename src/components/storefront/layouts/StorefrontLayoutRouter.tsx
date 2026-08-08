@@ -19,8 +19,14 @@ import CustomCanvasLayout from "@/components/storefront/layouts/CustomCanvasLayo
  */
 export default function StorefrontLayoutRouter(props: StorefrontLayoutProps) {
   const archetype = resolveArchetypeId(props.config.templateId);
+  const templateRaw = String(props.config.templateId || "");
+  const isCustom =
+    props.config.pageLayout === "custom-builder" ||
+    archetype === "custom-drag-drop" ||
+    templateRaw === "custom-drag-drop";
 
-  if (props.config.pageLayout === "custom-builder" || (archetype as string) === "custom-drag-drop") {
+  // Cùng renderer với /shop/theme builder
+  if (isCustom) {
     return <CustomCanvasLayout {...props} />;
   }
 
