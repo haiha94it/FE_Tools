@@ -97,6 +97,15 @@ const defaultEnd = () => {
   return date;
 };
 
+/** Page size picker nhóm/bạn (BE type=list). */
+const PICKER_PAGE_SIZE = 50;
+const PICKER_SEARCH_DEBOUNCE_MS = 350;
+
+const pickerActionBtnClass =
+  "text-theme-xs font-semibold text-brand-600 hover:text-brand-700 disabled:cursor-not-allowed disabled:opacity-40 dark:text-brand-400 dark:hover:text-brand-300";
+const pickerDangerBtnClass =
+  "text-theme-xs font-semibold text-error-600 hover:text-error-700 disabled:cursor-not-allowed disabled:opacity-40 dark:text-error-400 dark:hover:text-error-300";
+
 function LabelColorDot({ color }: { color?: string | null }) {
   const resolved = resolveZaloLabelColor(color);
   return (
@@ -162,8 +171,11 @@ function LabelChipFilter({
 interface SelectionPanelProps {
   icon: ReactNode;
   title: string;
+  subtitle?: string;
   badge?: string;
+  headerActions?: ReactNode;
   toolbar?: ReactNode;
+  footer?: ReactNode;
   children: ReactNode;
   /** Wizard step: panel cao hơn, full step */
   wizard?: boolean;
@@ -172,8 +184,11 @@ interface SelectionPanelProps {
 function SelectionPanel({
   icon,
   title,
+  subtitle,
   badge,
+  headerActions,
   toolbar,
+  footer,
   children,
   wizard = false,
 }: SelectionPanelProps) {
@@ -186,7 +201,7 @@ function SelectionPanel({
       }
     >
       <div
-        className={`flex shrink-0 items-center justify-between gap-2 border-b border-gray-100 dark:border-gray-800 ${
+        className={`flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-gray-100 dark:border-gray-800 ${
           wizard ? "px-2.5 py-1.5" : "px-3 py-2.5"
         }`}
       >
@@ -198,19 +213,29 @@ function SelectionPanel({
           >
             {icon}
           </span>
-          <span
-            className={`truncate font-semibold text-gray-800 dark:text-white/90 ${
-              wizard ? "text-xs" : "text-sm"
-            }`}
-          >
-            {title}
-          </span>
+          <div className="min-w-0">
+            <span
+              className={`block truncate font-semibold text-gray-800 dark:text-white/90 ${
+                wizard ? "text-xs" : "text-sm"
+              }`}
+            >
+              {title}
+            </span>
+            {subtitle ? (
+              <span className="block text-[11px] leading-tight text-gray-500 dark:text-gray-400">
+                {subtitle}
+              </span>
+            ) : null}
+          </div>
         </div>
-        {badge ? (
-          <span className="shrink-0 rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-gray-600 dark:bg-gray-800 dark:text-gray-300">
-            {badge}
-          </span>
-        ) : null}
+        <div className="flex flex-wrap items-center justify-end gap-x-2 gap-y-1">
+          {headerActions}
+          {badge ? (
+            <span className="shrink-0 rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+              {badge}
+            </span>
+          ) : null}
+        </div>
       </div>
       {toolbar ? (
         <div
@@ -245,6 +270,11 @@ function SelectionPanel({
       >
         {children}
       </div>
+      {footer ? (
+        <div className="flex shrink-0 items-center justify-between gap-2 border-t border-gray-100 px-3 py-2 dark:border-gray-800">
+          {footer}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -288,18 +318,64 @@ export default function InviteJoinGroupCampaignFormModal({
 
   const [groupSearch, setGroupSearch] = useState("");
   const [friendSearch, setFriendSearch] = useState("");
+  const [debouncedGroupSearch, setDebouncedGroupSearch] = useState("");
+  const [debouncedFriendSearch, setDebouncedFriendSearch] = useState("");
   const [groupLabelId, setGroupLabelId] = useState<number | null>(null);
   const [friendLabelId, setFriendLabelId] = useState<number | null>(null);
   const [labelCategories, setLabelCategories] = useState<ZaloLabelCategory[]>([]);
   const [labelsLoading, setLabelsLoading] = useState(false);
   const [groups, setGroups] = useState<ZaloGroupItem[]>([]);
   const [friends, setFriends] = useState<ZaloFriendItem[]>([]);
+  const [groupPage, setGroupPage] = useState(1);
+  const [groupTotal, setGroupTotal] = useState(0);
+  const [friendPage, setFriendPage] = useState(1);
+  const [friendTotal, setFriendTotal] = useState(0);
   const [linkMembers, setLinkMembers] = useState<ZaloGroupMember[]>([]);
   const [groupsLoading, setGroupsLoading] = useState(false);
   const [friendsLoading, setFriendsLoading] = useState(false);
+  const [selectingAllFriends, setSelectingAllFriends] = useState(false);
   const [membersLoading, setMembersLoading] = useState(false);
 
-  const resetForm = () => {
+  const activeAccounts = useMemo(
+    () => accounts.filter((item) => item.checkpoint === false),
+    [accounts],
+  );
+
+  const isSelectedAccountActive = useMemo(
+    () =>
+      selectedAccountId != null &&
+      activeAccounts.some((item) => item.id === selectedAccountId),
+    [selectedAccountId, activeAccounts],
+  );
+
+  const pageGroups = isSelectedAccountActive ? groups : [];
+  const pageFriends = isSelectedAccountActive ? friends : [];
+  const groupTotalPages = Math.max(1, Math.ceil(groupTotal / PICKER_PAGE_SIZE) || 1);
+  const friendTotalPages = Math.max(1, Math.ceil(friendTotal / PICKER_PAGE_SIZE) || 1);
+
+  const allPageFriendsSelected =
+    pageFriends.length > 0 &&
+    pageFriends.every((friend) => selectedFriendIds.includes(friend.id));
+
+  const resetGroupPaging = useCallback(() => {
+    setGroupPage(1);
+    setGroupTotal(0);
+    setGroups([]);
+    setGroupSearch("");
+    setDebouncedGroupSearch("");
+    setGroupLabelId(null);
+  }, []);
+
+  const resetFriendPaging = useCallback(() => {
+    setFriendPage(1);
+    setFriendTotal(0);
+    setFriends([]);
+    setFriendSearch("");
+    setDebouncedFriendSearch("");
+    setFriendLabelId(null);
+  }, []);
+
+  const resetForm = useCallback(() => {
     setName("");
     setDelayTime("350");
     setNumberCount("10");
@@ -312,15 +388,11 @@ export default function InviteJoinGroupCampaignFormModal({
     setSelectedUids([]);
     setStartTime(defaultStart());
     setEndTime(defaultEnd());
-    setGroupSearch("");
-    setFriendSearch("");
-    setGroupLabelId(null);
-    setFriendLabelId(null);
     setLabelCategories([]);
-    setGroups([]);
-    setFriends([]);
     setLinkMembers([]);
-  };
+    resetGroupPaging();
+    resetFriendPaging();
+  }, [resetGroupPaging, resetFriendPaging]);
 
   useEffect(() => {
     if (!open) {
@@ -341,7 +413,6 @@ export default function InviteJoinGroupCampaignFormModal({
     setNumberCount(String(editingCampaign.number_count ?? 10));
     {
       let nextType = editingCampaign.type ?? "friend";
-      // Ẩn type không còn trên UI → fallback bạn bè
       if (!SHOW_GROUP_LINK_FEATURES && nextType === "uids") nextType = "friend";
       if (!SHOW_INVITE_JOIN_GROUP_PHONE_TYPE && nextType === "phone_number") {
         nextType = "friend";
@@ -358,78 +429,139 @@ export default function InviteJoinGroupCampaignFormModal({
     setSelectedUids(editingCampaign.uids ?? []);
     setStartTime(parseTimeToDate(editingCampaign.from_time) ?? defaultStart());
     setEndTime(parseTimeToDate(editingCampaign.to_time) ?? defaultEnd());
-  }, [open, editingCampaign]);
+    resetGroupPaging();
+    resetFriendPaging();
+  }, [open, editingCampaign, resetForm, resetGroupPaging, resetFriendPaging]);
+
+  // Debounce search nhóm/bạn → BE name=
+  useEffect(() => {
+    if (!open) return;
+    const t = window.setTimeout(() => {
+      setDebouncedGroupSearch(groupSearch.trim());
+      setGroupPage(1);
+    }, PICKER_SEARCH_DEBOUNCE_MS);
+    return () => window.clearTimeout(t);
+  }, [groupSearch, open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const t = window.setTimeout(() => {
+      setDebouncedFriendSearch(friendSearch.trim());
+      setFriendPage(1);
+    }, PICKER_SEARCH_DEBOUNCE_MS);
+    return () => window.clearTimeout(t);
+  }, [friendSearch, open]);
+
+  // Nick chết / checkpoint → clear
+  useEffect(() => {
+    if (!open || accountsLoading) return;
+    if (selectedAccountId == null) return;
+    if (isSelectedAccountActive) return;
+    const wasCampaign = editingCampaign?.account === selectedAccountId;
+    setSelectedAccountId(null);
+    setSelectedGroupId(null);
+    setSelectedFriendIds([]);
+    setSelectedUids([]);
+    setLinkMembers([]);
+    setLabelCategories([]);
+    resetGroupPaging();
+    resetFriendPaging();
+    if (wasCampaign) {
+      toast.warning(
+        "Nick gốc của kịch bản không còn hoạt động. Chọn nick đang hoạt động.",
+      );
+    }
+  }, [
+    open,
+    accountsLoading,
+    selectedAccountId,
+    isSelectedAccountActive,
+    editingCampaign?.account,
+    resetGroupPaging,
+    resetFriendPaging,
+  ]);
 
   const loadGroups = useCallback(
-    async (accountId: number, search: string, categoryId: number | null) => {
-    setGroupsLoading(true);
-    try {
-      const page = await zaloGroupService.list({
-        accountId,
-        page: 1,
-        pageSize: 200,
-        name: search || undefined,
-        categoryId: categoryId ?? undefined,
-      });
-      const list = page.results ?? [];
-      if (!list.length) {
+    async (
+      accountId: number,
+      search: string,
+      categoryId: number | null,
+      page: number,
+    ) => {
+      setGroupsLoading(true);
+      try {
+        const data = await zaloGroupService.list({
+          accountId,
+          page,
+          pageSize: PICKER_PAGE_SIZE,
+          name: search.trim() || undefined,
+          categoryId: categoryId ?? undefined,
+          mode: "list",
+        });
+        setGroups(data.results ?? []);
+        setGroupTotal(data.count ?? data.results?.length ?? 0);
+      } catch {
         setGroups([]);
-        return;
+        setGroupTotal(0);
+      } finally {
+        setGroupsLoading(false);
       }
-      const enriched = await zaloGroupService.fetchDetails(list);
-      setGroups(enriched);
-    } catch {
-      setGroups([]);
-    } finally {
-      setGroupsLoading(false);
-    }
-  },
+    },
     [],
   );
 
   const loadFriends = useCallback(
-    async (accountId: number, search: string, categoryId: number | null) => {
-    setFriendsLoading(true);
-    try {
-      const collected: ZaloFriendItem[] = [];
-      let page = 1;
-      let hasNext = true;
-      while (hasNext && page <= 20) {
-        const response = await zaloFriendService.list({
+    async (
+      accountId: number,
+      search: string,
+      categoryId: number | null,
+      page: number,
+    ) => {
+      setFriendsLoading(true);
+      try {
+        const data = await zaloFriendService.list({
           accountId,
           page,
-          pageSize: 100,
-          name: search || undefined,
+          pageSize: PICKER_PAGE_SIZE,
+          name: search.trim() || undefined,
           categoryId: categoryId ?? undefined,
+          mode: "list",
         });
-        collected.push(...(response.results ?? []));
-        hasNext = Boolean(response.next);
-        page += 1;
-        if (!search && !categoryId) break;
-      }
-      if (!collected.length) {
+        setFriends(data.results ?? []);
+        setFriendTotal(data.count ?? data.results?.length ?? 0);
+      } catch {
         setFriends([]);
-        return;
+        setFriendTotal(0);
+      } finally {
+        setFriendsLoading(false);
       }
-      const enriched = await zaloFriendService.fetchDetails(collected);
-      setFriends(enriched);
-    } catch {
-      setFriends([]);
-    } finally {
-      setFriendsLoading(false);
-    }
-  },
+    },
+    [],
+  );
+
+  const fetchMatchingFriendIds = useCallback(
+    async (
+      accountId: number,
+      options?: { search?: string; categoryId?: number | null },
+    ) => {
+      const page = await zaloFriendService.list({
+        accountId,
+        mode: "simple",
+        name: options?.search?.trim() || undefined,
+        categoryId: options?.categoryId ?? undefined,
+      });
+      return (page.results ?? []).map((item) => item.id);
+    },
     [],
   );
 
   useEffect(() => {
-    if (!open || !selectedAccountId) {
-      setLabelCategories([]);
-      setGroupLabelId(null);
-      setFriendLabelId(null);
+    if (!open || !isSelectedAccountActive || selectedAccountId == null) {
+      if (!isSelectedAccountActive) {
+        setLabelCategories([]);
+      }
       return;
     }
-
     let cancelled = false;
     setLabelsLoading(true);
     void zaloLabelService
@@ -443,40 +575,112 @@ export default function InviteJoinGroupCampaignFormModal({
       .finally(() => {
         if (!cancelled) setLabelsLoading(false);
       });
-
     return () => {
       cancelled = true;
     };
-  }, [open, selectedAccountId]);
+  }, [open, isSelectedAccountActive, selectedAccountId]);
 
   useEffect(() => {
-    if (!open || !selectedAccountId) return;
-    void loadGroups(selectedAccountId, groupSearch, groupLabelId);
-  }, [open, selectedAccountId, groupSearch, groupLabelId, loadGroups]);
-
-  useEffect(() => {
-    if (!open || !selectedAccountId || inviteType !== "friend") return;
-    void loadFriends(selectedAccountId, friendSearch, friendLabelId);
+    if (!open || !isSelectedAccountActive || selectedAccountId == null) {
+      if (!isSelectedAccountActive) {
+        setGroups([]);
+        setGroupTotal(0);
+        setGroupsLoading(false);
+      }
+      return;
+    }
+    void loadGroups(
+      selectedAccountId,
+      debouncedGroupSearch,
+      groupLabelId,
+      groupPage,
+    );
   }, [
     open,
+    isSelectedAccountActive,
+    selectedAccountId,
+    debouncedGroupSearch,
+    groupLabelId,
+    groupPage,
+    loadGroups,
+  ]);
+
+  useEffect(() => {
+    if (
+      !open ||
+      !isSelectedAccountActive ||
+      selectedAccountId == null ||
+      inviteType !== "friend"
+    ) {
+      if (inviteType !== "friend" || !isSelectedAccountActive) {
+        setFriends([]);
+        setFriendTotal(0);
+        setFriendsLoading(false);
+      }
+      return;
+    }
+    void loadFriends(
+      selectedAccountId,
+      debouncedFriendSearch,
+      friendLabelId,
+      friendPage,
+    );
+  }, [
+    open,
+    isSelectedAccountActive,
     selectedAccountId,
     inviteType,
-    friendSearch,
+    debouncedFriendSearch,
     friendLabelId,
+    friendPage,
     loadFriends,
   ]);
 
+  // Edit: prune friend seed không thuộc nick (simple id set).
+  useEffect(() => {
+    if (!open || !isSelectedAccountActive || selectedAccountId == null) return;
+    if (!editingCampaign?.friend?.length) return;
+    if (editingCampaign.account !== selectedAccountId) return;
+    const raw = editingCampaign.friend;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const allowed = new Set(await fetchMatchingFriendIds(selectedAccountId));
+        if (cancelled) return;
+        setSelectedFriendIds((prev) => {
+          const isSeed =
+            prev.length === raw.length && raw.every((id) => prev.includes(id));
+          if (!isSeed) return prev;
+          return prev.filter((id) => allowed.has(id));
+        });
+      } catch {
+        /* ignore */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    open,
+    isSelectedAccountActive,
+    selectedAccountId,
+    editingCampaign,
+    fetchMatchingFriendIds,
+  ]);
+
   const handleSelectAccount = (accountId: number) => {
+    if (!activeAccounts.some((item) => item.id === accountId)) {
+      toast.error("Chỉ chọn nick đang hoạt động.");
+      return;
+    }
     setSelectedAccountId(accountId);
     setSelectedGroupId(null);
     setGroupLink("");
     setSelectedFriendIds([]);
     setSelectedUids([]);
     setLinkMembers([]);
-    setGroupLabelId(null);
-    setFriendLabelId(null);
-    setGroups([]);
-    setFriends([]);
+    resetGroupPaging();
+    resetFriendPaging();
   };
 
   const handleSelectGroup = (group: ZaloGroupItem) => {
@@ -487,8 +691,8 @@ export default function InviteJoinGroupCampaignFormModal({
   };
 
   const handleLoadLinkMembers = async () => {
-    if (!selectedAccountId) {
-      toast.error("Chọn tài khoản Zalo trước.");
+    if (!selectedAccountId || !isSelectedAccountActive) {
+      toast.error("Chọn tài khoản Zalo đang hoạt động trước.");
       return;
     }
     const link = groupLink.trim();
@@ -498,7 +702,10 @@ export default function InviteJoinGroupCampaignFormModal({
     }
     setMembersLoading(true);
     try {
-      const members = await zaloGroupService.showMembersByLink(selectedAccountId, link);
+      const members = await zaloGroupService.showMembersByLink(
+        selectedAccountId,
+        link,
+      );
       setLinkMembers(members);
       if (!members.length) {
         toast.error("Không tải được thành viên từ link nhóm.");
@@ -523,8 +730,6 @@ export default function InviteJoinGroupCampaignFormModal({
     );
   };
 
-  const filteredGroups = useMemo(() => groups, [groups]);
-  const filteredFriends = useMemo(() => friends, [friends]);
   const selectableMemberUids = useMemo(
     () =>
       linkMembers
@@ -532,24 +737,48 @@ export default function InviteJoinGroupCampaignFormModal({
         .filter((uid): uid is string => Boolean(uid)),
     [linkMembers],
   );
-  const allFriendsSelected =
-    filteredFriends.length > 0 &&
-    filteredFriends.every((friend) => selectedFriendIds.includes(friend.id));
   const allMembersSelected =
     selectableMemberUids.length > 0 &&
     selectableMemberUids.every((uid) => selectedUids.includes(uid));
 
-  /** Chọn hoặc bỏ chọn toàn bộ bạn bè đang hiển thị. */
-  const toggleAllFriends = () => {
-    const visibleIds = new Set(filteredFriends.map((friend) => friend.id));
+  /** Chọn / bỏ chọn bạn trên trang hiện tại — giữ selection khi lật trang. */
+  const toggleAllPageFriends = () => {
+    if (!pageFriends.length || readOnly) return;
+    const pageIds = new Set(pageFriends.map((f) => f.id));
     setSelectedFriendIds((current) =>
-      allFriendsSelected
-        ? current.filter((id) => !visibleIds.has(id))
-        : Array.from(new Set([...current, ...visibleIds])),
+      allPageFriendsSelected
+        ? current.filter((id) => !pageIds.has(id))
+        : Array.from(new Set([...current, ...pageIds])),
     );
   };
 
-  /** Chọn hoặc bỏ chọn toàn bộ thành viên hợp lệ lấy từ link nhóm. */
+  /** Chọn tất cả bạn khớp filter (mọi trang). */
+  const selectAllMatchingFriends = async () => {
+    if (!isSelectedAccountActive || !selectedAccountId || readOnly) return;
+    setSelectingAllFriends(true);
+    try {
+      const ids = await fetchMatchingFriendIds(selectedAccountId, {
+        search: debouncedFriendSearch,
+        categoryId: friendLabelId,
+      });
+      if (!ids.length) {
+        toast.info("Không có bạn bè khớp bộ lọc để chọn.");
+        return;
+      }
+      setSelectedFriendIds((prev) => Array.from(new Set([...prev, ...ids])));
+      toast.success(`Đã chọn ${ids.length} bạn bè.`);
+    } catch {
+      toast.error("Không tải được danh sách bạn bè để chọn tất cả.");
+    } finally {
+      setSelectingAllFriends(false);
+    }
+  };
+
+  const clearAllSelectedFriends = () => {
+    if (readOnly) return;
+    setSelectedFriendIds([]);
+  };
+
   const toggleAllMembers = () => {
     const visibleUids = new Set(selectableMemberUids);
     setSelectedUids((current) =>
@@ -563,7 +792,7 @@ export default function InviteJoinGroupCampaignFormModal({
     ? "1 đã chọn"
     : groupsLoading
       ? "..."
-      : `${filteredGroups.length}`;
+      : `${groupTotal}`;
 
   const friendPanelBadge =
     inviteType === "friend"
@@ -571,14 +800,15 @@ export default function InviteJoinGroupCampaignFormModal({
         ? `${selectedFriendIds.length} đã chọn`
         : friendsLoading
           ? "..."
-          : `${filteredFriends.length}`
+          : `${friendTotal}`
       : inviteType === "uids"
         ? selectedUids.length > 0
           ? `${selectedUids.length} đã chọn`
           : `${linkMembers.length}`
         : undefined;
 
-  const labelFilterDisabled = !selectedAccountId || labelsLoading || saving;
+  const labelFilterDisabled =
+    !isSelectedAccountActive || labelsLoading || saving;
 
   const handleSave = async () => {
     const trimmedName = name.trim();
@@ -586,8 +816,8 @@ export default function InviteJoinGroupCampaignFormModal({
       toast.error("Vui lòng nhập tên kịch bản.");
       return;
     }
-    if (!selectedAccountId) {
-      toast.error("Chọn tài khoản Zalo để chạy kịch bản.");
+    if (!selectedAccountId || !isSelectedAccountActive) {
+      toast.error("Chọn tài khoản Zalo đang hoạt động.");
       return;
     }
     if (SHOW_GROUP_LINK_FEATURES) {
@@ -719,8 +949,8 @@ export default function InviteJoinGroupCampaignFormModal({
         return true;
       }
       if (step === 1) {
-        if (!selectedAccountId) {
-          toast.error("Chọn tài khoản Zalo để chạy kịch bản.");
+        if (!selectedAccountId || !isSelectedAccountActive) {
+          toast.error("Chọn tài khoản Zalo đang hoạt động.");
           return false;
         }
         return true;
@@ -746,6 +976,7 @@ export default function InviteJoinGroupCampaignFormModal({
       inviteType,
       phoneNumbers,
       selectedAccountId,
+      isSelectedAccountActive,
       selectedGroupId,
       groupLink,
     ],
@@ -911,10 +1142,12 @@ export default function InviteJoinGroupCampaignFormModal({
       >
         {accountsLoading ? (
           <p className="px-2 py-3 text-sm text-gray-500">Đang tải tài khoản...</p>
-        ) : accounts.length === 0 ? (
-          <p className="px-2 py-3 text-sm text-gray-500">Không có tài khoản</p>
+        ) : activeAccounts.length === 0 ? (
+          <p className="px-2 py-3 text-sm text-gray-500">
+            Không có tài khoản đang hoạt động
+          </p>
         ) : (
-          accounts.map((account) => {
+          activeAccounts.map((account) => {
             const active = selectedAccountId === account.id;
             const label = account.name || `Tài khoản #${account.id}`;
             return (
@@ -971,6 +1204,7 @@ export default function InviteJoinGroupCampaignFormModal({
       wizard={isWizard}
       icon={<GroupIcon className="size-4" />}
       title="Chọn nhóm"
+      subtitle="1 nhóm / kịch bản · list type=list"
       badge={groupPanelBadge}
       toolbar={
         <>
@@ -981,7 +1215,10 @@ export default function InviteJoinGroupCampaignFormModal({
             <LabelChipFilter
               labels={labelCategories}
               value={groupLabelId}
-              onChange={setGroupLabelId}
+              onChange={(id) => {
+                setGroupLabelId(id);
+                setGroupPage(1);
+              }}
               disabled={labelFilterDisabled}
             />
           </div>
@@ -989,21 +1226,52 @@ export default function InviteJoinGroupCampaignFormModal({
             value={groupSearch}
             onChange={(e) => setGroupSearch(e.target.value)}
             placeholder="Tìm theo tên nhóm..."
-            disabled={!selectedAccountId || saving}
+            disabled={!isSelectedAccountActive || saving}
             className="h-9"
           />
         </>
       }
+      footer={
+        isSelectedAccountActive && groupTotal > 0 ? (
+          <>
+            <span className="text-theme-xs text-gray-500">
+              Trang {groupPage}/{groupTotalPages} — {groupTotal} nhóm
+            </span>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={groupPage <= 1 || groupsLoading || saving}
+                onClick={() => setGroupPage((p) => Math.max(1, p - 1))}
+              >
+                Trước
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={
+                  groupPage >= groupTotalPages || groupsLoading || saving
+                }
+                onClick={() =>
+                  setGroupPage((p) => Math.min(groupTotalPages, p + 1))
+                }
+              >
+                Sau
+              </Button>
+            </div>
+          </>
+        ) : undefined
+      }
     >
-      {!selectedAccountId ? (
-        <PanelEmpty message="Chọn tài khoản Zalo để xem danh sách nhóm" />
+      {!isSelectedAccountActive ? (
+        <PanelEmpty message="Chọn tài khoản đang hoạt động để xem danh sách nhóm" />
       ) : groupsLoading ? (
         <PanelEmpty message="Đang tải danh sách nhóm..." />
-      ) : filteredGroups.length === 0 ? (
+      ) : pageGroups.length === 0 ? (
         <PanelEmpty message="Không có nhóm phù hợp" />
       ) : (
         <ul className="space-y-0.5">
-          {filteredGroups.map((group) => {
+          {pageGroups.map((group) => {
             const active = selectedGroupId === group.id;
             const groupName = getZaloGroupDisplayName(group);
             return (
@@ -1011,6 +1279,7 @@ export default function InviteJoinGroupCampaignFormModal({
                 <button
                   type="button"
                   onClick={() => handleSelectGroup(group)}
+                  disabled={saving || readOnly}
                   className={`flex w-full min-w-0 items-center gap-2.5 rounded-lg px-2.5 py-2.5 text-left text-sm transition active:bg-brand-50/80 sm:py-2 ${
                     active
                       ? "bg-brand-50 shadow-theme-xs dark:bg-brand-500/10"
@@ -1025,11 +1294,6 @@ export default function InviteJoinGroupCampaignFormModal({
                   <span className="min-w-0 flex-1 truncate font-medium text-gray-800 dark:text-white/90">
                     {groupName}
                   </span>
-                  {group.total_member ? (
-                    <span className="shrink-0 rounded-md bg-gray-100 px-1.5 py-0.5 text-theme-xs tabular-nums text-gray-500 dark:bg-gray-800">
-                      {group.total_member}
-                    </span>
-                  ) : null}
                   {active ? (
                     <span className="shrink-0 text-brand-600 dark:text-brand-400">
                       ✓
@@ -1055,18 +1319,62 @@ export default function InviteJoinGroupCampaignFormModal({
             ? "Thành viên link"
             : "Số điện thoại"
       }
+      subtitle={
+        inviteType === "friend"
+          ? "Tick nhiều trang — giữ lựa chọn khi lật trang"
+          : undefined
+      }
       badge={friendPanelBadge}
-      toolbar={
+      headerActions={
         inviteType === "friend" ? (
           <>
             <button
               type="button"
-              onClick={toggleAllFriends}
-              disabled={saving || readOnly || !filteredFriends.length}
-              className="w-fit text-theme-xs font-semibold text-brand-600 hover:text-brand-700 disabled:cursor-not-allowed disabled:opacity-40 dark:text-brand-400 dark:hover:text-brand-300"
+              onClick={toggleAllPageFriends}
+              disabled={
+                saving ||
+                readOnly ||
+                friendsLoading ||
+                selectingAllFriends ||
+                !pageFriends.length
+              }
+              className={pickerActionBtnClass}
             >
-              {allFriendsSelected ? "Bỏ chọn tất cả" : "Chọn tất cả"}
+              {allPageFriendsSelected ? "Bỏ chọn trang" : "Chọn trang"}
             </button>
+            <button
+              type="button"
+              onClick={() => void selectAllMatchingFriends()}
+              disabled={
+                saving ||
+                readOnly ||
+                friendsLoading ||
+                selectingAllFriends ||
+                friendTotal === 0
+              }
+              className={pickerActionBtnClass}
+            >
+              {selectingAllFriends ? "Đang chọn..." : "Chọn tất cả"}
+            </button>
+            <button
+              type="button"
+              onClick={clearAllSelectedFriends}
+              disabled={
+                saving ||
+                readOnly ||
+                selectingAllFriends ||
+                selectedFriendIds.length === 0
+              }
+              className={pickerDangerBtnClass}
+            >
+              Bỏ chọn hết
+            </button>
+          </>
+        ) : undefined
+      }
+      toolbar={
+        inviteType === "friend" ? (
+          <>
             <div className="flex min-w-0 items-center gap-2">
               <span className="shrink-0 text-theme-xs font-medium text-gray-500">
                 Nhãn
@@ -1074,7 +1382,10 @@ export default function InviteJoinGroupCampaignFormModal({
               <LabelChipFilter
                 labels={labelCategories}
                 value={friendLabelId}
-                onChange={setFriendLabelId}
+                onChange={(id) => {
+                  setFriendLabelId(id);
+                  setFriendPage(1);
+                }}
                 disabled={labelFilterDisabled}
               />
             </div>
@@ -1082,7 +1393,7 @@ export default function InviteJoinGroupCampaignFormModal({
               value={friendSearch}
               onChange={(e) => setFriendSearch(e.target.value)}
               placeholder="Tìm theo tên bạn bè..."
-              disabled={!selectedAccountId || saving}
+              disabled={!isSelectedAccountActive || saving}
               className="h-9"
             />
           </>
@@ -1091,23 +1402,56 @@ export default function InviteJoinGroupCampaignFormModal({
             type="button"
             onClick={toggleAllMembers}
             disabled={saving || readOnly || !selectableMemberUids.length}
-            className="w-fit text-theme-xs font-semibold text-brand-600 hover:text-brand-700 disabled:cursor-not-allowed disabled:opacity-40 dark:text-brand-400 dark:hover:text-brand-300"
+            className={pickerActionBtnClass}
           >
             {allMembersSelected ? "Bỏ chọn tất cả" : "Chọn tất cả"}
           </button>
         ) : undefined
       }
+      footer={
+        inviteType === "friend" &&
+        isSelectedAccountActive &&
+        friendTotal > 0 ? (
+          <>
+            <span className="text-theme-xs text-gray-500">
+              Trang {friendPage}/{friendTotalPages} — {friendTotal} bạn
+            </span>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={friendPage <= 1 || friendsLoading || saving}
+                onClick={() => setFriendPage((p) => Math.max(1, p - 1))}
+              >
+                Trước
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={
+                  friendPage >= friendTotalPages || friendsLoading || saving
+                }
+                onClick={() =>
+                  setFriendPage((p) => Math.min(friendTotalPages, p + 1))
+                }
+              >
+                Sau
+              </Button>
+            </div>
+          </>
+        ) : undefined
+      }
     >
       {inviteType === "friend" ? (
-        !selectedAccountId ? (
-          <PanelEmpty message="Chọn tài khoản Zalo để xem danh sách bạn bè" />
+        !isSelectedAccountActive ? (
+          <PanelEmpty message="Chọn tài khoản đang hoạt động để xem danh sách bạn bè" />
         ) : friendsLoading ? (
           <PanelEmpty message="Đang tải danh sách bạn bè..." />
-        ) : filteredFriends.length === 0 ? (
+        ) : pageFriends.length === 0 ? (
           <PanelEmpty message="Không có bạn bè phù hợp" />
         ) : (
           <ul className="space-y-0.5">
-            {filteredFriends.map((friend) => {
+            {pageFriends.map((friend) => {
               const selected = selectedFriendIds.includes(friend.id);
               const friendName = getZaloFriendDisplayName(friend);
               return (
@@ -1115,6 +1459,7 @@ export default function InviteJoinGroupCampaignFormModal({
                   <button
                     type="button"
                     onClick={() => toggleFriend(friend.id)}
+                    disabled={saving || readOnly}
                     className={`flex w-full min-w-0 items-center gap-2.5 rounded-lg px-2.5 py-2.5 text-left text-sm transition active:bg-brand-50/80 sm:py-2 ${
                       selected
                         ? "bg-brand-50 shadow-theme-xs dark:bg-brand-500/10"

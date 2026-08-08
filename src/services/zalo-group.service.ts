@@ -95,21 +95,40 @@ function extractGroupMembers(body: unknown): ZaloGroupMember[] {
 }
 
 export const zaloGroupService = {
+  /**
+   * List nhóm theo nick.
+   * - mode "simple" / detail=false: type=simple → mảng id (prune/ownership).
+   * - mode "list" (picker): type=list → id/name/avt, có phân trang — không fetchs.
+   * - mode "detail" / detail=true: type=detail → full GroupDetail (contacts).
+   */
   async list(params: {
     accountId: number;
     page?: number;
     pageSize?: number;
     name?: string;
     categoryId?: number;
-    /** false/undefined → type=simple; true → full GroupDetail (§2.2 contract) */
+    /**
+     * simple | list | detail.
+     * Nếu bỏ: detail=true → detail; detail=false/undefined → simple (tương thích cũ).
+     */
+    mode?: "simple" | "list" | "detail";
+    /** @deprecated Ưu tiên `mode`. true→detail, false→simple. */
     detail?: boolean;
   }): Promise<PaginatedResponse<ZaloGroupItem>> {
+    const mode =
+      params.mode ?? (params.detail ? "detail" : "simple");
+    const typeParam =
+      mode === "simple"
+        ? "simple"
+        : mode === "detail"
+          ? "detail"
+          : "list";
     const response = await api.get(API_ZALO_GROUP.LIST, {
       params: {
         id_account: params.accountId,
         page: params.page ?? 1,
         number_per_page: params.pageSize ?? 100,
-        ...(params.detail ? {} : { type: "simple" }),
+        type: typeParam,
         ...(params.name ? { name: params.name } : {}),
         ...(params.categoryId
           ? { id_category_message: params.categoryId }
@@ -123,7 +142,10 @@ export const zaloGroupService = {
     };
   },
 
-  /** Lấy avatar/chi tiết — list API type=simple không trả ảnh */
+  /**
+   * Enrich id-only list (sau type=simple) — chỉ khi bắt buộc.
+   * Picker UI: list({ mode: "list" }); contacts full: list({ mode: "detail" }).
+   */
   async fetchDetails(groups: ZaloGroupItem[]): Promise<ZaloGroupItem[]> {
     const idGroups = buildGroupFetchPayload(groups as unknown[]);
     if (!idGroups.length) return [];

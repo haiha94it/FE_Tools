@@ -81,9 +81,6 @@ export default function SendMessPhoneResultsModal({
   const resultsLoading = useZaloSendMessPhoneCampaignStore((s) => s.resultsLoading);
   const statistics = useZaloSendMessPhoneCampaignStore((s) => s.statistics);
   const failedPhones = useZaloSendMessPhoneCampaignStore((s) => s.failedPhones);
-  const phoneNumbersError = useZaloSendMessPhoneCampaignStore(
-    (s) => s.phoneNumbersError,
-  );
   const accountLimits = useZaloSendMessPhoneCampaignStore((s) => s.accountLimits);
   const toggleResultSelected = useZaloSendMessPhoneCampaignStore((s) => s.toggleResultSelected);
   const toggleSelectAllResults = useZaloSendMessPhoneCampaignStore((s) => s.toggleSelectAllResults);
@@ -178,30 +175,6 @@ export default function SendMessPhoneResultsModal({
                   failedPhones,
                   "Không có SĐT thất bại để sao chép.",
                   "Đã sao chép danh sách SĐT thất bại.",
-                )
-              }
-            >
-              Sao chép
-            </Button>
-          </div>
-        ) : null}
-
-        {phoneNumbersError.length > 0 ? (
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-error-200 bg-error-50 px-3 py-2 text-sm text-error-700 dark:border-error-500/30 dark:bg-error-500/10 dark:text-error-300">
-            <span className="min-w-0 flex-1 truncate">
-              SĐT lỗi parse: {phoneNumbersError.slice(0, 5).join(", ")}
-              {phoneNumbersError.length > 5
-                ? ` … (+${phoneNumbersError.length - 5})`
-                : ""}
-            </span>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() =>
-                void handleCopyList(
-                  phoneNumbersError,
-                  "Không có SĐT lỗi parse để sao chép.",
-                  "Đã sao chép danh sách SĐT lỗi parse.",
                 )
               }
             >

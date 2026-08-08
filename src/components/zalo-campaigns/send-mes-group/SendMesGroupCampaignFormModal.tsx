@@ -31,6 +31,7 @@ import { useScanTaskPoll } from "@/hooks/use-scan-task-poll";
 import { resolveZaloLabelColor } from "@/lib/zalo-label-utils";
 import {
   canEditSendMesGroupGroups,
+  filterGroupIdsForAccount,
   formatTimeForApi,
   getSendMesGroupMediaUrl,
   parseTimeToDate,
@@ -56,6 +57,10 @@ import type { ScanTaskResponse } from "@/types/zalo-contacts";
 import type { ZaloAccount } from "@/types/zalo-account";
 import Image from "next/image";
 import { useCallback, useEffect, useMemo, useState } from "react";
+
+/** Page size list nhóm picker (BE type=list — id/name/avt). */
+const GROUP_PAGE_SIZE = 50;
+const GROUP_SEARCH_DEBOUNCE_MS = 350;
 
 interface SendMesGroupCampaignFormModalProps {
   open: boolean;
@@ -169,10 +174,14 @@ export default function SendMesGroupCampaignFormModal({
   const [selectedAccountId, setSelectedAccountId] = useState<number | null>(null);
   const [selectedGroupIds, setSelectedGroupIds] = useState<number[]>([]);
   const [groupSearch, setGroupSearch] = useState("");
+  const [debouncedGroupSearch, setDebouncedGroupSearch] = useState("");
   const [groupLabelId, setGroupLabelId] = useState<number | null>(null);
   const [labelCategories, setLabelCategories] = useState<ZaloLabelCategory[]>([]);
   const [groups, setGroups] = useState<ZaloGroupItem[]>([]);
+  const [groupPage, setGroupPage] = useState(1);
+  const [groupTotal, setGroupTotal] = useState(0);
   const [groupsLoading, setGroupsLoading] = useState(false);
+  const [selectingAllGroups, setSelectingAllGroups] = useState(false);
   const [scanningGroups, setScanningGroups] = useState(false);
   const [scanTaskId, setScanTaskId] = useState<string | number | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -186,17 +195,34 @@ export default function SendMesGroupCampaignFormModal({
     [accounts],
   );
 
-  const filteredGroups = useMemo(() => {
-    const key = groupSearch.trim().toLowerCase();
-    if (!key) return groups;
-    return groups.filter((item) =>
-      getZaloGroupDisplayName(item).toLowerCase().includes(key),
-    );
-  }, [groups, groupSearch]);
+  /** Chỉ nick đang hoạt động (trong activeAccounts) mới được load/hiện list nhóm. */
+  const isSelectedAccountActive = useMemo(
+    () =>
+      selectedAccountId != null &&
+      activeAccounts.some((item) => item.id === selectedAccountId),
+    [selectedAccountId, activeAccounts],
+  );
 
-  const allFilteredGroupsSelected =
-    filteredGroups.length > 0 &&
-    filteredGroups.every((group) => selectedGroupIds.includes(group.id));
+  /** Trang hiện tại từ API type=list (server filter name + nhãn). */
+  const pageGroups = isSelectedAccountActive ? groups : [];
+
+  const allPageGroupsSelected =
+    pageGroups.length > 0 &&
+    pageGroups.every((group) => selectedGroupIds.includes(group.id));
+
+  const groupTotalPages = Math.max(
+    1,
+    Math.ceil(groupTotal / GROUP_PAGE_SIZE) || 1,
+  );
+
+  const resetGroupPaging = useCallback(() => {
+    setGroupPage(1);
+    setGroupTotal(0);
+    setGroups([]);
+    setGroupSearch("");
+    setDebouncedGroupSearch("");
+    setGroupLabelId(null);
+  }, []);
 
   const resetForm = useCallback(() => {
     setName("");
@@ -212,11 +238,77 @@ export default function SendMesGroupCampaignFormModal({
     setEndTime(defaultEnd());
     setSelectedAccountId(null);
     setSelectedGroupIds([]);
-    setGroupSearch("");
-    setGroupLabelId(null);
     setLabelCategories([]);
-    setGroups([]);
-  }, []);
+    resetGroupPaging();
+  }, [resetGroupPaging]);
+
+  /**
+   * type=simple → full id list (mọi trang), có filter name/nhãn.
+   * Dùng: prune ownership + "Chọn tất cả".
+   */
+  const fetchMatchingGroupIds = useCallback(
+    async (
+      accountId: number,
+      options?: { search?: string; categoryId?: number | null },
+    ) => {
+      const page = await zaloGroupService.list({
+        accountId,
+        mode: "simple",
+        name: options?.search?.trim() || undefined,
+        categoryId: options?.categoryId ?? undefined,
+      });
+      return (page.results ?? []).map((item) => item.id);
+    },
+    [],
+  );
+
+  const fetchAccountGroupIdSet = useCallback(
+    async (accountId: number) => {
+      const ids = await fetchMatchingGroupIds(accountId);
+      return new Set(ids);
+    },
+    [fetchMatchingGroupIds],
+  );
+
+  /**
+   * List picker: GET /api/group type=list → {id,name,avt}, phân trang.
+   * Không fetchs; tạo/sửa kịch bản dùng chung.
+   */
+  const loadGroups = useCallback(
+    async (
+      accountId: number,
+      search: string,
+      categoryId: number | null,
+      page: number,
+    ) => {
+      setGroupsLoading(true);
+      try {
+        const data = await zaloGroupService.list({
+          accountId,
+          page,
+          pageSize: GROUP_PAGE_SIZE,
+          name: search.trim() || undefined,
+          categoryId: categoryId ?? undefined,
+          mode: "list",
+        });
+        setGroups(data.results ?? []);
+        setGroupTotal(data.count ?? data.results?.length ?? 0);
+      } catch {
+        setGroups([]);
+        setGroupTotal(0);
+      } finally {
+        setGroupsLoading(false);
+      }
+    },
+    [],
+  );
+
+  const clearAccountAndGroups = useCallback(() => {
+    setSelectedAccountId(null);
+    setSelectedGroupIds([]);
+    setLabelCategories([]);
+    resetGroupPaging();
+  }, [resetGroupPaging]);
 
   useEffect(() => {
     if (!open) return;
@@ -224,6 +316,9 @@ export default function SendMesGroupCampaignFormModal({
       resetForm();
       return;
     }
+    const accountId = editingCampaign.account ?? null;
+    const rawGroupIds = editingCampaign.group ?? [];
+
     setName(editingCampaign.name ?? "");
     setDelayTime(String(editingCampaign.delay_time ?? 60));
     setNumberCount(String(editingCampaign.number_count ?? 20));
@@ -242,50 +337,144 @@ export default function SendMesGroupCampaignFormModal({
     );
     setStartTime(parseTimeToDate(editingCampaign.from_time) ?? defaultStart());
     setEndTime(parseTimeToDate(editingCampaign.to_time) ?? defaultEnd());
-    setSelectedAccountId(editingCampaign.account ?? null);
-    setSelectedGroupIds(editingCampaign.group ?? []);
-  }, [open, editingCampaign, resetForm]);
+    setLabelCategories([]);
+    resetGroupPaging();
 
-  const loadGroups = useCallback(
-    async (accountId: number, search: string, categoryId: number | null) => {
-      setGroupsLoading(true);
-      try {
-        const page = await zaloGroupService.list({
-          accountId,
-          page: 1,
-          pageSize: 200,
-          name: search || undefined,
-          categoryId: categoryId ?? undefined,
-        });
-        const list = page.results ?? [];
-        if (!list.length) {
-          setGroups([]);
-          return;
-        }
-        const enriched = await zaloGroupService.fetchDetails(list);
-        setGroups(enriched);
-      } catch {
-        setGroups([]);
-      } finally {
-        setGroupsLoading(false);
-      }
-    },
-    [],
-  );
+    // Chưa biết accounts load xong → gán tạm; effect active-account sẽ clear nếu nick chết.
+    setSelectedAccountId(accountId);
+    setSelectedGroupIds(rawGroupIds);
+  }, [open, editingCampaign, resetForm, resetGroupPaging]);
 
+  // Debounce tìm nhóm → query BE `name=`.
   useEffect(() => {
-    if (!open || !selectedAccountId) return;
+    if (!open) return;
+    const timer = window.setTimeout(() => {
+      setDebouncedGroupSearch(groupSearch.trim());
+      setGroupPage(1);
+    }, GROUP_SEARCH_DEBOUNCE_MS);
+    return () => window.clearTimeout(timer);
+  }, [groupSearch, open]);
+
+  // Nick gốc copy/edit mất hoặc checkpoint → không giữ selection, không load nhóm.
+  useEffect(() => {
+    if (!open || accountsLoading) return;
+    if (selectedAccountId == null) {
+      setGroups([]);
+      setGroupTotal(0);
+      setLabelCategories([]);
+      return;
+    }
+    if (isSelectedAccountActive) return;
+
+    const wasCampaignAccount = editingCampaign?.account === selectedAccountId;
+    clearAccountAndGroups();
+    if (wasCampaignAccount) {
+      toast.warning(
+        "Nick gốc của kịch bản không còn hoạt động. Chọn nick đang hoạt động rồi chọn lại nhóm.",
+      );
+    }
+  }, [
+    open,
+    accountsLoading,
+    selectedAccountId,
+    isSelectedAccountActive,
+    editingCampaign?.account,
+    clearAccountAndGroups,
+  ]);
+
+  // Labels theo nick (1 lần khi đổi nick active).
+  useEffect(() => {
+    if (!open || !isSelectedAccountActive || selectedAccountId == null) {
+      if (!isSelectedAccountActive) setLabelCategories([]);
+      return;
+    }
+    let cancelled = false;
     void zaloLabelService
       .listCategories(selectedAccountId)
-      .then(setLabelCategories)
-      .catch(() => setLabelCategories([]));
-    void loadGroups(selectedAccountId, groupSearch, groupLabelId);
-  }, [open, selectedAccountId, groupLabelId, loadGroups]);
+      .then((labels) => {
+        if (!cancelled) setLabelCategories(labels);
+      })
+      .catch(() => {
+        if (!cancelled) setLabelCategories([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, isSelectedAccountActive, selectedAccountId]);
 
+  // Load nhóm paginated — tạo + sửa kịch bản, chỉ khi nick active.
   useEffect(() => {
-    if (!open || !selectedAccountId || !editingCampaign?.group?.length) return;
-    void loadGroups(selectedAccountId, "", null);
-  }, [open, selectedAccountId, editingCampaign, loadGroups]);
+    if (!open || !isSelectedAccountActive || selectedAccountId == null) {
+      if (!isSelectedAccountActive) {
+        setGroups([]);
+        setGroupTotal(0);
+        setGroupsLoading(false);
+      }
+      return;
+    }
+    void loadGroups(
+      selectedAccountId,
+      debouncedGroupSearch,
+      groupLabelId,
+      groupPage,
+    );
+  }, [
+    open,
+    isSelectedAccountActive,
+    selectedAccountId,
+    groupLabelId,
+    groupPage,
+    debouncedGroupSearch,
+    loadGroups,
+  ]);
+
+  // Copy/edit: prune seed group 1 lần khi nick active khớp kịch bản.
+  useEffect(() => {
+    if (!open || !isSelectedAccountActive || selectedAccountId == null) return;
+    if (!editingCampaign) return;
+    if (!canEditSendMesGroupGroups(editingCampaign.status)) return;
+    if (editingCampaign.account !== selectedAccountId) return;
+    const rawGroupIds = editingCampaign.group ?? [];
+    if (!rawGroupIds.length) return;
+
+    let cancelled = false;
+    void (async () => {
+      try {
+        const allowed = await fetchAccountGroupIdSet(selectedAccountId);
+        if (cancelled) return;
+        const kept = filterGroupIdsForAccount(rawGroupIds, allowed);
+        setSelectedGroupIds((prev) => {
+          // Chỉ prune seed ban đầu — không đụng selection user đã sửa.
+          const prevIsSeed =
+            prev.length === rawGroupIds.length &&
+            rawGroupIds.every((id) => prev.includes(id));
+          if (!prevIsSeed) return prev;
+          return kept;
+        });
+        if (kept.length < rawGroupIds.length) {
+          toast.warning(
+            `Đã bỏ ${rawGroupIds.length - kept.length} nhóm không thuộc nick đang chọn (hoặc nick đã rời nhóm). Vui lòng chọn lại nhóm mục tiêu.`,
+          );
+        }
+      } catch {
+        if (!cancelled) {
+          setSelectedGroupIds([]);
+          toast.error(
+            "Không tải được danh sách nhóm của nick. Chọn lại nhóm trước khi lưu.",
+          );
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    open,
+    isSelectedAccountActive,
+    selectedAccountId,
+    editingCampaign,
+    fetchAccountGroupIdSet,
+  ]);
 
   const handleScanResult = useCallback(
     (result: ScanTaskResponse) => {
@@ -295,14 +484,26 @@ export default function SendMesGroupCampaignFormModal({
       setScanTaskId(null);
       if (status === "SUCCESS") {
         toast.success("Quét danh sách nhóm thành công.");
-        if (selectedAccountId) {
-          void loadGroups(selectedAccountId, groupSearch, groupLabelId);
+        if (isSelectedAccountActive && selectedAccountId) {
+          setGroupPage(1);
+          void loadGroups(
+            selectedAccountId,
+            debouncedGroupSearch,
+            groupLabelId,
+            1,
+          );
         }
       } else {
         toast.error(result.message || result.error || "Quét danh sách nhóm thất bại.");
       }
     },
-    [selectedAccountId, groupSearch, groupLabelId, loadGroups],
+    [
+      isSelectedAccountActive,
+      selectedAccountId,
+      debouncedGroupSearch,
+      groupLabelId,
+      loadGroups,
+    ],
   );
 
   useScanTaskPoll({
@@ -313,13 +514,14 @@ export default function SendMesGroupCampaignFormModal({
 
   const handleSelectAccount = (accountId: number) => {
     if (selectedAccountId === accountId) return;
-    setSelectedAccountId(accountId);
-    if (!editingCampaign) {
-      setSelectedGroupIds([]);
+    if (!activeAccounts.some((item) => item.id === accountId)) {
+      toast.error("Chỉ chọn nick đang hoạt động.");
+      return;
     }
-    setGroups([]);
-    setGroupSearch("");
-    setGroupLabelId(null);
+    setSelectedAccountId(accountId);
+    // Luôn xóa nhóm đã chọn khi đổi nick — GroupModel gắn theo account.
+    setSelectedGroupIds([]);
+    resetGroupPaging();
   };
 
   const toggleGroup = (groupId: number) => {
@@ -331,19 +533,59 @@ export default function SendMesGroupCampaignFormModal({
     );
   };
 
-  /** Chọn hoặc bỏ chọn toàn bộ nhóm đang hiển thị theo bộ lọc hiện tại. */
-  const toggleAllFilteredGroups = () => {
-    if (!groupsEditable || !filteredGroups.length) return;
-    const filteredIds = new Set(filteredGroups.map((group) => group.id));
+  /** Chọn / bỏ chọn nhóm trên trang hiện tại — selection giữ khi sang trang khác. */
+  const toggleAllPageGroups = () => {
+    if (!groupsEditable || !pageGroups.length) return;
+    const pageIds = new Set(pageGroups.map((group) => group.id));
     setSelectedGroupIds((current) =>
-      allFilteredGroupsSelected
-        ? current.filter((id) => !filteredIds.has(id))
-        : Array.from(new Set([...current, ...filteredIds])),
+      allPageGroupsSelected
+        ? current.filter((id) => !pageIds.has(id))
+        : Array.from(new Set([...current, ...pageIds])),
     );
   };
 
+  /**
+   * Chọn tất cả nhóm khớp filter (name + nhãn) trên mọi trang — type=simple 1 request.
+   * Gộp vào selection hiện có (không xóa nhóm đã chọn ngoài filter).
+   */
+  const selectAllMatchingGroups = async () => {
+    if (!groupsEditable || !isSelectedAccountActive || !selectedAccountId) return;
+    setSelectingAllGroups(true);
+    try {
+      const ids = await fetchMatchingGroupIds(selectedAccountId, {
+        search: debouncedGroupSearch,
+        categoryId: groupLabelId,
+      });
+      if (!ids.length) {
+        toast.info("Không có nhóm khớp bộ lọc để chọn.");
+        return;
+      }
+      setSelectedGroupIds((prev) => Array.from(new Set([...prev, ...ids])));
+      const filterHint =
+        debouncedGroupSearch || groupLabelId != null
+          ? " (theo bộ lọc hiện tại)"
+          : "";
+      toast.success(`Đã chọn ${ids.length} nhóm${filterHint}.`);
+    } catch {
+      toast.error("Không tải được danh sách nhóm để chọn tất cả.");
+    } finally {
+      setSelectingAllGroups(false);
+    }
+  };
+
+  /** Bỏ chọn hết — mọi trang. */
+  const clearAllSelectedGroups = () => {
+    if (!groupsEditable) return;
+    setSelectedGroupIds([]);
+  };
+
+  const handleGroupLabelChange = (id: number | null) => {
+    setGroupLabelId(id);
+    setGroupPage(1);
+  };
+
   const handleScanGroups = async () => {
-    if (!selectedAccountId) return;
+    if (!selectedAccountId || !isSelectedAccountActive) return;
     try {
       setScanningGroups(true);
       const taskId = await zaloGroupService.startScan([selectedAccountId]);
@@ -375,8 +617,8 @@ export default function SendMesGroupCampaignFormModal({
       toast.error("Vui lòng nhập tên kịch bản.");
       return;
     }
-    if (!selectedAccountId) {
-      toast.error("Chọn tài khoản Zalo.");
+    if (!selectedAccountId || !isSelectedAccountActive) {
+      toast.error("Chọn tài khoản Zalo đang hoạt động.");
       return;
     }
     if (!contents.length && !contentType) {
@@ -412,6 +654,26 @@ export default function SendMesGroupCampaignFormModal({
       return;
     }
 
+    // Guard cuối: id_groups phải thuộc nick đang chọn (tránh ghost sau copy).
+    let idGroupsForAccount = selectedGroupIds;
+    try {
+      const allowed = await fetchAccountGroupIdSet(selectedAccountId);
+      idGroupsForAccount = filterGroupIdsForAccount(selectedGroupIds, allowed);
+      if (idGroupsForAccount.length !== selectedGroupIds.length) {
+        setSelectedGroupIds(idGroupsForAccount);
+        toast.warning(
+          `Đã loại ${selectedGroupIds.length - idGroupsForAccount.length} nhóm không thuộc nick. Kiểm tra lại rồi lưu.`,
+        );
+      }
+      if (!idGroupsForAccount.length) {
+        toast.error("Không còn nhóm hợp lệ thuộc nick đã chọn. Vui lòng chọn lại nhóm.");
+        return;
+      }
+    } catch {
+      toast.error("Không xác minh được nhóm thuộc nick. Thử lại.");
+      return;
+    }
+
     const payload = {
       id_category: editingCampaign?.id ?? null,
       name: trimmedName,
@@ -422,7 +684,7 @@ export default function SendMesGroupCampaignFormModal({
       id_album: contentType === "album" ? selectedMediaId : null,
       delay_time: delay,
       number_count: count,
-      id_groups: selectedGroupIds,
+      id_groups: idGroupsForAccount,
       id_account: selectedAccountId,
       from_time: formatTimeForApi(startTime),
       to_time: formatTimeForApi(endTime),
@@ -505,8 +767,8 @@ export default function SendMesGroupCampaignFormModal({
         return true;
       }
       if (step === 1) {
-        if (!selectedAccountId) {
-          toast.error("Chọn tài khoản Zalo.");
+        if (!selectedAccountId || !isSelectedAccountActive) {
+          toast.error("Chọn tài khoản Zalo đang hoạt động.");
           return false;
         }
         return true;
@@ -522,6 +784,7 @@ export default function SendMesGroupCampaignFormModal({
       images,
       selectedMediaId,
       selectedAccountId,
+      isSelectedAccountActive,
     ],
   );
 
@@ -717,19 +980,19 @@ export default function SendMesGroupCampaignFormModal({
 
   const groupsListBody = (
     <>
-      {!selectedAccountId ? (
+      {!isSelectedAccountActive ? (
         <p className="px-3 py-6 text-center text-xs text-gray-500">
-          Chọn tài khoản để xem nhóm
+          Chọn tài khoản đang hoạt động để xem danh sách nhóm
         </p>
       ) : groupsLoading ? (
         <p className="px-3 py-6 text-center text-xs text-gray-500">Đang tải...</p>
-      ) : filteredGroups.length === 0 ? (
+      ) : pageGroups.length === 0 ? (
         <p className="px-3 py-6 text-center text-xs text-gray-500">
           Không có nhóm phù hợp
         </p>
       ) : (
         <ul className="space-y-0.5">
-          {filteredGroups.map((group) => {
+          {pageGroups.map((group) => {
             const selected = selectedGroupIds.includes(group.id);
             const groupName = getZaloGroupDisplayName(group);
             return (
@@ -774,36 +1037,76 @@ export default function SendMesGroupCampaignFormModal({
           : "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.02]"
       }
     >
-      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-gray-100 px-3 py-2 dark:border-gray-800">
-        <div className="flex items-center gap-2">
-          <span className="flex size-6 items-center justify-center rounded-md bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-400">
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-gray-100 px-3 py-2 dark:border-gray-800">
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-400">
             <GroupIcon className="size-3.5" />
           </span>
-          <span className="text-sm font-semibold text-gray-800 dark:text-white/90">
-            Chọn nhóm
-          </span>
+          <div className="min-w-0">
+            <span className="text-sm font-semibold text-gray-800 dark:text-white/90">
+              Chọn nhóm
+            </span>
+            <p className="text-[11px] leading-tight text-gray-500 dark:text-gray-400">
+              Tick nhiều trang — giữ lựa chọn khi lật trang
+            </p>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-x-2 gap-y-1">
           <button
             type="button"
-            onClick={toggleAllFilteredGroups}
+            onClick={toggleAllPageGroups}
             disabled={
+              !isSelectedAccountActive ||
               !groupsEditable ||
               saving ||
               groupsLoading ||
-              filteredGroups.length === 0
+              selectingAllGroups ||
+              pageGroups.length === 0
             }
             className="text-theme-xs font-semibold text-brand-600 hover:text-brand-700 disabled:cursor-not-allowed disabled:opacity-40 dark:text-brand-400 dark:hover:text-brand-300"
           >
-            {allFilteredGroupsSelected ? "Bỏ chọn tất cả" : "Chọn tất cả"}
+            {allPageGroupsSelected ? "Bỏ chọn trang" : "Chọn trang"}
+          </button>
+          <button
+            type="button"
+            onClick={() => void selectAllMatchingGroups()}
+            disabled={
+              !isSelectedAccountActive ||
+              !groupsEditable ||
+              saving ||
+              groupsLoading ||
+              selectingAllGroups ||
+              groupTotal === 0
+            }
+            className="text-theme-xs font-semibold text-brand-600 hover:text-brand-700 disabled:cursor-not-allowed disabled:opacity-40 dark:text-brand-400 dark:hover:text-brand-300"
+          >
+            {selectingAllGroups ? "Đang chọn..." : "Chọn tất cả"}
+          </button>
+          <button
+            type="button"
+            onClick={clearAllSelectedGroups}
+            disabled={
+              !groupsEditable ||
+              saving ||
+              selectingAllGroups ||
+              selectedGroupIds.length === 0
+            }
+            className="text-theme-xs font-semibold text-error-600 hover:text-error-700 disabled:cursor-not-allowed disabled:opacity-40 dark:text-error-400 dark:hover:text-error-300"
+          >
+            Bỏ chọn hết
           </button>
           <span className="rounded-full bg-brand-50 px-2 py-0.5 text-theme-xs font-medium text-brand-600 dark:bg-brand-500/10 dark:text-brand-400">
-            {selectedGroupIds.length} đã chọn
+            {isSelectedAccountActive ? selectedGroupIds.length : 0} đã chọn
           </span>
         </div>
       </div>
 
-      {!groupsEditable ? (
+      {!isSelectedAccountActive ? (
+        <p className="shrink-0 border-b border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
+          Chưa chọn nick đang hoạt động — không tải danh sách nhóm. Chọn nick
+          Zalo ở bước tài khoản (nick checkpoint / đã xóa không dùng được).
+        </p>
+      ) : !groupsEditable ? (
         <p className="shrink-0 border-b border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
           Kịch bản đã bắt đầu và chưa hoàn tất nên danh sách nhóm được khóa để giữ
           đúng tiến độ, tránh gửi trùng hoặc bỏ sót. Nếu cần chọn nhóm khác, hãy
@@ -819,8 +1122,8 @@ export default function SendMesGroupCampaignFormModal({
           <LabelChipFilter
             labels={labelCategories}
             value={groupLabelId}
-            onChange={setGroupLabelId}
-            disabled={!selectedAccountId || saving}
+            onChange={handleGroupLabelChange}
+            disabled={!isSelectedAccountActive || saving}
           />
         </div>
         <div className="flex h-10 items-stretch gap-2">
@@ -829,7 +1132,7 @@ export default function SendMesGroupCampaignFormModal({
               value={groupSearch}
               onChange={(e) => setGroupSearch(e.target.value)}
               placeholder="Tìm nhóm..."
-              disabled={!selectedAccountId || saving}
+              disabled={!isSelectedAccountActive || saving}
               className="!h-full !min-h-10 !px-3 !py-2 !text-sm"
             />
           </div>
@@ -837,7 +1140,7 @@ export default function SendMesGroupCampaignFormModal({
             size="sm"
             variant="outline"
             className="h-10 shrink-0 whitespace-nowrap !py-0 px-3 text-xs"
-            disabled={!selectedAccountId || scanningGroups || saving}
+            disabled={!isSelectedAccountActive || scanningGroups || saving}
             onClick={() => void handleScanGroups()}
           >
             {scanningGroups ? "Đang quét..." : "Quét nhóm"}
@@ -864,6 +1167,36 @@ export default function SendMesGroupCampaignFormModal({
       >
         {groupsListBody}
       </div>
+
+      {isSelectedAccountActive && groupTotal > 0 ? (
+        <div className="flex shrink-0 items-center justify-between gap-2 border-t border-gray-100 px-3 py-2 dark:border-gray-800">
+          <span className="text-theme-xs text-gray-500">
+            Trang {groupPage}/{groupTotalPages} — {groupTotal} nhóm
+          </span>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={groupPage <= 1 || groupsLoading || saving}
+              onClick={() => setGroupPage((p) => Math.max(1, p - 1))}
+            >
+              Trước
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={
+                groupPage >= groupTotalPages || groupsLoading || saving
+              }
+              onClick={() =>
+                setGroupPage((p) => Math.min(groupTotalPages, p + 1))
+              }
+            >
+              Sau
+            </Button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 

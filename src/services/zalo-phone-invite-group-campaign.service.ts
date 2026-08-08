@@ -1,7 +1,10 @@
 import { API_ZALO_PHONE_INVITE_GROUP_CAMPAIGN } from "@/config/api";
 import api from "@/lib/axios";
 import { createCampaignService } from "@/lib/campaign-service";
-import { fetchCampaignCommonGroups } from "@/services/zalo-campaign-all-group.service";
+import {
+  fetchCampaignCommonGroups,
+  fetchCampaignCommonGroupsPage,
+} from "@/services/zalo-campaign-all-group.service";
 import type {
   PhoneInviteGroupCampaign,
   PhoneInviteGroupCampaignFormPayload,
@@ -72,5 +75,39 @@ export const zaloPhoneInviteGroupCampaignService = {
       is_blocked_chat: item.is_blocked_chat,
       globalId: item.globalId,
     }));
+  },
+
+  /** Phân trang picker — POST all-group + page/number_per_page. */
+  async fetchGroupsByAccountsPage(options: {
+    accountIds: number[];
+    keyword?: string;
+    page?: number;
+    pageSize?: number;
+  }): Promise<{
+    results: PhoneInviteGroupItem[];
+    count: number;
+    page: number;
+    number_per_page: number;
+    total_pages: number;
+  }> {
+    const data = await fetchCampaignCommonGroupsPage(options);
+    return {
+      results: data.results.map((item) => ({
+        id: item.id,
+        uid: item.uid,
+        name: item.name,
+        avt: item.avt,
+        avatar: item.avatar ?? item.avt,
+        link_group: item.link_group,
+        total_member: item.total_member,
+        is_joined: item.is_joined,
+        is_blocked_chat: item.is_blocked_chat,
+        globalId: item.globalId,
+      })),
+      count: data.count,
+      page: data.page,
+      number_per_page: data.number_per_page,
+      total_pages: data.total_pages,
+    };
   },
 };

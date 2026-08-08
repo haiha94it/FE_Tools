@@ -78,6 +78,9 @@ function accountIdsKey(ids: number[]): string {
   return [...ids].sort((a, b) => a - b).join(",");
 }
 
+const GROUP_PAGE_SIZE = 50;
+const GROUP_SEARCH_DEBOUNCE_MS = 350;
+
 export default function PhoneInviteGroupCampaignFormModal({
   open,
   editingCampaign,
@@ -107,6 +110,9 @@ export default function PhoneInviteGroupCampaignFormModal({
     null,
   );
   const [groupSearch, setGroupSearch] = useState("");
+  const [debouncedGroupSearch, setDebouncedGroupSearch] = useState("");
+  const [groupPage, setGroupPage] = useState(1);
+  const [groupTotal, setGroupTotal] = useState(0);
   const [groupsLoading, setGroupsLoading] = useState(false);
   const [groupsLoaded, setGroupsLoaded] = useState(false);
 
@@ -126,11 +132,19 @@ export default function PhoneInviteGroupCampaignFormModal({
     runnableAccounts.length > 0 &&
     runnableAccounts.every((account) => selectedAccountIds.includes(account.id));
 
-  const filteredGroups = useMemo(() => {
-    const key = groupSearch.trim().toLowerCase();
-    if (!key) return groups;
-    return groups.filter((item) => item.name.toLowerCase().includes(key));
-  }, [groups, groupSearch]);
+  const groupTotalPages = Math.max(
+    1,
+    Math.ceil(groupTotal / GROUP_PAGE_SIZE) || 1,
+  );
+
+  const resetGroupPaging = useCallback(() => {
+    setGroupPage(1);
+    setGroupTotal(0);
+    setGroups([]);
+    setGroupSearch("");
+    setDebouncedGroupSearch("");
+    setGroupsLoaded(false);
+  }, []);
 
   const resetForm = useCallback(() => {
     setName("");
@@ -140,12 +154,10 @@ export default function PhoneInviteGroupCampaignFormModal({
     setStartTime(defaultStart());
     setEndTime(defaultEnd());
     setSelectedAccountIds([]);
-    setGroups([]);
     setSelectedGroup(null);
-    setGroupSearch("");
-    setGroupsLoaded(false);
+    resetGroupPaging();
     pendingGroupInviteRef.current = null;
-  }, []);
+  }, [resetGroupPaging]);
 
   useEffect(() => {
     if (!open) return;
@@ -167,17 +179,42 @@ export default function PhoneInviteGroupCampaignFormModal({
       (editingCampaign.account ? [editingCampaign.account] : []);
     setSelectedAccountIds(accountIds);
     setSelectedGroup(null);
-    setGroups([]);
-    setGroupSearch("");
-    setGroupsLoaded(false);
+    resetGroupPaging();
     pendingGroupInviteRef.current = editingCampaign.group_invite ?? null;
-  }, [open, editingCampaign, resetForm]);
+  }, [open, editingCampaign, resetForm, resetGroupPaging]);
+
+  // Drop nick không còn runnable (checkpoint/proxy) sau khi accounts load.
+  useEffect(() => {
+    if (!open || accountsLoading || !runnableAccounts.length) return;
+    setSelectedAccountIds((prev) => {
+      const next = prev.filter((id) =>
+        runnableAccounts.some((account) => account.id === id),
+      );
+      return next.length === prev.length ? prev : next;
+    });
+  }, [open, accountsLoading, runnableAccounts]);
+
+  // Debounce tìm nhóm → BE keyword + reset page
+  useEffect(() => {
+    if (!open) return;
+    const timer = window.setTimeout(() => {
+      setDebouncedGroupSearch(groupSearch.trim());
+      setGroupPage(1);
+    }, GROUP_SEARCH_DEBOUNCE_MS);
+    return () => window.clearTimeout(timer);
+  }, [groupSearch, open]);
 
   const loadGroups = useCallback(
-    async (accountIds: number[], keyword?: string, options?: { silentEmpty?: boolean }) => {
+    async (
+      accountIds: number[],
+      keyword: string,
+      page: number,
+      options?: { silentEmpty?: boolean },
+    ) => {
       if (!accountIds.length) {
         setGroups([]);
         setSelectedGroup(null);
+        setGroupTotal(0);
         setGroupsLoaded(false);
         return;
       }
@@ -185,13 +222,18 @@ export default function PhoneInviteGroupCampaignFormModal({
       const seq = ++loadSeqRef.current;
       try {
         setGroupsLoading(true);
-        const loaded = await zaloPhoneInviteGroupCampaignService.fetchGroupsByAccounts({
-          accountIds,
-          keyword,
-        });
+        const data =
+          await zaloPhoneInviteGroupCampaignService.fetchGroupsByAccountsPage({
+            accountIds,
+            keyword: keyword || undefined,
+            page,
+            pageSize: GROUP_PAGE_SIZE,
+          });
         if (seq !== loadSeqRef.current) return;
 
+        const loaded = data.results;
         setGroups(loaded);
+        setGroupTotal(data.count);
         setGroupsLoaded(true);
 
         const pendingInvite = pendingGroupInviteRef.current;
@@ -200,16 +242,36 @@ export default function PhoneInviteGroupCampaignFormModal({
           if (parsed) {
             const matched =
               loaded.find((item) => item.name === parsed.name) ??
-              // fallback: name|avt khớp đủ
               loaded.find(
                 (item) =>
                   item.name === parsed.name &&
                   (getGroupAvatar(item) ?? "") === parsed.avt,
               ) ??
               null;
-            setSelectedGroup(matched);
             if (matched) {
+              setSelectedGroup(matched);
               pendingGroupInviteRef.current = null;
+            } else if (page === 1 && !keyword) {
+              // Fallback: tìm full list (không page) để match group_invite khi edit
+              try {
+                const all =
+                  await zaloPhoneInviteGroupCampaignService.fetchGroupsByAccounts(
+                    { accountIds },
+                  );
+                if (seq !== loadSeqRef.current) return;
+                const found =
+                  all.find((item) => item.name === parsed.name) ??
+                  all.find(
+                    (item) =>
+                      item.name === parsed.name &&
+                      (getGroupAvatar(item) ?? "") === parsed.avt,
+                  ) ??
+                  null;
+                setSelectedGroup(found);
+                if (found) pendingGroupInviteRef.current = null;
+              } catch {
+                /* ignore match miss */
+              }
             }
           }
         } else {
@@ -222,12 +284,12 @@ export default function PhoneInviteGroupCampaignFormModal({
                   item.name === prev.name &&
                   getGroupAvatar(item) === getGroupAvatar(prev),
               ) ??
-              null
+              prev
             );
           });
         }
 
-        if (!loaded.length && !options?.silentEmpty) {
+        if (!loaded.length && data.count === 0 && !options?.silentEmpty) {
           toast.error(
             accountIds.length >= 2
               ? "Không có nhóm chung giữa các nick đã chọn."
@@ -237,6 +299,7 @@ export default function PhoneInviteGroupCampaignFormModal({
       } catch (error) {
         if (seq !== loadSeqRef.current) return;
         setGroups([]);
+        setGroupTotal(0);
         setGroupsLoaded(true);
         toast.error(getApiErrorMessage(error));
       } finally {
@@ -248,18 +311,28 @@ export default function PhoneInviteGroupCampaignFormModal({
     [],
   );
 
-  // Gọi all-group khi đổi id_accounts / mở form (checklist FE)
+  // Gọi all-group paginated khi đổi nick / search / page
   useEffect(() => {
     if (!open) return;
     if (!selectedAccountIds.length) {
       setGroups([]);
       setSelectedGroup(null);
+      setGroupTotal(0);
       setGroupsLoaded(false);
       return;
     }
-    void loadGroups(selectedAccountIds, undefined, { silentEmpty: true });
-    // selectedKey ổn định theo set id; editingCampaign?.id để rematch group_invite khi mở sửa
-  }, [open, selectedKey, editingCampaign?.id, loadGroups, selectedAccountIds]);
+    void loadGroups(selectedAccountIds, debouncedGroupSearch, groupPage, {
+      silentEmpty: true,
+    });
+  }, [
+    open,
+    selectedKey,
+    editingCampaign?.id,
+    loadGroups,
+    selectedAccountIds,
+    debouncedGroupSearch,
+    groupPage,
+  ]);
 
   const toggleAccount = (accountId: number) => {
     setSelectedAccountIds((prev) => {
@@ -268,8 +341,7 @@ export default function PhoneInviteGroupCampaignFormModal({
         : [...prev, accountId];
       if (next.length !== prev.length) {
         setSelectedGroup(null);
-        setGroups([]);
-        setGroupsLoaded(false);
+        resetGroupPaging();
         pendingGroupInviteRef.current = null;
       }
       return next;
@@ -283,17 +355,17 @@ export default function PhoneInviteGroupCampaignFormModal({
       allIds.every((id) => selectedAccountIds.includes(id));
     setSelectedAccountIds(allSelected ? [] : allIds);
     setSelectedGroup(null);
-    setGroups([]);
-    setGroupsLoaded(false);
+    resetGroupPaging();
     pendingGroupInviteRef.current = null;
   };
 
-  const handleLoadGroups = async (keyword?: string) => {
+  const handleRefreshGroups = async () => {
     if (!selectedAccountIds.length) {
       toast.error("Chọn ít nhất một tài khoản.");
       return;
     }
-    await loadGroups(selectedAccountIds, keyword ?? groupSearch);
+    setGroupPage(1);
+    await loadGroups(selectedAccountIds, debouncedGroupSearch, 1);
   };
 
   const handlePhoneChange = (value: string) => {
@@ -702,9 +774,14 @@ export default function PhoneInviteGroupCampaignFormModal({
         <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-400">
           <GroupIcon className="size-3.5" />
         </span>
-        <span className="min-w-0 flex-1 truncate text-sm font-semibold text-gray-800 dark:text-white/90">
-          {multiNick ? "Chọn nhóm chung" : "Chọn nhóm"}
-        </span>
+        <div className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-semibold text-gray-800 dark:text-white/90">
+            {multiNick ? "Chọn nhóm chung" : "Chọn nhóm"}
+          </span>
+          <span className="block text-[11px] leading-tight text-gray-500">
+            1 nhóm / kịch bản · all-group phân trang
+          </span>
+        </div>
         {selectedGroup ? (
           <span className="shrink-0 rounded-full bg-brand-50 px-1.5 py-0.5 text-[11px] font-medium text-brand-600 dark:bg-brand-500/10 dark:text-brand-400">
             Đã chọn
@@ -718,9 +795,9 @@ export default function PhoneInviteGroupCampaignFormModal({
           variant="outline"
           className="shrink-0 px-2.5 text-xs"
           disabled={groupsLoading || saving || !selectedAccountIds.length}
-          onClick={() => void handleLoadGroups("")}
+          onClick={() => void handleRefreshGroups()}
         >
-          {groupsLoading ? "Đang tải..." : "Làm mới nhóm"}
+          {groupsLoading ? "Đang tải..." : "Làm mới"}
         </Button>
         <div className="min-w-0 flex-1">
           <Input
@@ -731,15 +808,6 @@ export default function PhoneInviteGroupCampaignFormModal({
             className="!h-8 !px-2.5 !py-1.5 !text-xs"
           />
         </div>
-        <Button
-          size="sm"
-          variant="outline"
-          className="shrink-0 px-2.5 text-xs"
-          disabled={groupsLoading || saving || !selectedAccountIds.length}
-          onClick={() => void handleLoadGroups(groupSearch)}
-        >
-          Tìm
-        </Button>
       </div>
 
       <div
@@ -761,13 +829,13 @@ export default function PhoneInviteGroupCampaignFormModal({
       >
         {!selectedAccountIds.length ? (
           <p className="px-3 py-5 text-center text-xs text-gray-500">
-            Chọn tài khoản để lấy danh sách nhóm
+            Chọn tài khoản đang hoạt động để lấy danh sách nhóm
           </p>
         ) : groupsLoading && !groups.length ? (
           <p className="px-3 py-5 text-center text-xs text-gray-500">
             Đang tải nhóm...
           </p>
-        ) : groupsLoaded && !groups.length ? (
+        ) : groupsLoaded && !groups.length && groupTotal === 0 ? (
           <p className="px-3 py-5 text-center text-xs text-gray-500">
             {multiNick
               ? "Không có nhóm chung. Bỏ bớt nick hoặc sync nhóm rồi làm mới."
@@ -777,13 +845,9 @@ export default function PhoneInviteGroupCampaignFormModal({
           <p className="px-3 py-5 text-center text-xs text-gray-500">
             Đang chờ danh sách nhóm...
           </p>
-        ) : filteredGroups.length === 0 ? (
-          <p className="px-3 py-5 text-center text-xs text-gray-500">
-            Không tìm thấy nhóm phù hợp
-          </p>
         ) : (
           <div className="space-y-1">
-            {filteredGroups.map((group, index) => {
+            {groups.map((group, index) => {
               const active =
                 (selectedGroup?.id != null &&
                   group.id != null &&
@@ -795,7 +859,7 @@ export default function PhoneInviteGroupCampaignFormModal({
                 <button
                   key={`${group.id ?? group.uid ?? group.name}-${index}`}
                   type="button"
-                  disabled={saving}
+                  disabled={saving || readOnly}
                   onClick={() => setSelectedGroup(group)}
                   className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition ${
                     active
@@ -814,22 +878,52 @@ export default function PhoneInviteGroupCampaignFormModal({
                       />
                     ) : null}
                   </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-xs font-medium text-gray-800 dark:text-white/90">
-                      {group.name}
-                    </span>
-                    {typeof group.total_member === "number" ? (
-                      <span className="block truncate text-[11px] text-gray-500">
-                        {group.total_member} thành viên
-                      </span>
-                    ) : null}
+                  <span className="min-w-0 flex-1 truncate text-xs font-medium text-gray-800 dark:text-white/90">
+                    {group.name}
                   </span>
+                  {active ? (
+                    <span className="shrink-0 text-brand-600 dark:text-brand-400">
+                      ✓
+                    </span>
+                  ) : null}
                 </button>
               );
             })}
           </div>
         )}
       </div>
+
+      {selectedAccountIds.length > 0 && groupTotal > 0 ? (
+        <div className="flex shrink-0 items-center justify-between gap-2 border-t border-gray-100 px-2.5 py-2 dark:border-gray-800">
+          <span className="text-theme-xs text-gray-500">
+            Trang {groupPage}/{groupTotalPages} — {groupTotal} nhóm
+          </span>
+          <div className="flex gap-1.5">
+            <Button
+              size="sm"
+              variant="outline"
+              className="!px-2 !text-xs"
+              disabled={groupPage <= 1 || groupsLoading || saving}
+              onClick={() => setGroupPage((p) => Math.max(1, p - 1))}
+            >
+              Trước
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="!px-2 !text-xs"
+              disabled={
+                groupPage >= groupTotalPages || groupsLoading || saving
+              }
+              onClick={() =>
+                setGroupPage((p) => Math.min(groupTotalPages, p + 1))
+              }
+            >
+              Sau
+            </Button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 
