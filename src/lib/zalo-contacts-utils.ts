@@ -62,12 +62,16 @@ export function normalizeZaloGroupItem(raw: unknown): ZaloGroupItem | null {
       avt:
         (typeof record.avt === "string" ? record.avt : null) ||
         avatarFromProfile,
-      total_member:
-        typeof record.total_member === "number"
-          ? record.total_member
-          : typeof record.totalMember === "number"
-            ? record.totalMember
-            : null,
+      total_member: (() => {
+        const raw =
+          record.total_member ?? record.totalMember ?? null;
+        if (typeof raw === "number" && Number.isFinite(raw)) return raw;
+        if (typeof raw === "string" && raw.trim()) {
+          const n = Number(raw);
+          return Number.isFinite(n) ? n : null;
+        }
+        return null;
+      })(),
       link_group:
         typeof record.link_group === "string" ? record.link_group : null,
     };

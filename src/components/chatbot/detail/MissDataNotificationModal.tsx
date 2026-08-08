@@ -88,7 +88,6 @@ export default function MissDataNotificationModal({
   // Dropdown States for custom dropdown UI
   const [activeAccountDropdown, setActiveAccountDropdown] = useState<number | null>(null);
   const [activeGroupDropdown, setActiveGroupDropdown] = useState<number | null>(null);
-  const [activeMemberDropdown, setActiveMemberDropdown] = useState<number | null>(null);
 
   const [groupSearchTexts, setGroupSearchTexts] = useState<Record<number, string>>({});
   const [memberSearchTexts, setMemberSearchTexts] = useState<Record<number, string>>({});
@@ -143,26 +142,35 @@ export default function MissDataNotificationModal({
     return () => clearInterval(interval);
   }, [groupMemberScanTaskIdsByGroupId, pollGroupMemberScanResult]);
 
-  // Auto-fetch groups for selected accounts
+  // Auto-fetch groups — chỉ theo account_id của từng action (key number)
   useEffect(() => {
     if (!isOpen) return;
     actions.forEach((action) => {
-      if (action.account_id != null && !groupsByAccountId[action.account_id]) {
-        void fetchGroupsByAccount(action.account_id, 1);
+      const accId =
+        action.account_id != null && Number.isFinite(Number(action.account_id))
+          ? Number(action.account_id)
+          : null;
+      if (accId == null) return;
+      if (!groupsByAccountId[accId]) {
+        void fetchGroupsByAccount(accId, 1);
       }
     });
   }, [isOpen, actions, groupsByAccountId, fetchGroupsByAccount]);
 
-  // Auto-fetch members for selected groups
+  // Auto-fetch members — chỉ group thuộc list của đúng nick gửi
   useEffect(() => {
     if (!isOpen) return;
     actions.forEach((action) => {
-      if (action.account_id != null && action.target_uid) {
-        const groups = groupsByAccountId[action.account_id]?.results ?? [];
-        const matched = groups.find((g) => g.uid === action.target_uid);
-        if (matched && !groupMembersByGroupId[matched.id]) {
-          void fetchGroupMembers(matched.id);
-        }
+      const accId =
+        action.account_id != null && Number.isFinite(Number(action.account_id))
+          ? Number(action.account_id)
+          : null;
+      if (accId == null || !action.target_uid) return;
+      const groups = groupsByAccountId[accId]?.results ?? [];
+      const matched = groups.find((g) => g.uid === action.target_uid);
+      // Chỉ skip khi đã có mảng (kể cả []). Object envelope cũ → fetch lại
+      if (matched && !Array.isArray(groupMembersByGroupId[matched.id])) {
+        void fetchGroupMembers(matched.id);
       }
     });
   }, [isOpen, actions, groupsByAccountId, groupMembersByGroupId, fetchGroupMembers]);
@@ -306,33 +314,62 @@ export default function MissDataNotificationModal({
           {isEnabled && (
             <div className="space-y-4">
               {actions.map((action, index) => {
-                const accountId = action.account_id != null ? action.account_id : null;
-                const groupsRes = accountId != null ? groupsByAccountId[accountId] : null;
-                const groups = groupsRes?.results ?? [];
-                const loadingGroups = accountId ? loadingGroupAccountIds.includes(accountId) : false;
-                const scanningGroups = accountId ? Boolean(groupScanTaskIdsByAccountId[accountId]) : false;
-                
-                const selectedGroup = groups.find((g) => g.uid === action.target_uid) ?? null;
+                // Nhóm nhận chỉ lấy từ groupsByAccountId[nick gửi] — không trộn nick khác
+                const accountId =
+                  action.account_id != null && Number.isFinite(Number(action.account_id))
+                    ? Number(action.account_id)
+                    : null;
+                const groupsRes =
+                  accountId != null ? groupsByAccountId[accountId] : null;
+                const groups: ZaloAccountGroup[] =
+                  accountId != null && Array.isArray(groupsRes?.results)
+                    ? groupsRes.results
+                    : [];
+                const loadingGroups =
+                  accountId != null
+                    ? loadingGroupAccountIds.includes(accountId)
+                    : false;
+                const scanningGroups =
+                  accountId != null
+                    ? Boolean(groupScanTaskIdsByAccountId[accountId])
+                    : false;
+
+                const selectedGroup =
+                  accountId != null && action.target_uid
+                    ? groups.find((g) => g.uid === action.target_uid) ?? null
+                    : null;
                 const mentionMode = getMentionMode(action);
-                
-                const groupMembers = selectedGroup ? groupMembersByGroupId[selectedGroup.id] ?? [] : [];
-                const loadingMembers = selectedGroup ? loadingGroupMemberIds.includes(selectedGroup.id) : false;
-                const scanningMembers = selectedGroup ? Boolean(groupMemberScanTaskIdsByGroupId[selectedGroup.id]) : false;
+
+                const rawMembers = selectedGroup
+                  ? groupMembersByGroupId[selectedGroup.id]
+                  : undefined;
+                // Guard: store phải là array (tránh object nested envelope cũ)
+                const groupMembers: ZaloGroupMember[] = Array.isArray(rawMembers)
+                  ? rawMembers
+                  : [];
+                const loadingMembers = selectedGroup
+                  ? loadingGroupMemberIds.includes(selectedGroup.id)
+                  : false;
+                const scanningMembers = selectedGroup
+                  ? Boolean(groupMemberScanTaskIdsByGroupId[selectedGroup.id])
+                  : false;
 
                 // Group Filtering
                 const grpSearch = groupSearchTexts[index] || "";
                 const filteredGroups = groups.filter((g) =>
                   g.name?.toLowerCase().includes(grpSearch.toLowerCase()) ||
-                  g.uid.includes(grpSearch)
+                  (g.uid || "").includes(grpSearch)
                 );
 
-                // Members Filtering
-                const memSearch = memberSearchTexts[index] || "";
-                const filteredMembers = groupMembers.filter((m) =>
-                  m.friend &&
-                  (m.friend.name?.toLowerCase().includes(memSearch.toLowerCase()) ||
-                   m.friend.uid?.includes(memSearch))
-                );
+                // Members Filtering — search rỗng giữ full list (kể cả thiếu friend)
+                const memSearch = (memberSearchTexts[index] || "").trim().toLowerCase();
+                const filteredMembers = !memSearch
+                  ? groupMembers
+                  : groupMembers.filter((m) => {
+                      const name = (m.friend?.name || "").toLowerCase();
+                      const uid = m.friend?.uid || "";
+                      return name.includes(memSearch) || uid.includes(memSearch);
+                    });
 
                 const activeAccount = accounts.find((acc) => acc.id === accountId);
 
@@ -385,13 +422,27 @@ export default function MissDataNotificationModal({
                                 key={acc.id}
                                 type="button"
                                 onClick={() => {
+                                  const nextAccountId = Number(acc.id);
+                                  // Đổi nick gửi → reset nhóm nhận (không giữ group nick cũ)
                                   updateAction(index, {
-                                    account_id: acc.id,
+                                    account_id: nextAccountId,
                                     target_uid: "",
                                     target_label: "",
                                     mention: undefined,
                                   });
                                   setActiveAccountDropdown(null);
+                                  setActiveGroupDropdown(null);
+                                  setGroupSearchTexts((prev) => ({
+                                    ...prev,
+                                    [index]: "",
+                                  }));
+                                  setMemberSearchTexts((prev) => ({
+                                    ...prev,
+                                    [index]: "",
+                                  }));
+                                  if (Number.isFinite(nextAccountId)) {
+                                    void fetchGroupsByAccount(nextAccountId, 1);
+                                  }
                                 }}
                                 className="flex w-full flex-col px-3 py-2 text-left text-xs hover:bg-gray-50 dark:hover:bg-white/5"
                               >
@@ -410,11 +461,11 @@ export default function MissDataNotificationModal({
                         )}
                       </div>
 
-                      {/* Group Dropdown */}
+                      {/* Group Dropdown — chỉ list nhóm của nick gửi đang chọn */}
                       <div className="relative">
-                        <label className="mb- block text-xs font-bold text-gray-700 dark:text-gray-300 flex items-center justify-between">
+                        <label className="mb-1 flex items-center justify-between text-xs font-bold text-gray-700 dark:text-gray-300">
                           <span>Nhóm Zalo nhận</span>
-                          {accountId && (
+                          {accountId != null && (
                             <button
                               type="button"
                               disabled={scanningGroups}
@@ -431,23 +482,65 @@ export default function MissDataNotificationModal({
                         </label>
                         <button
                           type="button"
-                          disabled={!accountId}
-                          onClick={() => setActiveGroupDropdown(activeGroupDropdown === index ? null : index)}
-                          className="flex h-10 w-full items-center justify-between rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-950 px-3 text-sm disabled:bg-gray-50 dark:disabled:bg-white/5"
+                          disabled={accountId == null}
+                          title={
+                            accountId == null
+                              ? "Chọn tài khoản Zalo gửi trước"
+                              : undefined
+                          }
+                          onClick={() => {
+                            if (accountId == null) return;
+                            const opening = activeGroupDropdown !== index;
+                            setActiveGroupDropdown(opening ? index : null);
+                            // Mở dropdown → load/refresh list nhóm đúng nick
+                            if (opening) {
+                              void fetchGroupsByAccount(accountId, 1);
+                            }
+                          }}
+                          className="flex h-10 w-full items-center justify-between rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-950 px-3 text-sm disabled:cursor-not-allowed disabled:bg-gray-50 dark:disabled:bg-white/5"
                         >
-                          <span className={`truncate ${action.target_uid ? "text-gray-800 dark:text-gray-200" : "text-gray-400 dark:text-gray-500"}`}>
-                            {action.target_label || action.target_uid || "Chọn nhóm Zalo"}
+                          <span
+                            className={`truncate ${
+                              accountId != null &&
+                              (selectedGroup || action.target_uid)
+                                ? "text-gray-800 dark:text-gray-200"
+                                : "text-gray-400 dark:text-gray-500"
+                            }`}
+                          >
+                            {accountId == null
+                              ? "Chọn tài khoản Zalo gửi trước"
+                              : selectedGroup
+                                ? selectedGroup.name || selectedGroup.uid
+                                : action.target_label ||
+                                  action.target_uid ||
+                                  "Chọn nhóm của nick này"}
                           </span>
                           <FiChevronDown className="text-gray-400 shrink-0" />
                         </button>
 
-                        {activeGroupDropdown === index && (
+                        {accountId != null && activeGroupDropdown === index && (
                           <div className="absolute top-full left-0 z-50 mt-1 max-h-60 w-full overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 py-1 shadow-lg p-2 flex flex-col gap-1.5">
+                            <p className="px-1 text-[10px] text-gray-400">
+                              Nhóm thuộc nick đang chọn
+                              {activeAccount
+                                ? ` · ${activeAccount.name || activeAccount.phone_number || accountId}`
+                                : ""}
+                              {groupsRes?.count != null
+                                ? ` · ${groups.length}/${groupsRes.count}`
+                                : groups.length
+                                  ? ` · ${groups.length} nhóm`
+                                  : ""}
+                            </p>
                             <input
                               type="text"
-                              placeholder="Tìm nhóm..."
+                              placeholder="Tìm nhóm trong nick này..."
                               value={grpSearch}
-                              onChange={(e) => setGroupSearchTexts({ ...groupSearchTexts, [index]: e.target.value })}
+                              onChange={(e) =>
+                                setGroupSearchTexts({
+                                  ...groupSearchTexts,
+                                  [index]: e.target.value,
+                                })
+                              }
                               className="w-full px-2.5 py-1.5 text-xs border border-gray-200 dark:border-gray-800 rounded-md outline-hidden bg-gray-50 dark:bg-gray-950 text-gray-800 dark:text-gray-200"
                             />
                             <div className="max-h-40 overflow-y-auto flex flex-col">
@@ -456,9 +549,15 @@ export default function MissDataNotificationModal({
                                   key={grp.id}
                                   type="button"
                                   onClick={() => {
+                                    if (!grp.uid) {
+                                      toast.error(
+                                        "Nhóm thiếu UID — quét lại nhóm hoặc chọn nhóm khác.",
+                                      );
+                                      return;
+                                    }
                                     updateAction(index, {
                                       target_uid: grp.uid,
-                                      target_label: grp.name,
+                                      target_label: grp.name || grp.uid,
                                       mention: undefined,
                                     });
                                     setActiveGroupDropdown(null);
@@ -470,13 +569,15 @@ export default function MissDataNotificationModal({
                                     {grp.name || grp.uid}
                                   </span>
                                   <span className="text-[10px] text-gray-500">
-                                    {grp.total_member || 0} thành viên
+                                    {Number(grp.total_member) || 0} thành viên
                                   </span>
                                 </button>
                               ))}
                               {filteredGroups.length === 0 && (
                                 <p className="p-3 text-center text-xs text-gray-400">
-                                  {loadingGroups ? "Đang tải nhóm..." : "Không tìm thấy nhóm"}
+                                  {loadingGroups
+                                    ? "Đang tải nhóm của nick..."
+                                    : "Nick này chưa có nhóm (hoặc không khớp tìm kiếm). Bấm «Quét nhóm»."}
                                 </p>
                               )}
                             </div>
@@ -535,67 +636,85 @@ export default function MissDataNotificationModal({
                             </button>
                           </div>
 
-                          {/* Member Selector UI */}
-                          <div className="relative">
-                            <button
-                              type="button"
-                              onClick={() => setActiveMemberDropdown(activeMemberDropdown === index ? null : index)}
-                              className="flex h-9 w-full items-center justify-between rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-950 px-2.5 text-xs"
-                            >
-                              <span className={`truncate ${action.mention?.uids && action.mention.uids.length > 0 ? "text-gray-800 dark:text-gray-200" : "text-gray-400 dark:text-gray-500"}`}>
+                          {/* Member list inline — tránh absolute dropdown bị overflow-hidden modal cắt */}
+                          <div className="rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 p-2 space-y-2">
+                            <div className="flex items-center justify-between gap-2 px-0.5">
+                              <span className="text-[10px] font-semibold text-gray-500 dark:text-gray-400">
+                                {loadingMembers
+                                  ? "Đang tải..."
+                                  : `Hiển thị ${filteredMembers.length}/${groupMembers.length} thành viên`}
                                 {action.mention?.uids && action.mention.uids.length > 0
-                                  ? `Đã chọn ${action.mention.uids.length} thành viên`
-                                  : "Chọn thành viên nhóm"}
+                                  ? ` · Đã chọn ${action.mention.uids.length}`
+                                  : ""}
                               </span>
-                              <FiChevronDown className="text-gray-400" />
-                            </button>
-
-                            {activeMemberDropdown === index && (
-                              <div className="absolute top-full left-0 z-50 mt-1 max-h-48 w-full overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 py-1 shadow-lg p-2 flex flex-col gap-1">
-                                <input
-                                  type="text"
-                                  placeholder="Tìm thành viên..."
-                                  value={memSearch}
-                                  onChange={(e) => setMemberSearchTexts({ ...memberSearchTexts, [index]: e.target.value })}
-                                  className="w-full px-2 py-1.5 text-xs border border-gray-200 dark:border-gray-800 rounded-md outline-hidden bg-gray-50 dark:bg-gray-950 text-gray-800 dark:text-gray-200"
-                                />
-                                <div className="max-h-32 overflow-y-auto flex flex-col">
-                                  {filteredMembers.map((mem) => {
-                                    const uids = action.mention?.uids ?? [];
-                                    const isChecked = mem.friend?.uid ? uids.includes(mem.friend.uid) : false;
-                                    return (
-                                      <label
-                                        key={mem.id}
-                                        className="flex items-center gap-2 px-2 py-1.5 hover:bg-gray-50 dark:hover:bg-white/5 rounded-md cursor-pointer text-xs"
-                                      >
-                                        <input
-                                          type="checkbox"
-                                          checked={isChecked}
-                                          disabled={!mem.friend?.uid}
-                                          onChange={() => {
-                                            if (!mem.friend?.uid) return;
-                                            const uid = mem.friend.uid;
-                                            const nextUids = isChecked
-                                              ? uids.filter((id) => id !== uid)
-                                              : [...uids, uid];
-                                            updateAction(index, { mention: { uids: nextUids } });
-                                          }}
-                                          className="rounded border-gray-300 text-brand-500 focus:ring-brand-500"
-                                        />
-                                        <span className="truncate font-semibold text-gray-800 dark:text-white">
-                                          {mem.friend?.name || mem.friend?.uid || "Thành viên ẩn"}
-                                        </span>
-                                      </label>
-                                    );
-                                  })}
-                                  {filteredMembers.length === 0 && (
-                                    <p className="p-2 text-center text-xs text-gray-400">
-                                      {loadingMembers ? "Đang tải thành viên..." : "Không tìm thấy thành viên"}
-                                    </p>
-                                  )}
-                                </div>
-                              </div>
-                            )}
+                              {!loadingMembers && groupMembers.length === 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (selectedGroup) void fetchGroupMembers(selectedGroup.id);
+                                  }}
+                                  className="text-[10px] font-bold text-brand-600 hover:text-brand-700"
+                                >
+                                  Tải lại
+                                </button>
+                              )}
+                            </div>
+                            <input
+                              type="text"
+                              placeholder="Tìm thành viên..."
+                              value={memberSearchTexts[index] || ""}
+                              onChange={(e) =>
+                                setMemberSearchTexts({
+                                  ...memberSearchTexts,
+                                  [index]: e.target.value,
+                                })
+                              }
+                              className="w-full px-2.5 py-1.5 text-xs border border-gray-200 dark:border-gray-800 rounded-md outline-hidden bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-200"
+                            />
+                            <div className="max-h-60 overflow-y-auto overscroll-contain flex flex-col divide-y divide-gray-50 dark:divide-gray-800/80">
+                              {filteredMembers.map((mem) => {
+                                const uids = action.mention?.uids ?? [];
+                                const uid = mem.friend?.uid ? String(mem.friend.uid) : "";
+                                const isChecked = uid ? uids.includes(uid) : false;
+                                return (
+                                  <label
+                                    key={uid ? `${mem.id}-${uid}` : `mem-${mem.id}`}
+                                    className="flex items-center gap-2 px-2 py-2 hover:bg-gray-50 dark:hover:bg-white/5 cursor-pointer text-xs"
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={isChecked}
+                                      disabled={!uid}
+                                      onChange={() => {
+                                        if (!uid) return;
+                                        const nextUids = isChecked
+                                          ? uids.filter((id) => id !== uid)
+                                          : [...uids, uid];
+                                        updateAction(index, { mention: { uids: nextUids } });
+                                      }}
+                                      className="rounded border-gray-300 text-brand-500 focus:ring-brand-500"
+                                    />
+                                    <span className="min-w-0 flex-1 truncate font-semibold text-gray-800 dark:text-white">
+                                      {mem.friend?.name || uid || "Thành viên ẩn"}
+                                    </span>
+                                    {mem.is_admin || mem.is_creator ? (
+                                      <span className="shrink-0 text-[10px] font-bold text-amber-600 dark:text-amber-400">
+                                        {mem.is_creator ? "Creator" : "Admin"}
+                                      </span>
+                                    ) : null}
+                                  </label>
+                                );
+                              })}
+                              {filteredMembers.length === 0 && (
+                                <p className="p-3 text-center text-xs text-gray-400">
+                                  {loadingMembers
+                                    ? "Đang tải thành viên..."
+                                    : groupMembers.length === 0
+                                      ? "Chưa có thành viên. Bấm «Quét thành viên» nếu nhóm mới."
+                                      : "Không tìm thấy thành viên"}
+                                </p>
+                              )}
+                            </div>
                           </div>
 
                           {/* Selected Tags list */}

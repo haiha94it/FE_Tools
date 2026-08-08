@@ -3,6 +3,7 @@ import { unwrapPaginatedPayload } from "@/lib/campaign-service";
 import { unwrapApiBody } from "@/lib/api-response";
 import api from "@/lib/axios";
 import { extractZaloAccounts } from "@/lib/zalo-account-utils";
+import { extractGroupMembersFromPoll } from "@/lib/zalo-contacts-utils";
 import type {
   EditZaloAccountPayload,
   ToggleChatbotPayload,
@@ -11,6 +12,7 @@ import type {
   ZaloAccountCheckResultResponse,
   ZaloAccountCheckTaskResponse,
 } from "@/types/zalo-account";
+import type { ZaloGroupMember } from "@/types/zalo-contacts";
 import type { PaginatedResponse } from "@/types/api";
 
 export interface FriendAutomationItem {
@@ -239,21 +241,29 @@ export const zaloAccountService = {
 
   async pollGroupScanResult(
     taskId: string | number,
-  ): Promise<any> {
-    const response = await api.get(API_ZALO_GROUP.SCAN_RESULT, {
-      params: { id_task: taskId },
+  ): Promise<{
+    status?: string;
+    task_status?: string;
+    data?: unknown;
+    message?: string;
+    id_task?: string | number;
+  }> {
+    // BE: POST /api/group/get/result body { id_task } — GET → 405
+    const response = await api.post(API_ZALO_GROUP.SCAN_RESULT, {
+      id_task: taskId,
     });
     return response.data;
   },
 
   async fetchGroupMembers(
     groupId: number | string,
-  ): Promise<any> {
+  ): Promise<ZaloGroupMember[]> {
     const response = await api.post(API_ZALO_GROUP.GET_MEMBER_SHOW, {
       id_group: groupId,
       type: "basic",
     });
-    return response.data;
+    // interceptor unwrap envelope → { status, data: members[] } hoặc list
+    return extractGroupMembersFromPoll(response.data).members;
   },
 
   async scanGroupMembers(
@@ -269,10 +279,29 @@ export const zaloAccountService = {
 
   async pollGroupMemberScanResult(
     taskId: string | number,
-  ): Promise<any> {
+  ): Promise<{
+    status?: string;
+    task_status?: string;
+    data?: ZaloGroupMember[];
+    message?: string;
+  }> {
     const response = await api.post(API_ZALO_GROUP.GET_MEMBER_RESULT, {
       id_task: taskId,
     });
-    return response.data;
+    const body =
+      response.data && typeof response.data === "object"
+        ? (response.data as Record<string, unknown>)
+        : {};
+    const status =
+      (typeof body.task_status === "string" ? body.task_status : undefined) ??
+      (typeof body.status === "string" ? body.status : undefined);
+    const members = extractGroupMembersFromPoll(response.data).members;
+    return {
+      status,
+      task_status: status,
+      data: members,
+      message:
+        typeof body.message === "string" ? body.message : undefined,
+    };
   },
 };
