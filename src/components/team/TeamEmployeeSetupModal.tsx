@@ -58,6 +58,8 @@ export default function TeamEmployeeSetupModal({
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [permissions, setPermissions] =
     useState<CampaignPermissionsMap | null>(null);
+  const [socialmediaEnabled, setSocialmediaEnabled] = useState(false);
+  const [initialSocialmedia, setInitialSocialmedia] = useState(false);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -68,11 +70,13 @@ export default function TeamEmployeeSetupModal({
     void (async () => {
       setLoading(true);
       try {
-        const [accounts, assignments, permissionData] = await Promise.all([
-          zaloAccountService.list(),
-          teamPermissionsService.getEmployeeAccountAssignments(employee.id),
-          teamPermissionsService.getEmployeeCampaignPermissions(employee.id),
-        ]);
+        const [accounts, assignments, permissionData, socialmedia] =
+          await Promise.all([
+            zaloAccountService.list(),
+            teamPermissionsService.getEmployeeAccountAssignments(employee.id),
+            teamPermissionsService.getEmployeeCampaignPermissions(employee.id),
+            teamPermissionsService.getSocialmediaEmployee(),
+          ]);
         if (cancelled) return;
 
         const nextPermissions = { ...permissionData.permissions };
@@ -83,6 +87,9 @@ export default function TeamEmployeeSetupModal({
         setManagerAccounts(accounts);
         setSelectedIds(assignments.account_ids ?? []);
         setPermissions(nextPermissions);
+        const isSm = socialmedia.employee_id === employee.id;
+        setSocialmediaEnabled(isSm);
+        setInitialSocialmedia(isSm);
       } catch (error) {
         toast.error(getApiErrorMessage(error));
       } finally {
@@ -117,7 +124,7 @@ export default function TeamEmployeeSetupModal({
         nextPermissions.spam_link_group = false;
       }
       nextPermissions.mess_birthday = false;
-      await Promise.all([
+      const tasks: Promise<unknown>[] = [
         teamPermissionsService.setEmployeeAccountAssignments({
           employee_id: employee.id,
           account_ids: selectedIds,
@@ -126,7 +133,16 @@ export default function TeamEmployeeSetupModal({
           employee_id: employee.id,
           permissions: nextPermissions,
         }),
-      ]);
+      ];
+      // Exclusive slot: bật = gán NV này (thay người cũ); tắt nếu NV này đang giữ = gỡ.
+      if (socialmediaEnabled !== initialSocialmedia) {
+        tasks.push(
+          teamPermissionsService.setSocialmediaEmployee(
+            socialmediaEnabled ? employee.id : null,
+          ),
+        );
+      }
+      await Promise.all(tasks);
       toast.success("Đã lưu thiết lập cho nhân viên.");
       onSaved?.();
       onClose();
@@ -219,30 +235,51 @@ export default function TeamEmployeeSetupModal({
               )}
             </section>
 
-            <section>
-              <div className="mb-3">
-                <h4 className="text-sm font-semibold text-gray-800 dark:text-white/90">
-                  Quyền chạy chiến dịch
-                </h4>
-                <p className="mt-1 text-xs text-gray-500">
-                  Bật các loại chiến dịch nhân viên được phép sử dụng.
-                </p>
+            <section className="space-y-4">
+              <div>
+                <div className="mb-3">
+                  <h4 className="text-sm font-semibold text-gray-800 dark:text-white/90">
+                    Quyền chạy chiến dịch
+                  </h4>
+                  <p className="mt-1 text-xs text-gray-500">
+                    Bật các loại chiến dịch nhân viên được phép sử dụng.
+                  </p>
+                </div>
+                <div className="custom-scrollbar grid h-52 gap-2 overflow-y-auto rounded-xl border border-gray-200 p-2 sm:grid-cols-2 dark:border-gray-700">
+                  {VISIBLE_PERMISSION_KEYS.map((key) => (
+                    <label
+                      key={key}
+                      className="flex cursor-pointer items-center gap-2 rounded-lg border border-transparent px-3 py-2.5 text-sm hover:bg-gray-50 dark:hover:bg-white/[0.03]"
+                    >
+                      <Checkbox
+                        checked={Boolean(permissions?.[key])}
+                        onChange={() => togglePermission(key)}
+                      />
+                      <span className="text-gray-700 dark:text-gray-300">
+                        {PERMISSION_LABELS[key]}
+                      </span>
+                    </label>
+                  ))}
+                </div>
               </div>
-              <div className="custom-scrollbar grid h-64 gap-2 overflow-y-auto rounded-xl border border-gray-200 p-2 sm:grid-cols-2 dark:border-gray-700">
-                {VISIBLE_PERMISSION_KEYS.map((key) => (
-                  <label
-                    key={key}
-                    className="flex cursor-pointer items-center gap-2 rounded-lg border border-transparent px-3 py-2.5 text-sm hover:bg-gray-50 dark:hover:bg-white/[0.03]"
-                  >
-                    <Checkbox
-                      checked={Boolean(permissions?.[key])}
-                      onChange={() => togglePermission(key)}
-                    />
-                    <span className="text-gray-700 dark:text-gray-300">
-                      {PERMISSION_LABELS[key]}
+
+              <div className="rounded-xl border border-brand-200 bg-brand-50/50 p-3 dark:border-brand-500/30 dark:bg-brand-500/10">
+                <label className="flex cursor-pointer items-start gap-3">
+                  <Checkbox
+                    checked={socialmediaEnabled}
+                    onChange={() => setSocialmediaEnabled((v) => !v)}
+                  />
+                  <span className="min-w-0">
+                    <span className="block text-sm font-semibold text-gray-800 dark:text-white/90">
+                      Quyền nhân viên socialmedia
                     </span>
-                  </label>
-                ))}
+                    <span className="mt-1 block text-xs text-gray-500 dark:text-gray-400">
+                      Gói Sinh nhật + Channel Zalo (Đăng video). Mỗi quản lý chỉ
+                      gán tối đa 1 nhân viên — bật cho NV này sẽ thay người đang
+                      giữ quyền (nếu có).
+                    </span>
+                  </span>
+                </label>
               </div>
             </section>
           </div>

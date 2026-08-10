@@ -22,9 +22,14 @@ export const CAMPAIGN_PATH_PERMISSION: Record<string, CampaignTypeKey> = {
   "/zalo-campaigns/messenger-birthday": "mess_birthday",
 };
 
+/** Manager-only cứng (không thuộc gói socialmedia) */
 export const MANAGER_ONLY_PATHS = new Set([
   "/zalo-accounts/proxy",
   "/zalo-accounts/contacts",
+]);
+
+/** Birthday + Channel — manager hoặc NV socialmedia */
+export const SOCIALMEDIA_MODULE_PATHS = new Set([
   "/zalo-campaigns/post-video",
   "/zalo-campaigns/messenger-birthday",
 ]);
@@ -39,6 +44,15 @@ export function canManageNickCrud(
   user: Pick<AuthUser, "isEmployee" | "isManager"> | null | undefined,
 ): boolean {
   return !isEmployeeUser(user);
+}
+
+/** Manager hoặc NV được gán quyền socialmedia (SN + Channel). */
+export function canUseSocialmediaModules(
+  user: Pick<AuthUser, "isManager" | "canUseSocialmedia" | "isSocialmediaEmployee"> | null | undefined,
+): boolean {
+  if (!user) return false;
+  if (isManagerUser(user)) return true;
+  return Boolean(user.canUseSocialmedia || user.isSocialmediaEmployee);
 }
 
 export function canToggleListener(
@@ -56,6 +70,12 @@ export function canManageLabelDefinitions(
 
 export function isManagerOnlyPath(pathname: string): boolean {
   return [...MANAGER_ONLY_PATHS].some(
+    (path) => pathname === path || pathname.startsWith(`${path}/`),
+  );
+}
+
+export function isSocialmediaModulePath(pathname: string): boolean {
+  return [...SOCIALMEDIA_MODULE_PATHS].some(
     (path) => pathname === path || pathname.startsWith(`${path}/`),
   );
 }
@@ -81,6 +101,13 @@ export function canAccessAdminRoute(
 
   if (isAdminOnlyPath(pathname)) {
     return Boolean(user.isAdmin);
+  }
+
+  if (isSocialmediaModulePath(pathname)) {
+    // permissions.mess_birthday true khi NV slot (API); fallback khi /me chưa refetch.
+    return (
+      canUseSocialmediaModules(user) || Boolean(permissions?.mess_birthday)
+    );
   }
 
   if (isManagerOnlyPath(pathname)) {
@@ -127,9 +154,10 @@ export function canManageTeam(
 export function hasCampaignPermission(
   permissions: CampaignPermissionsMap | null,
   key: CampaignTypeKey,
-  user: Pick<AuthUser, "isManager"> | null | undefined,
+  user: Pick<AuthUser, "isManager" | "canUseSocialmedia" | "isSocialmediaEmployee"> | null | undefined,
 ): boolean {
   if (isManagerUser(user)) return true;
+  if (key === "mess_birthday" && canUseSocialmediaModules(user)) return true;
   if (!permissions) return false;
   // Cutover: màn mess-phone gộp — đủ mess_phone hoặc add_friend (legacy)
   if (key === "mess_phone" || key === "add_friend") {
@@ -163,7 +191,14 @@ export function filterNavItemsForTeam(
       if (item.name === "Chiến dịch tự động" && item.subItems) {
         let subItems = filterCampaignSubItems(item.subItems, permissions, user);
         if (employee) {
-          subItems = subItems.filter((sub) => !MANAGER_ONLY_PATHS.has(sub.path));
+          const allowSocial =
+            canUseSocialmediaModules(user) ||
+            Boolean(permissions?.mess_birthday);
+          subItems = subItems.filter((sub) => {
+            if (SOCIALMEDIA_MODULE_PATHS.has(sub.path)) return allowSocial;
+            if (MANAGER_ONLY_PATHS.has(sub.path)) return false;
+            return true;
+          });
         }
         if (subItems.length === 0) return null;
         return { ...item, subItems };

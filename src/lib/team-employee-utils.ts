@@ -23,6 +23,8 @@ export function isSameTeamEmployeeList(
       employee.fullname === other.fullname &&
       employee.account_limit === other.account_limit &&
       employee.account_count === other.account_count &&
+      Boolean(employee.is_socialmedia_employee) ===
+        Boolean(other.is_socialmedia_employee) &&
       getTeamEmployeePassword(employee) === getTeamEmployeePassword(other)
     );
   });

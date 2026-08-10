@@ -76,6 +76,11 @@ export default function VideoCreatorView() {
     void activateAccount(accountId);
   }, [accountId, activateAccount]);
 
+  // Nick chưa có kênh → mở dialog HTML từ /api/popup/instructions/get
+  useEffect(() => {
+    if (noChannel) setGuideOpen(true);
+  }, [noChannel]);
+
   const fbAccount = accountId ? getDataFbAccount(accountId) : undefined;
   const showQr = Boolean(
     accountId && (needsQr || fbAccount?.checkpoint) && !noChannel,

@@ -3,6 +3,7 @@
 import { getApiErrorMessage } from "@/lib/errors";
 import {
   getVideoTaskErrorMessage,
+  isNoZaloVideoChannelError,
   isVideoTaskBusinessSuccess,
   normalizeVideoTaskResult,
 } from "@/lib/zalo-video/task-utils";
@@ -140,10 +141,11 @@ export const useZaloVideoStore = create<ZaloVideoState>((set, get) => ({
       }
 
       if (!isVideoTaskBusinessSuccess(result)) {
-        if (errorMessage.includes("Bạn cần có kênh")) {
+        // Nick chưa có kênh → UI empty state + dialog instructions (không toast message BE dài)
+        if (isNoZaloVideoChannelError(result) || isNoZaloVideoChannelError(errorMessage)) {
           set({
             noChannel: true,
-            channelError: errorMessage,
+            channelError: null,
             loginLoading: false,
             activatingAccountId: null,
           });

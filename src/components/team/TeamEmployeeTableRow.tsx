@@ -43,9 +43,21 @@ function TeamEmployeeTableRow({
   return (
     <tr className="border-b border-gray-100 dark:border-gray-800">
       <td className="px-3 py-3">
-        <p className="font-medium text-gray-800 dark:text-white/90">
-          {employee.fullname || employee.username}
-        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="font-medium text-gray-800 dark:text-white/90">
+            {employee.fullname || employee.username}
+          </p>
+          {employee.is_socialmedia_employee ? (
+            <Tooltip
+              content="Được gán quyền nhân viên socialmedia (Chúc mừng sinh nhật + Channel Zalo)"
+              side="top"
+            >
+              <span className="inline-flex shrink-0 rounded-full bg-brand-50 px-2 py-0.5 text-[11px] font-semibold text-brand-700 ring-1 ring-inset ring-brand-200 dark:bg-brand-500/15 dark:text-brand-300 dark:ring-brand-500/30">
+                Socialmedia
+              </span>
+            </Tooltip>
+          ) : null}
+        </div>
         <p className="text-xs text-gray-500">{employee.username}</p>
       </td>
       <td className="px-3 py-3">

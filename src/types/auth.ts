@@ -29,6 +29,10 @@ export interface ApiUserProfile {
   confirm_message?: string | null;
   /** Bật/tắt thông báo tin nhắn từ WS */
   new_message_notification?: boolean;
+  /** Gói quyền socialmedia (Birthday + Channel) */
+  is_socialmedia_employee?: boolean;
+  can_use_socialmedia?: boolean;
+  socialmedia_employee_id?: number | null;
 }
 
 export interface AuthUser {
@@ -59,6 +63,11 @@ export interface AuthUser {
   confirmMessage?: string | null;
   /** Bật/tắt thông báo tin nhắn từ WS */
   newMessageNotification?: boolean;
+  /** NV có slot socialmedia (SN + Channel) */
+  isSocialmediaEmployee?: boolean;
+  /** Manager hoặc NV socialmedia */
+  canUseSocialmedia?: boolean;
+  socialmediaEmployeeId?: number | null;
 }
 
 export interface AcceptTermsPayload {

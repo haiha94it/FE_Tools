@@ -31,7 +31,6 @@ export default function MessengerBirthdayView() {
   const fetchMediaLibraries = useZaloBirthdayCampaignStore((s) => s.fetchMediaLibraries);
   const startCampaign = useZaloBirthdayCampaignStore((s) => s.startCampaign);
   const stopCampaign = useZaloBirthdayCampaignStore((s) => s.stopCampaign);
-  const runNow = useZaloBirthdayCampaignStore((s) => s.runNow);
   const refreshResults = useZaloBirthdayCampaignStore((s) => s.refreshResults);
 
   const [noteOpen, setNoteOpen] = useState(false);
@@ -64,15 +63,6 @@ export default function MessengerBirthdayView() {
     try {
       await stopCampaign();
       toast.success("Dừng chiến dịch thành công.");
-    } catch (error) {
-      toast.error(getApiErrorMessage(error));
-    }
-  };
-
-  const handleRunNow = async () => {
-    try {
-      await runNow();
-      toast.success("Đã chạy ngay một lượt chúc mừng.");
     } catch (error) {
       toast.error(getApiErrorMessage(error));
     }
@@ -119,14 +109,6 @@ export default function MessengerBirthdayView() {
               onClick={() => void handleStart()}
             >
               Chạy
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={actionLoading || !campaign?.id}
-              onClick={() => void handleRunNow()}
-            >
-              Chạy ngay
             </Button>
             <Button
               size="sm"

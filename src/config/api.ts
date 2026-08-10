@@ -16,6 +16,8 @@ export const API_TEAM = {
   EMPLOYEE_CAMPAIGN_PERMISSIONS: "/api/users/employee-campaign-permissions",
   EMPLOYEE_CAMPAIGN_PERMISSIONS_SET: "/api/users/employee-campaign-permissions/set",
   MY_CAMPAIGN_PERMISSIONS: "/api/users/my-campaign-permissions",
+  SOCIALMEDIA_EMPLOYEE: "/api/users/socialmedia-employee",
+  SOCIALMEDIA_EMPLOYEE_SET: "/api/users/socialmedia-employee/set",
   /** Danh sách NV của manager đăng nhập */
   GET_EMPLOYEES: "/api/users/get-employees",
   CREATE_EMPLOYEE: "/api/users/create-employee",

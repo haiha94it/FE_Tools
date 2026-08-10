@@ -81,6 +81,8 @@ export interface TeamEmployee {
   /** Mật khẩu plain (BE UserManagerSerializer / raw_password) — hiển thị cho manager */
   password?: string | null;
   raw_password?: string | null;
+  /** NV đang giữ gói socialmedia (Birthday + Channel) — GET get-employees */
+  is_socialmedia_employee?: boolean;
 }
 
 /**

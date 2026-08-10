@@ -128,4 +128,24 @@ export const teamPermissionsService = {
     const data = unwrapApiBody<MyCampaignPermissionsResponse>(response.data);
     return createFullPermissionsMap(data.permissions);
   },
+
+  async getSocialmediaEmployee(): Promise<{
+    employee_id: number | null;
+    employee: { id: number; username: string; fullname?: string | null } | null;
+  }> {
+    const response = await api.get(API_TEAM.SOCIALMEDIA_EMPLOYEE);
+    return unwrapApiBody(response.data);
+  },
+
+  async setSocialmediaEmployee(
+    employeeId: number | null,
+  ): Promise<{
+    employee_id: number | null;
+    employee?: { id: number; username: string; fullname?: string | null } | null;
+  }> {
+    const response = await api.post(API_TEAM.SOCIALMEDIA_EMPLOYEE_SET, {
+      employee_id: employeeId,
+    });
+    return unwrapApiBody(response.data);
+  },
 };

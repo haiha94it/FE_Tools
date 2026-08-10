@@ -85,5 +85,15 @@ export function mapApiUser(profile: ApiUserProfile): AuthUser {
     orderSuccessfulMessage: profile.order_successful_message ?? "",
     confirmMessage: profile.confirm_message ?? "",
     newMessageNotification: profile.new_message_notification ?? true,
+    isSocialmediaEmployee: Boolean(profile.is_socialmedia_employee),
+    canUseSocialmedia: Boolean(
+      profile.can_use_socialmedia ||
+        profile.is_manager ||
+        profile.is_socialmedia_employee,
+    ),
+    socialmediaEmployeeId:
+      profile.socialmedia_employee_id == null
+        ? null
+        : Number(profile.socialmedia_employee_id),
   };
 }

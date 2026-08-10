@@ -95,6 +95,44 @@ export function getVideoTaskErrorMessage(
   );
 }
 
+/** Lấy error_code từ inner Celery result (nếu BE gửi). */
+export function getVideoTaskErrorCode(
+  result: ZaloVideoTaskResultResponse,
+): string | undefined {
+  const normalized = normalizeVideoTaskResult(result);
+  const inner = normalized.result;
+  if (inner && typeof inner === "object" && "error_code" in inner) {
+    const code = (inner as { error_code?: unknown }).error_code;
+    if (typeof code === "string" && code) return code;
+  }
+  return undefined;
+}
+
+/**
+ * Nick chưa có Kênh Zalo Video — UI mở guide (popup instructions), không toast dài.
+ * Khớp message cũ/mới + error_code CHANNEL_NOT_CREATED.
+ */
+export function isNoZaloVideoChannelError(
+  resultOrMessage: ZaloVideoTaskResultResponse | string,
+): boolean {
+  if (typeof resultOrMessage === "string") {
+    return matchesNoChannelMessage(resultOrMessage);
+  }
+  const code = getVideoTaskErrorCode(resultOrMessage);
+  if (code === "CHANNEL_NOT_CREATED") return true;
+  return matchesNoChannelMessage(getVideoTaskErrorMessage(resultOrMessage));
+}
+
+function matchesNoChannelMessage(message: string): boolean {
+  const text = message.toLowerCase();
+  // Không match generic “tạo kênh Creator” — message login/proxy cũng hay nhắc.
+  return (
+    text.includes("bạn cần có kênh") ||
+    text.includes("chưa có kênh") ||
+    text.includes("channel_not_created")
+  );
+}
+
 export function isVideoTaskBusinessSuccess(
   result: ZaloVideoTaskResultResponse,
 ): boolean {

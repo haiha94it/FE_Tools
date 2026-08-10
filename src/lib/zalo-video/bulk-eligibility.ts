@@ -2,6 +2,7 @@ import { getApiErrorMessage } from "@/lib/errors";
 import { hasZaloVideoChannel } from "@/lib/zalo-video/channel-utils";
 import {
   getVideoTaskErrorMessage,
+  isNoZaloVideoChannelError,
   isVideoTaskBusinessSuccess,
   normalizeVideoTaskResult,
 } from "@/lib/zalo-video/task-utils";
@@ -87,7 +88,7 @@ export async function checkAccountBulkPostEligibility(
       };
     }
 
-    if (errorMessage.includes("Bạn cần có kênh")) {
+    if (isNoZaloVideoChannelError(loginResult) || isNoZaloVideoChannelError(errorMessage)) {
       return {
         accountId,
         eligible: false,
