@@ -5,7 +5,10 @@ import type {
   MessengerGroupMediaItem,
 } from "@/types/zalo-messenger";
 import Image from "next/image";
-import { formatFileSize } from "@/lib/zalo-messenger-message-utils";
+import {
+  formatFileSize,
+  stripUrlsPreserveNewlines,
+} from "@/lib/zalo-messenger-message-utils";
 import {
   HiOutlineBellAlert,
   HiOutlineDocumentArrowDown,
@@ -226,16 +229,9 @@ export function RecommendedContactContent({
   );
 }
 
-/** Bỏ URL khỏi caption — tránh lặp với dòng link xanh. */
+/** Bỏ URL khỏi caption — tránh lặp với dòng link xanh; giữ xuống dòng. */
 function stripUrlsFromCaption(text: string, href?: string): string {
-  let out = (text || "").trim();
-  if (!out) return "";
-  if (href) {
-    const escaped = href.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    out = out.replace(new RegExp(escaped, "gi"), " ");
-  }
-  out = out.replace(/https?:\/\/[^\s<>"']+/gi, " ");
-  return out.replace(/\s+/g, " ").trim();
+  return stripUrlsPreserveNewlines(text, href);
 }
 
 /**
@@ -319,7 +315,7 @@ export function RecommendedLinkContent({
   return (
     <div className="w-[min(288px,100%)] max-w-full select-text">
       {caption ? (
-        <p className="text-sm font-normal leading-snug break-words text-gray-900 dark:text-gray-100">
+        <p className="text-sm font-normal leading-snug whitespace-pre-wrap break-words text-gray-900 dark:text-gray-100">
           {caption}
         </p>
       ) : null}

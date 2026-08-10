@@ -604,6 +604,35 @@ export function convertJxlToJpg(url: string | undefined | null): string {
 }
 
 /**
+ * Bỏ URL khỏi caption link, **giữ xuống dòng**.
+ * Không dùng `/\s+/g` — sẽ gộp cả `\n` → caption dính 1 dòng (bug FE).
+ *
+ * @param text Caption thô (params.msg hoặc title legacy)
+ * @param href URL card — strip trùng
+ */
+export function stripUrlsPreserveNewlines(
+  text: string,
+  href?: string,
+): string {
+  let out = (text || "").replace(/\r\n/g, "\n");
+  if (!out.trim()) return "";
+  if (href) {
+    const escaped = href.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    out = out.replace(new RegExp(escaped, "gi"), " ");
+  }
+  out = out.replace(/https?:\/\/[^\s<>"']+/gi, " ");
+  // Chỉ gộp space/tab ngang; giữ \n
+  out = out.replace(/[^\S\n]+/g, " ");
+  out = out
+    .split("\n")
+    .map((line) => line.trim())
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+  return out;
+}
+
+/**
  * Chuẩn hóa một tin nhắn Zalo thô sang dữ liệu dùng để hiển thị trên UI.
  *
  * @param raw Tin nhắn thô nhận từ API hoặc WebSocket.
@@ -882,14 +911,10 @@ export function normalizeIncomingMessage(raw: RawZaloMessage): DisplayMessage {
           trimToString(params.msg) ||
           trimToString(params.message) ||
           "";
-        // Caption = text user gõ; bỏ URL trùng href
+        // Caption = text user gõ; bỏ URL trùng href — giữ \n (không collapse \s+)
         let linkCaption = "";
         if (rawMsg) {
-          linkCaption = rawMsg
-            .replace(href ? new RegExp(href.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi") : /$^/, " ")
-            .replace(/https?:\/\/[^\s<>"']+/gi, " ")
-            .replace(/\s+/g, " ")
-            .trim();
+          linkCaption = stripUrlsPreserveNewlines(rawMsg, href || undefined);
         }
         // title field đôi khi = full msg (không có params.msg)
         const titleLooksLikeCaption =
@@ -897,14 +922,7 @@ export function normalizeIncomingMessage(raw: RawZaloMessage): DisplayMessage {
           Boolean(href) &&
           title.includes(href.slice(0, Math.min(24, href.length)));
         if (!linkCaption && titleLooksLikeCaption) {
-          linkCaption = title
-            .replace(
-              new RegExp(href.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi"),
-              " ",
-            )
-            .replace(/https?:\/\/[^\s<>"']+/gi, " ")
-            .replace(/\s+/g, " ")
-            .trim();
+          linkCaption = stripUrlsPreserveNewlines(title, href || undefined);
         }
         const ogTitle = titleLooksLikeCaption ? "" : title;
         const linkLabel =
