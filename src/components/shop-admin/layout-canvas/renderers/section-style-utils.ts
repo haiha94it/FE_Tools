@@ -451,6 +451,13 @@ export function buildSectionShellClasses(
   const radius = styling.radius ?? "xl";
   const flexGrid = flexGridClass(styling.flexGrid);
 
+  if (styling.bgPreset === "custom" && styling.customBg) {
+    style = {
+      ...style,
+      backgroundColor: styling.customBg,
+    };
+  }
+
   // Glass/frosted cần nền bán trong suốt nếu inherit
   if (
     (blur === "glass" || blur === "frosted") &&

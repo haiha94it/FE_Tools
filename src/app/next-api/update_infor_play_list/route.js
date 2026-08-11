@@ -1,9 +1,9 @@
 import axios from 'axios';
-import { HttpsProxyAgent } from 'https-proxy-agent';
+import { getProxyAgent } from '@/lib/proxy-helper';
 export async function POST(request) {
     try {
         const { clientCookie, title, csrf, status, id, proxy } = await request.json();
-        const agent = new HttpsProxyAgent(proxy);
+        const agentOptions = getProxyAgent(proxy);
         if (!title) {
             return new Response(JSON.stringify({ error: 'Missing video ID.' }), {
                 status: 400,
@@ -24,8 +24,7 @@ export async function POST(request) {
                         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36',
                     'cookie': `webSession=${clientCookie}`,
                 },
-                httpsAgent: agent,
-                httpAgent: agent, 
+                ...agentOptions, 
             }
         );
 
@@ -48,7 +47,7 @@ export async function POST(request) {
 
 
 // import axios from 'axios';
-// import { HttpsProxyAgent } from 'https-proxy-agent';
+// import { getProxyAgent } from '@/lib/proxy-helper';
 
 // export async function POST(request) {
 //     try {
@@ -61,7 +60,7 @@ export async function POST(request) {
 
 //         // Cấu hình proxy
 //         const proxy = 'http://2008qgshby:2008qgshby@157.10.194.218:15805';
-//         const agent = new HttpsProxyAgent(proxy);
+//         const agentOptions = getProxyAgent(proxy);
 
 //         const bodyRaw = `title=${encodeURIComponent(title)}&privacy=${encodeURIComponent(status)}&id=${encodeURIComponent(id)}`;
 //         const zaloResponse = await axios.post(
@@ -79,8 +78,8 @@ export async function POST(request) {
 //                     'cookie': `webSession=${clientCookie}`,
 //                 },
 //                 // Thêm proxy agent vào cấu hình axios
-//                 httpsAgent: agent,
-//                 httpAgent: agent, // Nếu API dùng HTTP thay vì HTTPS
+//                 ...agentOptions,
+//                  // Nếu API dùng HTTP thay vì HTTPS
 //             }
 //         );
 

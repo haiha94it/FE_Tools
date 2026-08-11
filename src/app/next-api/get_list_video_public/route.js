@@ -1,10 +1,10 @@
 import axios from 'axios';
-import { HttpsProxyAgent } from 'https-proxy-agent';
+import { getProxyAgent } from '@/lib/proxy-helper';
 export async function POST(req) {
     try {
         // Lấy clientCookie và các tham số phân trang từ body của request
         const { clientCookie, number_per_page = 50, page = 1, status, proxy } = await req.json();
-        const agent = new HttpsProxyAgent(proxy);
+        const agentOptions = getProxyAgent(proxy);
         // Gửi request đến API của Zalo với clientCookie
         const response = await axios.get(`https://video.zalo.me/v2/public-api/video/${status === "public" ? "list" : status === "private" ? "private-list" : "scheduled-list"}`, {
             headers: {
@@ -24,8 +24,7 @@ export async function POST(req) {
                 'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36 Edg/126.0.0.0',
                 'Cookie': `webSession=${clientCookie}`,
             },
-            httpsAgent: agent,
-            httpAgent: agent,
+            ...agentOptions,
         });
         const allVideo = response?.data?.data?.videos || response?.data?.data || [];
         const totalComments = allVideo.length;

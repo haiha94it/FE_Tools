@@ -1,9 +1,9 @@
 import axios from 'axios';
-import { HttpsProxyAgent } from 'https-proxy-agent';
+import { getProxyAgent } from '@/lib/proxy-helper';
 export async function POST(request) {
     try {
         const { clientCookie, id, csrf, status, proxy } = await request.json();
-        const agent = new HttpsProxyAgent(proxy);
+        const agentOptions = getProxyAgent(proxy);
         if (!id) {
             return new Response(JSON.stringify({ error: 'Missing video ID.' }), {
                 status: 400,
@@ -24,8 +24,7 @@ export async function POST(request) {
                         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36',
                     'cookie': `webSession=${clientCookie}`,
                 },
-                httpsAgent: agent,
-                httpAgent: agent,
+                ...agentOptions,
             }
         );
 

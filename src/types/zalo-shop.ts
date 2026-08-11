@@ -365,6 +365,8 @@ export interface ShopPersonalizationData {
    * Legacy sectionOrder / sectionVisibility / blockConfigs được sync khi save.
    */
   layoutCanvas?: LayoutCanvasDocument;
+  /** Layout Canvas Builder cho trang chi tiết sản phẩm (PDP) */
+  pdpLayoutCanvas?: LayoutCanvasDocument;
   /**
    * PDP template on /store/{id}/{cat}/{product}
    * @see PDPTemplateType in types/pdp-template.ts

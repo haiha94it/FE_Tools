@@ -6,6 +6,7 @@
 
 import type { LayoutSection } from "@/types/shop-layout-canvas";
 import type { ShopProduct } from "@/types/zalo-shop";
+import { shopImageUrl } from "@/lib/shop-utils";
 import InlineEditable from "@/components/shop-admin/layout-canvas/InlineEditable";
 import { staggerChildClass } from "@/components/shop-admin/layout-canvas/SectionMotion";
 import {
@@ -159,14 +160,29 @@ export function CouponsRenderer({
 export function EditorialRenderer({
   section,
   theme,
+  products,
   className = "",
-}: SectionRendererProps<Extract<LayoutSection, { type: "EDITORIAL" }>>) {
+}: SectionRendererProps<Extract<LayoutSection, { type: "EDITORIAL" }>> & {
+  products?: ShopProduct[];
+}) {
   const shell = buildSectionShellClasses(section.styling);
   const accent = theme?.accentColor ?? "#0071E3";
   const side = section.data.mediaSide ?? "left";
+
+  const firstProdImg =
+    products && products.length > 0 && products[0]?.images?.[0]
+      ? shopImageUrl(products[0].images[0])
+      : null;
+
   const img =
     section.data.mediaUrl ||
+    firstProdImg ||
     "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=800&auto=format&fit=crop&q=80";
+
+  const displayTitle =
+    section.data.title ||
+    (products && products[0]?.title) ||
+    "Bộ sưu tập sản phẩm nổi bật";
 
   return (
     <section
@@ -179,23 +195,25 @@ export function EditorialRenderer({
         className={`${buildWidthFrameClass(section.widthPreset)} grid items-center gap-6 lg:grid-cols-2`}
       >
         <div className={side === "right" ? "lg:order-2" : ""}>
-          <div className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-gray-100">
+          <div className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-gray-100 dark:bg-gray-800 shadow-sm">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={img} alt="" className="h-full w-full object-cover" />
+            <img src={img} alt={displayTitle} className="h-full w-full object-cover" />
           </div>
         </div>
         <div className={side === "right" ? "lg:order-1" : ""}>
           <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
-            {section.data.title}
+            {displayTitle}
           </h2>
           <p
             className={`mt-3 text-sm leading-relaxed sm:text-base ${mutedTextClass(section.styling.textTone, section.styling.bgPreset)}`}
           >
-            {section.data.body}
+            {section.data.body ||
+              (products && products[0]?.description) ||
+              "Khám phá các sản phẩm chất lượng cao được tuyển chọn kỹ lưỡng."}
           </p>
           {section.data.ctaText ? (
             <span
-              className="mt-5 inline-flex rounded-full px-5 py-2.5 text-xs font-bold text-white"
+              className="mt-5 inline-flex rounded-full px-5 py-2.5 text-xs font-bold text-white shadow-xs"
               style={{ backgroundColor: accent }}
             >
               {section.data.ctaText}
@@ -639,16 +657,45 @@ export function StatsRenderer({
 
 export function GalleryRenderer({
   section,
+  products,
   className = "",
-}: SectionRendererProps<Extract<LayoutSection, { type: "GALLERY" }>>) {
+}: SectionRendererProps<Extract<LayoutSection, { type: "GALLERY" }>> & {
+  products?: ShopProduct[];
+}) {
   const shell = buildSectionShellClasses(section.styling);
   const cols = section.data.columns ?? 3;
+  const maxItems = section.data.maxItems ?? 6;
   const grid =
     cols === 2
       ? "sm:grid-cols-2"
       : cols === 4
         ? "grid-cols-2 sm:grid-cols-4"
         : "grid-cols-2 sm:grid-cols-3";
+
+  // Real product images from user catalog
+  const realProductImages = (products ?? [])
+    .flatMap((p) =>
+      Array.isArray(p.images)
+        ? p.images.map((imgUrl) => ({ url: shopImageUrl(imgUrl), title: p.title }))
+        : [],
+    )
+    .filter((item) => Boolean(item.url));
+
+  const items = section.data.images;
+  const displayImages =
+    realProductImages.length > 0
+      ? realProductImages.slice(0, maxItems).map((item, idx) => ({
+          id: `real-prod-img-${idx}`,
+          url: item.url,
+          alt: item.title || `Sản phẩm ${idx + 1}`,
+          title: item.title || "",
+        }))
+      : items.slice(0, maxItems).map((img) => ({
+          id: img.id,
+          url: img.url,
+          alt: img.alt || "",
+          title: "",
+        }));
 
   return (
     <section
@@ -664,18 +711,25 @@ export function GalleryRenderer({
           </h2>
         ) : null}
         <div className={`grid gap-2 sm:gap-3 ${grid}`}>
-          {section.data.images.map((img, i) => (
+          {displayImages.map((img, i) => (
             <div
               key={img.id}
-              className={`group relative aspect-square overflow-hidden rounded-xl bg-gray-100 ${staggerChildClass(i)}`}
+              className={`group relative aspect-square overflow-hidden rounded-xl bg-gray-100 dark:bg-gray-800 ${staggerChildClass(i)}`}
             >
               {img.url ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={img.url}
                   alt={img.alt || ""}
-                  className="canvas-img-zoom h-full w-full object-cover"
+                  className="canvas-img-zoom h-full w-full object-cover transition duration-300 group-hover:scale-105"
                 />
+              ) : null}
+              {img.title ? (
+                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-2.5 opacity-0 transition duration-200 group-hover:opacity-100">
+                  <p className="truncate text-xs font-bold text-white">
+                    {img.title}
+                  </p>
+                </div>
               ) : null}
             </div>
           ))}

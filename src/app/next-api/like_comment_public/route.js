@@ -1,12 +1,12 @@
 import axios from 'axios';
-import { HttpsProxyAgent } from 'https-proxy-agent';
-;
+import { getProxyAgent } from '@/lib/proxy-helper';
+
 export async function POST(req) {
     try {
         // Lấy clientCookie và các tham số phân trang từ body của request
         const { clientCookie, id_comment, csrf, status, proxy } = await req.json();
         const apiUrl = `https://video.zalo.me/v2/public-api/comments/${status}?cmtId=${id_comment}`;
-        const agent = new HttpsProxyAgent(proxy);
+        const agentOptions = getProxyAgent(proxy);
         // Gửi request đến API của Zalo với clientCookie
         const response = await axios.post(apiUrl, {}, // no body content, like in cURL (Content-Length: 0)
             {
@@ -30,8 +30,7 @@ export async function POST(req) {
                     "x-csrf-token": `${csrf}`,
                     'Cookie': `webSession=${clientCookie}`,
                 },
-                httpsAgent: agent,
-                httpAgent: agent,
+                ...agentOptions,
             }
         );
         return new Response(JSON.stringify(response.data), {

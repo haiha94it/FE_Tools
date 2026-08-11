@@ -78,7 +78,9 @@ export default function VideoCreatorView() {
 
   // Nick chưa có kênh → mở dialog HTML từ /api/popup/instructions/get
   useEffect(() => {
-    if (noChannel) setGuideOpen(true);
+    if (!noChannel) return;
+    const timer = window.setTimeout(() => setGuideOpen(true), 0);
+    return () => window.clearTimeout(timer);
   }, [noChannel]);
 
   const fbAccount = accountId ? getDataFbAccount(accountId) : undefined;
@@ -256,35 +258,23 @@ export default function VideoCreatorView() {
               )}
 
               {showWorkspace && channelInfo && (
-                <>
+                <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
                   <VideoCreatorChannelBar
                     accountId={accountId}
                     channelInfo={channelInfo}
                   />
+                  {/*
+                    Body workspace: nav + content.
+                    Main luôn overflow-y-auto — viewer video dùng Modal
+                    (không nhét nested overflow-hidden dễ vỡ flex).
+                  */}
                   <div className="flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row">
                     <VideoCreatorNav accountId={accountId} />
-                    {/*
-                      video-manager: overflow-hidden + flex chain —
-                      chi tiết video tự cuộn comment, không vỡ layout.
-                      tab khác: overflow-y-auto như trước.
-                    */}
-                    <main
-                      className={
-                        tab === "video-manager"
-                          ? "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-gray-50/60 dark:bg-black/10"
-                          : "custom-scrollbar min-h-0 min-w-0 flex-1 overflow-y-auto bg-gray-50/60 p-4 dark:bg-black/10 sm:p-5"
-                      }
-                    >
-                      {tab === "video-manager" ? (
-                        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-                          {panel}
-                        </div>
-                      ) : (
-                        panel
-                      )}
+                    <main className="custom-scrollbar min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain bg-gray-50/60 p-3 dark:bg-black/10 sm:p-4 md:p-5">
+                      {panel}
                     </main>
                   </div>
-                </>
+                </div>
               )}
             </div>
           )}

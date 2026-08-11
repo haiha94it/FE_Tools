@@ -9,6 +9,8 @@
 
 "use client";
 
+import type { ShopProduct } from "@/types/zalo-shop";
+import { shopImageUrl } from "@/lib/shop-utils";
 import InlineEditable from "@/components/shop-admin/layout-canvas/InlineEditable";
 import type {
   LayoutSection,
@@ -34,10 +36,12 @@ function isFullBleedWidth(preset: LayoutWidthPreset): boolean {
 export default function HeroRenderer({
   section,
   theme,
+  products,
   className = "",
   inlineEdit = false,
   onPatchData,
 }: SectionRendererProps<Extract<LayoutSection, { type: "HERO" }>> & {
+  products?: ShopProduct[];
   inlineEdit?: boolean;
   onPatchData?: (partial: Record<string, unknown>) => void;
 }) {
@@ -46,15 +50,24 @@ export default function HeroRenderer({
   const variant = data.heroVariant ?? "banner";
   const fullBleed = isFullBleedWidth(widthPreset);
 
+  const realProdImg =
+    products && products.length > 0 && products[0]?.images?.[0]
+      ? shopImageUrl(products[0].images[0])
+      : null;
+
   const mediaUrl =
     data.mediaType === "none"
       ? null
       : data.mediaUrl?.trim() ||
         theme?.coverImageUrl?.trim() ||
+        realProdImg ||
         FALLBACK_HERO_IMG;
 
   const title =
-    data.title?.trim() || theme?.heroTitle?.trim() || "Hero title";
+    data.title?.trim() ||
+    theme?.heroTitle?.trim() ||
+    (products && products[0]?.title) ||
+    "Hero title";
   const subtitle =
     data.subtitle?.trim() || theme?.heroSubtitle?.trim() || "";
   const ctaText =
@@ -87,12 +100,12 @@ export default function HeroRenderer({
 
   const padY =
     styling.paddingY === "none"
-      ? "py-10 sm:py-14"
+      ? "py-5 sm:py-6"
       : styling.paddingY === "compact"
-        ? "py-8 sm:py-10"
+        ? "py-6 sm:py-8"
         : styling.paddingY === "spacious" || styling.paddingY === "hero"
-          ? "py-16 sm:py-24"
-          : "py-12 sm:py-16";
+          ? "py-12 sm:py-16"
+          : "py-8 sm:py-10";
 
   const round = radiusClass(styling.radius);
 
@@ -218,20 +231,24 @@ export default function HeroRenderer({
   }
 
   // ── BOXED / NARROW / GRID_*: visual nằm trong khung max-w + gutter ──
-  // Outer chỉ spacing dọc — KHÔNG full-bleed bg
+  const outerPadY =
+    styling.paddingY === "spacious" || styling.paddingY === "hero"
+      ? "py-6 sm:py-8"
+      : styling.paddingY === "compact"
+        ? "py-2 sm:py-3"
+        : styling.paddingY === "none"
+          ? "py-0"
+          : "py-4 sm:py-6";
+
   return (
     <section
-      className={`relative w-full ${spacingYClass(styling.paddingY === "none" ? "normal" : styling.paddingY)} ${hide} ${className}`}
+      className={`relative w-full ${outerPadY} ${hide} ${className}`}
       data-section-type="HERO"
       data-section-id={section.id}
       data-width-preset={widthPreset}
     >
-      <div className={`${buildWidthFrameClass(widthPreset)} w-full`}>
-        {/*
-          Frame đã có px gutter. Visual fill 100% content box bên trong gutter
-          → mép hero thẳng với Header/Grid cùng Boxed model.
-        */}
-        <div className="-mx-0 w-full">{visual}</div>
+      <div className={`${buildWidthFrameClass(widthPreset)} h-full w-full`}>
+        <div className="-mx-0 h-full w-full">{visual}</div>
       </div>
     </section>
   );

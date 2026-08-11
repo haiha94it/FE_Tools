@@ -38,7 +38,8 @@ import {
   radiusClass,
   type SectionRendererProps,
 } from "./section-style-utils";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
+import { toast } from "@/lib/toast";
 
 export type SectionRendererExtraProps = {
   /** Toàn bộ SP shop (đã load). Rỗng → renderer dùng demo. */
@@ -48,6 +49,7 @@ export type SectionRendererExtraProps = {
   /** Link SP storefront */
   getProductHref?: (productId: number) => string;
   onProductClick?: (productId: number) => void;
+  onCartClick?: () => void;
   /** Stagger delay 0–11 cho scroll reveal */
   motionIndex?: number;
   /** Animate ngay khi mount (builder) thay vì chờ IO */
@@ -427,6 +429,211 @@ function AnnouncementRenderer({
   );
 }
 
+function LeadFormRenderer({
+  section,
+  theme,
+  className = "",
+}: SectionRendererProps<Extract<LayoutSection, { type: "LEAD_FORM" }>>) {
+  const shell = buildSectionShellClasses(section.styling);
+  const accent = theme?.accentColor ?? "#0071E3";
+  const [submitted, setSubmitted] = useState(false);
+
+  return (
+    <section
+      className={`${shell.className} ${className}`}
+      style={shell.style}
+      data-section-type="LEAD_FORM"
+      data-section-id={section.id}
+    >
+      <div className={`${buildWidthFrameClass(section.widthPreset)} max-w-xl mx-auto py-4`}>
+        <div className="text-center mb-6">
+          <h3 className="text-xl font-bold sm:text-2xl">{section.data.title}</h3>
+          {section.data.subtitle ? (
+            <p className="mt-1 text-sm opacity-80">{section.data.subtitle}</p>
+          ) : null}
+        </div>
+
+        {submitted ? (
+          <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/30 p-6 text-center text-emerald-600 dark:text-emerald-400">
+            <p className="font-semibold text-sm">✓ {section.data.successMessage || "Đã gửi thông tin thành công!"}</p>
+          </div>
+        ) : (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              setSubmitted(true);
+              toast.success("Đã nhận thông tin tư vấn!");
+            }}
+            className="space-y-3"
+          >
+            {(section.data.fields ?? ["name", "phone", "note"]).includes("name") ? (
+              <input
+                type="text"
+                required
+                placeholder="Họ và tên của bạn"
+                className="w-full rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-2.5 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[color:var(--store-accent)]"
+              />
+            ) : null}
+            {(section.data.fields ?? ["name", "phone", "note"]).includes("phone") ? (
+              <input
+                type="tel"
+                required
+                placeholder="Số điện thoại Zalo *"
+                className="w-full rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-2.5 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[color:var(--store-accent)]"
+              />
+            ) : null}
+            {(section.data.fields ?? ["name", "phone", "note"]).includes("note") ? (
+              <textarea
+                rows={2}
+                placeholder="Sản phẩm / Nhu cầu cần tư vấn…"
+                className="w-full rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-2.5 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[color:var(--store-accent)]"
+              />
+            ) : null}
+            <button
+              type="submit"
+              className="w-full cursor-pointer rounded-xl px-5 py-3 text-sm font-bold text-white shadow-md transition hover:opacity-90 active:scale-[0.99]"
+              style={{ backgroundColor: accent }}
+            >
+              {section.data.buttonText || "Gửi đăng ký ngay"}
+            </button>
+          </form>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function ShortVideoRenderer({
+  section,
+  theme,
+  className = "",
+}: SectionRendererProps<Extract<LayoutSection, { type: "SHORT_VIDEO" }>>) {
+  const shell = buildSectionShellClasses(section.styling);
+  const accent = theme?.accentColor ?? "#0071E3";
+
+  return (
+    <section
+      className={`${shell.className} ${className}`}
+      style={shell.style}
+      data-section-type="SHORT_VIDEO"
+      data-section-id={section.id}
+    >
+      <div className={`${buildWidthFrameClass(section.widthPreset)} max-w-lg mx-auto py-2`}>
+        {section.data.title ? (
+          <div className="text-center mb-3">
+            {section.data.badge ? (
+              <span
+                className="inline-block rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white mb-1"
+                style={{ backgroundColor: accent }}
+              >
+                {section.data.badge}
+              </span>
+            ) : null}
+            <h3 className="text-lg font-bold sm:text-xl">{section.data.title}</h3>
+            {section.data.subtitle ? (
+              <p className="text-xs opacity-75">{section.data.subtitle}</p>
+            ) : null}
+          </div>
+        ) : null}
+        <div className="relative aspect-[9/16] w-full overflow-hidden rounded-2xl bg-black shadow-xl">
+          <video
+            src={section.data.videoUrl}
+            poster={section.data.coverImageUrl}
+            autoPlay={section.data.autoplay !== false}
+            loop
+            muted
+            playsInline
+            controls
+            className="h-full w-full object-cover"
+          />
+          {section.data.ctaText ? (
+            <div className="absolute bottom-4 inset-x-4 z-10 flex justify-center">
+              <a
+                href={section.data.ctaHref || "#products"}
+                className="cursor-pointer rounded-full px-6 py-2.5 text-xs font-bold text-white shadow-lg backdrop-blur-md transition hover:scale-105"
+                style={{ backgroundColor: accent }}
+              >
+                {section.data.ctaText} →
+              </a>
+            </div>
+          ) : null}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function SpinWheelRenderer({
+  section,
+  theme,
+  className = "",
+}: SectionRendererProps<Extract<LayoutSection, { type: "SPIN_WHEEL" }>>) {
+  const shell = buildSectionShellClasses(section.styling);
+  const [spinning, setSpinning] = useState(false);
+  const [wonPrize, setWonPrize] = useState<{ label: string; code: string } | null>(null);
+
+  const prizes = section.data.prizes ?? [];
+
+  const handleSpin = () => {
+    if (spinning || prizes.length === 0) return;
+    setSpinning(true);
+    setTimeout(() => {
+      const random = prizes[Math.floor(Math.random() * prizes.length)];
+      setWonPrize(random);
+      setSpinning(false);
+      toast.success(`🎉 Chúc mừng bạn trúng: ${random.label}! Mã: ${random.code}`);
+    }, 2000);
+  };
+
+  return (
+    <section
+      className={`${shell.className} ${className}`}
+      style={shell.style}
+      data-section-type="SPIN_WHEEL"
+      data-section-id={section.id}
+    >
+      <div className={`${buildWidthFrameClass(section.widthPreset)} text-center py-4`}>
+        <h3 className="text-xl font-black sm:text-2xl">{section.data.title}</h3>
+        {section.data.subtitle ? (
+          <p className="mt-1 text-sm opacity-90">{section.data.subtitle}</p>
+        ) : null}
+
+        <div className="my-6 mx-auto flex flex-col items-center">
+          <div
+            className={`relative flex h-56 w-56 items-center justify-center rounded-full border-4 border-amber-300 shadow-2xl transition-transform duration-[2000ms] ${
+              spinning ? "rotate-[1440deg] ease-out" : ""
+            }`}
+            style={{
+              background: "conic-gradient(#F59E0B 0deg 60deg, #10B981 60deg 120deg, #EF4444 120deg 180deg, #3B82F6 180deg 240deg, #8B5CF6 240deg 300deg, #EC4899 300deg 360deg)",
+            }}
+          >
+            <div className="flex h-20 w-20 items-center justify-center rounded-full border-2 border-amber-200 bg-white shadow-lg dark:bg-stone-900">
+              <span className="text-xs font-extrabold uppercase text-gray-800 dark:text-white">
+                {spinning ? "Đang quay…" : "QUAY"}
+              </span>
+            </div>
+          </div>
+
+          {wonPrize ? (
+            <div className="mt-4 inline-flex items-center gap-2 rounded-xl bg-white/90 px-4 py-2 text-sm font-bold text-stone-900 shadow-lg dark:bg-stone-800 dark:text-white">
+              🎉 Bạn nhận được: <span className="text-amber-600 dark:text-amber-400">{wonPrize.label}</span> (Mã: <code className="rounded bg-gray-200 px-1 py-0.5 dark:bg-gray-700">{wonPrize.code}</code>)
+            </div>
+          ) : null}
+
+          <button
+            type="button"
+            disabled={spinning}
+            onClick={handleSpin}
+            className="mt-5 cursor-pointer rounded-full bg-white px-8 py-3 text-sm font-black text-stone-900 shadow-xl transition hover:scale-105 active:scale-95 disabled:opacity-50"
+          >
+            {spinning ? "Đang quay may mắn…" : section.data.buttonText || "Quay Ngay Mới Đơn"}
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export default function SectionRenderer({
   section,
   theme,
@@ -434,6 +641,7 @@ export default function SectionRenderer({
   categories,
   getProductHref,
   onProductClick,
+  onCartClick,
   className,
   motionIndex = 0,
   motionImmediate = false,
@@ -457,6 +665,7 @@ export default function SectionRenderer({
           theme={theme}
           className={className}
           previewMode={previewMode}
+          onCartClick={onCartClick}
         />
       );
       break;
@@ -465,6 +674,7 @@ export default function SectionRenderer({
         <HeroRenderer
           section={section}
           theme={theme}
+          products={products}
           className={className}
           inlineEdit={inlineEdit}
           onPatchData={onPatchData}
@@ -559,6 +769,7 @@ export default function SectionRenderer({
         <EditorialRenderer
           section={section}
           theme={theme}
+          products={products}
           className={className}
         />
       );
@@ -643,6 +854,7 @@ export default function SectionRenderer({
         <GalleryRenderer
           section={section}
           theme={theme}
+          products={products}
           className={className}
         />
       );
@@ -664,6 +876,33 @@ export default function SectionRenderer({
     case "NEWSLETTER":
       body = (
         <NewsletterRenderer
+          section={section}
+          theme={theme}
+          className={className}
+        />
+      );
+      break;
+    case "LEAD_FORM":
+      body = (
+        <LeadFormRenderer
+          section={section}
+          theme={theme}
+          className={className}
+        />
+      );
+      break;
+    case "SHORT_VIDEO":
+      body = (
+        <ShortVideoRenderer
+          section={section}
+          theme={theme}
+          className={className}
+        />
+      );
+      break;
+    case "SPIN_WHEEL":
+      body = (
+        <SpinWheelRenderer
           section={section}
           theme={theme}
           className={className}
@@ -719,6 +958,7 @@ export default function SectionRenderer({
       section.data.position === "fixed");
 
   const forceNoMotion =
+    previewMode ||
     motionDisabled ||
     section.type === "HEADER" ||
     section.type === "SPACER" ||

@@ -3,8 +3,7 @@
  * như tab Kéo thả Canvas (/shop/theme).
  */
 
-"use client";
-
+import { useShopCartStore } from "@/stores/use-shop-cart-store";
 import SectionMotion from "@/components/shop-admin/layout-canvas/SectionMotion";
 import SectionRenderer from "@/components/shop-admin/layout-canvas/renderers/SectionRenderer";
 import type { LayoutRenderTheme } from "@/components/shop-admin/layout-canvas/renderers/section-style-utils";
@@ -32,6 +31,8 @@ export default function CustomCanvasLayout({
   loading,
   onQuickView,
 }: StorefrontLayoutProps) {
+  const openCart = useShopCartStore((s) => s.openCart);
+
   const sections = useMemo(
     () => resolveLayoutCanvas(config).sections.filter((s) => s.enabled),
     [config],
@@ -133,6 +134,7 @@ export default function CustomCanvasLayout({
             theme={theme}
             getProductHref={getProductHref}
             onProductClick={onProductClick}
+            onCartClick={openCart}
             motionIndex={Math.min(index, 11)}
           />
         );

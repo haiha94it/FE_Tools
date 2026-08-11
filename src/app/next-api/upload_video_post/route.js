@@ -1,7 +1,7 @@
 // File: app/api/upload_video_post/route.js
 
 import { NextResponse } from 'next/server';
-import { HttpsProxyAgent } from 'https-proxy-agent';
+import { getProxyAgent } from '@/lib/proxy-helper';
 import axios from 'axios';
 
 // Define allowed MIME types for videos
@@ -37,7 +37,7 @@ export async function POST(req) {
         apiFormData.append('video', videoFile);
 
         // Make request to Zalo API
-        const agent = new HttpsProxyAgent(proxy);
+        const agentOptions = getProxyAgent(proxy);
         const zaloResponse = await axios.post('https://video.zalo.me/upload-api/video', apiFormData, {
             headers: {
                 accept: 'application/json, text/plain, */*',
@@ -51,7 +51,7 @@ export async function POST(req) {
                 'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36 Edg/126.0.0.0',
                 cookie: `webSession=${clientCookie}`,
             },
-            httpsAgent: agent,
+            ...agentOptions,
             maxBodyLength: Infinity,
         });
         return NextResponse.json({ success: true, data: zaloResponse.data.data }, { status: 200 });

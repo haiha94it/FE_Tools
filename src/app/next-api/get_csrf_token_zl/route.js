@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { HttpsProxyAgent } from 'https-proxy-agent';
+import { getProxyAgent } from '@/lib/proxy-helper';
 
 function jsonResponse(body, status = 200) {
     // Luôn body JSON string — tránh Response(undefined) → body rỗng → FE .json() crash
@@ -44,7 +44,7 @@ export async function POST(req) {
 
         // Proxy optional — admin/bypass hoặc nick chưa gán proxy không được crash route
         if (proxy && typeof proxy === 'string' && proxy.trim()) {
-            const agent = new HttpsProxyAgent(proxy.trim());
+            const agentOptions = getProxyAgent(proxy);
             axiosConfig.httpsAgent = agent;
             axiosConfig.httpAgent = agent;
         }

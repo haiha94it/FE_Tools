@@ -98,6 +98,9 @@ export type LayoutSectionType =
   | "LOGO_CLOUD"
   | "FAQ"
   | "NEWSLETTER"
+  | "LEAD_FORM"
+  | "SHORT_VIDEO"
+  | "SPIN_WHEEL"
   | "SPACER"
   | "DIVIDER"
   /** Container rỗng — chứa thành phần con bên trong */
@@ -206,6 +209,8 @@ export interface LayoutFlexGridConfig {
   };
 }
 
+export type LayoutMarginPreset = "none" | "compact" | "normal" | "spacious" | "large";
+
 export interface LayoutSectionStyling {
   bgPreset: LayoutBgPreset;
   /** Chỉ dùng khi bgPreset === "custom" */
@@ -213,6 +218,7 @@ export interface LayoutSectionStyling {
   textTone: LayoutTextTone;
   paddingY: LayoutSpacingPreset;
   paddingX: LayoutSpacingPreset;
+  marginY?: LayoutMarginPreset;
   radius: LayoutRadiusPreset;
   /**
    * Shadow / elevation (legacy field `elevation` giữ tương thích).
@@ -427,6 +433,7 @@ export interface LayoutStatsData {
 export interface LayoutGalleryData {
   title?: string;
   columns?: 2 | 3 | 4;
+  maxItems?: number;
   images: Array<{
     id: string;
     url: string;
@@ -461,6 +468,32 @@ export interface LayoutNewsletterData {
   buttonText?: string;
   /** Hint only — FE không gửi mail thật trong canvas */
   successHint?: string;
+}
+
+export interface LayoutLeadFormData {
+  title: string;
+  subtitle?: string;
+  fields?: ("name" | "phone" | "note")[];
+  buttonText: string;
+  successMessage?: string;
+}
+
+export interface LayoutShortVideoData {
+  title?: string;
+  subtitle?: string;
+  videoUrl: string;
+  coverImageUrl?: string;
+  badge?: string;
+  ctaText?: string;
+  ctaHref?: string;
+  autoplay?: boolean;
+}
+
+export interface LayoutSpinWheelData {
+  title: string;
+  subtitle?: string;
+  prizes: { id: string; label: string; code: string; color?: string }[];
+  buttonText: string;
 }
 
 export interface LayoutSpacerData {
@@ -581,6 +614,9 @@ export type LayoutSectionDataByType = {
   LOGO_CLOUD: LayoutLogoCloudData;
   FAQ: LayoutFaqData;
   NEWSLETTER: LayoutNewsletterData;
+  LEAD_FORM: LayoutLeadFormData;
+  SHORT_VIDEO: LayoutShortVideoData;
+  SPIN_WHEEL: LayoutSpinWheelData;
   SPACER: LayoutSpacerData;
   DIVIDER: LayoutDividerData;
   CONTAINER: LayoutContainerData;

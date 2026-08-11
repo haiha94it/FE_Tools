@@ -1,6 +1,6 @@
 import axios from 'axios';
 import https from 'https';
-import { HttpsProxyAgent } from 'https-proxy-agent';
+import { getProxyAgent } from '@/lib/proxy-helper';
 const agent = new https.Agent({
     rejectUnauthorized: false, // Tắt SSL check (chỉ nên dùng cho debug/dev)
 });
@@ -11,7 +11,7 @@ export async function POST(req) {
         let allData = [];
         let lastIndex = 0;
         const limitPerCall = 20; // tùy theo Zalo trả mỗi lần bao nhiêu phần tử, điều chỉnh nếu biết rõ
-        const agent = new HttpsProxyAgent(proxy);
+        const agentOptions = getProxyAgent(proxy);
         while (true) {
             const url = `https://video.zalo.me/v2/public-api/playlist/list?type=0&title=&lastIndex=${lastIndex}`;
             const response = await axios.get(url, {
@@ -32,8 +32,7 @@ export async function POST(req) {
                     'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36 Edg/126.0.0.0',
                     'Cookie': `webSession=${clientCookie}`,
                 },
-                httpsAgent: agent,
-                httpAgent: agent,
+                ...agentOptions,
             });
 
             const data = response.data;

@@ -111,11 +111,7 @@ export default function StorefrontHome({ sellerId }: StorefrontHomeProps) {
       products={products}
       personalization={config}
     >
-      {isPreview ? (
-        <div className="sticky top-0 z-[100] bg-amber-500 px-3 py-1.5 text-center text-[11px] font-bold text-white shadow">
-          PREVIEW bản nháp từ Builder — chưa lưu server
-        </div>
-      ) : null}
+
       <StorefrontLayoutRouter
         sellerId={sellerId}
         cover={cover}

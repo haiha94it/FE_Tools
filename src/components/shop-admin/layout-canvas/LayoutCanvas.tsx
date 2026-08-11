@@ -12,6 +12,8 @@
 
 "use client";
 
+import { toast } from "@/lib/toast";
+
 import {
   DragDropContext,
   Draggable,
@@ -25,6 +27,7 @@ import {
   type DroppableStateSnapshot,
 } from "@hello-pangea/dnd";
 import {
+  deleteSectionDeep,
   findSectionDeep,
   updateSectionDeep,
 } from "@/lib/layout-canvas-nested";
@@ -37,10 +40,12 @@ import {
 } from "@/lib/shop-layout-canvas";
 import type {
   LayoutSection,
+  LayoutSectionStyling,
   LayoutSectionType,
 } from "@/types/shop-layout-canvas";
 import type { ShopCategory, ShopProduct } from "@/types/zalo-shop";
-import {
+import React, {
+  Component,
   useCallback,
   useEffect,
   useId,
@@ -52,6 +57,8 @@ import {
 import {
   FiChevronDown,
   FiChevronUp,
+  FiCode,
+  FiCommand,
   FiCopy,
   FiEye,
   FiEyeOff,
@@ -65,10 +72,15 @@ import {
   FiSearch,
   FiSmartphone,
   FiTrash2,
+  FiZap,
 } from "react-icons/fi";
 import { getSectionTypeBadge, getSectionTypeLabel } from "./section-cards";
 import SectionRenderer from "./renderers/SectionRenderer";
 import type { LayoutRenderTheme } from "./renderers/section-style-utils";
+import PageTemplateModal from "./PageTemplateModal";
+import QRCodePreviewModal from "./QRCodePreviewModal";
+import KeyboardShortcutsModal from "./KeyboardShortcutsModal";
+import AiUiImporterModal from "./AiUiImporterModal";
 
 /* ─────────────────────────────────────────────────────────────
  * Public API
@@ -648,6 +660,35 @@ interface CanvasBlockProps {
   onSelectTreeSection?: (id: string) => void;
 }
 
+class CanvasBlockErrorBoundary extends Component<
+  { children: ReactNode; label: string },
+  { hasError: boolean }
+> {
+  constructor(props: { children: ReactNode; label: string }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error("CanvasBlockErrorBoundary error:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="my-2 rounded-lg border border-red-200 bg-red-50 p-4 text-center text-xs text-red-600 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-400">
+          Không thể hiển thị khối "{this.props.label}".
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 function CanvasBlock({
   section,
   index,
@@ -858,30 +899,32 @@ function CanvasBlock({
                 "pointer-events-auto select-text"
               }
             >
-              <SectionRenderer
-                section={{ ...section, enabled: true }}
-                products={products}
-                categories={categories}
-                theme={theme}
-                motionIndex={Math.min(index, 11)}
-                motionImmediate
-                previewMode
-                inlineEdit={
-                  (treeActiveSectionId === section.id || isActive) &&
-                  !section.editorLocked
-                }
-                onPatchData={(partial) =>
-                  onPatchSectionData?.(
-                    treeActiveSectionId &&
-                      treeActiveSectionId !== section.id
-                      ? treeActiveSectionId
-                      : section.id,
-                    partial,
-                  )
-                }
-                activeSectionId={treeActiveSectionId ?? null}
-                onSelectSection={onSelectTreeSection}
-              />
+              <CanvasBlockErrorBoundary key={section.id} label={label}>
+                <SectionRenderer
+                  section={{ ...section, enabled: true }}
+                  products={products}
+                  categories={categories}
+                  theme={theme}
+                  motionIndex={Math.min(index, 11)}
+                  motionImmediate
+                  previewMode
+                  inlineEdit={
+                    (treeActiveSectionId === section.id || isActive) &&
+                    !section.editorLocked
+                  }
+                  onPatchData={(partial) =>
+                    onPatchSectionData?.(
+                      treeActiveSectionId &&
+                        treeActiveSectionId !== section.id
+                        ? treeActiveSectionId
+                        : section.id,
+                      partial,
+                    )
+                  }
+                  activeSectionId={treeActiveSectionId ?? null}
+                  onSelectSection={onSelectTreeSection}
+                />
+              </CanvasBlockErrorBoundary>
             </div>
           </div>
 
@@ -939,48 +982,57 @@ export default function LayoutCanvas({
     [deviceControlled, onDevicePreviewChange],
   );
 
+  const [copiedStyling, setCopiedStyling] = useState<LayoutSectionStyling | null>(null);
+  const [templateModalOpen, setTemplateModalOpen] = useState(false);
+  const [qrModalOpen, setQrModalOpen] = useState(false);
+  const [shortcutsModalOpen, setShortcutsModalOpen] = useState(false);
+  const [aiImporterOpen, setAiImporterOpen] = useState(false);
+
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [dragFromIndex, setDragFromIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [canvasExternalDragOver, setCanvasExternalDragOver] = useState(false);
+  const [canvasDropTargetIndex, setCanvasDropTargetIndex] = useState<number | null>(null);
 
-  const pastRef = useRef<LayoutSection[][]>([]);
-  const futureRef = useRef<LayoutSection[][]>([]);
-  const [historyTick, setHistoryTick] = useState(0);
+  const [past, setPast] = useState<LayoutSection[][]>([]);
+  const [future, setFuture] = useState<LayoutSection[][]>([]);
   const sectionsRef = useRef(sections);
-  sectionsRef.current = sections;
 
-  const canUndo = pastRef.current.length > 0;
-  const canRedo = futureRef.current.length > 0;
-  void historyTick;
+  useEffect(() => {
+    sectionsRef.current = sections;
+  }, [sections]);
+
+  const canUndo = past.length > 0;
+  const canRedo = future.length > 0;
 
   const commit = useCallback(
     (next: LayoutSection[]) => {
       if (sectionsShallowEqual(sectionsRef.current, next)) return;
-      pastRef.current = [
-        ...pastRef.current.slice(-(HISTORY_LIMIT - 1)),
-        sectionsRef.current,
-      ];
-      futureRef.current = [];
-      setHistoryTick((t) => t + 1);
+      setPast((prev) => [...prev.slice(-(HISTORY_LIMIT - 1)), sectionsRef.current]);
+      setFuture([]);
       onSectionsChange(next);
     },
     [onSectionsChange],
   );
 
   const undo = useCallback(() => {
-    const prev = pastRef.current.pop();
-    if (!prev) return;
-    futureRef.current.push(sectionsRef.current);
-    setHistoryTick((t) => t + 1);
-    onSectionsChange(prev);
+    setPast((prevPast) => {
+      if (prevPast.length === 0) return prevPast;
+      const prev = prevPast[prevPast.length - 1];
+      setFuture((prevFuture) => [sectionsRef.current, ...prevFuture]);
+      onSectionsChange(prev);
+      return prevPast.slice(0, -1);
+    });
   }, [onSectionsChange]);
 
   const redo = useCallback(() => {
-    const next = futureRef.current.pop();
-    if (!next) return;
-    pastRef.current.push(sectionsRef.current);
-    setHistoryTick((t) => t + 1);
-    onSectionsChange(next);
+    setFuture((prevFuture) => {
+      if (prevFuture.length === 0) return prevFuture;
+      const next = prevFuture[0];
+      setPast((prevPast) => [...prevPast, sectionsRef.current]);
+      onSectionsChange(next);
+      return prevFuture.slice(1);
+    });
   }, [onSectionsChange]);
 
   const patchSection = useCallback(
@@ -1016,17 +1068,16 @@ export default function LayoutCanvas({
 
   const handleDelete = useCallback(
     (id: string) => {
-      const target = sectionsRef.current.find((s) => s.id === id);
+      const list = sectionsRef.current;
+      const target = findSectionDeep(list, id);
       if (!target || target.locked) return;
-      if (
-        typeof window !== "undefined" &&
-        !window.confirm(`Xóa khối “${getSectionTypeLabel(target.type)}”?`)
-      ) {
-        return;
-      }
-      const next = sectionsRef.current.filter((s) => s.id !== id);
+      const label = getSectionTypeLabel(target.type);
+      const next = deleteSectionDeep(list, id);
       commit(next);
-      if (activeSectionId === id) onSelectSection(next[0]?.id ?? null);
+      if (activeSectionId === id || (activeSectionId && !findSectionDeep(next, activeSectionId))) {
+        onSelectSection(null);
+      }
+      toast.success(`Đã xóa khối “${label}”`);
     },
     [commit, activeSectionId, onSelectSection],
   );
@@ -1077,6 +1128,64 @@ export default function LayoutCanvas({
     [commit, onSelectSection, activeSectionId],
   );
 
+  const handleCanvasDragOver = useCallback((e: React.DragEvent) => {
+    const types = Array.from(e.dataTransfer.types);
+    const isBlockDrag =
+      types.includes(LAYOUT_BLOCK_DND_MIME) || types.includes("text/plain");
+    if (!isBlockDrag) return;
+
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+    setCanvasExternalDragOver(true);
+
+    if (rootRef.current) {
+      const blocks = Array.from(
+        rootRef.current.querySelectorAll<HTMLElement>("[data-block-id]"),
+      );
+      if (blocks.length === 0) {
+        setCanvasDropTargetIndex(0);
+        return;
+      }
+      const mouseY = e.clientY;
+      let targetIdx = blocks.length;
+      for (let i = 0; i < blocks.length; i++) {
+        const rect = blocks[i].getBoundingClientRect();
+        const midY = rect.top + rect.height / 2;
+        if (mouseY < midY) {
+          targetIdx = i;
+          break;
+        }
+      }
+      setCanvasDropTargetIndex(targetIdx);
+    }
+  }, []);
+
+  const handleCanvasDragLeave = useCallback((e: React.DragEvent) => {
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      setCanvasExternalDragOver(false);
+      setCanvasDropTargetIndex(null);
+    }
+  }, []);
+
+  const handleCanvasDrop = useCallback(
+    (e: React.DragEvent) => {
+      const type =
+        e.dataTransfer.getData(LAYOUT_BLOCK_DND_MIME) ||
+        e.dataTransfer.getData("text/plain");
+
+      const targetIdx = canvasDropTargetIndex;
+      setCanvasExternalDragOver(false);
+      setCanvasDropTargetIndex(null);
+
+      if (type && LAYOUT_SECTION_TYPE_META.some((m) => m.type === type)) {
+        e.preventDefault();
+        e.stopPropagation();
+        handleAdd(type as LayoutSectionType, targetIdx ?? undefined);
+      }
+    },
+    [canvasDropTargetIndex, handleAdd],
+  );
+
   const handleDragStart = useCallback((start: DragStart) => {
     setDragFromIndex(start.source.index);
     setDragOverIndex(start.source.index);
@@ -1119,6 +1228,26 @@ export default function LayoutCanvas({
       const mod = e.metaKey || e.ctrlKey;
       const key = e.key.toLowerCase();
 
+      if (mod && key === "s") {
+        e.preventDefault();
+        toast.success("Đã tự động sao lưu bản nháp!");
+        return;
+      }
+      if (mod && e.altKey && key === "c" && activeSectionId) {
+        e.preventDefault();
+        const target = findSectionDeep(sectionsRef.current, activeSectionId);
+        if (target) {
+          setCopiedStyling(target.styling);
+          toast.success(`Đã sao chép kiểu dáng khối “${getSectionTypeLabel(target.type)}”`);
+        }
+        return;
+      }
+      if (mod && e.altKey && key === "v" && activeSectionId && copiedStyling) {
+        e.preventDefault();
+        patchSection(activeSectionId, { styling: copiedStyling });
+        toast.success("Đã dán kiểu dáng khối thành công!");
+        return;
+      }
       if (mod && key === "z" && !e.shiftKey) {
         e.preventDefault();
         undo();
@@ -1274,6 +1403,43 @@ export default function LayoutCanvas({
         </div>
 
         <div className="flex items-center gap-0.5">
+          {/* Tạm ẩn tính năng AI Importer */}
+          {/* <button
+            type="button"
+            onClick={() => setAiImporterOpen(true)}
+            className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-gradient-to-r from-amber-500 via-purple-600 to-indigo-600 px-2.5 py-1 text-xs font-bold text-white shadow-sm hover:opacity-90 active:scale-95 transition mr-1"
+          >
+            <FiZap className="h-3.5 w-3.5 animate-pulse text-amber-200" />
+            <span className="hidden sm:inline">🪄 AI Importer</span>
+          </button> */}
+
+          <TopBarBtn
+            label="Mẫu trang"
+            onClick={() => setTemplateModalOpen(true)}
+          >
+            <FiZap className="h-3.5 w-3.5 text-amber-400" />
+            <span className="hidden md:inline">Mẫu trang</span>
+          </TopBarBtn>
+
+          <span className="mx-1 hidden h-4 w-px bg-white/15 sm:block" />
+
+          <TopBarBtn
+            label="Xem QR Zalo"
+            onClick={() => setQrModalOpen(true)}
+          >
+            <FiCode className="h-3.5 w-3.5 text-blue-400" />
+            <span className="hidden md:inline">Xem QR</span>
+          </TopBarBtn>
+
+          <TopBarBtn
+            label="Phím tắt"
+            onClick={() => setShortcutsModalOpen(true)}
+          >
+            <FiCommand className="h-3.5 w-3.5 text-purple-400" />
+          </TopBarBtn>
+
+          <span className="mx-1 hidden h-4 w-px bg-white/15 sm:block" />
+
           <TopBarBtn
             label="Desktop"
             active={device === "desktop"}
@@ -1327,10 +1493,20 @@ export default function LayoutCanvas({
 
         {/* Canvas workspace */}
         <div
-          className="custom-scrollbar relative min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain"
+          className={`custom-scrollbar relative min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain transition-all duration-200 ${
+            canvasExternalDragOver ? "ring-4 ring-inset ring-[color:var(--wp-blue)]/50 bg-blue-50/20" : ""
+          }`}
           style={{ backgroundColor: "#f0f0f0" }}
           onClick={() => onSelectSection(null)}
+          onDragOver={handleCanvasDragOver}
+          onDragLeave={handleCanvasDragLeave}
+          onDrop={handleCanvasDrop}
         >
+          {canvasExternalDragOver ? (
+            <div className="sticky top-3 z-50 mx-auto my-2 max-w-sm rounded-xl bg-[color:var(--wp-blue)] px-4 py-2.5 text-center text-xs font-bold text-white shadow-xl animate-pulse backdrop-blur-md">
+              ✨ Thả khối vào đây để thêm vào vị trí {canvasDropTargetIndex !== null ? canvasDropTargetIndex + 1 : "cuối"}
+            </div>
+          ) : null}
           <div
             className={
               device === "desktop"
@@ -1502,6 +1678,37 @@ export default function LayoutCanvas({
           </div>
         </div>
       </div>
+
+      {/* ═══ Modals ═══ */}
+      <PageTemplateModal
+        isOpen={templateModalOpen}
+        onClose={() => setTemplateModalOpen(false)}
+        onApplyTemplate={(nextSections, tName) => {
+          commit(nextSections);
+          onSelectSection(nextSections[0]?.id ?? null);
+          toast.success(`Đã áp dụng mẫu trang “${tName}”!`);
+        }}
+      />
+
+      <QRCodePreviewModal
+        isOpen={qrModalOpen}
+        onClose={() => setQrModalOpen(false)}
+      />
+
+      <KeyboardShortcutsModal
+        isOpen={shortcutsModalOpen}
+        onClose={() => setShortcutsModalOpen(false)}
+      />
+
+      <AiUiImporterModal
+        isOpen={aiImporterOpen}
+        onClose={() => setAiImporterOpen(false)}
+        onImportSections={(importedSections) => {
+          commit(importedSections);
+          onSelectSection(importedSections[0]?.id ?? null);
+          toast.success(`🎉 AI đã thêm ${importedSections.length} khối mới vào Canvas!`);
+        }}
+      />
     </div>
   );
 }

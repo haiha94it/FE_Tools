@@ -13,6 +13,8 @@ import StoreLoading from "@/components/storefront/StoreLoading";
 import StoreProductCard from "@/components/storefront/StoreProductCard";
 import StoreReveal from "@/components/storefront/StoreReveal";
 import StoreShell from "@/components/storefront/StoreShell";
+import SectionRenderer from "@/components/shop-admin/layout-canvas/renderers/SectionRenderer";
+import { resolvePdpLayoutCanvas } from "@/lib/shop-layout-canvas";
 import { resolvePersonalization } from "@/lib/shop-personalization";
 import { isProductActive, shopImageUrl } from "@/lib/shop-utils";
 import { toast } from "@/lib/toast";
@@ -116,6 +118,11 @@ export default function ProductDetailView({
   const pdp: PDPConfig = useMemo(
     () => resolvePDPConfig(shopConfig.pdpTemplateId),
     [shopConfig.pdpTemplateId],
+  );
+
+  const pdpLayoutDoc = useMemo(
+    () => resolvePdpLayoutCanvas(personalization),
+    [personalization],
   );
 
   const displayPrice = useMemo(() => {
@@ -361,6 +368,27 @@ export default function ProductDetailView({
         {mainContent}
         <div className="mt-4">{tabs}</div>
         {relatedBlock}
+
+        {/* Custom Builder Sections for Product Detail Page */}
+        {pdpLayoutDoc.sections.length > 0 ? (
+          <div className="mt-8 space-y-6">
+            {pdpLayoutDoc.sections
+              .filter((sec) => sec.enabled)
+              .map((sec) => (
+                <SectionRenderer
+                  key={sec.id}
+                  section={sec}
+                  theme={{
+                    primaryColor: shopConfig.primaryColor,
+                    accentColor: shopConfig.accentColor,
+                    backgroundColor: shopConfig.backgroundColor,
+                    shopName: cover?.name || "Cửa hàng",
+                  }}
+                  products={related}
+                />
+              ))}
+          </div>
+        ) : null}
       </div>
 
       <ProductStickyBar

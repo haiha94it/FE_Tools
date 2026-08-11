@@ -5,6 +5,8 @@
 
 "use client";
 
+import { toast } from "@/lib/toast";
+
 import LayoutCanvas, {
   type CanvasDevice,
 } from "@/components/shop-admin/layout-canvas/LayoutCanvas";
@@ -22,7 +24,6 @@ import type { LayoutRenderTheme } from "@/components/shop-admin/layout-canvas/re
 import { auditLayoutSections } from "@/lib/layout-canvas-a11y";
 import { getPatternById } from "@/lib/layout-canvas-patterns";
 import {
-  deleteSectionDeep,
   findSectionDeep,
   updateSectionDeep,
 } from "@/lib/layout-canvas-nested";
@@ -40,6 +41,7 @@ import {
 import {
   layoutCanvasToLegacyFields,
   resolveLayoutCanvas,
+  resolvePdpLayoutCanvas,
 } from "@/lib/shop-layout-canvas";
 import type {
   LayoutCanvasDocument,
@@ -85,6 +87,8 @@ export interface ProLayoutBuilderProps {
   dataLoading?: boolean;
   /** Called when dirty for parent save bar */
   onDirty?: () => void;
+  /** Trang đang tạo: "home" | "pdp" */
+  targetPage?: "home" | "pdp";
 }
 
 const HISTORY_LIMIT = 40;
@@ -99,6 +103,7 @@ export default function ProLayoutBuilder({
   theme,
   dataLoading,
   onDirty,
+  targetPage = "home",
 }: ProLayoutBuilderProps) {
   const [activeSectionId, setActiveSectionId] = useState<string | null>(null);
   const [leftTab, setLeftTab] = useState<LeftTab>("inserter");
@@ -106,30 +111,36 @@ export default function ProLayoutBuilder({
   const [styleDevice, setStyleDevice] = useState<"desktop" | "mobile">(
     "desktop",
   );
-  const [versions, setVersions] = useState<LayoutCanvasVersionMeta[]>([]);
-  const [draftNote, setDraftNote] = useState<string | null>(null);
+  const [versions, setVersions] = useState<LayoutCanvasVersionMeta[]>(() =>
+    typeof window !== "undefined" ? listLayoutVersions(userId) : [],
+  );
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const doc = useMemo(() => resolveLayoutCanvas(draft), [draft]);
+  const doc = useMemo(
+    () =>
+      targetPage === "pdp"
+        ? resolvePdpLayoutCanvas(draft)
+        : resolveLayoutCanvas(draft),
+    [draft, targetPage],
+  );
   const sections = doc.sections;
 
-  const pastRef = useRef<LayoutSection[][]>([]);
-  const futureRef = useRef<LayoutSection[][]>([]);
-  const historyLabels = useRef<
+  const [past, setPast] = useState<LayoutSection[][]>([]);
+  const [future, setFuture] = useState<LayoutSection[][]>([]);
+  const [historyEntries, setHistoryEntries] = useState<
     Array<{ id: string; label: string; at: number }>
   >([]);
-  const [histTick, setHistTick] = useState(0);
-  void histTick;
 
-  useEffect(() => {
-    setVersions(listLayoutVersions(userId));
+  const pastCount = past.length;
+  const futureCount = future.length;
+
+  const [draftNote, setDraftNote] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
     const saved = loadLayoutDraft(userId);
-    if (saved?.savedAt) {
-      setDraftNote(
-        `Draft local: ${new Date(saved.savedAt).toLocaleString("vi-VN")}`,
-      );
-    }
-  }, [userId]);
+    return saved?.savedAt
+      ? `Draft local: ${new Date(saved.savedAt).toLocaleString("vi-VN")}`
+      : null;
+  });
 
   // Auto-save draft
   useEffect(() => {
@@ -142,32 +153,36 @@ export default function ProLayoutBuilder({
 
   const commitDoc = useCallback(
     (nextDoc: LayoutCanvasDocument, label?: string) => {
-      pastRef.current = [
-        ...pastRef.current.slice(-(HISTORY_LIMIT - 1)),
-        sections,
-      ];
-      futureRef.current = [];
+      setPast((prev) => [...prev.slice(-(HISTORY_LIMIT - 1)), sections]);
+      setFuture([]);
       if (label) {
-        historyLabels.current = [
-          {
-            id: `h_${Date.now()}`,
-            label,
-            at: Date.now(),
-          },
-          ...historyLabels.current,
-        ].slice(0, 30);
+        setHistoryEntries((prev) =>
+          [
+            {
+              id: `h_${Date.now()}`,
+              label,
+              at: Date.now(),
+            },
+            ...prev,
+          ].slice(0, 30),
+        );
       }
-      setHistTick((x) => x + 1);
-      const legacy = layoutCanvasToLegacyFields(nextDoc);
-      onDraftChange({
-        layoutCanvas: nextDoc,
-        ...legacy,
-        templateId: "custom-drag-drop",
-        pageLayout: "custom-builder",
-      });
+      if (targetPage === "pdp") {
+        onDraftChange({
+          pdpLayoutCanvas: nextDoc,
+        });
+      } else {
+        const legacy = layoutCanvasToLegacyFields(nextDoc);
+        onDraftChange({
+          layoutCanvas: nextDoc,
+          ...legacy,
+          templateId: "custom-drag-drop",
+          pageLayout: "custom-builder",
+        });
+      }
       onDirty?.();
     },
-    [sections, onDraftChange, onDirty],
+    [sections, onDraftChange, onDirty, targetPage],
   );
 
   const handleSectionsChange = useCallback(
@@ -178,35 +193,39 @@ export default function ProLayoutBuilder({
   );
 
   const undo = useCallback(() => {
-    const prev = pastRef.current.pop();
-    if (!prev) return;
-    futureRef.current.push(sections);
-    setHistTick((x) => x + 1);
-    const nextDoc = { ...doc, sections: prev };
-    const legacy = layoutCanvasToLegacyFields(nextDoc);
-    onDraftChange({
-      layoutCanvas: nextDoc,
-      ...legacy,
-      templateId: "custom-drag-drop",
-      pageLayout: "custom-builder",
+    setPast((prevPast) => {
+      if (prevPast.length === 0) return prevPast;
+      const prev = prevPast[prevPast.length - 1];
+      setFuture((prevFuture) => [sections, ...prevFuture]);
+      const nextDoc = { ...doc, sections: prev };
+      const legacy = layoutCanvasToLegacyFields(nextDoc);
+      onDraftChange({
+        layoutCanvas: nextDoc,
+        ...legacy,
+        templateId: "custom-drag-drop",
+        pageLayout: "custom-builder",
+      });
+      onDirty?.();
+      return prevPast.slice(0, -1);
     });
-    onDirty?.();
   }, [doc, sections, onDraftChange, onDirty]);
 
   const redo = useCallback(() => {
-    const next = futureRef.current.pop();
-    if (!next) return;
-    pastRef.current.push(sections);
-    setHistTick((x) => x + 1);
-    const nextDoc = { ...doc, sections: next };
-    const legacy = layoutCanvasToLegacyFields(nextDoc);
-    onDraftChange({
-      layoutCanvas: nextDoc,
-      ...legacy,
-      templateId: "custom-drag-drop",
-      pageLayout: "custom-builder",
+    setFuture((prevFuture) => {
+      if (prevFuture.length === 0) return prevFuture;
+      const next = prevFuture[0];
+      setPast((prevPast) => [...prevPast, sections]);
+      const nextDoc = { ...doc, sections: next };
+      const legacy = layoutCanvasToLegacyFields(nextDoc);
+      onDraftChange({
+        layoutCanvas: nextDoc,
+        ...legacy,
+        templateId: "custom-drag-drop",
+        pageLayout: "custom-builder",
+      });
+      onDirty?.();
+      return prevFuture.slice(1);
     });
-    onDirty?.();
   }, [doc, sections, onDraftChange, onDirty]);
 
   const handleSectionUpdate = useCallback(
@@ -231,16 +250,10 @@ export default function ProLayoutBuilder({
     (patternId: string) => {
       const pattern = getPatternById(patternId);
       if (!pattern) return;
-      if (
-        !window.confirm(
-          `Chèn pattern “${pattern.name}”? Các khối sẽ được thêm vào cuối canvas.`,
-        )
-      ) {
-        return;
-      }
       const built = pattern.build();
       handleSectionsChange([...sections, ...built]);
       if (built[0]) setActiveSectionId(built[0].id);
+      toast.success(`Đã chèn mẫu “${pattern.name}” vào canvas`);
     },
     [sections, handleSectionsChange],
   );
@@ -345,9 +358,9 @@ export default function ProLayoutBuilder({
       case "history":
         return (
           <HistoryPanel
-            pastCount={pastRef.current.length}
-            futureCount={futureRef.current.length}
-            entries={historyLabels.current}
+            pastCount={pastCount}
+            futureCount={futureCount}
+            entries={historyEntries}
             onUndo={undo}
             onRedo={redo}
             onJump={() => {
@@ -369,17 +382,13 @@ export default function ProLayoutBuilder({
           <VersionsPanel
             versions={versions}
             onSaveVersion={() => {
-              const name = window.prompt(
-                "Tên bản snapshot",
-                `Bản ${new Date().toLocaleString("vi-VN")}`,
-              );
-              if (name === null) return;
+              const name = `Bản snapshot ${new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })} ${new Date().toLocaleDateString("vi-VN")}`;
               setVersions(pushLayoutVersion(userId, name, doc));
+              toast.success(`Đã lưu ${name}`);
             }}
             onRestore={(id) => {
               const v = versions.find((x) => x.id === id);
               if (!v) return;
-              if (!window.confirm(`Khôi phục “${v.name}”?`)) return;
               commitDoc(
                 {
                   ...doc,
@@ -388,6 +397,7 @@ export default function ProLayoutBuilder({
                 },
                 `Khôi phục ${v.name}`,
               );
+              toast.info(`Đã khôi phục “${v.name}”`);
             }}
             onDelete={(id) => setVersions(deleteLayoutVersion(userId, id))}
           />
@@ -470,12 +480,11 @@ export default function ProLayoutBuilder({
             if (!file) return;
             void importLayoutFromFile(file).then((imported) => {
               if (!imported) {
-                window.alert("File không hợp lệ");
+                toast.error("File JSON không hợp lệ. Vui lòng kiểm tra lại!");
                 return;
               }
-              if (!window.confirm("Import sẽ thay toàn bộ canvas hiện tại?"))
-                return;
               commitDoc(imported, "Import JSON");
+              toast.success("Đã import cấu hình layout mới thành công");
             });
             e.target.value = "";
           }}

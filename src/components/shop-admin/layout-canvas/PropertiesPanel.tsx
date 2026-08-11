@@ -1271,6 +1271,19 @@ function ContentFields({
               }
             />
           </div>
+          <div>
+            <FieldLabel>Số lượng ảnh hiển thị</FieldLabel>
+            <SegmentedControl
+              value={String(section.data.maxItems ?? 6)}
+              options={[
+                { value: "3", label: "3 ảnh" },
+                { value: "6", label: "6 ảnh" },
+                { value: "8", label: "8 ảnh" },
+                { value: "12", label: "12 ảnh" },
+              ]}
+              onChange={(v) => patchData({ maxItems: Number(v) })}
+            />
+          </div>
           {section.data.images.map((img, index) => (
             <TextField
               key={img.id}
@@ -2285,29 +2298,51 @@ export default function PropertiesPanel({
           }}
         />
 
-        {/* Spacing */}
-        <PanelSection title="Khoảng đệm (spacing)">
-          <FieldLabel hint="Tight · Normal · Loose">Padding dọc</FieldLabel>
-          <SegmentedControl
-            value={spacingValue}
-            options={SPACING_PRESETS.map((s) => ({
-              value: s.value,
-              label: s.label,
-              hint: s.hint,
-            }))}
-            onChange={(paddingY) =>
-              patchStyling({
-                paddingY,
-                // Đồng bộ X theo Y cho UX đơn giản (có thể tách sau)
-                paddingX:
-                  paddingY === "hero"
-                    ? "normal"
-                    : paddingY === "none"
-                      ? "none"
-                      : paddingY,
-              })
-            }
-          />
+        {/* Spacing & Margin */}
+        <PanelSection title="Khoảng đệm & Lề ngoài">
+          <div className="space-y-3">
+            <div>
+              <FieldLabel hint="Khoảng cách bên trong khối">Padding (Đệm trong)</FieldLabel>
+              <SegmentedControl
+                value={spacingValue}
+                options={SPACING_PRESETS.map((s) => ({
+                  value: s.value,
+                  label: s.label,
+                  hint: s.hint,
+                }))}
+                onChange={(paddingY) =>
+                  patchStyling({
+                    paddingY,
+                    paddingX:
+                      paddingY === "hero"
+                        ? "normal"
+                        : paddingY === "none"
+                          ? "none"
+                          : paddingY,
+                  })
+                }
+              />
+            </div>
+
+            <div>
+              <FieldLabel hint="Khoảng cách giữa khối này với các khối khác">Margin (Lề ngoài)</FieldLabel>
+              <SegmentedControl
+                value={activeStyling.marginY ?? "normal"}
+                options={[
+                  { value: "none", label: "Sát 0px" },
+                  { value: "compact", label: "Gọn" },
+                  { value: "normal", label: "Vừa" },
+                  { value: "spacious", label: "Rộng" },
+                  { value: "large", label: "Lớn" },
+                ]}
+                onChange={(marginY) =>
+                  patchStyling({
+                    marginY: marginY as LayoutSectionStyling["marginY"],
+                  })
+                }
+              />
+            </div>
+          </div>
         </PanelSection>
 
         {/* Effects: animation · shadow · blur · hover · border · radius */}

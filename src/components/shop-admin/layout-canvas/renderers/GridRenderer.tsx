@@ -208,7 +208,7 @@ export default function GridRenderer({
       data-section-id={section.id}
     >
       {/* Width frame: chỉ max-w + gutter — giống mọi section cùng Boxed model */}
-      <div className={`${buildWidthFrameClass(widthPreset)} w-full`}>
+      <div className={`${buildWidthFrameClass(widthPreset)} h-full w-full`}>
         {/* Heading */}
         {(data.title ||
           ("subtitle" in data && data.subtitle) ||

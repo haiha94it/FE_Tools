@@ -88,10 +88,17 @@ export default function StoreReveal({
           io.unobserve(el);
         }
       },
-      { threshold: 0.08, rootMargin },
+      { threshold: 0.01, rootMargin: "200px 0px 200px 0px" },
     );
     io.observe(el);
-    return () => io.disconnect();
+    // Fallback: đảm bảo luôn hiện sau 150ms nếu Observer không trỏ kịp
+    const timer = setTimeout(() => {
+      if (el) el.classList.add("is-visible");
+    }, 150);
+    return () => {
+      clearTimeout(timer);
+      io.disconnect();
+    };
   }, [immediate, rootMargin]);
 
   const classes = [

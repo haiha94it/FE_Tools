@@ -21,6 +21,7 @@ import {
   HiOutlineHeart,
   HiOutlineShare,
   HiOutlineTrash,
+  HiOutlineXMark,
 } from "react-icons/hi2";
 import ZaloHlsPlayer from "./ZaloHlsPlayer";
 
@@ -108,7 +109,7 @@ function StatChip({
   return (
     <Tooltip content={label} side="top">
       <span
-        className="inline-flex items-center gap-1.5 rounded-lg bg-gray-50 px-2 py-1 text-xs font-semibold tabular-nums text-gray-700 dark:bg-white/[0.04] dark:text-gray-200"
+        className="inline-flex items-center gap-1.5 rounded-lg bg-gray-100 px-2 py-1 text-xs font-semibold tabular-nums text-gray-700 dark:bg-white/[0.06] dark:text-gray-200"
         aria-label={`${label}: ${value.toLocaleString("vi-VN")}`}
       >
         <span className="text-gray-400" aria-hidden>
@@ -120,6 +121,11 @@ function StatChip({
   );
 }
 
+/**
+ * Viewer chi tiết video — thiết kế cho modal fixed-height.
+ * Desktop: player | sidebar comments
+ * Mobile: player trên (chiều cao cố định), comments dưới (scroll)
+ */
 export default function VideoAnalyticsDetail({
   accountId,
   video,
@@ -142,7 +148,6 @@ export default function VideoAnalyticsDetail({
 
   useEffect(() => {
     let cancelled = false;
-    // setTimeout: tránh setState đồng bộ trong effect (react-hooks/set-state-in-effect)
     const timer = window.setTimeout(() => {
       if (cancelled) return;
       setLoading(true);
@@ -218,7 +223,6 @@ export default function VideoAnalyticsDetail({
 
   const onCommentsScroll = useCallback(
     (e: React.UIEvent<HTMLDivElement>) => {
-      e.stopPropagation();
       const el = e.currentTarget;
       const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
       if (nearBottom) void loadMoreComments();
@@ -263,10 +267,7 @@ export default function VideoAnalyticsDetail({
             isLikedByAuthor: !c.isLikedByAuthor,
             likeCount: nextLikes,
             likes: nextLikes,
-            stats: {
-              ...(c.stats ?? {}),
-              likes: nextLikes,
-            },
+            stats: { ...(c.stats ?? {}), likes: nextLikes },
           };
         }),
       );
@@ -313,10 +314,7 @@ export default function VideoAnalyticsDetail({
             isRepliedByAuthor: true,
             replyCount: replies,
             totalReply: replies,
-            stats: {
-              ...(c.stats ?? {}),
-              replies,
-            },
+            stats: { ...(c.stats ?? {}), replies },
           };
         }),
       );
@@ -374,46 +372,58 @@ export default function VideoAnalyticsDetail({
     video.thumbnail || pickStr(merged, ["thumbnail", "thumb", "cover"]);
 
   return (
-    <div className="flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-theme-sm dark:border-gray-800 dark:bg-white/[0.03]">
-      {/* Toolbar — touch target ≥44px */}
-      <div className="flex shrink-0 items-center gap-2 border-b border-gray-100 px-2 py-1.5 dark:border-gray-800 sm:px-3">
+    <div className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-white dark:bg-gray-900">
+      {/* Header bar */}
+      <header className="flex shrink-0 items-center justify-between gap-2 border-b border-gray-100 px-2 py-1.5 dark:border-gray-800 sm:px-3">
         <button
           type="button"
           onClick={onBack}
-          className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-lg px-2.5 text-sm font-semibold text-gray-600 transition duration-150 hover:bg-gray-50 hover:text-brand-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 dark:text-gray-300 dark:hover:bg-white/[0.04] dark:hover:text-brand-400"
+          className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-lg px-2.5 text-sm font-semibold text-gray-700 transition duration-150 hover:bg-gray-50 hover:text-brand-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 dark:text-gray-200 dark:hover:bg-white/[0.05] dark:hover:text-brand-400"
         >
           <HiOutlineArrowLeft size={18} className="shrink-0" aria-hidden />
-          <span>Danh sách video</span>
+          <span className="hidden sm:inline">Quay lại danh sách</span>
+          <span className="sm:hidden">Quay lại</span>
         </button>
-      </div>
+        <Tooltip content="Đóng" side="left">
+          <button
+            type="button"
+            onClick={onBack}
+            aria-label="Đóng"
+            className="inline-flex size-11 cursor-pointer items-center justify-center rounded-full text-gray-400 transition duration-150 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-white/[0.06] dark:hover:text-white"
+          >
+            <HiOutlineXMark size={22} aria-hidden />
+          </button>
+        </Tooltip>
+      </header>
 
       {loading ? (
-        <div className="flex min-h-0 flex-1 items-center justify-center py-16">
+        <div className="flex min-h-0 flex-1 items-center justify-center">
           <div className="flex flex-col items-center gap-3">
             <span className="size-8 animate-spin rounded-full border-2 border-brand-500 border-t-transparent" />
             <p className="text-sm text-gray-500">Đang tải chi tiết video…</p>
           </div>
         </div>
       ) : (
-        /*
-          Mobile: stack — player fixed max-height, comments flex-1 scroll
-          Desktop (lg+): 2 cột fill full height, chỉ comments scroll
-        */
-        <div className="grid min-h-0 flex-1 grid-rows-[minmax(12rem,min(42dvh,22rem))_minmax(0,1fr)] overflow-hidden lg:grid-cols-[minmax(0,1.15fr)_minmax(20rem,0.95fr)] lg:grid-rows-1">
-          {/* Player pane */}
-          <div className="relative min-h-0 overflow-hidden bg-black lg:border-r lg:border-gray-100 dark:lg:border-gray-800">
-            <div className="absolute inset-0 flex items-center justify-center">
+        <div className="grid min-h-0 flex-1 overflow-hidden lg:grid-cols-[minmax(0,1.2fr)_minmax(18rem,22rem)]">
+          {/* —— Player —— */}
+          <section
+            aria-label="Trình phát video"
+            className="relative min-h-0 bg-black max-lg:h-[min(42dvh,20rem)] max-lg:shrink-0 lg:h-auto"
+          >
+            <div className="absolute inset-0">
               <ZaloHlsPlayer
                 streamUrl={streamUrl || null}
                 poster={thumb || null}
                 className="h-full w-full"
               />
             </div>
-          </div>
+          </section>
 
-          {/* Info + comments pane */}
-          <div className="flex min-h-0 min-w-0 flex-col overflow-hidden border-t border-gray-100 dark:border-gray-800 lg:border-t-0">
-            {/* Caption + stats — fixed */}
+          {/* —— Sidebar: caption + comments —— */}
+          <section
+            aria-label="Thông tin và bình luận"
+            className="flex min-h-0 min-w-0 flex-col overflow-hidden border-t border-gray-100 dark:border-gray-800 lg:border-l lg:border-t-0"
+          >
             <div className="shrink-0 space-y-2.5 border-b border-gray-100 px-3 py-3 dark:border-gray-800 sm:px-4">
               <p className="text-[11px] font-medium text-gray-400">
                 {formatZaloTimestamp(createdTime ?? undefined)}
@@ -445,8 +455,7 @@ export default function VideoAnalyticsDetail({
               </div>
             </div>
 
-            {/* Comments header */}
-            <div className="flex shrink-0 items-center justify-between px-3 py-2 sm:px-4">
+            <div className="flex shrink-0 items-center px-3 py-2 sm:px-4">
               <h4 className="text-sm font-bold text-gray-900 dark:text-white">
                 Bình luận
                 <span className="ml-1.5 text-xs font-semibold text-gray-400">
@@ -455,14 +464,10 @@ export default function VideoAnalyticsDetail({
               </h4>
             </div>
 
-            {/* ONLY this region scrolls */}
             <div
               ref={commentsScrollRef}
               onScroll={onCommentsScroll}
-              onWheel={(e) => {
-                e.stopPropagation();
-              }}
-              className="custom-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-4 sm:px-4 [scrollbar-gutter:stable]"
+              className="custom-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-4 sm:px-4"
             >
               {commentsLoading ? (
                 <div className="flex justify-center py-10">
@@ -597,7 +602,7 @@ export default function VideoAnalyticsDetail({
                                   setReplyingId(null);
                                   setReplyText("");
                                 }}
-                                className="inline-flex min-h-9 cursor-pointer items-center rounded-lg border border-gray-200 px-3 text-xs font-medium text-gray-600 transition hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-white/[0.03]"
+                                className="inline-flex min-h-9 cursor-pointer items-center rounded-lg border border-gray-200 px-3 text-xs font-medium text-gray-600 transition hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:text-gray-300"
                               >
                                 Hủy
                               </button>
@@ -630,7 +635,7 @@ export default function VideoAnalyticsDetail({
                 </div>
               ) : null}
             </div>
-          </div>
+          </section>
         </div>
       )}
     </div>

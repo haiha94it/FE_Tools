@@ -202,6 +202,30 @@ export const LAYOUT_SECTION_TYPE_META: LayoutSectionTypeMeta[] = [
     legacyId: "spacer",
   },
   {
+    type: "LEAD_FORM",
+    label: "Form tư vấn / SĐT",
+    description: "Khối thu thập SĐT & thông tin nhận ưu đãi qua Zalo",
+    badge: "Lead",
+    defaultWidthPreset: "CONTAINER",
+    legacyId: "lead_form",
+  },
+  {
+    type: "SHORT_VIDEO",
+    label: "Video Shorts / Review",
+    description: "Khối video ngắn tự động chạy với nút mua ngay",
+    badge: "Reel",
+    defaultWidthPreset: "CONTAINER",
+    legacyId: "short_video",
+  },
+  {
+    type: "SPIN_WHEEL",
+    label: "Vòng quay may mắn",
+    description: "Mini-game quay số nhận mã giảm giá cho người mua",
+    badge: "Game",
+    defaultWidthPreset: "CONTAINER",
+    legacyId: "spin_wheel",
+  },
+  {
     type: "DIVIDER",
     label: "Đường kẻ",
     description: "Phân tách section bằng line / dashed",
@@ -670,12 +694,71 @@ export function createSection(
           subtitle: "Để lại SĐT / email — nhận mã giảm giá cho đơn đầu",
           placeholder: "Nhập SĐT hoặc email…",
           buttonText: "Đăng ký",
-          successHint: "Cảm ơn bạn! Shop sẽ liên hệ sớm.",
+          successHint: "Cảm ơn bạn! Mã giảm giá đã được gửi.",
           ...(overrides?.data as object),
         },
         styling: createDefaultStyling({
           bgPreset: "muted",
           paddingY: "spacious",
+          ...overrides?.styling,
+        }),
+      };
+    case "LEAD_FORM":
+      return {
+        ...base,
+        type,
+        data: {
+          title: "Đăng ký nhận tư vấn & ưu đãi",
+          subtitle: "Để lại SĐT, tư vấn viên Zalo sẽ liên hệ trong 5 phút",
+          fields: ["name", "phone", "note"],
+          buttonText: "Gửi đăng ký ngay",
+          successMessage: "Đã gửi thông tin! Chúng tôi sẽ gọi tư vấn ngay.",
+          ...(overrides?.data as object),
+        },
+        styling: createDefaultStyling({
+          bgPreset: "surface",
+          radius: "2xl",
+          shadow: "md",
+          ...overrides?.styling,
+        }),
+      };
+    case "SHORT_VIDEO":
+      return {
+        ...base,
+        type,
+        data: {
+          title: "Video trải nghiệm thực tế",
+          subtitle: "Xem cận cảnh sản phẩm trước khi chốt đơn",
+          videoUrl: "https://assets.mixkit.co/videos/preview/mixkit-fashion-model-showing-clothes-41548-large.mp4",
+          badge: "HOT REVIEW",
+          ctaText: "Xem & Mua ngay",
+          ctaHref: "#products",
+          autoplay: true,
+          ...(overrides?.data as object),
+        },
+      };
+    case "SPIN_WHEEL":
+      return {
+        ...base,
+        type,
+        data: {
+          title: "Vòng quay may mắn",
+          subtitle: "Quay 100% trúng quà — Dành riêng cho khách mua trên Zalo",
+          prizes: [
+            { id: "p1", label: "Giảm 10%", code: "SALE10", color: "#F59E0B" },
+            { id: "p2", label: "Freeship", code: "FREESHIP", color: "#10B981" },
+            { id: "p3", label: "Giảm 50K", code: "50KOFF", color: "#EF4444" },
+            { id: "p4", label: "Voucher 100K", code: "VIP100K", color: "#3B82F6" },
+            { id: "p5", label: "Quà tặng kèm", code: "GIFTFREE", color: "#8B5CF6" },
+            { id: "p6", label: "Giảm 5%", code: "SALE5", color: "#EC4899" },
+          ],
+          buttonText: "Quay ngay",
+          ...(overrides?.data as object),
+        },
+        styling: createDefaultStyling({
+          bgPreset: "gradient-amber",
+          textTone: "light",
+          radius: "2xl",
           ...overrides?.styling,
         }),
       };
@@ -1415,6 +1498,53 @@ export function resolveLayoutCanvas(
   }
 
   return createSampleLayoutCanvas();
+}
+
+/**
+ * Resolves LayoutCanvasDocument cho Trang Chi Tiết Sản Phẩm (PDP)
+ */
+export function resolvePdpLayoutCanvas(
+  data: ShopPersonalizationData | null | undefined,
+): LayoutCanvasDocument {
+  const raw = data?.pdpLayoutCanvas;
+  if (
+    raw &&
+    typeof raw === "object" &&
+    Array.isArray((raw as LayoutCanvasDocument).sections) &&
+    (raw as LayoutCanvasDocument).sections.length > 0
+  ) {
+    const doc = raw as LayoutCanvasDocument;
+    return {
+      schemaVersion: 1,
+      page: doc.page ?? { maxWidthPreset: "xl", sectionGap: "normal" },
+      sections: doc.sections,
+    };
+  }
+
+  return {
+    schemaVersion: 1,
+    page: { maxWidthPreset: "xl", sectionGap: "normal" },
+    sections: [
+      createSection("TRUST_BADGES", {
+        data: { title: "Cam Kết Chất Lượng & Dịch Vụ Zalo Store" },
+        styling: { bgPreset: "surface", paddingY: "compact" },
+      }),
+      createSection("REVIEWS", {
+        data: { title: "Đánh giá từ khách hàng đã mua sản phẩm" },
+        styling: { bgPreset: "surface", paddingY: "normal" },
+      }),
+      createSection("LEAD_FORM", {
+        data: {
+          title: "Tư Vấn Thêm Về Sản Phẩm Trực Tiếp Qua Zalo",
+          subtitle: "Để lại SĐT Zalo để nhân viên gửi ảnh thực tế & báo giá tốt nhất",
+        },
+        styling: { bgPreset: "gradient-brand", textTone: "light", paddingY: "spacious" },
+      }),
+      createSection("FAQ", {
+        data: { title: "Câu hỏi thường gặp về chính sách đổi trả & vận chuyển" },
+      }),
+    ],
+  };
 }
 
 /**

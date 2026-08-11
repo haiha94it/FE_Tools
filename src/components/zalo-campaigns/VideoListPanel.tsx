@@ -3,6 +3,7 @@
 import ComponentCard from "@/components/common/ComponentCard";
 import Select from "@/components/form/Select";
 import Pagination from "@/components/tables/Pagination";
+import { Modal } from "@/components/ui/modal";
 import { getApiErrorMessage } from "@/lib/errors";
 import { toast } from "@/lib/toast";
 import { fetchPublicVideoList } from "@/lib/zalo-video/public-api";
@@ -32,6 +33,11 @@ function truncateText(text: string, max = 80) {
   return `${text.slice(0, max)}…`;
 }
 
+/**
+ * Danh sách video + viewer modal.
+ * Viewer không nằm trong flex chain trang (tránh vỡ layout) —
+ * mở Modal fixed-height, đóng bằng Escape / nút Quay lại.
+ */
 export default function VideoListPanel({ accountId }: VideoListPanelProps) {
   const [status, setStatus] = useState("public");
   const [page, setPage] = useState(1);
@@ -63,7 +69,6 @@ export default function VideoListPanel({ accountId }: VideoListPanelProps) {
   }, [accountId, page, status]);
 
   useEffect(() => {
-    // setTimeout: tránh setState đồng bộ trong effect (react-hooks/set-state-in-effect)
     const timer = window.setTimeout(() => {
       void loadVideos();
     }, 0);
@@ -76,23 +81,10 @@ export default function VideoListPanel({ accountId }: VideoListPanelProps) {
     setDetailVideo(null);
   };
 
-  /** Chi tiết: fill parent flex (overflow-hidden chain từ VideoCreatorView) */
-  if (detailVideo) {
-    return (
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-2 sm:p-3">
-        <VideoAnalyticsDetail
-          key={String(detailVideo.id)}
-          accountId={accountId}
-          video={detailVideo}
-          onBack={() => setDetailVideo(null)}
-        />
-      </div>
-    );
-  }
+  const closeDetail = () => setDetailVideo(null);
 
-  /** List: cuộn trong panel, không đẩy layout shell */
   return (
-    <div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain p-3 sm:p-4">
+    <>
       <ComponentCard
         title="Quản lý video"
         desc="Danh sách video trên kênh Zalo — bấm video để xem & phát"
@@ -208,6 +200,25 @@ export default function VideoListPanel({ accountId }: VideoListPanelProps) {
           </>
         )}
       </ComponentCard>
-    </div>
+
+      {/* Viewer — portal modal, fixed height, không phụ thuộc flex chain trang */}
+      <Modal
+        isOpen={detailVideo != null}
+        onClose={closeDetail}
+        showCloseButton={false}
+        className="!max-h-[min(92dvh,900px)] !w-full !max-w-[min(1120px,calc(100vw-1rem))] !overflow-hidden !rounded-2xl !p-0 sm:!max-w-[min(1120px,calc(100vw-2rem))]"
+      >
+        {detailVideo ? (
+          <div className="flex h-[min(88dvh,860px)] max-h-[min(88dvh,860px)] w-full flex-col sm:h-[min(90dvh,880px)] sm:max-h-[min(90dvh,880px)]">
+            <VideoAnalyticsDetail
+              key={String(detailVideo.id)}
+              accountId={accountId}
+              video={detailVideo}
+              onBack={closeDetail}
+            />
+          </div>
+        ) : null}
+      </Modal>
+    </>
   );
 }

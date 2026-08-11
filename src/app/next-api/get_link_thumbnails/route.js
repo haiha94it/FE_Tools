@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { HttpsProxyAgent } from 'https-proxy-agent';
+import { getProxyAgent } from '@/lib/proxy-helper';
 export async function POST(request) {
     try {
         const dataClient = await request.formData();
@@ -8,7 +8,7 @@ export async function POST(request) {
         const clientCookie = dataClient.get('clientCookie');
         const channelId = dataClient.get('channelId');
         const proxy = dataClient.get('proxy');
-        const agent = new HttpsProxyAgent(proxy);
+        const agentOptions = getProxyAgent(proxy);
 
         const formData = new FormData()
         formData.append("image", image)
@@ -27,8 +27,7 @@ export async function POST(request) {
                     'cookie': `webSession=${clientCookie}`,
                     "channel-id": channelId
                 },
-                httpsAgent: agent,
-                httpAgent: agent,
+                ...agentOptions,
             }
         );
         return new Response(JSON.stringify(zaloResponse.data), {

@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { HttpsProxyAgent } from 'https-proxy-agent';
+import { getProxyAgent } from '@/lib/proxy-helper';
 
 /**
  * Proxy Zalo comments/parent-list?videoId=&prevCmtId=
@@ -18,10 +18,7 @@ export async function POST(req) {
             });
         }
 
-        const agent =
-            proxy && typeof proxy === 'string' && proxy.trim()
-                ? new HttpsProxyAgent(proxy.trim())
-                : null;
+        const agentOptions = getProxyAgent(proxy);
 
         const params = { videoId: String(id_video) };
         if (prevCmtId != null && String(prevCmtId).trim() !== '') {
@@ -40,7 +37,7 @@ export async function POST(req) {
                         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36',
                     Cookie: `webSession=${clientCookie}`,
                 },
-                ...(agent ? { httpsAgent: agent, httpAgent: agent } : {}),
+                ...agentOptions,
             }
         );
 

@@ -1,10 +1,10 @@
 
 import axios from 'axios';
-import { HttpsProxyAgent } from 'https-proxy-agent';
+import { getProxyAgent } from '@/lib/proxy-helper';
 export async function POST(req) {
     try {
         const { clientCookie, id, proxy } = await req.json();
-        const agent = new HttpsProxyAgent(proxy);
+        const agentOptions = getProxyAgent(proxy);
         const response = await axios.get(`https://video.zalo.me/v2/public-api/playlist/videos?id=${id}`,
             {
                 headers: {
@@ -24,8 +24,7 @@ export async function POST(req) {
                     'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36',
                     'Cookie': `webSession=${clientCookie}`,
                 },
-                httpsAgent: agent,
-                httpAgent: agent,
+                ...agentOptions,
             });
         return new Response(JSON.stringify(response.data.data), {
             status: 200,

@@ -8,6 +8,7 @@
 import type { LayoutSection, LayoutSectionType } from "@/types/shop-layout-canvas";
 import { LAYOUT_SECTION_TYPE_META } from "@/lib/shop-layout-canvas";
 import type { ReactNode } from "react";
+import { FiShoppingBag } from "react-icons/fi";
 
 export function getSectionTypeLabel(type: LayoutSectionType): string {
   return LAYOUT_SECTION_TYPE_META.find((m) => m.type === type)?.label ?? type;
@@ -67,7 +68,7 @@ function HeaderCard({ section }: { section: Extract<LayoutSection, { type: "HEAD
           ) : null}
           {section.data.showCart ? (
             <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-500/15 text-[10px] font-bold text-brand-600">
-              🛒
+              <FiShoppingBag className="h-3.5 w-3.5" />
             </span>
           ) : null}
         </div>

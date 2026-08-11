@@ -1,9 +1,9 @@
 import axios from 'axios';
-import { HttpsProxyAgent } from 'https-proxy-agent';
+import { getProxyAgent } from '@/lib/proxy-helper';
 export async function POST(request) {
     try {
         const { clientCookie, csrf, id, videoIds, proxy } = await request.json();
-        const agent = new HttpsProxyAgent(proxy);
+        const agentOptions = getProxyAgent(proxy);
         const bodyRaw = `id=${encodeURIComponent(videoIds)}&videoIds=${encodeURIComponent(id)}`;
         const zaloResponse = await axios.post(
             `https://video.zalo.me/v2/public-api/playlist/remove-videos`,
@@ -19,8 +19,7 @@ export async function POST(request) {
                         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36',
                     'cookie': `webSession=${clientCookie}`,
                 },
-                httpsAgent: agent,
-                httpAgent: agent,
+                ...agentOptions,
             }
         );
 
