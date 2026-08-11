@@ -106,13 +106,17 @@ function StatChip({
   label: string;
 }) {
   return (
-    <span
-      className="inline-flex items-center gap-1.5 rounded-lg bg-gray-50 px-2 py-1 text-xs font-semibold tabular-nums text-gray-700 dark:bg-white/[0.04] dark:text-gray-200"
-      title={label}
-    >
-      <span className="text-gray-400">{icon}</span>
-      {value.toLocaleString("vi-VN")}
-    </span>
+    <Tooltip content={label} side="top">
+      <span
+        className="inline-flex items-center gap-1.5 rounded-lg bg-gray-50 px-2 py-1 text-xs font-semibold tabular-nums text-gray-700 dark:bg-white/[0.04] dark:text-gray-200"
+        aria-label={`${label}: ${value.toLocaleString("vi-VN")}`}
+      >
+        <span className="text-gray-400" aria-hidden>
+          {icon}
+        </span>
+        {value.toLocaleString("vi-VN")}
+      </span>
+    </Tooltip>
   );
 }
 
