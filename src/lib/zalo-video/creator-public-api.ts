@@ -305,3 +305,60 @@ export async function fetchPublicVideosForPicker(
     { page: 1, number_per_page: 100, status: "public" },
   );
 }
+
+// ——— Chi tiết / xem video ———
+
+/** Chi tiết / thống kê cơ bản video — Zalo `video/analytics`. */
+export async function fetchVideoAnalytics(
+  accountId: number,
+  videoId: string | number,
+): Promise<Record<string, unknown>> {
+  return postJson<Record<string, unknown>>("/next-api/get_infor_video", accountId, {
+    id_video: videoId,
+  });
+}
+
+/**
+ * Bình luận parent theo video — Zalo `comments/parent-list?videoId=&prevCmtId=`
+ * Proxy: /next-api/get_list_comment_is_video
+ */
+export async function fetchVideoParentComments(
+  accountId: number,
+  videoId: string | number,
+  options?: { prevCmtId?: string | null },
+): Promise<{
+  results: import("@/types/zalo-video").ZaloPublicCommentItem[];
+  hasMore: boolean;
+  nextPrevCmtId: string | null;
+}> {
+  const data = await postJson<{
+    results?: import("@/types/zalo-video").ZaloPublicCommentItem[];
+    hasMore?: boolean;
+    nextPrevCmtId?: string | null;
+  }>("/next-api/get_list_comment_is_video", accountId, {
+    id_video: videoId,
+    ...(options?.prevCmtId ? { prevCmtId: options.prevCmtId } : {}),
+  });
+
+  // Legacy: API cũ trả array thuần
+  if (Array.isArray(data)) {
+    const results = data as import("@/types/zalo-video").ZaloPublicCommentItem[];
+    const last = results[results.length - 1];
+    const nextPrevCmtId = last?.id != null ? String(last.id) : null;
+    return {
+      results,
+      hasMore: results.length > 0 && Boolean(nextPrevCmtId),
+      nextPrevCmtId,
+    };
+  }
+
+  const results = Array.isArray(data?.results)
+    ? data.results
+    : normalizeArray<import("@/types/zalo-video").ZaloPublicCommentItem>(data);
+
+  return {
+    results,
+    hasMore: Boolean(data?.hasMore && data?.nextPrevCmtId),
+    nextPrevCmtId: data?.nextPrevCmtId ?? null,
+  };
+}

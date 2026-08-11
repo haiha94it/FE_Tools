@@ -1,43 +1,85 @@
 import axios from 'axios';
 import { HttpsProxyAgent } from 'https-proxy-agent';
+
+/**
+ * Proxy Zalo comments/parent-list?videoId=&prevCmtId=
+ * Body: { clientCookie, id_video, prevCmtId?, proxy? }
+ * Load-more: prevCmtId = id comment cuối trang trước.
+ */
 export async function POST(req) {
     try {
-        const { clientCookie, id_video, proxy } = await req.json();
-        const agent = new HttpsProxyAgent(proxy);
-        const response = await axios.get(`https://video.zalo.me/v2/public-api/comments/parent-list?videoId=${id_video}`,
-            {
-                headers: {
-                    'accept': 'application/json, text/plain, */*',
-                    'accept-language': 'en-GB-oxendict,en;q=0.9,fr;q=0.8,vi;q=0.7,fr-FR;q=0.6,en-US;q=0.5,en-GB;q=0.4',
-                    'cache-control': 'no-cache',
-                    'dnt': '1',
-                    'pragma': 'no-cache',
-                    'priority': 'u=1, i',
-                    'referer': 'https://video.zalo.me/creator/comment',
-                    'sec-ch-ua': '"Chromium";v="136", "Google Chrome";v="136", "Not.A/Brand";v="99"',
-                    'sec-ch-ua-mobile': '?0',
-                    'sec-ch-ua-platform': '"Windows"',
-                    'sec-fetch-dest': 'empty',
-                    'sec-fetch-mode': 'cors',
-                    'sec-fetch-site': 'same-origin',
-                    'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36',
-                    'Cookie': `webSession=${clientCookie}`,
-                },
-                httpsAgent: agent,
-                httpAgent: agent,
+        const body = await req.json();
+        const { clientCookie, id_video, prevCmtId = '', proxy } = body ?? {};
 
+        if (!id_video) {
+            return new Response(JSON.stringify({ error: 'Missing id_video' }), {
+                status: 400,
+                headers: { 'Content-Type': 'application/json' },
             });
-        return new Response(JSON.stringify(response.data.data), {
-            status: 200,
-            headers: { 'Content-Type': 'application/json' },
-        });
-    } catch (error) {
-        console.error('Error fetching comments:', error.message);
+        }
 
-        // Trả về lỗi nếu request thất bại
+        const agent =
+            proxy && typeof proxy === 'string' && proxy.trim()
+                ? new HttpsProxyAgent(proxy.trim())
+                : null;
+
+        const params = { videoId: String(id_video) };
+        if (prevCmtId != null && String(prevCmtId).trim() !== '') {
+            params.prevCmtId = String(prevCmtId).trim();
+        }
+
+        const response = await axios.get(
+            'https://video.zalo.me/v2/public-api/comments/parent-list',
+            {
+                params,
+                headers: {
+                    accept: 'application/json, text/plain, */*',
+                    'accept-language': 'vi,en;q=0.9',
+                    referer: 'https://video.zalo.me/creator/video',
+                    'user-agent':
+                        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36',
+                    Cookie: `webSession=${clientCookie}`,
+                },
+                ...(agent ? { httpsAgent: agent, httpAgent: agent } : {}),
+            }
+        );
+
+        const raw = response.data?.data;
+        let comments = [];
+        if (Array.isArray(raw)) {
+            comments = raw;
+        } else if (raw && typeof raw === 'object') {
+            if (Array.isArray(raw.list)) comments = raw.list;
+            else if (Array.isArray(raw.comments)) comments = raw.comments;
+            else if (Array.isArray(raw.data)) comments = raw.data;
+        }
+
+        const last = comments.length > 0 ? comments[comments.length - 1] : null;
+        const nextPrevCmtId = last?.id != null ? String(last.id) : null;
+        const hasMore = comments.length > 0 && Boolean(nextPrevCmtId);
+
         return new Response(
-            JSON.stringify({ error: 'Failed to fetch comments', details: error.message }),
-            { status: 500, headers: { 'Content-Type': 'application/json' } }
+            JSON.stringify({
+                results: comments,
+                count: comments.length,
+                hasMore,
+                nextPrevCmtId: hasMore ? nextPrevCmtId : null,
+                error: response.data?.error,
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } }
+        );
+    } catch (error) {
+        console.error('parent-list failed:', error?.response?.data || error.message);
+        return new Response(
+            JSON.stringify({
+                error: 'Failed to fetch video comments',
+                details: error.message,
+                zalo: error?.response?.data ?? null,
+            }),
+            {
+                status: error?.response?.status || 500,
+                headers: { 'Content-Type': 'application/json' },
+            }
         );
     }
 }

@@ -263,8 +263,25 @@ export default function VideoCreatorView() {
                   />
                   <div className="flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row">
                     <VideoCreatorNav accountId={accountId} />
-                    <main className="custom-scrollbar min-h-0 min-w-0 flex-1 overflow-y-auto bg-gray-50/60 p-4 dark:bg-black/10 sm:p-5">
-                      {panel}
+                    {/*
+                      video-manager: overflow-hidden + flex chain —
+                      chi tiết video tự cuộn comment, không vỡ layout.
+                      tab khác: overflow-y-auto như trước.
+                    */}
+                    <main
+                      className={
+                        tab === "video-manager"
+                          ? "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-gray-50/60 dark:bg-black/10"
+                          : "custom-scrollbar min-h-0 min-w-0 flex-1 overflow-y-auto bg-gray-50/60 p-4 dark:bg-black/10 sm:p-5"
+                      }
+                    >
+                      {tab === "video-manager" ? (
+                        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                          {panel}
+                        </div>
+                      ) : (
+                        panel
+                      )}
                     </main>
                   </div>
                 </>
