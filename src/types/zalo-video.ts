@@ -106,12 +106,17 @@ export interface ZaloPublicVideoItem {
   id: string | number;
   thumbnail?: string;
   description?: string;
+  /** HLS signed URL (m3u8) — list + analytics */
+  streamUrl?: string;
+  stream_url?: string;
   views?: number;
   likes?: number;
   comments?: number;
   lock_comment?: boolean;
   isPinned?: boolean;
+  is_pinned?: boolean;
   created_time?: number;
+  createdTime?: number;
   status?: string;
 }
 
@@ -151,6 +156,17 @@ export interface ZaloPublicCommentItem {
   is_pinned?: boolean;
   isLikedByAuthor?: boolean;
   isRepliedByAuthor?: boolean;
+  /** Unix seconds (Zalo) */
+  createdTime?: number;
+  created_time?: number;
+  time?: number;
+  timestamp?: number;
+  likeCount?: number;
+  totalLike?: number;
+  likes?: number;
+  replyCount?: number;
+  totalReply?: number;
+  stats?: { likes?: number; replies?: number };
 }
 
 export interface ZaloPublicCommentListResponse {
