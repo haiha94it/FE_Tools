@@ -18,7 +18,8 @@ export {
 } from "@/lib/zalo-add-friend-campaign-utils";
 import { getCampaignLogResultColor } from "@/lib/zalo-add-friend-campaign-utils";
 
-export const MAX_PHONE_NUMBERS = 1000;
+/** Max SĐT/kịch bản — khớp BE validate_and_normalize_phones(max_count=3000) */
+export const MAX_PHONE_NUMBERS = 3000;
 
 /** Lời chào kết bạn — BE ≤ 135 ký tự */
 export const MAX_FIRST_MESSAGE_LENGTH = 135;
