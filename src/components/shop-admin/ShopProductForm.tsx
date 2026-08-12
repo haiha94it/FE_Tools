@@ -2,6 +2,7 @@
 
 import Button from "@/components/ui/button/Button";
 import Input from "@/components/form/input/InputField";
+import { getApiErrorMessage } from "@/lib/errors";
 import { shopImageUrl } from "@/lib/shop-utils";
 import { toast } from "@/lib/toast";
 import { zaloShopService } from "@/services/zalo-shop.service";
@@ -23,6 +24,11 @@ import {
 const HOT_BANNER_SAMPLES_URL =
   "https://drive.google.com/drive/folders/185X4nWZgbh3ojNvv78UXm6iWU8CJOoAR?usp=sharing";
 const MAX_PRODUCT_IMAGES = 5;
+/** Khớp BE `FILE_UPLOAD_EXTENSIONS` (ảnh sản phẩm) */
+const PRODUCT_IMAGE_ACCEPT =
+  ".jpg,.jpeg,.png,.gif,.webp,image/jpeg,image/png,image/gif,image/webp";
+const PRODUCT_IMAGE_HINT =
+  "Đuôi ảnh cho phép: .jpg, .jpeg, .png, .gif, .webp";
 
 /** UI: 1 tên thuộc tính + nhiều giá trị (Màu → Đen/Đỏ/Tím) */
 interface AttrGroup {
@@ -196,7 +202,7 @@ export default function ShopProductForm({
       file.type.startsWith("image/"),
     );
     if (files.length === 0) {
-      toast.error("Chỉ chấp nhận file ảnh (JPG, PNG, WEBP, GIF, …)");
+      toast.error(`Chỉ chấp nhận file ảnh. ${PRODUCT_IMAGE_HINT}`);
       return;
     }
     if (images.length + files.length > MAX_PRODUCT_IMAGES) {
@@ -207,27 +213,35 @@ export default function ShopProductForm({
     setUploadingImages(true);
     let ok = 0;
     let fail = 0;
+    let lastError = "";
     try {
       for (const file of files) {
         try {
           const path = await zaloShopService.uploadFile(file);
           if (!path) {
             fail += 1;
+            lastError = "Server không trả đường dẫn ảnh.";
             continue;
           }
           setImages((prev) =>
             prev.length >= MAX_PRODUCT_IMAGES ? prev : [...prev, path],
           );
           ok += 1;
-        } catch {
+        } catch (error) {
           fail += 1;
+          lastError = getApiErrorMessage(error);
         }
       }
       if (ok > 0) {
         toast.success(ok === 1 ? "Tải ảnh thành công" : `Đã tải ${ok} ảnh`);
       }
       if (fail > 0) {
-        toast.error(fail === 1 ? "Tải ảnh thất bại" : `${fail} ảnh tải thất bại`);
+        toast.error(
+          lastError ||
+            (fail === 1
+              ? `Tải ảnh thất bại. ${PRODUCT_IMAGE_HINT}`
+              : `${fail} ảnh tải thất bại. ${PRODUCT_IMAGE_HINT}`),
+        );
       }
     } finally {
       setUploadingImages(false);
@@ -237,7 +251,7 @@ export default function ShopProductForm({
 
   const handleUploadHotBanner = async (file: File) => {
     if (!file.type.startsWith("image/")) {
-      toast.error("Banner hot chỉ nhận file ảnh");
+      toast.error(`Banner hot chỉ nhận file ảnh. ${PRODUCT_IMAGE_HINT}`);
       return;
     }
     setUploadingHot(true);
@@ -249,8 +263,8 @@ export default function ShopProductForm({
       }
       setImageHot(path);
       toast.success("Đã tải banner hot");
-    } catch {
-      toast.error("Tải banner hot thất bại");
+    } catch (error) {
+      toast.error(getApiErrorMessage(error));
     } finally {
       setUploadingHot(false);
       if (hotImageRef.current) hotImageRef.current.value = "";
@@ -593,7 +607,7 @@ export default function ShopProductForm({
           <input
             ref={imageRef}
             type="file"
-            accept="image/*"
+            accept={PRODUCT_IMAGE_ACCEPT}
             multiple
             className="hidden"
             onChange={(e) => {
@@ -639,7 +653,7 @@ export default function ShopProductForm({
                   : "Kéo thả ảnh vào đây hoặc bấm để chọn"}
             </p>
             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              JPG, PNG, WEBP, GIF — tối đa {MAX_PRODUCT_IMAGES} ảnh (
+              {PRODUCT_IMAGE_HINT} — tối đa {MAX_PRODUCT_IMAGES} ảnh (
               {images.length}/{MAX_PRODUCT_IMAGES})
             </p>
           </div>
@@ -702,7 +716,7 @@ export default function ShopProductForm({
                 <input
                   ref={hotImageRef}
                   type="file"
-                  accept="image/*"
+                  accept={PRODUCT_IMAGE_ACCEPT}
                   className="hidden"
                   onChange={(e) => {
                     const file = e.target.files?.[0];
