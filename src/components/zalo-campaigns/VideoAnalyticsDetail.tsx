@@ -7,9 +7,16 @@ import {
   replyPublicComment,
 } from "@/lib/zalo-video/comments-public-api";
 import {
+  deletePublicVideo,
+  fetchVideoAdStats,
   fetchVideoAnalytics,
   fetchVideoParentComments,
   formatZaloTimestamp,
+  isVideoContactEnabled,
+  isVideoPinned,
+  pinChannelVideo,
+  updateScheduledVideoTitle,
+  updateVideoContactCta,
 } from "@/lib/zalo-video/creator-public-api";
 import { toast } from "@/lib/toast";
 import type { ZaloPublicCommentItem, ZaloPublicVideoItem } from "@/types/zalo-video";
@@ -19,16 +26,26 @@ import {
   HiOutlineChatBubbleLeftRight,
   HiOutlineEye,
   HiOutlineHeart,
+  HiOutlineMapPin,
+  HiOutlinePhone,
   HiOutlineShare,
   HiOutlineTrash,
   HiOutlineXMark,
 } from "react-icons/hi2";
 import ZaloHlsPlayer from "./ZaloHlsPlayer";
 
+export type VideoListStatusFilter = "public" | "private" | "scheduled";
+
 interface VideoAnalyticsDetailProps {
   accountId: number;
   video: ZaloPublicVideoItem;
   onBack: () => void;
+  /** Tab list đang mở — bật action phù hợp (P2). */
+  listStatus?: VideoListStatusFilter;
+  /** Cập nhật item trong list sau pin/CTA/sửa title. */
+  onVideoPatched?: (next: ZaloPublicVideoItem) => void;
+  /** Xóa xong — đóng modal + refresh list. */
+  onVideoDeleted?: (videoId: string | number) => void;
 }
 
 function num(v: unknown): number | null {
@@ -130,9 +147,18 @@ export default function VideoAnalyticsDetail({
   accountId,
   video,
   onBack,
+  listStatus = "public",
+  onVideoPatched,
+  onVideoDeleted,
 }: VideoAnalyticsDetailProps) {
   const [loading, setLoading] = useState(true);
   const [info, setInfo] = useState<Record<string, unknown> | null>(null);
+  const [adStats, setAdStats] = useState<Record<string, unknown> | null>(null);
+  const [localVideo, setLocalVideo] = useState(video);
+  const [actionBusy, setActionBusy] = useState(false);
+  const [editTitle, setEditTitle] = useState(
+    () => video.description?.trim() || video.title?.trim() || "",
+  );
   const [commentList, setCommentList] = useState<ZaloPublicCommentItem[]>([]);
   const [commentsLoading, setCommentsLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -147,23 +173,32 @@ export default function VideoAnalyticsDetail({
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
+    setLocalVideo(video);
+    setEditTitle(video.description?.trim() || video.title?.trim() || "");
+  }, [video]);
+
+  useEffect(() => {
     let cancelled = false;
     const timer = window.setTimeout(() => {
       if (cancelled) return;
       setLoading(true);
       setCommentsLoading(true);
       setCommentList([]);
+      setAdStats(null);
       setHasMoreComments(false);
       setNextPrevCmtId(null);
       void (async () => {
         try {
-          const [a, c] = await Promise.allSettled([
+          const [a, c, ad] = await Promise.allSettled([
             fetchVideoAnalytics(accountId, video.id),
             fetchVideoParentComments(accountId, video.id),
+            fetchVideoAdStats(accountId, video.id),
           ]);
           if (cancelled) return;
           if (a.status === "fulfilled") setInfo(a.value);
           else setInfo(null);
+          if (ad.status === "fulfilled") setAdStats(ad.value);
+          else setAdStats(null);
           if (c.status === "fulfilled") {
             setCommentList(c.value.results ?? []);
             setHasMoreComments(Boolean(c.value.hasMore));
@@ -189,6 +224,104 @@ export default function VideoAnalyticsDetail({
       window.clearTimeout(timer);
     };
   }, [accountId, video.id]);
+
+  const patchLocal = useCallback(
+    (partial: Partial<ZaloPublicVideoItem>) => {
+      setLocalVideo((prev) => {
+        const next = { ...prev, ...partial };
+        onVideoPatched?.(next);
+        return next;
+      });
+    },
+    [onVideoPatched],
+  );
+
+  const handleTogglePin = async () => {
+    const pinned = isVideoPinned(localVideo);
+    setActionBusy(true);
+    try {
+      await pinChannelVideo({
+        accountId,
+        videoId: localVideo.id,
+        pin: !pinned,
+      });
+      patchLocal({ isPinned: !pinned, is_pinned: !pinned });
+      toast.success(pinned ? "Đã bỏ ghim video" : "Đã ghim video");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Ghim video thất bại");
+    } finally {
+      setActionBusy(false);
+    }
+  };
+
+  const handleToggleContact = async () => {
+    const on = isVideoContactEnabled(localVideo);
+    setActionBusy(true);
+    try {
+      await updateVideoContactCta({
+        accountId,
+        videoId: localVideo.id,
+        enabled: !on,
+      });
+      patchLocal({
+        isContactEnabled: !on,
+        is_contact_enabled: !on,
+        contactEnabled: !on,
+      });
+      toast.success(on ? "Đã tắt nút liên hệ" : "Đã bật nút liên hệ");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Cập nhật liên hệ thất bại");
+    } finally {
+      setActionBusy(false);
+    }
+  };
+
+  const handleSaveScheduleTitle = async () => {
+    const title = editTitle.trim();
+    if (!title) {
+      toast.warning("Nội dung không được để trống");
+      return;
+    }
+    setActionBusy(true);
+    try {
+      await updateScheduledVideoTitle({
+        accountId,
+        videoId: localVideo.id,
+        title,
+      });
+      patchLocal({ description: title, title });
+      toast.success("Đã cập nhật nội dung lịch đăng");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Cập nhật lịch thất bại");
+    } finally {
+      setActionBusy(false);
+    }
+  };
+
+  const handleDeleteVideo = async () => {
+    if (
+      !window.confirm(
+        listStatus === "scheduled"
+          ? "Xóa video đã đặt lịch này?"
+          : "Xóa video khỏi kênh?",
+      )
+    ) {
+      return;
+    }
+    setActionBusy(true);
+    try {
+      await deletePublicVideo({ accountId, videoId: localVideo.id });
+      toast.success(
+        listStatus === "scheduled" ? "Đã xóa video đặt lịch" : "Đã xóa video",
+      );
+      onVideoDeleted?.(localVideo.id);
+      onBack();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Xóa video thất bại");
+    } finally {
+      setActionBusy(false);
+    }
+  };
 
   const loadMoreComments = useCallback(async () => {
     if (!hasMoreComments || !nextPrevCmtId || loadMoreLock.current || loadingMore) {
@@ -336,12 +469,13 @@ export default function VideoAnalyticsDetail({
 
   const description =
     pickStr(merged, ["description", "desc", "caption", "title"]) ||
-    video.description ||
+    localVideo.description ||
+    localVideo.title ||
     "Không có tiêu đề";
 
   const streamUrl =
     pickStr(merged, ["streamUrl", "stream_url", "playUrl", "play_url", "hlsUrl"]) ||
-    pickStr(video as unknown as Record<string, unknown>, [
+    pickStr(localVideo as unknown as Record<string, unknown>, [
       "streamUrl",
       "stream_url",
       "playUrl",
@@ -350,31 +484,97 @@ export default function VideoAnalyticsDetail({
 
   const createdTime =
     pickNum(merged, ["createdTime", "created_time", "createTime"]) ??
-    video.created_time ??
-    video.createdTime;
+    localVideo.created_time ??
+    localVideo.createdTime;
 
   const views =
     pickNum(merged, ["views", "viewCount", "view_count", "totalViews"]) ??
-    video.views ??
+    localVideo.views ??
     0;
   const likes =
     pickNum(merged, ["likes", "likeCount", "like_count", "totalLikes"]) ??
-    video.likes ??
+    localVideo.likes ??
     0;
   const comments =
     pickNum(merged, ["comments", "commentCount", "comment_count", "totalComments"]) ??
-    video.comments ??
+    localVideo.comments ??
     0;
   const shares =
     pickNum(merged, ["shares", "shareCount", "share_count", "totalShares"]) ?? 0;
 
   const thumb =
-    video.thumbnail || pickStr(merged, ["thumbnail", "thumb", "cover"]);
+    localVideo.thumbnail || pickStr(merged, ["thumbnail", "thumb", "cover"]);
+
+  const pinned = isVideoPinned(localVideo);
+  const contactOn = isVideoContactEnabled(localVideo);
+  const isScheduled = listStatus === "scheduled";
+
+  /** Nguồn traffic: ad-stats BFF hoặc view_sources từ analytics/DB. */
+  const trafficSources = useMemo(() => {
+    const sources: { label: string; value: number }[] = [];
+    const pushObj = (obj: unknown) => {
+      if (!obj || typeof obj !== "object") return;
+      if (Array.isArray(obj)) {
+        for (const row of obj) {
+          if (!row || typeof row !== "object") continue;
+          const r = row as Record<string, unknown>;
+          const label = pickStr(r, [
+            "name",
+            "source",
+            "label",
+            "type",
+            "title",
+            "key",
+          ]);
+          const value =
+            pickNum(r, ["value", "count", "views", "view", "total", "percent"]) ??
+            0;
+          if (label) sources.push({ label, value });
+        }
+        return;
+      }
+      for (const [k, v] of Object.entries(obj as Record<string, unknown>)) {
+        if (typeof v === "number") sources.push({ label: k, value: v });
+        else if (v && typeof v === "object") {
+          const n =
+            pickNum(v as Record<string, unknown>, [
+              "value",
+              "count",
+              "views",
+              "total",
+            ]) ?? null;
+          if (n != null) sources.push({ label: k, value: n });
+        }
+      }
+    };
+
+    if (adStats) {
+      pushObj(adStats.sources ?? adStats.viewSources ?? adStats.view_sources);
+      pushObj(adStats.data);
+      if (sources.length === 0) pushObj(adStats);
+    }
+    const fromInfo =
+      deepGet(merged, ["view_sources"]) ??
+      deepGet(merged, ["viewSources"]) ??
+      deepGet(info ?? {}, ["view_sources"]);
+    if (sources.length === 0) pushObj(fromInfo);
+
+    // Lọc key noise
+    return sources
+      .filter(
+        (s) =>
+          s.label &&
+          !["error", "error_code", "message", "status"].includes(
+            s.label.toLowerCase(),
+          ),
+      )
+      .slice(0, 12);
+  }, [adStats, merged, info]);
 
   return (
     <div className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-white dark:bg-gray-900">
       {/* Header bar */}
-      <header className="flex shrink-0 items-center justify-between gap-2 border-b border-gray-100 px-2 py-1.5 dark:border-gray-800 sm:px-3">
+      <header className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-gray-100 px-2 py-1.5 dark:border-gray-800 sm:px-3">
         <button
           type="button"
           onClick={onBack}
@@ -384,16 +584,70 @@ export default function VideoAnalyticsDetail({
           <span className="hidden sm:inline">Quay lại danh sách</span>
           <span className="sm:hidden">Quay lại</span>
         </button>
-        <Tooltip content="Đóng" side="left">
-          <button
-            type="button"
-            onClick={onBack}
-            aria-label="Đóng"
-            className="inline-flex size-11 cursor-pointer items-center justify-center rounded-full text-gray-400 transition duration-150 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-white/[0.06] dark:hover:text-white"
-          >
-            <HiOutlineXMark size={22} aria-hidden />
-          </button>
-        </Tooltip>
+
+        {/* P2 actions — gọn trên header, không đụng layout grid list */}
+        <div className="flex flex-wrap items-center gap-1">
+          {!isScheduled ? (
+            <>
+              <Tooltip content={pinned ? "Bỏ ghim" : "Ghim video"} side="bottom">
+                <button
+                  type="button"
+                  disabled={actionBusy || loading}
+                  onClick={() => void handleTogglePin()}
+                  className={`inline-flex h-9 items-center gap-1 rounded-lg px-2.5 text-xs font-semibold transition disabled:opacity-50 ${
+                    pinned
+                      ? "bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-300"
+                      : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/[0.06]"
+                  }`}
+                >
+                  <HiOutlineMapPin size={16} aria-hidden />
+                  <span className="hidden sm:inline">
+                    {pinned ? "Đã ghim" : "Ghim"}
+                  </span>
+                </button>
+              </Tooltip>
+              <Tooltip
+                content={contactOn ? "Tắt nút liên hệ" : "Bật nút liên hệ"}
+                side="bottom"
+              >
+                <button
+                  type="button"
+                  disabled={actionBusy || loading}
+                  onClick={() => void handleToggleContact()}
+                  className={`inline-flex h-9 items-center gap-1 rounded-lg px-2.5 text-xs font-semibold transition disabled:opacity-50 ${
+                    contactOn
+                      ? "bg-success-50 text-success-700 dark:bg-success-500/15 dark:text-success-300"
+                      : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/[0.06]"
+                  }`}
+                >
+                  <HiOutlinePhone size={16} aria-hidden />
+                  <span className="hidden sm:inline">Liên hệ</span>
+                </button>
+              </Tooltip>
+            </>
+          ) : null}
+          <Tooltip content="Xóa video" side="bottom">
+            <button
+              type="button"
+              disabled={actionBusy || loading}
+              onClick={() => void handleDeleteVideo()}
+              className="inline-flex h-9 items-center gap-1 rounded-lg px-2.5 text-xs font-semibold text-error-600 transition hover:bg-error-50 disabled:opacity-50 dark:text-error-400 dark:hover:bg-error-500/10"
+            >
+              <HiOutlineTrash size={16} aria-hidden />
+              <span className="hidden sm:inline">Xóa</span>
+            </button>
+          </Tooltip>
+          <Tooltip content="Đóng" side="left">
+            <button
+              type="button"
+              onClick={onBack}
+              aria-label="Đóng"
+              className="inline-flex size-11 cursor-pointer items-center justify-center rounded-full text-gray-400 transition duration-150 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-white/[0.06] dark:hover:text-white"
+            >
+              <HiOutlineXMark size={22} aria-hidden />
+            </button>
+          </Tooltip>
+        </div>
       </header>
 
       {loading ? (
@@ -428,9 +682,33 @@ export default function VideoAnalyticsDetail({
               <p className="text-[11px] font-medium text-gray-400">
                 {formatZaloTimestamp(createdTime ?? undefined)}
               </p>
-              <p className="line-clamp-3 text-sm font-medium leading-relaxed text-gray-800 dark:text-white/90">
-                {description}
-              </p>
+              {isScheduled ? (
+                <div className="space-y-2">
+                  <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+                    Nội dung lịch đăng
+                  </label>
+                  <textarea
+                    value={editTitle}
+                    rows={3}
+                    maxLength={300}
+                    disabled={actionBusy}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    className="w-full resize-none rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 outline-none focus:border-brand-300 focus:ring-2 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+                  />
+                  <button
+                    type="button"
+                    disabled={actionBusy}
+                    onClick={() => void handleSaveScheduleTitle()}
+                    className="h-9 rounded-lg bg-brand-500 px-3 text-xs font-semibold text-white transition hover:bg-brand-600 disabled:opacity-50"
+                  >
+                    Lưu nội dung lịch
+                  </button>
+                </div>
+              ) : (
+                <p className="line-clamp-3 text-sm font-medium leading-relaxed text-gray-800 dark:text-white/90">
+                  {description}
+                </p>
+              )}
               <div className="flex flex-wrap gap-1.5">
                 <StatChip
                   icon={<HiOutlineEye size={14} aria-hidden />}
@@ -453,6 +731,26 @@ export default function VideoAnalyticsDetail({
                   label="Chia sẻ"
                 />
               </div>
+              {trafficSources.length > 0 ? (
+                <div className="rounded-lg border border-gray-100 bg-gray-50/80 p-2 dark:border-gray-800 dark:bg-white/[0.03]">
+                  <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+                    Nguồn traffic
+                  </p>
+                  <ul className="space-y-1">
+                    {trafficSources.map((s) => (
+                      <li
+                        key={s.label}
+                        className="flex items-center justify-between gap-2 text-xs text-gray-600 dark:text-gray-300"
+                      >
+                        <span className="truncate">{s.label}</span>
+                        <span className="shrink-0 font-semibold tabular-nums text-gray-800 dark:text-white/90">
+                          {s.value.toLocaleString("vi-VN")}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
             </div>
 
             <div className="flex shrink-0 items-center px-3 py-2 sm:px-4">

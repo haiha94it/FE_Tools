@@ -70,6 +70,9 @@ export function normalizeVideoTaskResult(
     messenger: message,
     message,
     path: typeof inner.path === "string" ? inner.path : undefined,
+    title: typeof inner.title === "string" ? inner.title : undefined,
+    caption: typeof inner.caption === "string" ? inner.caption : undefined,
+    link: typeof inner.link === "string" ? inner.link : undefined,
   };
 
   return {

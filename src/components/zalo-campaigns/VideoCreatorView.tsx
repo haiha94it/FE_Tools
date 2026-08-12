@@ -147,11 +147,11 @@ export default function VideoCreatorView() {
   }, [accountId, showWorkspace, tab, channelInfo]);
 
   return (
-    <div className="flex h-0 min-h-0 flex-1 flex-col gap-4 overflow-hidden">
+    <div className="flex h-0 min-h-0 flex-1 flex-col gap-2 overflow-hidden sm:gap-2.5">
       <PageBreadcrumb
         pageTitle="Đăng video"
         showPageTitle={false}
-        className="!mb-0 shrink-0"
+        className="!mb-0 shrink-0 py-0"
         parents={[{ label: "Chiến dịch", href: VIDEO_CREATOR_BASE }]}
       />
 
@@ -270,7 +270,8 @@ export default function VideoCreatorView() {
                   */}
                   <div className="flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row">
                     <VideoCreatorNav accountId={accountId} />
-                    <main className="custom-scrollbar min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain bg-gray-50/60 p-3 dark:bg-black/10 sm:p-4 md:p-5">
+                    {/* Nền đặc (không /opacity) — sticky tab analytics không bị KPI lộ xuyên */}
+                    <main className="custom-scrollbar min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain bg-gray-50 p-2.5 dark:bg-gray-900 sm:p-3 md:p-4">
                       {panel}
                     </main>
                   </div>

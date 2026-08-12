@@ -17,6 +17,10 @@ export interface ZaloVideoTaskResultData {
   messenger?: string;
   message?: string;
   path?: string;
+  /** Mô tả/title TikTok (download-video) — FE đổ caption */
+  title?: string;
+  caption?: string;
+  link?: string;
 }
 
 /** Payload `result` trong envelope task mới */
@@ -28,6 +32,9 @@ export interface ZaloVideoTaskInnerResult {
   error?: string;
   messenger?: string;
   path?: string;
+  title?: string;
+  caption?: string;
+  link?: string;
 }
 
 export interface ZaloVideoTaskResultResponse {
@@ -106,6 +113,7 @@ export interface ZaloPublicVideoItem {
   id: string | number;
   thumbnail?: string;
   description?: string;
+  title?: string;
   /** HLS signed URL (m3u8) — list + analytics */
   streamUrl?: string;
   stream_url?: string;
@@ -115,6 +123,14 @@ export interface ZaloPublicVideoItem {
   lock_comment?: boolean;
   isPinned?: boolean;
   is_pinned?: boolean;
+  pinned?: boolean;
+  isContactEnabled?: boolean;
+  is_contact_enabled?: boolean;
+  contactEnabled?: boolean;
+  publicTime?: number;
+  public_time?: number;
+  scheduleTime?: number;
+  schedule_time?: number;
   created_time?: number;
   createdTime?: number;
   status?: string;
@@ -139,12 +155,17 @@ export interface ZaloCommentOwner {
 export interface ZaloCommentVideoRef {
   id?: string | number;
   thumbnail?: string;
+  /** Mô tả / title — deep-link từ comment-manager */
+  description?: string;
+  title?: string;
 }
 
 export interface ZaloCommentParent {
   owner?: ZaloCommentOwner;
   content?: string;
   isRepliedByAuthor?: boolean;
+  createdTime?: number;
+  created_time?: number;
 }
 
 export interface ZaloPublicCommentItem {
@@ -154,6 +175,7 @@ export interface ZaloPublicCommentItem {
   parent?: ZaloCommentParent;
   owner?: ZaloCommentOwner;
   is_pinned?: boolean;
+  isPinned?: boolean;
   isLikedByAuthor?: boolean;
   isRepliedByAuthor?: boolean;
   /** Unix seconds (Zalo) */
@@ -169,9 +191,18 @@ export interface ZaloPublicCommentItem {
   stats?: { likes?: number; replies?: number };
 }
 
+/** Cursor load-more Zalo comments/list */
+export interface ZaloCommentListCursor {
+  prevCmtId: string;
+  prevVidId?: string | null;
+  lastIndex: number;
+}
+
 export interface ZaloPublicCommentListResponse {
   count?: number;
   results?: ZaloPublicCommentItem[];
+  hasMore?: boolean;
+  nextCursor?: ZaloCommentListCursor | null;
   next?: string | null;
   previous?: string | null;
 }

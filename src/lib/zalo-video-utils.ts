@@ -98,20 +98,106 @@ export function captureVideoThumbnail(
   });
 }
 
-/** Tạo danh sách thumbnail mỗi 5 giây */
+/** mm:ss hoặc h:mm:ss — UI trim. */
+export function formatVideoClock(sec: number): string {
+  if (!Number.isFinite(sec) || sec < 0) return "0:00";
+  const s = Math.floor(sec % 60);
+  const m = Math.floor(sec / 60) % 60;
+  const h = Math.floor(sec / 3600);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  if (h > 0) return `${h}:${pad(m)}:${pad(s)}`;
+  return `${m}:${pad(s)}`;
+}
+
+/** Tổng giây → phút + giây (giây 1 chữ số thập phân, 0–59.9). */
+export function secondsToMinSec(totalSec: number): {
+  minutes: number;
+  seconds: number;
+} {
+  const t = Math.max(0, Number.isFinite(totalSec) ? totalSec : 0);
+  let minutes = Math.floor(t / 60);
+  let seconds = Math.round((t - minutes * 60) * 10) / 10;
+  if (seconds >= 60) {
+    minutes += 1;
+    seconds = 0;
+  }
+  return { minutes, seconds };
+}
+
+/** Phút + giây → tổng giây (API trim). */
+export function minSecToSeconds(minutes: number, seconds: number): number {
+  const m = Math.max(0, Math.floor(Number(minutes) || 0));
+  let s = Number(seconds);
+  if (!Number.isFinite(s) || s < 0) s = 0;
+  if (s >= 60) {
+    // 60s → +1 phút
+    const extra = Math.floor(s / 60);
+    s = Math.round((s % 60) * 10) / 10;
+    return (m + extra) * 60 + s;
+  }
+  return m * 60 + s;
+}
+
+/** Clamp đoạn cắt video (giây). */
+export function clampTrimRange(
+  start: number,
+  end: number,
+  duration: number,
+  minLen = 0.5,
+): { start: number; end: number } {
+  const dur = Number.isFinite(duration) && duration > 0 ? duration : 0;
+  let a = Math.max(0, Math.min(start, dur));
+  let b = Math.max(0, Math.min(end, dur));
+  if (b - a < minLen) {
+    b = Math.min(dur, a + minLen);
+    if (b - a < minLen) a = Math.max(0, b - minLen);
+  }
+  return { start: a, end: b };
+}
+
+/**
+ * Cắt đều `count` khung trong [rangeStart, rangeEnd] (mặc định full video).
+ * Tránh frame cuối (hay đen).
+ */
 export async function generateVideoThumbnails(
   video: HTMLVideoElement,
-  intervalSec = 5,
+  count = 6,
+  range?: { start?: number; end?: number },
 ): Promise<{ time: number; thumb: string }[]> {
   const duration = video.duration;
   if (!Number.isFinite(duration) || duration <= 0) return [];
 
+  const n = Math.max(1, Math.min(Math.floor(count) || 6, 12));
+  const rangeStart = Math.max(0, range?.start ?? 0);
+  const rangeEnd = Math.min(
+    duration,
+    range?.end != null && range.end > rangeStart ? range.end : duration,
+  );
+  const spanEnd = Math.max(rangeStart, rangeEnd - 0.12);
   const items: { time: number; thumb: string }[] = [];
 
-  for (let time = 0; time < duration; time += intervalSec) {
-    const thumb = await captureVideoThumbnail(video, time);
-    items.push({ time, thumb });
+  for (let i = 0; i < n; i += 1) {
+    const t =
+      n === 1
+        ? Math.min(rangeStart + 0.1, spanEnd)
+        : rangeStart + (i / (n - 1)) * (spanEnd - rangeStart);
+    const thumb = await captureVideoThumbnail(video, t);
+    items.push({ time: t, thumb });
   }
 
   return items;
+}
+
+/** Fetch video remote → blob URL local để canvas cắt thumbnail (bypass CORS). */
+export async function resolveVideoUrlForThumbnails(url: string): Promise<string> {
+  if (!url || url.startsWith("blob:") || url.startsWith("data:")) return url;
+  try {
+    const res = await fetch(url, { mode: "cors", credentials: "omit" });
+    if (!res.ok) return url;
+    const blob = await res.blob();
+    if (!blob.type.startsWith("video/") && blob.size < 1024) return url;
+    return URL.createObjectURL(blob);
+  } catch {
+    return url;
+  }
 }

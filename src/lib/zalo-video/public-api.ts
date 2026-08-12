@@ -5,6 +5,7 @@ export async function fetchPublicVideoList(options: {
   accountId: number;
   page?: number;
   rows?: number;
+  /** public | private | scheduled (scheduled-list Zalo) */
   status?: "public" | "private" | "scheduled";
 }): Promise<ZaloPublicVideoListResponse> {
   const session = getAccountSession(options.accountId);

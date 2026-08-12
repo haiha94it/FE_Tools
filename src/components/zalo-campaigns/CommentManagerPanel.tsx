@@ -1,256 +1,269 @@
 "use client";
 
-import ComponentCard from "@/components/common/ComponentCard";
-import { Modal } from "@/components/ui/modal";
-import { Tooltip } from "@/components/ui/tooltip/Tooltip";
-import Pagination from "@/components/tables/Pagination";
-import { useModal } from "@/hooks/useModal";
-import {
-  HiOutlineChatBubbleLeftRight,
-  HiOutlinePaperAirplane,
-  HiOutlineSquares2X2,
-  HiOutlineTrash,
-  HiOutlineVideoCamera,
-} from "react-icons/hi2";
-import VideoCreatorInlineIcon from "./VideoCreatorInlineIcon";
+import { VIDEO_CREATOR_BASE } from "@/config/api";
 import { getApiErrorMessage } from "@/lib/errors";
 import { toast } from "@/lib/toast";
 import {
+  decodeHtmlEntities,
   deletePublicComment,
   fetchPublicCommentList,
   likePublicComment,
   replyPublicComment,
+  type ZaloCommentAdsFilter,
+  type ZaloCommentOrderBy,
+  type ZaloCommentStatusFilter,
 } from "@/lib/zalo-video/comments-public-api";
 import { refreshCsrfToken } from "@/lib/zalo-video/session";
 import { zaloVideoService } from "@/services/zalo-video.service";
-import type { ZaloPublicCommentItem } from "@/types/zalo-video";
-import { useCallback, useEffect, useState } from "react";
+import type {
+  ZaloCommentListCursor,
+  ZaloPublicCommentItem,
+} from "@/types/zalo-video";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  HiChevronDown,
+  HiOutlineChatBubbleLeftRight,
+  HiOutlineHeart,
+  HiOutlinePaperAirplane,
+  HiOutlinePlay,
+  HiOutlineTrash,
+  HiOutlineVideoCamera,
+} from "react-icons/hi2";
 
 interface CommentManagerPanelProps {
   accountId: number;
 }
 
-const ROWS_PER_PAGE = 50;
+const ORDER_OPTIONS: { value: ZaloCommentOrderBy; label: string }[] = [
+  { value: 1, label: "Bình luận mới nhất" },
+  { value: 2, label: "Video mới nhất" },
+];
 
-function HeartIcon({ filled }: { filled?: boolean }) {
-  return (
-    <svg
-      className="size-4 shrink-0"
-      viewBox="0 0 24 24"
-      fill={filled ? "currentColor" : "none"}
-      stroke="currentColor"
-      strokeWidth="2"
-      aria-hidden
-    >
-      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-    </svg>
-  );
+const STATUS_OPTIONS: { value: ZaloCommentStatusFilter; label: string }[] = [
+  { value: 0, label: "Tất cả bình luận" },
+  { value: 1, label: "Bình luận chưa trả lời" },
+];
+
+const VIDEO_SCOPE_OPTIONS: { value: ZaloCommentAdsFilter; label: string }[] = [
+  { value: 0, label: "Tất cả video" },
+  { value: 1, label: "Video đang chạy quảng cáo" },
+];
+
+function formatCommentDateShort(raw?: number | null): string {
+  if (raw == null || raw === 0 || Number.isNaN(Number(raw))) return "";
+  let ms = Number(raw);
+  if (ms < 1e12) ms *= 1000;
+  const date = new Date(ms);
+  if (Number.isNaN(date.getTime())) return "";
+  const d = String(date.getDate()).padStart(2, "0");
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const y = date.getFullYear();
+  return `${d}/${m}/${y}`;
 }
 
-function PinBadge() {
-  return (
-    <span className="absolute left-2 top-2 rounded-md bg-brand-500 px-1.5 py-0.5 text-[10px] font-medium text-white">
-      Ghim
-    </span>
-  );
-}
-
-function CommentAvatar({ src, name }: { src?: string; name?: string }) {
-  if (src) {
-    return (
-      <img
-        src={src}
-        alt=""
-        className="h-7 w-7 shrink-0 rounded-full object-cover"
-      />
-    );
+function pickCommentTimestamp(item: ZaloPublicCommentItem): number | undefined {
+  const candidates = [
+    item.createdTime,
+    item.created_time,
+    item.time,
+    item.timestamp,
+    item.parent?.createdTime,
+    item.parent?.created_time,
+  ];
+  for (const c of candidates) {
+    if (c != null && Number(c) > 0) return Number(c);
   }
-
-  return (
-    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gray-100 text-[10px] font-medium text-gray-500 dark:bg-gray-800">
-      {(name?.trim()?.[0] ?? "?").toUpperCase()}
-    </span>
-  );
+  return undefined;
 }
 
-interface CommentBodyProps {
-  comment: ZaloPublicCommentItem;
-  onLike: (comment: ZaloPublicCommentItem, status: "like" | "unlike") => void;
-  onReply: (comment: ZaloPublicCommentItem) => void;
-  likingId: string | number | null;
+function isPinned(item: ZaloPublicCommentItem): boolean {
+  return Boolean(item.is_pinned || item.isPinned);
 }
 
-function CommentBody({
-  comment,
-  onLike,
-  onReply,
-  likingId,
-}: CommentBodyProps) {
-  const owner = comment.parent?.owner ?? comment.owner;
-  const name = owner?.info?.name ?? "Người dùng";
-  const avatar = owner?.info?.avatar;
-  const text = comment.parent?.content ?? comment.content ?? "";
-  const showActions = !comment.parent?.isRepliedByAuthor;
-  const isLiked = Boolean(comment.isLikedByAuthor);
-  const isReplying = likingId === comment.id;
-
+function PillSelect({
+  value,
+  options,
+  disabled,
+  onChange,
+}: {
+  value: string;
+  options: { value: string; label: string }[];
+  disabled?: boolean;
+  onChange: (v: string) => void;
+}) {
   return (
-    <div className="min-w-0 flex-1">
-      <div className="flex gap-2.5">
-        <CommentAvatar src={avatar} name={name} />
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium text-gray-800 dark:text-white/90">
-            {name}
-          </p>
-          <p className="mt-0.5 break-words text-sm text-gray-600 dark:text-gray-300">
-            {text || "—"}
-          </p>
-          {showActions && (
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              <Tooltip content={isLiked ? "Bỏ thích" : "Thích"}>
-                <button
-                  type="button"
-                  disabled={isReplying}
-                  aria-label={isLiked ? "Bỏ thích" : "Thích"}
-                  onClick={() =>
-                    onLike(comment, isLiked ? "unlike" : "like")
-                  }
-                  className={`inline-flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-medium transition disabled:opacity-50 ${
-                    isLiked
-                      ? "border-error-200 bg-error-50 text-error-600 dark:border-error-500/30 dark:bg-error-500/10 dark:text-error-400"
-                      : "border-gray-200 text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-white/5"
-                  }`}
-                >
-                  <HeartIcon filled={isLiked} />
-                  {isLiked ? "Đã thích" : "Thích"}
-                </button>
-              </Tooltip>
-              <Tooltip content="Trả lời">
-                <button
-                  type="button"
-                  aria-label="Trả lời"
-                  onClick={() => onReply(comment)}
-                  className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-gray-200 px-2.5 text-xs font-medium text-brand-600 transition hover:bg-brand-50 dark:border-gray-700 dark:text-brand-400 dark:hover:bg-brand-500/10"
-                >
-                  <VideoCreatorInlineIcon icon={HiOutlineChatBubbleLeftRight} size="sm" />
-                  {comment.isRepliedByAuthor ? "Đã trả lời" : "Trả lời"}
-                </button>
-              </Tooltip>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {comment.parent?.isRepliedByAuthor && (
-        <div className="mt-3 ml-9 border-l-2 border-gray-100 pl-3 dark:border-gray-800">
-          <div className="flex gap-2.5">
-            <CommentAvatar
-              src={comment.owner?.info?.avatar}
-              name={comment.owner?.info?.name}
-            />
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-gray-800 dark:text-white/90">
-                {comment.owner?.info?.name ?? "Bạn"}
-              </p>
-              <p className="mt-0.5 break-words text-sm text-gray-600 dark:text-gray-300">
-                {comment.content ?? "—"}
-              </p>
-              <div className="mt-2 flex flex-wrap items-center gap-2">
-                <Tooltip content={isLiked ? "Bỏ thích" : "Thích"}>
-                  <button
-                    type="button"
-                    disabled={isReplying}
-                    aria-label={isLiked ? "Bỏ thích" : "Thích"}
-                    onClick={() =>
-                      onLike(comment, isLiked ? "unlike" : "like")
-                    }
-                    className={`inline-flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-medium transition disabled:opacity-50 ${
-                      isLiked
-                        ? "border-error-200 bg-error-50 text-error-600 dark:border-error-500/30 dark:bg-error-500/10 dark:text-error-400"
-                        : "border-gray-200 text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-white/5"
-                    }`}
-                  >
-                    <HeartIcon filled={isLiked} />
-                    {isLiked ? "Đã thích" : "Thích"}
-                  </button>
-                </Tooltip>
-                <Tooltip content="Trả lời">
-                  <button
-                    type="button"
-                    aria-label="Trả lời"
-                    onClick={() => onReply(comment)}
-                    className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-gray-200 px-2.5 text-xs font-medium text-brand-600 transition hover:bg-brand-50 dark:border-gray-700 dark:text-brand-400 dark:hover:bg-brand-500/10"
-                  >
-                    <VideoCreatorInlineIcon icon={HiOutlineChatBubbleLeftRight} size="sm" />
-                    {comment.isRepliedByAuthor ? "Đã trả lời" : "Trả lời"}
-                  </button>
-                </Tooltip>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+    <div className="relative inline-flex min-w-0">
+      <select
+        value={value}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.value)}
+        className="h-9 appearance-none rounded-full border border-gray-200 bg-white py-1.5 pl-3.5 pr-8 text-xs font-semibold text-gray-800 outline-none transition hover:border-gray-300 focus:border-brand-400 focus:ring-2 focus:ring-brand-500/15 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:hover:border-gray-600"
+      >
+        {options.map((opt) => (
+          <option key={opt.value} value={opt.value}>
+            {opt.label}
+          </option>
+        ))}
+      </select>
+      <HiChevronDown
+        size={14}
+        className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400"
+        aria-hidden
+      />
     </div>
   );
 }
 
+/**
+ * Bình luận kênh — layout Care3/Creator (TailAdmin):
+ * thumb video | badge + ngày · avatar + tên · text · Thích/Trả lời/Xóa
+ */
 export default function CommentManagerPanel({
   accountId,
 }: CommentManagerPanelProps) {
-  const [page, setPage] = useState(1);
-  const [loading, setLoading] = useState(false);
-  const [renewing, setRenewing] = useState(false);
-  const [likingId, setLikingId] = useState<string | number | null>(null);
+  const router = useRouter();
   const [comments, setComments] = useState<ZaloPublicCommentItem[]>([]);
-  const [totalCount, setTotalCount] = useState(0);
-  const [replyTarget, setReplyTarget] = useState<ZaloPublicCommentItem | null>(
-    null,
-  );
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [renewing, setRenewing] = useState(false);
+  const [replyingId, setReplyingId] = useState<string | number | null>(null);
   const [replyText, setReplyText] = useState("");
-  const [replySubmitting, setReplySubmitting] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<ZaloPublicCommentItem | null>(
+  const [sendingReply, setSendingReply] = useState(false);
+  const [likingId, setLikingId] = useState<string | number | null>(null);
+
+  const [orderBy, setOrderBy] = useState<ZaloCommentOrderBy>(1);
+  const [statusFilter, setStatusFilter] = useState<ZaloCommentStatusFilter>(0);
+  const [adsFilter, setAdsFilter] = useState<ZaloCommentAdsFilter>(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [nextCursor, setNextCursor] = useState<ZaloCommentListCursor | null>(
     null,
   );
-  const [deleteSubmitting, setDeleteSubmitting] = useState(false);
 
-  const replyModal = useModal();
-  const deleteModal = useModal();
+  const loadMoreLock = useRef(false);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
 
-  const totalPages = Math.max(1, Math.ceil(totalCount / ROWS_PER_PAGE));
+  const openVideoDetail = (item: ZaloPublicCommentItem) => {
+    const vid = item.video?.id;
+    if (vid == null || vid === "") {
+      toast.error("Không có id video gắn bình luận này");
+      return;
+    }
+    const params = new URLSearchParams();
+    params.set("video", String(vid));
+    if (item.video?.thumbnail) {
+      params.set("thumb", item.video.thumbnail);
+    }
+    const title = (
+      item.video?.description ||
+      item.video?.title ||
+      ""
+    ).trim();
+    if (title) {
+      params.set("title", title.slice(0, 200));
+    }
+    router.push(
+      `${VIDEO_CREATOR_BASE}/${accountId}/video-manager?${params.toString()}`,
+    );
+  };
 
-  const loadComments = useCallback(async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
+    loadMoreLock.current = false;
     try {
-      const data = await fetchPublicCommentList({
+      const res = await fetchPublicCommentList({
         accountId,
-        page,
-        rows: ROWS_PER_PAGE,
+        orderBy,
+        status: statusFilter,
+        ads: adsFilter,
       });
-      setComments(data.results ?? []);
-      setTotalCount(data.count ?? data.results?.length ?? 0);
+      const batch = res.results ?? [];
+      setComments(batch);
+      setHasMore(Boolean(res.hasMore && res.nextCursor));
+      setNextCursor(res.nextCursor ?? null);
     } catch (error) {
       toast.error(getApiErrorMessage(error));
       setComments([]);
-      setTotalCount(0);
+      setHasMore(false);
+      setNextCursor(null);
     } finally {
       setLoading(false);
     }
-  }, [accountId, page]);
+  }, [accountId, orderBy, statusFilter, adsFilter]);
+
+  const loadMore = useCallback(async () => {
+    if (!hasMore || !nextCursor || loading || loadingMore || loadMoreLock.current)
+      return;
+    loadMoreLock.current = true;
+    setLoadingMore(true);
+    try {
+      const res = await fetchPublicCommentList({
+        accountId,
+        orderBy,
+        status: statusFilter,
+        ads: adsFilter,
+        cursor: nextCursor,
+      });
+      const batch = res.results ?? [];
+      if (batch.length === 0) {
+        setHasMore(false);
+        setNextCursor(null);
+        return;
+      }
+      setComments((prev) => {
+        const seen = new Set(prev.map((c) => String(c.id)));
+        const added = batch.filter((c) => !seen.has(String(c.id)));
+        return [...prev, ...added];
+      });
+      setHasMore(Boolean(res.hasMore && res.nextCursor));
+      setNextCursor(res.nextCursor ?? null);
+    } catch (error) {
+      toast.error(getApiErrorMessage(error));
+      setHasMore(false);
+    } finally {
+      setLoadingMore(false);
+      loadMoreLock.current = false;
+    }
+  }, [
+    accountId,
+    orderBy,
+    statusFilter,
+    adsFilter,
+    hasMore,
+    nextCursor,
+    loading,
+    loadingMore,
+  ]);
 
   useEffect(() => {
     void refreshCsrfToken(accountId);
   }, [accountId]);
 
   useEffect(() => {
-    void loadComments();
-  }, [loadComments]);
+    void loadData();
+  }, [loadData]);
+
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el || !hasMore) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          void loadMore();
+        }
+      },
+      { root: null, rootMargin: "120px", threshold: 0 },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [hasMore, loadMore, comments.length]);
 
   const handleRenew = async () => {
     setRenewing(true);
     try {
       await zaloVideoService.renewComments(accountId);
       toast.success("Làm mới bình luận thành công");
-      await loadComments();
+      await loadData();
     } catch (error) {
       toast.error(getApiErrorMessage(error));
     } finally {
@@ -258,18 +271,22 @@ export default function CommentManagerPanel({
     }
   };
 
-  const handleLike = async (
-    comment: ZaloPublicCommentItem,
-    status: "like" | "unlike",
-  ) => {
-    setLikingId(comment.id);
+  const handleLike = async (item: ZaloPublicCommentItem) => {
+    const nextStatus = item.isLikedByAuthor ? "unlike" : "like";
+    setLikingId(item.id);
     try {
       await likePublicComment({
         accountId,
-        commentId: comment.id,
-        status,
+        commentId: item.id,
+        status: nextStatus,
       });
-      await loadComments();
+      setComments((prev) =>
+        prev.map((c) =>
+          c.id === item.id
+            ? { ...c, isLikedByAuthor: !c.isLikedByAuthor }
+            : c,
+        ),
+      );
     } catch (error) {
       toast.error(getApiErrorMessage(error));
     } finally {
@@ -277,231 +294,350 @@ export default function CommentManagerPanel({
     }
   };
 
-  const openReply = (comment: ZaloPublicCommentItem) => {
-    setReplyTarget(comment);
-    setReplyText("");
-    replyModal.openModal();
-  };
-
-  const submitReply = async () => {
-    if (!replyTarget) return;
-    setReplySubmitting(true);
+  const handleDelete = async (item: ZaloPublicCommentItem) => {
+    if (!window.confirm("Xóa bình luận này? Hành động không thể hoàn tác.")) {
+      return;
+    }
     try {
-      await replyPublicComment({
-        accountId,
-        commentId: replyTarget.id,
-        content: replyText,
-      });
-      toast.success("Đã gửi trả lời");
-      replyModal.closeModal();
-      setReplyTarget(null);
-      setReplyText("");
-      await loadComments();
+      await deletePublicComment({ accountId, commentId: item.id });
+      setComments((prev) => prev.filter((c) => c.id !== item.id));
+      toast.success("Đã xóa bình luận");
     } catch (error) {
       toast.error(getApiErrorMessage(error));
-    } finally {
-      setReplySubmitting(false);
     }
   };
 
-  const openDelete = (comment: ZaloPublicCommentItem) => {
-    setDeleteTarget(comment);
-    deleteModal.openModal();
-  };
-
-  const confirmDelete = async () => {
-    if (!deleteTarget) return;
-    setDeleteSubmitting(true);
+  const handleSendReply = async (item: ZaloPublicCommentItem) => {
+    if (!replyText.trim()) return;
+    setSendingReply(true);
     try {
-      await deletePublicComment({
+      await replyPublicComment({
         accountId,
-        commentId: deleteTarget.id,
+        commentId: item.id,
+        content: replyText,
       });
-      toast.success("Đã xóa bình luận");
-      deleteModal.closeModal();
-      setDeleteTarget(null);
-      await loadComments();
+      toast.success("Đã gửi trả lời");
+      setReplyingId(null);
+      setReplyText("");
+      setComments((prev) =>
+        prev.map((c) =>
+          c.id === item.id ? { ...c, isRepliedByAuthor: true } : c,
+        ),
+      );
     } catch (error) {
       toast.error(getApiErrorMessage(error));
     } finally {
-      setDeleteSubmitting(false);
+      setSendingReply(false);
     }
   };
 
   return (
-    <ComponentCard
-      title="Quản lý bình luận"
-      desc="Xem, thích, trả lời và xóa bình luận trên video kênh"
-      hideDescOnMobile
-    >
-      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
-        <button
-          type="button"
-          disabled={loading}
-          onClick={() => void loadComments()}
-          className="h-11 w-full rounded-xl border border-gray-200 px-4 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60 sm:w-auto sm:py-2 dark:border-gray-700 dark:text-gray-300"
-        >
-          {loading ? "Đang tải…" : "↻ Tải lại"}
-        </button>
-        <button
-          type="button"
-          disabled={renewing}
-          onClick={() => void handleRenew()}
-          className="h-11 w-full rounded-xl bg-brand-500 px-4 text-sm font-medium text-white transition hover:bg-brand-600 disabled:opacity-60 sm:w-auto sm:py-2"
-        >
-          {renewing ? "Đang làm mới…" : "Làm mới dữ liệu"}
-        </button>
+    <div className="rounded-xl border border-gray-200 bg-white p-3 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03] sm:p-4">
+      {/* Header */}
+      <div className="mb-3 flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="text-base font-bold tracking-tight text-gray-900 dark:text-white">
+            Bình luận
+          </h3>
+          <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+            {comments.length > 0
+              ? `Đã tải ${comments.length} bình luận${hasMore ? " · cuộn để xem thêm" : ""}`
+              : "Quản lý bình luận kênh Zalo Video"}
+          </p>
+        </div>
+        <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+          <button
+            type="button"
+            disabled={loading || renewing}
+            onClick={() => void loadData()}
+            className="h-9 rounded-full border border-gray-200 px-3 text-xs font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-white/[0.04]"
+          >
+            {loading ? "Đang tải…" : "Tải lại"}
+          </button>
+          <button
+            type="button"
+            disabled={loading || renewing}
+            onClick={() => void handleRenew()}
+            className="h-9 rounded-full bg-brand-500 px-3 text-xs font-semibold text-white transition hover:bg-brand-600 disabled:opacity-50"
+          >
+            {renewing ? "Đang làm mới…" : "Làm mới"}
+          </button>
+        </div>
       </div>
 
-      {loading && comments.length === 0 ? (
-        <div className="flex items-center justify-center py-20">
-          <p className="text-sm text-gray-500">Đang tải bình luận…</p>
+      {/* Filter pills */}
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <PillSelect
+          value={String(orderBy)}
+          disabled={loading}
+          options={ORDER_OPTIONS.map((o) => ({
+            value: String(o.value),
+            label: o.label,
+          }))}
+          onChange={(v) => setOrderBy(Number(v) === 2 ? 2 : 1)}
+        />
+        <PillSelect
+          value={String(statusFilter)}
+          disabled={loading}
+          options={STATUS_OPTIONS.map((o) => ({
+            value: String(o.value),
+            label: o.label,
+          }))}
+          onChange={(v) => setStatusFilter(Number(v) === 1 ? 1 : 0)}
+        />
+        <PillSelect
+          value={String(adsFilter)}
+          disabled={loading}
+          options={VIDEO_SCOPE_OPTIONS.map((o) => ({
+            value: String(o.value),
+            label: o.label,
+          }))}
+          onChange={(v) => setAdsFilter(Number(v) === 1 ? 1 : 0)}
+        />
+      </div>
+
+      {loading ? (
+        <div className="flex min-h-[200px] items-center justify-center">
+          <span className="size-6 animate-spin rounded-full border-2 border-brand-500 border-t-transparent" />
         </div>
       ) : comments.length === 0 ? (
-        <div className="flex flex-col items-center justify-center gap-2 py-20 text-center">
-          <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-gray-100 dark:bg-gray-800">
-            <VideoCreatorInlineIcon icon={HiOutlineChatBubbleLeftRight} size="lg" className="text-gray-400" />
-          </span>
-          <p className="text-sm text-gray-500">Chưa có bình luận nào</p>
+        <div className="flex min-h-[160px] flex-col items-center justify-center rounded-xl border border-dashed border-gray-200 bg-gray-50/50 p-6 text-center dark:border-gray-800 dark:bg-gray-950/40">
+          <HiOutlineChatBubbleLeftRight
+            size={28}
+            className="mb-2 text-gray-400"
+            aria-hidden
+          />
+          <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+            Không có bình luận
+          </p>
+          <p className="mt-1 text-xs text-gray-500">
+            Thử đổi bộ lọc hoặc làm mới danh sách
+          </p>
         </div>
       ) : (
-        <>
-          <div className="space-y-3">
-            {comments.map((comment, index) => (
+        <div className="divide-y divide-gray-100 dark:divide-gray-800">
+          {comments.map((item) => {
+            const hasParent = Boolean(
+              item.parent?.content || item.parent?.owner,
+            );
+            const viewerName =
+              (hasParent
+                ? item.parent?.owner?.info?.name
+                : item.owner?.info?.name) || "Người dùng Zalo";
+            const viewerAvatar =
+              (hasParent
+                ? item.parent?.owner?.info?.avatar
+                : item.owner?.info?.avatar) || "";
+            const viewerTextRaw = hasParent
+              ? item.parent?.content || item.content || ""
+              : item.content || "";
+            const viewerText = decodeHtmlEntities(viewerTextRaw);
+            const replyTextDecoded = decodeHtmlEntities(item.content || "");
+            const isReplying = replyingId === item.id;
+            const thumb = item.video?.thumbnail;
+            const dateStr = formatCommentDateShort(
+              pickCommentTimestamp(item),
+            );
+            const pinned = isPinned(item);
+            const replied = Boolean(
+              item.isRepliedByAuthor || item.parent?.isRepliedByAuthor,
+            );
+            const liking = likingId === item.id;
+
+            return (
               <article
-                key={String(comment.id)}
-                className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-3 sm:flex-row sm:items-start sm:gap-4 sm:p-4 dark:border-gray-800 dark:bg-white/[0.02]"
+                key={String(item.id)}
+                className="flex gap-3 py-3.5 first:pt-1 sm:gap-4"
               >
-                <div className="flex items-start gap-3 sm:shrink-0">
-                  <span className="hidden w-6 pt-1 text-center text-xs text-gray-400 sm:inline">
-                    {(page - 1) * ROWS_PER_PAGE + index + 1}
-                  </span>
-                  <div className="relative shrink-0 overflow-hidden rounded-lg bg-gray-100 dark:bg-gray-800">
-                    {comment.video?.thumbnail ? (
-                      <img
-                        src={comment.video.thumbnail}
-                        alt=""
-                        className="h-[100px] w-[75px] object-cover sm:h-[125px] sm:w-[94px]"
+                {/* Thumbnail video */}
+                <button
+                  type="button"
+                  onClick={() => openVideoDetail(item)}
+                  title="Xem video"
+                  className="group relative h-[72px] w-[54px] shrink-0 overflow-hidden rounded-lg bg-gray-200 outline-none ring-1 ring-gray-200/80 transition hover:ring-2 hover:ring-brand-400 focus-visible:ring-2 focus-visible:ring-brand-500 dark:bg-gray-800 dark:ring-gray-700 sm:h-[88px] sm:w-[66px]"
+                >
+                  {thumb ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={thumb}
+                      alt=""
+                      className="h-full w-full object-cover transition group-hover:scale-105"
+                    />
+                  ) : (
+                    <div className="flex h-full items-center justify-center text-gray-400">
+                      <HiOutlineVideoCamera size={18} aria-hidden />
+                    </div>
+                  )}
+                  <span className="absolute inset-0 flex items-center justify-center bg-black/25">
+                    <span className="flex size-7 items-center justify-center rounded-full bg-black/55 text-white">
+                      <HiOutlinePlay
+                        size={12}
+                        className="ml-0.5 fill-current"
+                        aria-hidden
                       />
-                    ) : (
-                      <div className="flex h-[100px] w-[75px] items-center justify-center sm:h-[125px] sm:w-[94px]">
-                        <HiOutlineVideoCamera size={20} className="shrink-0 text-gray-300" aria-hidden />
-                      </div>
-                    )}
-                    {comment.is_pinned && <PinBadge />}
-                    <span className="absolute bottom-1 left-1 rounded bg-black/55 px-1 py-0.5">
-                      <VideoCreatorInlineIcon icon={HiOutlineSquares2X2} size="sm" className="text-white" />
                     </span>
+                  </span>
+                </button>
+
+                {/* Content */}
+                <div className="min-w-0 flex-1">
+                  <div className="mb-1 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-orange-500 dark:text-orange-400">
+                      <HiOutlineChatBubbleLeftRight
+                        size={12}
+                        className="shrink-0"
+                        aria-hidden
+                      />
+                      Bình luận
+                    </span>
+                    {dateStr ? (
+                      <span className="text-[11px] font-medium text-gray-400">
+                        {dateStr}
+                      </span>
+                    ) : null}
+                    {pinned ? (
+                      <span className="rounded bg-brand-50 px-1.5 py-0.5 text-[10px] font-bold text-brand-600 dark:bg-brand-500/15 dark:text-brand-300">
+                        Ghim
+                      </span>
+                    ) : null}
+                    {replied ? (
+                      <span className="rounded bg-success-50 px-1.5 py-0.5 text-[10px] font-bold text-success-600 dark:bg-success-500/15 dark:text-success-300">
+                        Đã trả lời
+                      </span>
+                    ) : null}
+                  </div>
+
+                  <div className="flex items-start gap-2.5">
+                    <div className="relative mt-0.5 size-8 shrink-0 overflow-hidden rounded-full bg-gray-100 ring-1 ring-gray-200 dark:bg-gray-800 dark:ring-gray-700">
+                      {viewerAvatar ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={viewerAvatar}
+                          alt=""
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-full items-center justify-center text-[11px] font-bold text-gray-500">
+                          {viewerName[0]?.toUpperCase() ?? "?"}
+                        </div>
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-bold text-gray-900 dark:text-white">
+                        {viewerName}
+                      </p>
+                      <p className="mt-0.5 break-words text-sm leading-relaxed text-gray-700 dark:text-gray-200">
+                        {viewerText || "—"}
+                      </p>
+
+                      {hasParent &&
+                      item.content &&
+                      item.content !== item.parent?.content ? (
+                        <div className="mt-2 rounded-lg border border-gray-100 bg-gray-50/80 px-3 py-2 dark:border-gray-800 dark:bg-gray-950/50">
+                          <p className="text-[11px] font-bold text-brand-600 dark:text-brand-400">
+                            {item.owner?.info?.name || "Bạn"} · phản hồi
+                          </p>
+                          <p className="mt-0.5 break-words text-sm text-gray-600 dark:text-gray-300">
+                            {replyTextDecoded}
+                          </p>
+                        </div>
+                      ) : null}
+
+                      <div className="mt-2 flex flex-wrap items-center gap-3">
+                        <button
+                          type="button"
+                          disabled={liking}
+                          onClick={() => void handleLike(item)}
+                          className={`inline-flex items-center gap-1 text-xs font-semibold transition disabled:opacity-50 ${
+                            item.isLikedByAuthor
+                              ? "text-error-500"
+                              : "text-gray-500 hover:text-error-500 dark:text-gray-400"
+                          }`}
+                        >
+                          <HiOutlineHeart
+                            size={14}
+                            className={
+                              item.isLikedByAuthor ? "fill-current" : ""
+                            }
+                            aria-hidden
+                          />
+                          Thích
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setReplyingId(isReplying ? null : item.id);
+                            setReplyText("");
+                          }}
+                          className="inline-flex items-center gap-1 text-xs font-semibold text-gray-500 hover:text-brand-600 dark:text-gray-400 dark:hover:text-brand-400"
+                        >
+                          <HiOutlineChatBubbleLeftRight size={14} aria-hidden />
+                          {isReplying ? "Hủy" : "Trả lời"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void handleDelete(item)}
+                          className="inline-flex items-center gap-1 text-xs font-semibold text-gray-400 hover:text-error-500"
+                        >
+                          <HiOutlineTrash size={13} aria-hidden />
+                          Xóa
+                        </button>
+                      </div>
+
+                      {isReplying && (
+                        <div className="mt-3 flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={replyText}
+                            onChange={(e) => setReplyText(e.target.value)}
+                            placeholder="Nhập câu trả lời…"
+                            className="h-9 flex-1 rounded-full border border-gray-200 bg-white px-3.5 text-xs text-gray-800 outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-500/15 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                            // eslint-disable-next-line jsx-a11y/no-autofocus
+                            autoFocus
+                          />
+                          <button
+                            type="button"
+                            disabled={sendingReply || !replyText.trim()}
+                            onClick={() => void handleSendReply(item)}
+                            className="inline-flex h-9 items-center justify-center rounded-full bg-brand-500 px-3 text-white transition hover:bg-brand-600 disabled:opacity-50"
+                            aria-label="Gửi trả lời"
+                          >
+                            <HiOutlinePaperAirplane size={14} aria-hidden />
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
-
-                <CommentBody
-                  comment={comment}
-                  onLike={handleLike}
-                  onReply={openReply}
-                  likingId={likingId}
-                />
-
-                <div className="flex shrink-0 sm:pt-1">
-                  <Tooltip content="Xóa bình luận">
-                    <button
-                      type="button"
-                      aria-label="Xóa bình luận"
-                      onClick={() => openDelete(comment)}
-                      className="inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-lg border border-error-200 px-3 text-xs font-medium text-error-600 transition hover:bg-error-50 sm:w-9 sm:px-0 dark:border-error-500/30 dark:text-error-400 dark:hover:bg-error-500/10"
-                    >
-                      <VideoCreatorInlineIcon icon={HiOutlineTrash} />
-                      <span className="sm:hidden">Xóa</span>
-                    </button>
-                  </Tooltip>
-                </div>
               </article>
-            ))}
-          </div>
+            );
+          })}
 
-          {totalPages > 1 && (
-            <div className="mt-6 flex justify-center">
-              <Pagination
-                currentPage={page}
-                totalPages={totalPages}
-                onPageChange={setPage}
-              />
-            </div>
-          )}
-        </>
+          <div
+            ref={sentinelRef}
+            className="flex min-h-10 flex-col items-center justify-center gap-2 py-4"
+          >
+            {loadingMore ? (
+              <p className="inline-flex items-center gap-2 text-xs font-semibold text-brand-600 dark:text-brand-400">
+                <span className="size-3.5 animate-spin rounded-full border-2 border-brand-500 border-t-transparent" />
+                Đang tải thêm bình luận…
+              </p>
+            ) : hasMore ? (
+              <button
+                type="button"
+                onClick={() => void loadMore()}
+                className="text-xs font-bold text-brand-600 hover:underline dark:text-brand-400"
+              >
+                Tải thêm
+              </button>
+            ) : comments.length > 0 && !hasMore ? (
+              <p className="text-[11px] font-medium text-gray-400">
+                Đã hết bình luận
+              </p>
+            ) : null}
+          </div>
+        </div>
       )}
-
-      <Modal
-        isOpen={replyModal.isOpen}
-        onClose={replyModal.closeModal}
-        className="max-w-lg m-4"
-      >
-        <div className="p-5 sm:p-6">
-          <h3 className="text-base font-semibold text-gray-800 dark:text-white/90">
-            Trả lời bình luận
-          </h3>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            {replyTarget?.parent?.content ?? replyTarget?.content ?? ""}
-          </p>
-          <textarea
-            value={replyText}
-            onChange={(e) => setReplyText(e.target.value)}
-            rows={4}
-            placeholder="Nhập nội dung trả lời…"
-            className="mt-4 w-full resize-none rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-sm text-gray-800 outline-none focus:border-brand-300 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
-          />
-          <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-end">
-            <button
-              type="button"
-              onClick={replyModal.closeModal}
-              className="h-10 w-full rounded-lg border border-gray-200 px-4 text-sm font-medium text-gray-700 sm:w-auto dark:border-gray-700 dark:text-gray-300"
-            >
-              Hủy
-            </button>
-            <button
-              type="button"
-              disabled={replySubmitting || !replyText.trim()}
-              onClick={() => void submitReply()}
-              className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-brand-500 px-4 text-sm font-medium text-white hover:bg-brand-600 disabled:opacity-60 sm:w-auto"
-            >
-              <VideoCreatorInlineIcon icon={HiOutlinePaperAirplane} />
-              {replySubmitting ? "Đang gửi…" : "Gửi"}
-            </button>
-          </div>
-        </div>
-      </Modal>
-
-      <Modal
-        isOpen={deleteModal.isOpen}
-        onClose={deleteModal.closeModal}
-        className="max-w-md m-4"
-      >
-        <div className="p-5 sm:p-6">
-          <h3 className="text-base font-semibold text-gray-800 dark:text-white/90">
-            Xóa bình luận
-          </h3>
-          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-            Bạn có chắc muốn xóa bình luận này? Hành động không thể hoàn tác.
-          </p>
-          <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-end">
-            <button
-              type="button"
-              onClick={deleteModal.closeModal}
-              className="h-10 w-full rounded-lg border border-gray-200 px-4 text-sm font-medium text-gray-700 sm:w-auto dark:border-gray-700 dark:text-gray-300"
-            >
-              Hủy
-            </button>
-            <button
-              type="button"
-              disabled={deleteSubmitting}
-              onClick={() => void confirmDelete()}
-              className="h-10 w-full rounded-lg bg-error-500 px-4 text-sm font-medium text-white hover:bg-error-600 disabled:opacity-60 sm:w-auto"
-            >
-              {deleteSubmitting ? "Đang xóa…" : "Xác nhận xóa"}
-            </button>
-          </div>
-        </div>
-      </Modal>
-    </ComponentCard>
+    </div>
   );
 }

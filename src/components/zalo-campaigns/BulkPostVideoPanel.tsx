@@ -328,7 +328,28 @@ export default function BulkPostVideoPanel({
 
       setServerVideoPath(path);
       setVideoPreviewUrl(buildDownloadedVideoPreviewUrl(path));
-      toast.success("Đã quét video từ link");
+      // Title TikTok → caption (cùng CAPTION_MAX với PostVideoPanel)
+      const CAPTION_MAX = 2000;
+      const rawTitle =
+        result.data?.title?.trim() ||
+        result.data?.caption?.trim() ||
+        (typeof result.result === "object" && result.result
+          ? String(
+              (result.result as { title?: string; caption?: string }).title ||
+                (result.result as { title?: string; caption?: string }).caption ||
+                "",
+            ).trim()
+          : "");
+      if (rawTitle) {
+        setCaption(
+          rawTitle.length > CAPTION_MAX
+            ? rawTitle.slice(0, CAPTION_MAX)
+            : rawTitle,
+        );
+      }
+      toast.success(
+        rawTitle ? "Đã quét video và điền nội dung" : "Đã quét video từ link",
+      );
     } catch (error) {
       toast.error(getApiErrorMessage(error));
     } finally {
@@ -738,14 +759,14 @@ export default function BulkPostVideoPanel({
             </label>
             <textarea
               value={caption}
-              rows={4}
-              maxLength={300}
+              rows={6}
+              maxLength={2000}
               disabled={!formReady}
               onChange={(e) => setCaption(e.target.value)}
-              placeholder="Mô tả video (tối đa 300 ký tự)"
-              className="w-full resize-none rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-800 outline-none focus:border-brand-300 focus:ring-2 focus:ring-brand-500/10 disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+              placeholder="Mô tả video (tối đa 2000 ký tự)"
+              className="w-full resize-y rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-800 outline-none focus:border-brand-300 focus:ring-2 focus:ring-brand-500/10 disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
             />
-            <p className="mt-1 text-xs text-gray-400">{caption.length}/300</p>
+            <p className="mt-1 text-xs text-gray-400">{caption.length}/2000</p>
           </div>
 
           <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-700 dark:text-gray-300">

@@ -196,6 +196,30 @@ export const zaloVideoService = {
     return body.file;
   },
 
+  /**
+   * Cắt đoạn video trên server (ffmpeg -c copy, fallback re-encode).
+   * @returns path file cắt — đăng path này thay video gốc.
+   */
+  async trimVideoFile(options: {
+    videoPath: string;
+    start: number;
+    end: number;
+  }): Promise<string> {
+    const response = await api.post<ZaloVideoUploadResponse>(
+      API_CHANNEL_VIDEO.TRIM_VIDEO,
+      {
+        video: options.videoPath,
+        start: options.start,
+        end: options.end,
+      },
+    );
+    const body = unwrapApiBody<ZaloVideoUploadResponse>(response.data);
+    if (!body.file) {
+      throw new Error("Không nhận được đường dẫn video sau khi cắt.");
+    }
+    return body.file;
+  },
+
   async startPostVideo(payload: PostZaloVideoPayload): Promise<string | number> {
     const response = await api.post(API_CHANNEL_VIDEO.POST_VIDEO, payload);
     const taskId = extractTaskId(unwrapApiBody(response.data));

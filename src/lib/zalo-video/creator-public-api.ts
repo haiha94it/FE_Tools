@@ -39,7 +39,25 @@ async function postJson<T>(
   });
 
   if (!response.ok) {
-    throw new Error("Yêu cầu thất bại");
+    let msg = "Yêu cầu thất bại";
+    try {
+      const errBody = (await response.json()) as {
+        msg?: string;
+        message?: string;
+        error?: string | number;
+        details?: string;
+      };
+      if (typeof errBody?.msg === "string" && errBody.msg) msg = errBody.msg;
+      else if (typeof errBody?.message === "string" && errBody.message)
+        msg = errBody.message;
+      else if (typeof errBody?.details === "string" && errBody.details)
+        msg = errBody.details;
+      else if (typeof errBody?.error === "string" && errBody.error)
+        msg = errBody.error;
+    } catch {
+      /* ignore parse */
+    }
+    throw new Error(msg);
   }
 
   return (await response.json()) as T;
@@ -212,13 +230,57 @@ export async function updatePageField(options: {
   }, { csrf: true });
 }
 
+/** Zalo public-api: `{ error: 0 }` — error ≠ 0 = thất bại nghiệp vụ. */
+function assertZaloBusinessOk(data: unknown, fallbackMsg: string): void {
+  if (!data || typeof data !== "object") return;
+  const row = data as {
+    error?: number | string;
+    msg?: string;
+    message?: string;
+  };
+  if (!("error" in row) || row.error === undefined || row.error === null) return;
+  const code = row.error;
+  if (code === 0 || code === "0") return;
+  throw new Error(
+    (typeof row.msg === "string" && row.msg) ||
+      (typeof row.message === "string" && row.message) ||
+      fallbackMsg,
+  );
+}
+
+/**
+ * Bật/tắt hiển thị trang trên hồ sơ = store/update-privacy (Care3).
+ * visible 1 → privacy=2 (công khai) · 0 → privacy=1 (riêng tư).
+ */
 export async function updatePageVisibility(
+  accountId: number,
+  visible: 0 | 1,
+): Promise<void> {
+  const privacy = visible === 1 ? 2 : 1;
+  const data = await postJson<unknown>(
+    "/next-api/update_page_privacy",
+    accountId,
+    { privacy },
+    { csrf: true },
+  );
+  assertZaloBusinessOk(data, "Zalo từ chối đổi trạng thái hiển thị trang.");
+}
+
+/**
+ * Legacy store/update-status (showed) — không phải switch «Hiển thị» Creator.
+ * UI chính dùng updatePageVisibility → update-privacy.
+ */
+export async function updatePageShowedStatus(
   accountId: number,
   status: 0 | 1,
 ): Promise<void> {
-  await postJson("/next-api/update_status_page_creator", accountId, {
-    status,
-  }, { csrf: true });
+  const data = await postJson<unknown>(
+    "/next-api/update_status_page_creator",
+    accountId,
+    { status },
+    { csrf: true },
+  );
+  assertZaloBusinessOk(data, "Zalo từ chối update-status trang.");
 }
 
 export async function createStoreProduct(options: {
@@ -306,6 +368,151 @@ export async function fetchPublicVideosForPicker(
   );
 }
 
+/** public | private | scheduled — list / private-list / scheduled-list */
+export type ZaloChannelVideoListStatus = "public" | "private" | "scheduled";
+
+export async function fetchChannelVideos(
+  accountId: number,
+  status: ZaloChannelVideoListStatus = "public",
+  page = 1,
+  rows = 100,
+): Promise<ZaloPublicVideoListResponse> {
+  return postJson<ZaloPublicVideoListResponse>(
+    "/next-api/get_list_video_public",
+    accountId,
+    { page, number_per_page: rows, status },
+  );
+}
+
+/** Xóa video kênh — Zalo video/remove. */
+export async function deletePublicVideo(options: {
+  accountId: number;
+  videoId: string | number;
+}): Promise<void> {
+  const data = await postJson<unknown>(
+    "/next-api/delete_video",
+    options.accountId,
+    { id: options.videoId },
+    { csrf: true },
+  );
+  assertZaloBusinessOk(
+    data,
+    "Zalo từ chối xóa video (kiểm tra phiên / CSRF / quyền).",
+  );
+}
+
+/**
+ * Sửa nội dung (title/mô tả) video đã đặt lịch.
+ * Zalo: POST video/update-schedule — form id + title.
+ */
+export async function updateScheduledVideoTitle(options: {
+  accountId: number;
+  videoId: string | number;
+  title: string;
+}): Promise<void> {
+  const title = options.title.trim();
+  if (!title) throw new Error("Nội dung không được để trống.");
+  const data = await postJson<unknown>(
+    "/next-api/update_video_schedule",
+    options.accountId,
+    { id: options.videoId, title },
+    { csrf: true },
+  );
+  assertZaloBusinessOk(
+    data,
+    "Zalo từ chối cập nhật nội dung lịch (kiểm tra phiên / CSRF / quyền).",
+  );
+}
+
+/** Ghim / bỏ ghim video — video/pin | video/unpin */
+export async function pinChannelVideo(options: {
+  accountId: number;
+  videoId: string | number;
+  pin: boolean;
+}): Promise<void> {
+  const data = await postJson<unknown>(
+    "/next-api/pin_video",
+    options.accountId,
+    {
+      id: options.videoId,
+      status: options.pin ? "pin" : "unpin",
+    },
+    { csrf: true },
+  );
+  assertZaloBusinessOk(
+    data,
+    options.pin ? "Zalo từ chối ghim video." : "Zalo từ chối bỏ ghim video.",
+  );
+}
+
+/**
+ * Bật/tắt nút liên hệ trên video.
+ * Zalo: video/update-contact-cta — form id=&enabled=0|1
+ */
+export async function updateVideoContactCta(options: {
+  accountId: number;
+  videoId: string | number;
+  enabled: boolean;
+}): Promise<void> {
+  const data = await postJson<unknown>(
+    "/next-api/update_video_contact_cta",
+    options.accountId,
+    {
+      id: options.videoId,
+      enabled: options.enabled ? 1 : 0,
+    },
+    { csrf: true },
+  );
+  assertZaloBusinessOk(data, "Zalo từ chối cập nhật nút liên hệ video.");
+}
+
+export function isVideoPinned(item: {
+  isPinned?: boolean;
+  is_pinned?: boolean;
+  pinned?: boolean;
+}): boolean {
+  return Boolean(item.isPinned ?? item.is_pinned ?? item.pinned);
+}
+
+export function isVideoContactEnabled(item: {
+  isContactEnabled?: boolean;
+  is_contact_enabled?: boolean;
+  contactEnabled?: boolean;
+}): boolean {
+  return Boolean(
+    item.isContactEnabled ?? item.is_contact_enabled ?? item.contactEnabled,
+  );
+}
+
+/** Unix schedule / publicTime nếu có trên item list. */
+export function pickVideoScheduleUnix(item: unknown): number | undefined {
+  if (!item || typeof item !== "object") return undefined;
+  const r = item as Record<string, unknown>;
+  const raw =
+    r.publicTime ??
+    r.public_time ??
+    r.scheduleTime ??
+    r.schedule_time ??
+    r.publishTime ??
+    r.publish_time;
+  if (raw == null || raw === "") return undefined;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n <= 0) return undefined;
+  // ms vs s
+  return n > 1e12 ? Math.floor(n / 1000) : Math.floor(n);
+}
+
+/** Danh mục sản phẩm store (proxy sẵn — UI có thể dùng sau). */
+export async function fetchStoreProductCategories(
+  accountId: number,
+): Promise<unknown> {
+  return postJson<unknown>(
+    "/next-api/get_store_product_categories",
+    accountId,
+    {},
+  );
+}
+
 // ——— Chi tiết / xem video ———
 
 /** Chi tiết / thống kê cơ bản video — Zalo `video/analytics`. */
@@ -314,6 +521,16 @@ export async function fetchVideoAnalytics(
   videoId: string | number,
 ): Promise<Record<string, unknown>> {
   return postJson<Record<string, unknown>>("/next-api/get_infor_video", accountId, {
+    id_video: videoId,
+  });
+}
+
+/** Phân tích hiệu suất + nguồn traffic — Zalo `analytics-ad-stats`. */
+export async function fetchVideoAdStats(
+  accountId: number,
+  videoId: string | number,
+): Promise<Record<string, unknown>> {
+  return postJson<Record<string, unknown>>("/next-api/get_video_ad_stats", accountId, {
     id_video: videoId,
   });
 }

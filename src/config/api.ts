@@ -327,6 +327,8 @@ export const API_CHANNEL_VIDEO = {
   POST_VIDEO: "/api/channel/video/post",
   POST_VIDEO_RESULT: "/api/channel/video/post/result",
   UPLOAD_VIDEO: "/api/upload/zalo-video",
+  /** Cắt đoạn video đã upload (ffmpeg) — Care3 parity */
+  TRIM_VIDEO: "/api/upload/zalo-video/trim",
   DOWNLOAD_VIDEO: "/api/channel/download-video",
   DOWNLOAD_VIDEO_RESULT: "/api/channel/download-video/result",
   RENEW_VIDEOS: "/api/channel/video/renew",
