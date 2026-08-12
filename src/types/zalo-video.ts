@@ -127,10 +127,17 @@ export interface ZaloPublicVideoItem {
   isContactEnabled?: boolean;
   is_contact_enabled?: boolean;
   contactEnabled?: boolean;
+  /** Unix s/ms — giờ hẹn đăng (scheduled-list thường publishedTime) */
+  publishedTime?: number;
+  published_time?: number;
+  publishTime?: number;
+  publish_time?: number;
   publicTime?: number;
   public_time?: number;
   scheduleTime?: number;
   schedule_time?: number;
+  scheduledTime?: number;
+  scheduled_time?: number;
   created_time?: number;
   createdTime?: number;
   status?: string;

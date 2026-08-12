@@ -84,6 +84,18 @@ export function formatZaloTimestamp(timestamp?: number): string {
   });
 }
 
+/**
+ * Giờ hẹn đăng gọn: `17:57 05/09/2026` (local).
+ * Dùng trên card / badge lịch — không đổi formatZaloTimestamp (vi-VN locale).
+ */
+export function formatScheduleLabel(unixSec?: number): string {
+  if (unixSec == null || !Number.isFinite(unixSec) || unixSec <= 0) return "";
+  const d = new Date(unixSec * 1000);
+  if (Number.isNaN(d.getTime())) return "";
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${p(d.getHours())}:${p(d.getMinutes())} ${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()}`;
+}
+
 export function getLegacyQueryId(searchParams: URLSearchParams): string | null {
   const keys = Array.from(searchParams.keys());
   return keys[0] ?? null;
@@ -484,22 +496,43 @@ export function isVideoContactEnabled(item: {
   );
 }
 
-/** Unix schedule / publicTime nếu có trên item list. */
-export function pickVideoScheduleUnix(item: unknown): number | undefined {
-  if (!item || typeof item !== "object") return undefined;
-  const r = item as Record<string, unknown>;
-  const raw =
-    r.publicTime ??
-    r.public_time ??
-    r.scheduleTime ??
-    r.schedule_time ??
-    r.publishTime ??
-    r.publish_time;
+function toUnixSeconds(raw: unknown): number | undefined {
   if (raw == null || raw === "") return undefined;
   const n = Number(raw);
   if (!Number.isFinite(n) || n <= 0) return undefined;
   // ms vs s
   return n > 1e12 ? Math.floor(n / 1000) : Math.floor(n);
+}
+
+/**
+ * Giờ hẹn đăng (scheduled-list).
+ * Zalo thường: publishedTime > 0; không fallback createdTime (đó là lúc tạo video).
+ * publicTime vẫn nhận — body post_video_creators / một số payload list.
+ */
+export function pickVideoScheduleUnix(item: unknown): number | undefined {
+  if (!item || typeof item !== "object") return undefined;
+  const r = item as Record<string, unknown>;
+  const candidates = [
+    r.publishedTime,
+    r.published_time,
+    r.publishTime,
+    r.publish_time,
+    r.publicTime,
+    r.public_time,
+    r.scheduleTime,
+    r.scheduledTime,
+    r.scheduled_time,
+    r.schedule_time,
+    r.publishAt,
+    r.publish_at,
+    r.scheduleAt,
+    r.schedule_at,
+  ];
+  for (const c of candidates) {
+    const sec = toUnixSeconds(c);
+    if (sec != null) return sec;
+  }
+  return undefined;
 }
 
 /** Danh mục sản phẩm store (proxy sẵn — UI có thể dùng sau). */

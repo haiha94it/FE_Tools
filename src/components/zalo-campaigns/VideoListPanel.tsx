@@ -9,9 +9,12 @@ import { getApiErrorMessage } from "@/lib/errors";
 import { toast } from "@/lib/toast";
 import {
   deletePublicVideo,
+  formatScheduleLabel,
   isVideoContactEnabled,
   isVideoPinned,
+  pickVideoScheduleUnix,
   pinChannelVideo,
+  updateScheduledVideoTitle,
   updateVideoContactCta,
 } from "@/lib/zalo-video/creator-public-api";
 import { fetchPublicVideoList } from "@/lib/zalo-video/public-api";
@@ -20,6 +23,7 @@ import { useCallback, useEffect, useState } from "react";
 import {
   HiOutlineChartBar,
   HiOutlineMapPin,
+  HiOutlinePencilSquare,
   HiOutlinePhone,
   HiOutlinePlay,
   HiOutlineSquares2X2,
@@ -28,6 +32,9 @@ import {
 import VideoAnalyticsDetail, {
   type VideoListStatusFilter,
 } from "./VideoAnalyticsDetail";
+
+/** Giới hạn title/caption lịch — khớp post caption Care2 */
+const SCHEDULE_TITLE_MAX = 2000;
 
 interface VideoListPanelProps {
   accountId: number;
@@ -82,6 +89,10 @@ export default function VideoListPanel({ accountId }: VideoListPanelProps) {
     null,
   );
   const [busyId, setBusyId] = useState<string | number | null>(null);
+  /** Modal sửa title/caption video đặt lịch */
+  const [editItem, setEditItem] = useState<ZaloPublicVideoItem | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
 
   const totalPages = Math.max(1, Math.ceil(totalCount / ROWS_PER_PAGE));
 
@@ -231,11 +242,57 @@ export default function VideoListPanel({ accountId }: VideoListPanelProps) {
     }
   };
 
+  const openEditSchedule = (video: ZaloPublicVideoItem) => {
+    setEditItem(video);
+    setEditTitle(
+      String(video.description ?? video.title ?? "").trim(),
+    );
+  };
+
+  const closeEditSchedule = () => {
+    if (savingEdit) return;
+    setEditItem(null);
+    setEditTitle("");
+  };
+
+  const handleSaveScheduleEdit = async () => {
+    if (!editItem) return;
+    const title = editTitle.trim();
+    if (!title) {
+      toast.warning("Nội dung không được để trống");
+      return;
+    }
+    setSavingEdit(true);
+    try {
+      await updateScheduledVideoTitle({
+        accountId,
+        videoId: editItem.id,
+        title,
+      });
+      handleVideoPatched({
+        ...editItem,
+        description: title,
+        title,
+      });
+      toast.success("Đã cập nhật nội dung lịch đăng");
+      setEditItem(null);
+      setEditTitle("");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Cập nhật lịch thất bại");
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
   return (
     <>
       <ComponentCard
         title="Quản lý video"
-        desc="Hover card → Ghim · Liên hệ · Phân tích · Xóa. Click thumbnail mở viewer."
+        desc={
+          status === "scheduled"
+            ? "Video chờ đăng · Sửa nội dung · Xóa. Click thumbnail mở viewer."
+            : "Hover card → Ghim · Liên hệ · Phân tích · Xóa. Click thumbnail mở viewer."
+        }
         hideDescOnMobile
       >
         <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -281,10 +338,17 @@ export default function VideoListPanel({ accountId }: VideoListPanelProps) {
                 const pinned = isVideoPinned(video);
                 const contactOn = isVideoContactEnabled(video);
                 const busy = busyId === video.id;
+                const isScheduled = status === "scheduled";
                 const title =
                   video.description?.trim() ||
                   video.title?.trim() ||
                   "Không có mô tả";
+                const scheduleTs = isScheduled
+                  ? pickVideoScheduleUnix(video)
+                  : undefined;
+                const scheduleLabel = scheduleTs
+                  ? formatScheduleLabel(scheduleTs)
+                  : "";
 
                 return (
                   <article
@@ -325,15 +389,27 @@ export default function VideoListPanel({ accountId }: VideoListPanelProps) {
                         </span>
                       </button>
 
-                      {pinned && (
+                      {pinned && !isScheduled && (
                         <span className="pointer-events-none absolute left-1.5 top-1.5 z-[1] rounded-md bg-brand-500 px-1.5 py-0.5 text-[10px] font-medium text-white">
                           Ghim
                         </span>
                       )}
-                      {status === "scheduled" && (
-                        <span className="pointer-events-none absolute right-1.5 top-1.5 z-[1] rounded-md bg-gray-900/70 px-1.5 py-0.5 text-[10px] font-medium text-white">
-                          Lịch
-                        </span>
+                      {isScheduled && (
+                        <div className="pointer-events-none absolute inset-x-1.5 top-1.5 z-[1] flex flex-col items-start gap-1">
+                          <span className="rounded-md bg-warning-500/95 px-1.5 py-0.5 text-[10px] font-semibold text-white shadow-sm">
+                            Chờ đăng
+                          </span>
+                          <span
+                            className="max-w-full truncate rounded-md bg-black/65 px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-amber-50"
+                            title={
+                              scheduleLabel
+                                ? `Đăng lúc ${scheduleLabel}`
+                                : "Chưa có giờ hẹn"
+                            }
+                          >
+                            {scheduleLabel || "Chưa có giờ hẹn"}
+                          </span>
+                        </div>
                       )}
 
                       {/* Action bar — luôn mờ, rõ khi hover / focus-within */}
@@ -342,7 +418,19 @@ export default function VideoListPanel({ accountId }: VideoListPanelProps) {
                         onClick={(e) => e.stopPropagation()}
                         onKeyDown={(e) => e.stopPropagation()}
                       >
-                        {status !== "scheduled" ? (
+                        {isScheduled ? (
+                          <Tooltip content="Sửa nội dung" side="top">
+                            <button
+                              type="button"
+                              disabled={busy}
+                              onClick={() => openEditSchedule(video)}
+                              className="inline-flex size-8 items-center justify-center rounded-full bg-warning-500/90 text-white shadow-sm transition hover:bg-warning-600 disabled:opacity-50"
+                              aria-label="Sửa nội dung lịch"
+                            >
+                              <HiOutlinePencilSquare size={15} aria-hidden />
+                            </button>
+                          </Tooltip>
+                        ) : (
                           <>
                             <Tooltip
                               content={pinned ? "Bỏ ghim" : "Ghim"}
@@ -385,7 +473,7 @@ export default function VideoListPanel({ accountId }: VideoListPanelProps) {
                               </button>
                             </Tooltip>
                           </>
-                        ) : null}
+                        )}
                         <Tooltip content="Phân tích / xem" side="top">
                           <button
                             type="button"
@@ -415,17 +503,24 @@ export default function VideoListPanel({ accountId }: VideoListPanelProps) {
                       <p className="line-clamp-2 text-xs font-medium leading-snug text-gray-800 dark:text-white/90">
                         {truncateText(title)}
                       </p>
-                      <div className="flex flex-wrap gap-2 text-[10px] text-gray-400">
-                        {status !== "scheduled" ? (
-                          <>
-                            <span>{formatCount(video.views)} xem</span>
-                            <span>{formatCount(video.likes)} thích</span>
-                            <span>{formatCount(video.comments)} BL</span>
-                          </>
-                        ) : (
-                          <span>Chờ đăng</span>
-                        )}
-                      </div>
+                      {isScheduled ? (
+                        <div className="space-y-0.5">
+                          <p className="text-[10px] font-medium text-warning-600 dark:text-warning-400">
+                            {scheduleLabel
+                              ? `Đăng lúc ${scheduleLabel}`
+                              : "Chưa có giờ hẹn từ Zalo"}
+                          </p>
+                          <p className="text-[10px] text-gray-400">
+                            Chưa phát hành công khai
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="flex flex-wrap gap-2 text-[10px] text-gray-400">
+                          <span>{formatCount(video.views)} xem</span>
+                          <span>{formatCount(video.likes)} thích</span>
+                          <span>{formatCount(video.comments)} BL</span>
+                        </div>
+                      )}
                     </div>
                   </article>
                 );
@@ -462,6 +557,71 @@ export default function VideoListPanel({ accountId }: VideoListPanelProps) {
               onVideoPatched={handleVideoPatched}
               onVideoDeleted={handleVideoDeleted}
             />
+          </div>
+        ) : null}
+      </Modal>
+
+      {/* Sửa title/caption video đặt lịch → update_video_schedule */}
+      <Modal
+        isOpen={editItem != null}
+        onClose={closeEditSchedule}
+        className="max-w-md !p-0"
+        layer="top"
+      >
+        {editItem ? (
+          <div className="flex flex-col gap-3 p-4 sm:p-5">
+            <div>
+              <h3 className="text-base font-semibold text-gray-800 dark:text-white/90">
+                Sửa nội dung video đặt lịch
+              </h3>
+              <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
+                {(() => {
+                  const ts = pickVideoScheduleUnix(editItem);
+                  const label = ts ? formatScheduleLabel(ts) : "";
+                  return label
+                    ? `Đăng lúc ${label}`
+                    : "Video chờ đăng theo lịch";
+                })()}
+              </p>
+            </div>
+            {editItem.thumbnail ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={editItem.thumbnail}
+                alt=""
+                className="mx-auto h-28 w-[4.5rem] rounded-lg object-cover"
+              />
+            ) : null}
+            <textarea
+              value={editTitle}
+              onChange={(e) => setEditTitle(e.target.value)}
+              rows={5}
+              maxLength={SCHEDULE_TITLE_MAX}
+              disabled={savingEdit}
+              placeholder="Nội dung / mô tả video…"
+              className="w-full resize-y rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 outline-none focus:border-brand-300 focus:ring-2 focus:ring-brand-500/10 disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+            />
+            <p className="text-[10px] text-gray-400">
+              {editTitle.trim().length}/{SCHEDULE_TITLE_MAX}
+            </p>
+            <div className="flex flex-wrap justify-end gap-2">
+              <button
+                type="button"
+                disabled={savingEdit}
+                onClick={closeEditSchedule}
+                className="h-9 rounded-lg border border-gray-200 px-3 text-xs font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-white/[0.03]"
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                disabled={savingEdit || !editTitle.trim()}
+                onClick={() => void handleSaveScheduleEdit()}
+                className="h-9 rounded-lg bg-brand-500 px-3 text-xs font-semibold text-white transition hover:bg-brand-600 disabled:opacity-50"
+              >
+                {savingEdit ? "Đang lưu…" : "Lưu"}
+              </button>
+            </div>
           </div>
         ) : null}
       </Modal>

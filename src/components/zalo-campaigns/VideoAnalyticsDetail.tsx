@@ -11,9 +11,11 @@ import {
   fetchVideoAdStats,
   fetchVideoAnalytics,
   fetchVideoParentComments,
+  formatScheduleLabel,
   formatZaloTimestamp,
   isVideoContactEnabled,
   isVideoPinned,
+  pickVideoScheduleUnix,
   pinChannelVideo,
   updateScheduledVideoTitle,
   updateVideoContactCta,
@@ -508,6 +510,12 @@ export default function VideoAnalyticsDetail({
   const pinned = isVideoPinned(localVideo);
   const contactOn = isVideoContactEnabled(localVideo);
   const isScheduled = listStatus === "scheduled";
+  const scheduleTs = isScheduled
+    ? pickVideoScheduleUnix(localVideo) ??
+      pickVideoScheduleUnix(merged) ??
+      undefined
+    : undefined;
+  const scheduleLabel = scheduleTs ? formatScheduleLabel(scheduleTs) : "";
 
   /** Nguồn traffic: ad-stats BFF hoặc view_sources từ analytics/DB. */
   const trafficSources = useMemo(() => {
@@ -679,9 +687,27 @@ export default function VideoAnalyticsDetail({
             className="flex min-h-0 min-w-0 flex-col overflow-hidden border-t border-gray-100 dark:border-gray-800 lg:border-l lg:border-t-0"
           >
             <div className="shrink-0 space-y-2.5 border-b border-gray-100 px-3 py-3 dark:border-gray-800 sm:px-4">
-              <p className="text-[11px] font-medium text-gray-400">
-                {formatZaloTimestamp(createdTime ?? undefined)}
-              </p>
+              {isScheduled ? (
+                <div className="space-y-1">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="rounded-md bg-warning-500/95 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                      Chờ đăng
+                    </span>
+                    <span className="text-[11px] font-medium tabular-nums text-warning-600 dark:text-warning-400">
+                      {scheduleLabel
+                        ? `Đăng lúc ${scheduleLabel}`
+                        : "Chưa có giờ hẹn từ Zalo"}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-gray-400">
+                    Chưa phát hành công khai
+                  </p>
+                </div>
+              ) : (
+                <p className="text-[11px] font-medium text-gray-400">
+                  {formatZaloTimestamp(createdTime ?? undefined)}
+                </p>
+              )}
               {isScheduled ? (
                 <div className="space-y-2">
                   <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-400">
@@ -690,19 +716,24 @@ export default function VideoAnalyticsDetail({
                   <textarea
                     value={editTitle}
                     rows={3}
-                    maxLength={300}
+                    maxLength={2000}
                     disabled={actionBusy}
                     onChange={(e) => setEditTitle(e.target.value)}
                     className="w-full resize-none rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 outline-none focus:border-brand-300 focus:ring-2 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
                   />
-                  <button
-                    type="button"
-                    disabled={actionBusy}
-                    onClick={() => void handleSaveScheduleTitle()}
-                    className="h-9 rounded-lg bg-brand-500 px-3 text-xs font-semibold text-white transition hover:bg-brand-600 disabled:opacity-50"
-                  >
-                    Lưu nội dung lịch
-                  </button>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[10px] text-gray-400">
+                      {editTitle.trim().length}/2000
+                    </p>
+                    <button
+                      type="button"
+                      disabled={actionBusy || !editTitle.trim()}
+                      onClick={() => void handleSaveScheduleTitle()}
+                      className="h-9 rounded-lg bg-brand-500 px-3 text-xs font-semibold text-white transition hover:bg-brand-600 disabled:opacity-50"
+                    >
+                      Lưu nội dung lịch
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <p className="line-clamp-3 text-sm font-medium leading-relaxed text-gray-800 dark:text-white/90">
