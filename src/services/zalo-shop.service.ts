@@ -65,6 +65,22 @@ export const zaloShopService = {
     });
   },
 
+  /** Tra cứu id_user từ hostname domain riêng (POST /api/shop/get_user { domain }) */
+  async getIdDomain(hostname: string): Promise<string | number | null> {
+    try {
+      const cleanHost = hostname.replace(/^https?:\/\//i, "").split(":")[0].trim();
+      const response = await publicApi.post(API_ZALO_SHOP.GET_DOMAIN_ID, {
+        domain: cleanHost,
+      });
+      const data = response.data;
+      const idUser = data?.id_user ?? data?.id_employee ?? data?.id;
+      if (idUser) return idUser;
+      return null;
+    } catch {
+      return null;
+    }
+  },
+
   async listCategories(employeeId: number | string): Promise<ShopCategory[]> {
     const response = await publicApi.get(
       `${API_ZALO_SHOP.CATEGORY}?id_employee=${employeeId}`,

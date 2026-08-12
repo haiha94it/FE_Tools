@@ -398,6 +398,7 @@ export const API_ZALO_SHOP = {
   DISTRICT: "/api/shop/district",
   DOMAIN: "/api/users/domain",
   DOMAIN_EDIT: "/api/users/domain/edit",
+  GET_DOMAIN_ID: "/api/shop/get_user",
   LINK_QR_ZALO: "/api/shop/get-link-zalo",
   PRODUCT_REVIEW: "/api/shop/product-review/all",
   /** Cá nhân hóa storefront theo user — `data` JSON do FE định nghĩa */
