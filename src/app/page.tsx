@@ -1,6 +1,5 @@
 import LandingJsonLd from "@/components/landing/LandingJsonLd";
-import LandingPage from "@/components/landing/LandingPage";
-import CustomDomainResolver from "@/components/storefront/CustomDomainResolver";
+import RootHomePageClient from "@/components/landing/RootHomePageClient";
 import { APP_NAME } from "@/constants/brand";
 import { createPublicMetadata } from "@/lib/seo/metadata";
 import type { Metadata } from "next";
@@ -25,11 +24,8 @@ export const metadata: Metadata = createPublicMetadata({
 export default function PublicHomePage() {
   return (
     <>
-      <CustomDomainResolver />
       <LandingJsonLd />
-      <div className="landing-page min-h-dvh antialiased">
-        <LandingPage />
-      </div>
+      <RootHomePageClient />
     </>
   );
 }
