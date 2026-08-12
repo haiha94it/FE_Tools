@@ -3,6 +3,7 @@
 import TrainingFormModal, {
   type TrainingFormValues,
 } from "@/components/chatbot/detail/TrainingFormModal";
+import ExportTrainingModal from "@/components/chatbot/detail/ExportTrainingModal";
 import ImportTrainingModal from "@/components/chatbot/detail/ImportTrainingModal";
 import CustomSelect from "@/components/form/CustomSelect";
 import Input from "@/components/form/input/InputField";
@@ -16,6 +17,12 @@ import {
   resolveCategoryBgColor,
   truncateText,
 } from "@/lib/chatbot-utils";
+import {
+  downloadTrainingExportFromItems,
+  type TrainingExportFormat,
+} from "@/lib/chatbot-training-export";
+import { toast } from "@/lib/toast";
+import { useChatbotStore } from "@/stores/use-chatbot-store";
 import { useChatbotTrainingStore } from "@/stores/use-chatbot-training-store";
 import type { TrainingDataItem } from "@/types/chatbot";
 import { useEffect, useMemo, useState } from "react";
@@ -62,11 +69,14 @@ export default function TrainingPanel({ chatbotId }: TrainingPanelProps) {
     (s) => s.clearAllTrainingData,
   );
   const exportTrainingData = useChatbotTrainingStore((s) => s.exportTrainingData);
+  const selectedChatbot = useChatbotStore((s) => s.selectedChatbot);
 
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<TrainingDataItem | null>(null);
   const [actionsOpen, setActionsOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [exportLoading, setExportLoading] = useState(false);
 
   useEffect(() => {
     setChatbotId(chatbotId);
@@ -153,20 +163,40 @@ export default function TrainingPanel({ chatbotId }: TrainingPanelProps) {
     await clearAllTrainingData();
   };
 
-  const handleExport = async () => {
+  const handleOpenExport = () => {
     setActionsOpen(false);
-    const data = await exportTrainingData();
-    if (data == null) return;
-    const blob = new Blob(
-      [typeof data === "string" ? data : JSON.stringify(data, null, 2)],
-      { type: "text/plain;charset=utf-8" },
-    );
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `chatbot-${chatbotId}-training-export.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
+    setExportOpen(true);
+  };
+
+  const handleExport = async (format: TrainingExportFormat) => {
+    setExportLoading(true);
+    try {
+      const items = await exportTrainingData();
+      if (items == null) return;
+      if (!items.length) {
+        toast.warning("Chưa có Q&A để xuất.");
+        return;
+      }
+      downloadTrainingExportFromItems(items, {
+        chatbotId,
+        format,
+        sheetName: "Dữ liệu huấn luyện",
+      });
+      toast.success(
+        format === "excel"
+          ? "Đã xuất file Excel."
+          : "Đã xuất file TXT.",
+      );
+      setExportOpen(false);
+    } catch (error) {
+      if (error instanceof Error && error.message === "EMPTY_EXPORT") {
+        toast.warning("Chưa có Q&A để xuất.");
+        return;
+      }
+      toast.error("Xuất dữ liệu thất bại.");
+    } finally {
+      setExportLoading(false);
+    }
   };
 
   const isTrulyEmpty = trainingCount === 0 && !trainingSearch.trim() && categoryFilter === null;
@@ -209,7 +239,7 @@ export default function TrainingPanel({ chatbotId }: TrainingPanelProps) {
               className="right-0 mt-1.5 w-48"
             >
               <DropdownItem
-                onClick={() => void handleExport()}
+                onClick={handleOpenExport}
                 className="flex items-center gap-2"
               >
                 <FiDownload size={14} className="text-gray-400" />
@@ -330,11 +360,11 @@ export default function TrainingPanel({ chatbotId }: TrainingPanelProps) {
                       </span>
                     ) : null}
                   </div>
-                  
+
                   <h6 className="text-xs font-semibold text-gray-900 dark:text-white leading-relaxed">
                     Q: {item.question}
                   </h6>
-                  
+
                   {item.answer ? (
                     <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed pl-3 border-l border-gray-100 dark:border-gray-800">
                       A: {truncateText(item.answer, 120)}
@@ -428,6 +458,21 @@ export default function TrainingPanel({ chatbotId }: TrainingPanelProps) {
         open={importOpen}
         chatbotId={chatbotId}
         onClose={() => setImportOpen(false)}
+      />
+
+      <ExportTrainingModal
+        open={exportOpen}
+        chatbotId={chatbotId}
+        chatbotName={
+          selectedChatbot?.id === chatbotId
+            ? selectedChatbot.name
+            : undefined
+        }
+        loading={exportLoading}
+        onClose={() => {
+          if (!exportLoading) setExportOpen(false);
+        }}
+        onExport={handleExport}
       />
     </div>
   );

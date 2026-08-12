@@ -55,7 +55,9 @@ interface ChatbotTrainingState {
   deleteTrainingData: (id: number) => Promise<boolean>;
   clearAllTrainingData: () => Promise<boolean>;
   syncEmbeddings: () => Promise<boolean>;
-  exportTrainingData: () => Promise<unknown>;
+  exportTrainingData: () => Promise<
+    import("@/lib/chatbot-training-export").TrainingExportApiItem[] | null
+  >;
   importTrainingData: (items: CreateTrainingDataPayload[]) => Promise<boolean>;
 
   fetchCategories: (options?: { silent?: boolean }) => Promise<void>;
@@ -250,9 +252,7 @@ export const useChatbotTrainingStore = create<ChatbotTrainingState>(
       const chatbotId = get().chatbotId;
       if (!chatbotId) return null;
       try {
-        const data = await chatbotService.exportTrainingData(chatbotId);
-        toast.success("Đã xuất dữ liệu huấn luyện.");
-        return data;
+        return await chatbotService.exportTrainingData(chatbotId);
       } catch (error) {
         handleApiError(error);
         return null;

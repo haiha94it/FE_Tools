@@ -6,6 +6,10 @@ import {
   normalizeTrainingImagesResponse,
   toApiTrainingImageSendMode,
 } from "@/lib/chatbot-utils";
+import {
+  normalizeExportApiItems,
+  type TrainingExportApiItem,
+} from "@/lib/chatbot-training-export";
 import api from "@/lib/axios";
 import type {
   AssignChatbotAccountsPayload,
@@ -165,11 +169,19 @@ export const chatbotService = {
     });
   },
 
-  async exportTrainingData(chatbotId: number): Promise<unknown> {
+  /**
+   * Export Q&A structured JSON (Care3):
+   * { data: [{ question, answer, image_send_mode, images:[{id,file}] }] }
+   * FE build TXT / Excel client-side.
+   */
+  async exportTrainingData(
+    chatbotId: number,
+  ): Promise<TrainingExportApiItem[]> {
     const response = await api.get(API_CHATBOT.TRAINING_DATA_EXPORT, {
       params: { chatbot_id: chatbotId },
     });
-    return response.data;
+    // Interceptor unwrap envelope → data có thể là array trực tiếp
+    return normalizeExportApiItems(response.data);
   },
 
   /* ── Training images ── */
