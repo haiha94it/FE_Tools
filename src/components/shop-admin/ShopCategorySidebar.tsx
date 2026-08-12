@@ -2,8 +2,10 @@
 
 import AdminIconButton from "@/components/admin-users/AdminIconButton";
 import Badge from "@/components/ui/badge/Badge";
-import { STORE_PUBLIC_BASE } from "@/config/api";
-import { shopImageUrl } from "@/lib/shop-utils";
+import {
+  buildPublicStorefrontAbsoluteUrl,
+  shopImageUrl,
+} from "@/lib/shop-utils";
 import { toast } from "@/lib/toast";
 import { useAuthStore } from "@/stores/use-auth-store";
 import { useZaloShopAdminStore } from "@/stores/use-zalo-shop-admin-store";
@@ -46,9 +48,12 @@ export default function ShopCategorySidebar({
   const categories = useZaloShopAdminStore((s) => s.categories);
   const toggleCategoryStatus = useZaloShopAdminStore((s) => s.toggleCategoryStatus);
 
+  const storefrontHref = buildPublicStorefrontAbsoluteUrl(userId, domain);
+
   const copyLink = (category: ShopCategory) => {
-    const origin = domain || (typeof window !== "undefined" ? window.location.origin : "");
-    const url = `${origin}${STORE_PUBLIC_BASE}/${userId}/${category.id}`;
+    const url = buildPublicStorefrontAbsoluteUrl(userId, domain, {
+      categoryId: category.id,
+    });
     void navigator.clipboard.writeText(url).then(() => {
       toast.success("Đã sao chép liên kết danh mục");
     });
@@ -177,8 +182,9 @@ export default function ShopCategorySidebar({
 
         {domain ? (
           <Link
-            href={`${STORE_PUBLIC_BASE}/${userId}`}
+            href={storefrontHref}
             target="_blank"
+            rel="noopener noreferrer"
             className="mt-2 flex min-h-11 touch-manipulation items-center justify-center gap-2 rounded-xl border border-brand-200 bg-brand-50 px-3 py-2.5 text-xs font-medium text-brand-700 transition hover:bg-brand-100 dark:border-brand-800 dark:bg-brand-500/10 dark:text-brand-300"
           >
             <ExternalIcon />
@@ -298,8 +304,9 @@ export default function ShopCategorySidebar({
         {domain ? (
           <div className="border-t border-gray-100 p-3 dark:border-gray-800">
             <Link
-              href={`${STORE_PUBLIC_BASE}/${userId}`}
+              href={storefrontHref}
               target="_blank"
+              rel="noopener noreferrer"
               className="flex items-center justify-center gap-2 rounded-lg border border-brand-200 bg-brand-50 px-3 py-2 text-xs font-medium text-brand-700 transition hover:bg-brand-100 dark:border-brand-800 dark:bg-brand-500/10 dark:text-brand-300"
             >
               <ExternalIcon />

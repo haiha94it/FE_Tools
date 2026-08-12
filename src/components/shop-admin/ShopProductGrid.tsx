@@ -3,8 +3,11 @@
 import AdminIconButton from "@/components/admin-users/AdminIconButton";
 import Badge from "@/components/ui/badge/Badge";
 import ScrollableTableContainer, { stickyTableHeaderClass } from "@/components/ui/table/ScrollableTableContainer";
-import { STORE_PUBLIC_BASE } from "@/config/api";
-import { formatPriceRange, shopImageUrl } from "@/lib/shop-utils";
+import {
+  buildPublicStorefrontAbsoluteUrl,
+  formatPriceRange,
+  shopImageUrl,
+} from "@/lib/shop-utils";
 import { toast } from "@/lib/toast";
 import { useAuthStore } from "@/stores/use-auth-store";
 import { useZaloShopAdminStore } from "@/stores/use-zalo-shop-admin-store";
@@ -63,8 +66,10 @@ export default function ShopProductGrid({
   }, [products, search, statusFilter]);
 
   const handleCopyLink = (product: ShopProduct) => {
-    const origin = domain || (typeof window !== "undefined" ? window.location.origin : "");
-    const url = `${origin}${STORE_PUBLIC_BASE}/${userId}/${categoryId}/${product.id}`;
+    const url = buildPublicStorefrontAbsoluteUrl(userId, domain, {
+      categoryId,
+      productId: product.id,
+    });
     void navigator.clipboard.writeText(url).then(() => {
       toast.success("Đã sao chép liên kết sản phẩm");
     });

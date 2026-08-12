@@ -7,6 +7,7 @@ import ShopCategorySidebar from "@/components/shop-admin/ShopCategorySidebar";
 import ShopCoverSettingsModal from "@/components/shop-admin/ShopCoverSettingsModal";
 import ShopDomainSettingsModal from "@/components/shop-admin/ShopDomainSettingsModal";
 import ShopProductGrid from "@/components/shop-admin/ShopProductGrid";
+import { buildPublicStorefrontAbsoluteUrl } from "@/lib/shop-utils";
 import { toast } from "@/lib/toast";
 import { zaloShopService } from "@/services/zalo-shop.service";
 import { useAuthStore } from "@/stores/use-auth-store";
@@ -14,7 +15,7 @@ import { useZaloShopAdminStore } from "@/stores/use-zalo-shop-admin-store";
 import type { ShopCategory } from "@/types/zalo-shop";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 interface ShopAdminViewProps {
   categoryId?: number;
@@ -93,6 +94,12 @@ export default function ShopAdminView({ categoryId }: ShopAdminViewProps) {
 
   const activeCategory = categories.find((c) => c.id === categoryId);
 
+  /** Link public — domain shop (vd shop.dahangsi.com), không dính origin admin CSKH. */
+  const storefrontHref = useMemo(() => {
+    if (!userId) return null;
+    return buildPublicStorefrontAbsoluteUrl(userId, domain);
+  }, [userId, domain]);
+
   const handleSaveCategory = async () => {
     if (!categoryName.trim() || !userId) return;
     if (categoryPrompt?.mode === "edit" && categoryPrompt.category) {
@@ -169,12 +176,13 @@ export default function ShopAdminView({ categoryId }: ShopAdminViewProps) {
             </div>
             <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
               <span>Quản lý danh mục, sản phẩm & đơn hàng trực tuyến</span>
-              {userId ? (
+              {storefrontHref ? (
                 <>
                   <span>•</span>
                   <Link
-                    href={`/store/${userId}`}
+                    href={storefrontHref}
                     target="_blank"
+                    rel="noopener noreferrer"
                     className="inline-flex items-center gap-1 text-brand-600 hover:underline dark:text-brand-400 font-medium"
                   >
                     Xem Storefront ➔

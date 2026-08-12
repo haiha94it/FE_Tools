@@ -11,10 +11,14 @@ import {
   SHOP_TEMPLATE_PRESETS,
   type ShopTemplatePreset,
 } from "@/lib/shop-personalization";
-import { shopImageUrl } from "@/lib/shop-utils";
+import {
+  buildPublicStorefrontAbsoluteUrl,
+  shopImageUrl,
+} from "@/lib/shop-utils";
 import { toast } from "@/lib/toast";
 import { zaloShopService } from "@/services/zalo-shop.service";
 import { useAuthStore } from "@/stores/use-auth-store";
+import { useZaloShopAdminStore } from "@/stores/use-zalo-shop-admin-store";
 import {
   PDP_TEMPLATE_PRESETS,
   type PDPTemplateType,
@@ -518,6 +522,8 @@ function FieldInput({
 export default function ShopThemeSettings() {
   const user = useAuthStore((s) => s.user);
   const userId = user?.id ?? "";
+  const domain = useZaloShopAdminStore((s) => s.domain);
+  const loadDomain = useZaloShopAdminStore((s) => s.loadDomain);
 
   const [tab, setTab] = useState<TabId>("templates");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
@@ -718,7 +724,13 @@ export default function ShopThemeSettings() {
     }
   };
 
-  const storeHref = userId ? `/store/${userId}` : null;
+  useEffect(() => {
+    if (domain === null) void loadDomain();
+  }, [domain, loadDomain]);
+
+  const storeHref = userId
+    ? buildPublicStorefrontAbsoluteUrl(userId, domain)
+    : null;
 
   const actionButtons = (
     <div className="flex flex-wrap items-center gap-2">
@@ -726,6 +738,7 @@ export default function ShopThemeSettings() {
         <Link
           href={storeHref}
           target="_blank"
+          rel="noopener noreferrer"
           className="inline-flex min-h-10 cursor-pointer items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-white/[0.04]"
         >
           <HiOutlineArrowTopRightOnSquare size={14} aria-hidden />
@@ -809,6 +822,7 @@ export default function ShopThemeSettings() {
                     <Link
                       href={storeHref}
                       target="_blank"
+                      rel="noopener noreferrer"
                       className="font-semibold text-brand-600 hover:underline dark:text-brand-400"
                     >
                       /store/{userId}
@@ -907,6 +921,7 @@ export default function ShopThemeSettings() {
                     <Link
                       href={storeHref}
                       target="_blank"
+                      rel="noopener noreferrer"
                       className="font-semibold text-brand-600 hover:underline dark:text-brand-400"
                     >
                       /store/{userId}

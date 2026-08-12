@@ -101,6 +101,45 @@ export function buildStoreProductUrl(
   return `/store/${sellerId}/${categoryId}/${productId}`;
 }
 
+/** Hostname domain shop (API thường trả `shop.dahangsi.com`, không scheme). */
+export function normalizeShopDomain(domain?: string | null): string {
+  if (!domain) return "";
+  let host = domain.trim().toLowerCase();
+  host = host.replace(/^https?:\/\//i, "");
+  host = host.split("/")[0] ?? "";
+  return host.trim();
+}
+
+/**
+ * Absolute URL cửa hàng công khai (admin: Xem Storefront / Xem cửa hàng / copy link).
+ * Ưu tiên domain riêng → `https://shop.xxx/store/{id}`; không có thì origin hiện tại.
+ */
+export function buildPublicStorefrontAbsoluteUrl(
+  sellerId: number | string,
+  domain?: string | null,
+  opts?: {
+    categoryId?: number | string;
+    productId?: number | string;
+  },
+): string {
+  let path: string;
+  if (opts?.productId != null && opts?.categoryId != null) {
+    path = buildStoreProductUrl(sellerId, opts.productId, opts.categoryId);
+  } else if (opts?.categoryId != null) {
+    path = buildStoreCategoryUrl(sellerId, opts.categoryId);
+  } else {
+    path = buildStoreUrl(sellerId);
+  }
+
+  const host = normalizeShopDomain(domain);
+  if (host) return `https://${host}${path}`;
+
+  if (typeof window !== "undefined" && window.location?.origin) {
+    return `${window.location.origin}${path}`;
+  }
+  return path;
+}
+
 export function buildLegacyStoreRedirect(
   type: "shoplinkhome" | "showproduct",
   segments: string[],

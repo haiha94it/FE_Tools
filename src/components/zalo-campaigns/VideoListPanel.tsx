@@ -291,7 +291,7 @@ export default function VideoListPanel({ accountId }: VideoListPanelProps) {
         desc={
           status === "scheduled"
             ? "Video chờ đăng · Sửa nội dung · Xóa. Click thumbnail mở viewer."
-            : "Hover card → Ghim · Liên hệ · Phân tích · Xóa. Click thumbnail mở viewer."
+            : undefined
         }
         hideDescOnMobile
       >

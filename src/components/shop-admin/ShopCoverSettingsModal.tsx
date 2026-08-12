@@ -3,8 +3,10 @@
 import Button from "@/components/ui/button/Button";
 import Input from "@/components/form/input/InputField";
 import { Modal } from "@/components/ui/modal";
-import { STORE_PUBLIC_BASE } from "@/config/api";
-import { shopImageUrl } from "@/lib/shop-utils";
+import {
+  buildPublicStorefrontAbsoluteUrl,
+  shopImageUrl,
+} from "@/lib/shop-utils";
 import { toast } from "@/lib/toast";
 import { zaloAccountService } from "@/services/zalo-account.service";
 import { zaloShopService } from "@/services/zalo-shop.service";
@@ -116,12 +118,10 @@ export default function ShopCoverSettingsModal({
   );
 
   // Link gắn id user đăng nhập (manager hoặc NV) → đơn về đúng người
-  const storeLink = useMemo(() => {
-    const path = `${STORE_PUBLIC_BASE}/${userId}`;
-    if (domain) return `https://${domain}${path}`;
-    if (typeof window === "undefined") return path;
-    return `${window.location.origin}${path}`;
-  }, [domain, userId]);
+  const storeLink = useMemo(
+    () => buildPublicStorefrontAbsoluteUrl(userId, domain),
+    [domain, userId],
+  );
 
   useEffect(() => {
     if (!isOpen) return;
