@@ -34,8 +34,8 @@ export const SOCIALMEDIA_MODULE_PATHS = new Set([
   "/zalo-campaigns/messenger-birthday",
 ]);
 
-/** Admin panel only — sidebar `roles: ["admin"]` + TeamRouteGuard */
-export const ADMIN_ONLY_PATHS = new Set(["/shop"]);
+/** Admin panel only */
+export const ADMIN_ONLY_PATHS = new Set<string>([]);
 
 export const TEAM_MANAGER_PATH_PREFIX = "/team/employees";
 

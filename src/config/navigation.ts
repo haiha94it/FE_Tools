@@ -79,8 +79,11 @@ export const mainNavItems: NavItemConfig[] = [
     path: "/shop",
     icon: "box",
     iconTone: "warning",
-    /** Chỉ admin (is_admin / is_superuser) thấy menu */
-    roles: ["admin"],
+    subItems: [
+      { name: "Quản lý sản phẩm", path: "/shop" },
+      { name: "Quản lý đơn hàng", path: "/shop/orders" },
+      { name: "Trình tạo trang & Theme", path: "/shop/theme" },
+    ],
   },
   {
     name: "Tài nguyên",
