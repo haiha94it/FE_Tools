@@ -59,10 +59,15 @@ export const useZaloShopAdminStore = create<ShopAdminState>()((set, get) => ({
   error: null,
 
   loadDomain: async () => {
-    await runAsyncAction(async () => {
-      const domain = await zaloShopService.getDomain();
-      set({ domain });
-    }, set);
+    try {
+      await runAsyncAction(async () => {
+        const domain = await zaloShopService.getDomain();
+        set({ domain: domain || "" });
+      }, set);
+    } catch {
+      // null = chưa load; fail → "" để UI dùng NEXT_PUBLIC_STOREFRONT_URL, không kẹt origin admin
+      set({ domain: "" });
+    }
   },
 
   saveDomain: async (domain) => {

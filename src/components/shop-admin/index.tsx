@@ -94,10 +94,14 @@ export default function ShopAdminView({ categoryId }: ShopAdminViewProps) {
 
   const activeCategory = categories.find((c) => c.id === categoryId);
 
-  /** Link public — domain shop (vd shop.dahangsi.com), không dính origin admin CSKH. */
+  /**
+   * Link public absolute — domain tenant hoặc NEXT_PUBLIC_STOREFRONT_URL.
+   * domain === null: đang load → chưa render (tránh dính origin admin).
+   */
   const storefrontHref = useMemo(() => {
-    if (!userId) return null;
-    return buildPublicStorefrontAbsoluteUrl(userId, domain);
+    if (!userId || domain === null) return null;
+    const url = buildPublicStorefrontAbsoluteUrl(userId, domain);
+    return url.startsWith("http") ? url : null;
   }, [userId, domain]);
 
   const handleSaveCategory = async () => {
@@ -179,14 +183,14 @@ export default function ShopAdminView({ categoryId }: ShopAdminViewProps) {
               {storefrontHref ? (
                 <>
                   <span>•</span>
-                  <Link
+                  <a
                     href={storefrontHref}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-brand-600 hover:underline dark:text-brand-400 font-medium"
+                    className="inline-flex items-center gap-1 font-medium text-brand-600 hover:underline dark:text-brand-400"
                   >
                     Xem Storefront ➔
-                  </Link>
+                  </a>
                 </>
               ) : null}
             </div>

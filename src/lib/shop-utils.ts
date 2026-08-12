@@ -107,12 +107,71 @@ export function normalizeShopDomain(domain?: string | null): string {
   let host = domain.trim().toLowerCase();
   host = host.replace(/^https?:\/\//i, "");
   host = host.split("/")[0] ?? "";
+  // Bỏ port nếu có (vd shop.xxx:443)
+  host = host.split(":")[0] ?? "";
   return host.trim();
 }
 
 /**
+ * Host admin CSKH / site quản trị — không bao giờ dùng làm origin storefront khách.
+ * Gồm NEXT_PUBLIC_SITE_URL + một số host prod biết trước.
+ */
+export function isAdminAppHost(host: string): boolean {
+  const h = normalizeShopDomain(host);
+  if (!h) return false;
+  const blocked = new Set<string>([
+    "cskh.tudongai.com",
+    "localhost",
+    "127.0.0.1",
+  ]);
+  const site = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+  if (site) {
+    try {
+      const siteHost = normalizeShopDomain(new URL(site).host);
+      if (siteHost) blocked.add(siteHost);
+    } catch {
+      /* ignore bad SITE_URL */
+    }
+  }
+  if (typeof window !== "undefined" && window.location?.hostname) {
+    // Origin tab admin hiện tại cũng block (tránh dính cskh khi env thiếu)
+    blocked.add(normalizeShopDomain(window.location.hostname));
+  }
+  return blocked.has(h);
+}
+
+/**
+ * Origin storefront public từ env build-time.
+ * VD: NEXT_PUBLIC_STOREFRONT_URL=https://shop.dahangsi.com
+ * Không dùng NEXT_PUBLIC_SITE_URL (đó là admin).
+ */
+export function getStorefrontPublicOrigin(): string {
+  const raw =
+    process.env.NEXT_PUBLIC_STOREFRONT_URL?.trim() ||
+    process.env.NEXT_PUBLIC_SHOP_URL?.trim() ||
+    "";
+  if (!raw) return "";
+  try {
+    const u = new URL(raw.includes("://") ? raw : `https://${raw}`);
+    const host = normalizeShopDomain(u.host);
+    if (!host || isAdminAppHost(host)) return "";
+    return `${u.protocol}//${host}`;
+  } catch {
+    const host = normalizeShopDomain(raw);
+    if (!host || isAdminAppHost(host)) return "";
+    return `https://${host}`;
+  }
+}
+
+/**
  * Absolute URL cửa hàng công khai (admin: Xem Storefront / Xem cửa hàng / copy link).
- * Ưu tiên domain riêng → `https://shop.xxx/store/{id}`; không có thì origin hiện tại.
+ *
+ * Ưu tiên:
+ * 1. Domain shop tenant (API `/api/users/domain`) → `https://{domain}/store/{id}`
+ * 2. `NEXT_PUBLIC_STOREFRONT_URL` (base storefront chung)
+ *
+ * **Không** dùng `window.location.origin` / domain admin CSKH.
+ * Trả `""` nếu chưa có base hợp lệ — UI ẩn link / toast nhắc gắn domain.
  */
 export function buildPublicStorefrontAbsoluteUrl(
   sellerId: number | string,
@@ -131,13 +190,15 @@ export function buildPublicStorefrontAbsoluteUrl(
     path = buildStoreUrl(sellerId);
   }
 
-  const host = normalizeShopDomain(domain);
-  if (host) return `https://${host}${path}`;
-
-  if (typeof window !== "undefined" && window.location?.origin) {
-    return `${window.location.origin}${path}`;
+  const tenantHost = normalizeShopDomain(domain);
+  if (tenantHost && !isAdminAppHost(tenantHost)) {
+    return `https://${tenantHost}${path}`;
   }
-  return path;
+
+  const origin = getStorefrontPublicOrigin();
+  if (origin) return `${origin}${path}`;
+
+  return "";
 }
 
 export function buildLegacyStoreRedirect(

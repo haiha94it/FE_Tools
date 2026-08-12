@@ -70,6 +70,12 @@ export default function ShopProductGrid({
       categoryId,
       productId: product.id,
     });
+    if (!url.startsWith("http")) {
+      toast.error(
+        "Chưa có domain cửa hàng — gắn tên miền shop hoặc cấu hình NEXT_PUBLIC_STOREFRONT_URL.",
+      );
+      return;
+    }
     void navigator.clipboard.writeText(url).then(() => {
       toast.success("Đã sao chép liên kết sản phẩm");
     });

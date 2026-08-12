@@ -30,7 +30,6 @@ import type {
   ShopPersonalizationData,
   ShopProduct,
 } from "@/types/zalo-shop";
-import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   HiOutlineArrowRight,
@@ -728,14 +727,18 @@ export default function ShopThemeSettings() {
     if (domain === null) void loadDomain();
   }, [domain, loadDomain]);
 
-  const storeHref = userId
-    ? buildPublicStorefrontAbsoluteUrl(userId, domain)
-    : null;
+  const storeHref =
+    userId && domain !== null
+      ? (() => {
+          const url = buildPublicStorefrontAbsoluteUrl(userId, domain);
+          return url.startsWith("http") ? url : null;
+        })()
+      : null;
 
   const actionButtons = (
     <div className="flex flex-wrap items-center gap-2">
       {storeHref ? (
-        <Link
+        <a
           href={storeHref}
           target="_blank"
           rel="noopener noreferrer"
@@ -743,7 +746,7 @@ export default function ShopThemeSettings() {
         >
           <HiOutlineArrowTopRightOnSquare size={14} aria-hidden />
           Xem gian hàng
-        </Link>
+        </a>
       ) : null}
       <button
         type="button"
@@ -819,14 +822,14 @@ export default function ShopThemeSettings() {
                 {storeHref ? (
                   <>
                     {" · "}
-                    <Link
+                    <a
                       href={storeHref}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="font-semibold text-brand-600 hover:underline dark:text-brand-400"
                     >
                       /store/{userId}
-                    </Link>
+                    </a>
                   </>
                 ) : null}
               </p>
@@ -918,14 +921,14 @@ export default function ShopThemeSettings() {
                 {storeHref ? (
                   <>
                     {" · "}
-                    <Link
+                    <a
                       href={storeHref}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="font-semibold text-brand-600 hover:underline dark:text-brand-400"
                     >
                       /store/{userId}
-                    </Link>
+                    </a>
                   </>
                 ) : null}
                 {recordId != null ? ` · #${recordId}` : null}

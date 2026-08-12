@@ -11,7 +11,6 @@ import { useAuthStore } from "@/stores/use-auth-store";
 import { useZaloShopAdminStore } from "@/stores/use-zalo-shop-admin-store";
 import type { ShopCategory } from "@/types/zalo-shop";
 import Image from "next/image";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 interface ShopCategorySidebarProps {
@@ -48,12 +47,22 @@ export default function ShopCategorySidebar({
   const categories = useZaloShopAdminStore((s) => s.categories);
   const toggleCategoryStatus = useZaloShopAdminStore((s) => s.toggleCategoryStatus);
 
-  const storefrontHref = buildPublicStorefrontAbsoluteUrl(userId, domain);
+  const storefrontHref = (() => {
+    if (domain === null) return "";
+    const url = buildPublicStorefrontAbsoluteUrl(userId, domain);
+    return url.startsWith("http") ? url : "";
+  })();
 
   const copyLink = (category: ShopCategory) => {
     const url = buildPublicStorefrontAbsoluteUrl(userId, domain, {
       categoryId: category.id,
     });
+    if (!url.startsWith("http")) {
+      toast.error(
+        "Chưa có domain cửa hàng — gắn tên miền shop hoặc cấu hình NEXT_PUBLIC_STOREFRONT_URL.",
+      );
+      return;
+    }
     void navigator.clipboard.writeText(url).then(() => {
       toast.success("Đã sao chép liên kết danh mục");
     });
@@ -180,8 +189,8 @@ export default function ShopCategorySidebar({
           </div>
         ) : null}
 
-        {domain ? (
-          <Link
+        {storefrontHref ? (
+          <a
             href={storefrontHref}
             target="_blank"
             rel="noopener noreferrer"
@@ -189,7 +198,7 @@ export default function ShopCategorySidebar({
           >
             <ExternalIcon />
             Xem cửa hàng
-          </Link>
+          </a>
         ) : null}
       </div>
 
@@ -301,9 +310,9 @@ export default function ShopCategorySidebar({
           )}
         </nav>
 
-        {domain ? (
+        {storefrontHref ? (
           <div className="border-t border-gray-100 p-3 dark:border-gray-800">
-            <Link
+            <a
               href={storefrontHref}
               target="_blank"
               rel="noopener noreferrer"
@@ -311,7 +320,7 @@ export default function ShopCategorySidebar({
             >
               <ExternalIcon />
               Xem cửa hàng
-            </Link>
+            </a>
           </div>
         ) : null}
       </aside>

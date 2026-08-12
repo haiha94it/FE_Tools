@@ -49,13 +49,24 @@ export const zaloShopService = {
   /** Domain shop của manager — chuỗi rỗng nếu chưa cấu hình. */
   async getDomain(): Promise<string> {
     const response = await api.get(API_ZALO_SHOP.DOMAIN);
+    // Interceptor unwrap envelope → data = string | null; vẫn parse an toàn.
     const data = response.data;
-    if (typeof data === "string") return data.trim();
-    if (data && typeof data === "object" && "domain" in data) {
-      return String((data as { domain?: string }).domain ?? "").trim();
+    if (typeof data === "string") return data.trim().toLowerCase();
+    if (typeof data === "number") return String(data).trim();
+    if (data && typeof data === "object") {
+      const rec = data as Record<string, unknown>;
+      const nested =
+        rec.domain ?? rec.data ?? rec.hostname ?? rec.host ?? rec.value;
+      if (typeof nested === "string") return nested.trim().toLowerCase();
+      if (nested != null && nested !== false) {
+        return String(nested).trim().toLowerCase();
+      }
     }
     if (data == null || data === false) return "";
-    return String(data).trim();
+    const s = String(data).trim().toLowerCase();
+    // Tránh "[object object]" nếu envelope lỡ chưa unwrap
+    if (!s || s === "[object object]") return "";
+    return s;
   },
 
   /** Cập nhật domain riêng (CNAME trỏ gate) — chỉ manager. */
