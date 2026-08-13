@@ -3,8 +3,8 @@ import type { Metadata } from "next";
 import PublicShell from "@/components/public/PublicShell";
 
 export const metadata: Metadata = createPublicMetadata({
-  title: "Điều khoản sử dụng — Công cụ xanh",
-  description: "Điều khoản sử dụng website Công cụ xanh – công cụ tính toán miễn phí cho người làm nghề.",
+  title: "Điều khoản sử dụng — Công Cụ Nghề",
+  description: "Điều khoản sử dụng website Công Cụ Nghề – máy tính online cho người làm nghề.",
   path: "/dieu-khoan",
   absoluteTitle: true,
 });
@@ -15,7 +15,7 @@ export default function TermsPage() {
       <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8">
         <div className="border-b border-slate-200 pb-5">
           <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">
-            Điều khoản sử dụng – Công cụ xanh
+            Điều khoản sử dụng – Công Cụ Nghề
           </h1>
           <p className="mt-2 text-sm text-slate-500">
             Cập nhật lần cuối: 13/08/2026
@@ -24,14 +24,14 @@ export default function TermsPage() {
         
         <div className="mt-8 text-slate-700">
           <p className="leading-7">
-            Chào mừng bạn đến với <strong>Công cụ xanh</strong> (tools.dahangsi.com). Khi truy cập và sử dụng các công cụ trên website, bạn được xem là đã đọc, hiểu và đồng ý với các điều khoản dưới đây.
+            Chào mừng bạn đến với <strong>Công Cụ Nghề</strong> (tools.dahangsi.com). Khi truy cập và sử dụng các công cụ trên website, bạn được xem là đã đọc, hiểu và đồng ý với các điều khoản dưới đây.
           </p>
 
           <div className="mt-8 space-y-8">
             <section className="space-y-2">
               <h2 className="text-xl font-bold text-slate-900">1. Giới thiệu</h2>
               <p className="leading-7">
-                Công cụ xanh cung cấp các công cụ tính toán đơn giản, miễn phí, bằng tiếng Việt, phục vụ người làm nghề (kế toán hộ kinh doanh, thợ xây, thầu phụ…). Hầu hết công cụ không yêu cầu đăng nhập.
+                Công Cụ Nghề cung cấp các công cụ tính toán đơn giản, miễn phí, bằng tiếng Việt, phục vụ người làm nghề (kế toán hộ kinh doanh, thợ xây, thầu phụ…). Hầu hết công cụ không yêu cầu đăng nhập.
               </p>
             </section>
 
@@ -56,7 +56,7 @@ export default function TermsPage() {
             <section className="space-y-2">
               <h2 className="text-xl font-bold text-slate-900">4. Giới hạn trách nhiệm</h2>
               <p className="leading-7">
-                Công cụ xanh và người vận hành <strong>không chịu trách nhiệm</strong> đối với:
+                Công Cụ Nghề và người vận hành <strong>không chịu trách nhiệm</strong> đối với:
               </p>
               <ul className="list-disc pl-5 space-y-2 leading-7">
                 <li>Thiệt hại phát sinh từ việc sử dụng hoặc không thể sử dụng công cụ.</li>
@@ -101,7 +101,7 @@ export default function TermsPage() {
           </div>
 
           <p className="mt-12 text-sm text-slate-500 italic">
-            Cảm ơn bạn đã sử dụng Công cụ xanh.
+            Cảm ơn bạn đã sử dụng Công Cụ Nghề.
           </p>
         </div>
       </div>

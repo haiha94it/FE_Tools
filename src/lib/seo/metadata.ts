@@ -12,7 +12,7 @@ export function createRootMetadata(): Metadata {
       default: APP_NAME,
       template: `%s | ${APP_NAME}`,
     },
-    description: "Nền tảng công cụ tính toán & hỗ trợ đa ngành nghề",
+    description: "Máy tính online cho người làm nghề. Tính nhanh, vào là dùng.",
   };
 }
 

@@ -20,6 +20,7 @@ const BrandLogo = forwardRef<HTMLImageElement, BrandLogoProps>(
     return (
       <span
         ref={ref as never}
+        aria-label={alt}
         className={
           className ??
           (mode === "icon"
@@ -28,7 +29,7 @@ const BrandLogo = forwardRef<HTMLImageElement, BrandLogoProps>(
         }
         {...(rest as object)}
       >
-        {mode === "icon" ? "CX" : APP_NAME}
+        {mode === "icon" ? "CN" : APP_NAME}
       </span>
     );
   },

@@ -5,7 +5,7 @@ import api from "@/lib/axios";
 import { useEffect, useState } from "react";
 
 export default function SettingsPage() {
-  const [siteName, setSiteName] = useState("Công cụ xanh");
+  const [siteName, setSiteName] = useState("Công Cụ Nghề");
   const [siteDomain, setSiteDomain] = useState("tools.dahangsi.com");
   const [contactEmail, setContactEmail] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
@@ -81,7 +81,7 @@ export default function SettingsPage() {
           Cài đặt hệ thống
         </h1>
         <p className="mt-1 text-sm text-gray-500">
-          Brand tạm: Công cụ xanh · domain tools.dahangsi.com
+          Công Cụ Nghề · domain tools.dahangsi.com
         </p>
       </div>
 

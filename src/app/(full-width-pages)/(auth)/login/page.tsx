@@ -4,7 +4,7 @@ import { ADMIN_ROBOTS, createPublicMetadata } from "@/lib/seo/metadata";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  ...createPublicMetadata({ title: "Đăng nhập", description: "Đăng nhập quản trị Công cụ xanh", path: "/login" }),
+  ...createPublicMetadata({ title: "Đăng nhập", description: "Đăng nhập quản trị Công Cụ Nghề", path: "/login" }),
   robots: ADMIN_ROBOTS,
 };
 

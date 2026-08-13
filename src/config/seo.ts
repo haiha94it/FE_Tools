@@ -8,9 +8,9 @@ export function getSiteUrl(): string {
 }
 
 export const SITE_NAME = APP_NAME;
-export const SITE_TAGLINE = "Công cụ tính toán & hỗ trợ đa ngành nghề";
+export const SITE_TAGLINE = "Máy tính online cho người làm nghề";
 export const DEFAULT_DESCRIPTION =
-  "Công cụ xanh — nền tảng công cụ tính toán và hỗ trợ đa ngành nghề.";
+  "Công Cụ Nghề — máy tính online cho người làm nghề. Tính nhanh, vào là dùng.";
 
 export const DEFAULT_KEYWORDS = [
   "công cụ",

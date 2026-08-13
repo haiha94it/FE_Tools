@@ -38,7 +38,7 @@ export type NavItemConfig = {
   hidden?: boolean;
 };
 
-/** Menu admin — Công cụ xanh */
+/** Menu admin — Công Cụ Nghề */
 export const mainNavItems: NavItemConfig[] = [
   {
     name: "Tổng quan",

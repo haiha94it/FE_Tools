@@ -8,7 +8,7 @@ import type { Metadata } from "next";
 import type { Profession, ToolListItem } from "@/types/catalog";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = createPublicMetadata({ title: `${APP_NAME} — Công cụ tính toán cho người làm nghề`, description: "Công cụ tính toán cho kế toán hộ, thợ xây và người làm nghề. Không cần đăng nhập.", path: "/", absoluteTitle: true });
+export const metadata: Metadata = createPublicMetadata({ title: `${APP_NAME} — Máy tính online cho người làm nghề`, description: "Tính nhanh cho kế toán hộ, thợ xây và người làm nghề. Không đăng nhập, vào là dùng ngay.", path: "/", absoluteTitle: true });
 
 /** Trang chủ public, dữ liệu nghề và tool lấy từ catalog API. */
 export default async function PublicHomePage() {

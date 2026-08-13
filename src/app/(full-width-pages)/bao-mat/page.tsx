@@ -3,8 +3,8 @@ import type { Metadata } from "next";
 import PublicShell from "@/components/public/PublicShell";
 
 export const metadata: Metadata = createPublicMetadata({
-  title: "Chính sách bảo mật — Công cụ xanh",
-  description: "Chính sách bảo mật của Công cụ xanh – công cụ tính toán miễn phí, không yêu cầu đăng nhập.",
+  title: "Chính sách bảo mật — Công Cụ Nghề",
+  description: "Chính sách bảo mật của Công Cụ Nghề – máy tính online cho người làm nghề, không yêu cầu đăng nhập.",
   path: "/bao-mat",
   absoluteTitle: true,
 });
@@ -15,7 +15,7 @@ export default function PrivacyPage() {
       <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8">
         <div className="border-b border-slate-200 pb-5">
           <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">
-            Chính sách bảo mật – Công cụ xanh
+            Chính sách bảo mật – Công Cụ Nghề
           </h1>
           <p className="mt-2 text-sm text-slate-500">
             Cập nhật lần cuối: 13/08/2026
@@ -24,14 +24,14 @@ export default function PrivacyPage() {
         
         <div className="mt-8 text-slate-700">
           <p className="leading-7">
-            Công cụ xanh (tools.dahangsi.com) cam kết minh bạch về cách chúng tôi xử lý thông tin khi bạn sử dụng website.
+            Công Cụ Nghề (tools.dahangsi.com) cam kết minh bạch về cách chúng tôi xử lý thông tin khi bạn sử dụng website.
           </p>
 
           <div className="mt-8 space-y-8">
             <section className="space-y-2">
               <h2 className="text-xl font-bold text-slate-900">1. Phạm vi áp dụng</h2>
               <p className="leading-7">
-                Chính sách này áp dụng cho toàn bộ website Công cụ xanh và các công cụ tính toán trên đó.
+                Chính sách này áp dụng cho toàn bộ website Công Cụ Nghề và các công cụ tính toán trên đó.
               </p>
             </section>
 
@@ -126,7 +126,7 @@ export default function PrivacyPage() {
           </div>
 
           <p className="mt-12 text-sm text-slate-500 italic">
-            Cảm ơn bạn đã tin dùng Công cụ xanh.
+            Cảm ơn bạn đã tin dùng Công Cụ Nghề.
           </p>
         </div>
       </div>

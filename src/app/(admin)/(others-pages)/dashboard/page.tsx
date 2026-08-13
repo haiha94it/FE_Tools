@@ -38,7 +38,7 @@ export default function DashboardPage() {
         </h1>
         <p className="mt-1 text-sm text-gray-500">
           Xin chào {user?.name ?? user?.username} — bảng điều khiển{" "}
-          <strong>Công cụ xanh</strong>
+          <strong>Công Cụ Nghề</strong>
         </p>
       </div>
 

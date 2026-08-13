@@ -1,5 +1,5 @@
 import type { Profession, ToolListItem } from "@/types/catalog";
-import { FiArrowRight, FiBriefcase, FiCheckCircle, FiHome, FiTool, FiTrendingUp } from "react-icons/fi";
+import { FiArrowRight, FiBriefcase, FiHome, FiTool, FiTrendingUp } from "react-icons/fi";
 import Link from "next/link";
 
 const professionIcons = { calculator: FiTrendingUp, "hard-hat": FiHome } as const;
@@ -26,7 +26,6 @@ export function ToolCard({ tool }: { tool: ToolListItem }) {
     <Link href={`/${tool.slug}`} className="group flex min-h-[210px] flex-col rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_10px_30px_-24px_rgba(15,23,42,.35)] transition duration-200 hover:-translate-y-0.5 hover:border-emerald-700/30 hover:shadow-[0_18px_36px_-24px_rgba(6,78,59,.45)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-4 sm:p-6">
       <div className="flex items-start justify-between gap-4">
         <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-emerald-50 text-emerald-800"><FiTool aria-hidden="true" className="size-5" /></span>
-        <span className="inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-[.08em] text-emerald-700"><FiCheckCircle aria-hidden="true" /> Không đăng nhập</span>
       </div>
       <h3 className="mt-5 text-lg font-bold tracking-[-0.02em] text-slate-900">{tool.name}</h3>
       <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-600">{tool.short_description}</p>
