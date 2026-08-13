@@ -8,7 +8,7 @@ import type { Metadata } from "next";
 import type { Profession, ToolListItem } from "@/types/catalog";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = createPublicMetadata({ title: `${APP_NAME} — Công cụ miễn phí cho người làm nghề`, description: "Công cụ tính toán miễn phí cho kế toán hộ, thợ xây và người làm nghề. Không cần đăng nhập.", path: "/", absoluteTitle: true });
+export const metadata: Metadata = createPublicMetadata({ title: `${APP_NAME} — Công cụ tính toán cho người làm nghề`, description: "Công cụ tính toán cho kế toán hộ, thợ xây và người làm nghề. Không cần đăng nhập.", path: "/", absoluteTitle: true });
 
 /** Trang chủ public, dữ liệu nghề và tool lấy từ catalog API. */
 export default async function PublicHomePage() {
@@ -28,8 +28,8 @@ export default async function PublicHomePage() {
         <div className="relative mx-auto grid max-w-7xl gap-10 px-4 py-16 sm:px-6 sm:py-24 lg:grid-cols-[1.15fr_.85fr] lg:items-center lg:px-8 lg:py-28">
           <div className="max-w-3xl">
             <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-emerald-700/15 bg-white/80 px-3 py-2 text-xs font-bold text-emerald-800 shadow-sm"><span className="size-2 rounded-full bg-lime-500" /> Dễ dùng · Minh bạch · Tiếng Việt</div>
-            <h1 className="max-w-3xl text-4xl font-extrabold leading-[1.12] tracking-[-0.045em] text-emerald-950 sm:text-5xl lg:text-6xl">Công cụ tính toán miễn phí cho người làm nghề</h1>
-            <p className="mt-6 max-w-2xl text-base leading-7 text-slate-600 sm:text-lg sm:leading-8">Tính nhanh việc thường ngày, trình bày rõ ràng và không cần đăng nhập. Chọn đúng ngành nghề để bắt đầu.</p>
+            <h1 className="max-w-3xl text-4xl font-extrabold leading-[1.12] tracking-[-0.045em] text-emerald-950 sm:text-5xl lg:text-6xl">Công cụ tính toán cho người làm nghề</h1>
+            <p className="mt-6 max-w-2xl text-base leading-7 text-slate-600 sm:text-lg sm:leading-8">Miễn phí · Không đăng nhập · Tiếng Việt · Vào là dùng ngay</p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <a href="#danh-muc" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-emerald-800 px-6 text-sm font-bold text-white shadow-lg shadow-emerald-900/15 transition-colors hover:bg-emerald-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2">Khám phá công cụ <FiArrowRight aria-hidden="true" /></a>
               <a href="https://zalo.me/g/m7q5sdrvbdlmrmu590t6" target="_blank" rel="noreferrer" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-emerald-900/15 bg-white px-6 text-sm font-bold text-emerald-900 transition-colors hover:bg-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600">Đề xuất công cụ</a>

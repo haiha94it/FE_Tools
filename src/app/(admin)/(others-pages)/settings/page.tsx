@@ -9,21 +9,30 @@ export default function SettingsPage() {
   const [siteDomain, setSiteDomain] = useState("tools.dahangsi.com");
   const [contactEmail, setContactEmail] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
+  const [publicEnabled, setPublicEnabled] = useState(true);
+  const [publicStatusLoading, setPublicStatusLoading] = useState(true);
+  const [publicStatusSaving, setPublicStatusSaving] = useState(false);
 
   useEffect(() => {
     void (async () => {
       try {
-        const res = await api.get<{
-          site_name?: string;
-          site_domain?: string;
-          contact_email?: string;
-        }>(API_SYSTEM.GET);
+        const [res, publicStatusRes] = await Promise.all([
+          api.get<{
+            site_name?: string;
+            site_domain?: string;
+            contact_email?: string;
+          }>(API_SYSTEM.GET),
+          api.get<{ enabled: boolean }>(API_SYSTEM.PUBLIC_UI_STATUS),
+        ]);
         const d = res.data || {};
         if (d.site_name) setSiteName(d.site_name);
         if (d.site_domain) setSiteDomain(d.site_domain);
         if (d.contact_email) setContactEmail(d.contact_email);
+        setPublicEnabled(publicStatusRes.data.enabled !== false);
       } catch {
         /* empty system ok */
+      } finally {
+        setPublicStatusLoading(false);
       }
     })();
   }, []);
@@ -40,6 +49,28 @@ export default function SettingsPage() {
       setMsg("Đã lưu cài đặt.");
     } catch {
       setMsg("Lưu thất bại.");
+    }
+  };
+
+  const togglePublicUi = async () => {
+    const nextEnabled = !publicEnabled;
+    setPublicStatusSaving(true);
+    setMsg(null);
+    try {
+      const response = await api.post<{ enabled: boolean }>(
+        API_SYSTEM.PUBLIC_UI_STATUS,
+        { enabled: nextEnabled },
+      );
+      setPublicEnabled(response.data.enabled);
+      setMsg(
+        response.data.enabled
+          ? "Đã hiển thị giao diện public."
+          : "Đã ẩn giao diện public.",
+      );
+    } catch {
+      setMsg("Không thể đổi trạng thái giao diện public.");
+    } finally {
+      setPublicStatusSaving(false);
     }
   };
 
@@ -90,6 +121,33 @@ export default function SettingsPage() {
         </button>
         {msg && <p className="text-sm text-gray-600">{msg}</p>}
       </form>
+
+      <section className="max-w-lg rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="font-semibold text-gray-900 dark:text-white">Giao diện public</h2>
+            <p className="mt-1 text-sm text-gray-500">
+              {publicStatusLoading
+                ? "Đang đọc trạng thái…"
+                : publicEnabled
+                  ? "Đang hiện"
+                  : "Đang ẩn"}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={togglePublicUi}
+            disabled={publicStatusLoading || publicStatusSaving}
+            className={`min-h-11 rounded-lg px-4 text-sm font-medium text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${publicEnabled ? "bg-error-600 hover:bg-error-700" : "bg-success-600 hover:bg-success-700"}`}
+          >
+            {publicStatusSaving
+              ? "Đang cập nhật…"
+              : publicEnabled
+                ? "Ẩn giao diện public"
+                : "Hiển thị giao diện public"}
+          </button>
+        </div>
+      </section>
     </div>
   );
 }

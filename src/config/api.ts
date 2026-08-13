@@ -23,6 +23,7 @@ export const API_CATALOG = {
 export const API_SYSTEM = {
   GET: "/api/system/get",
   EDIT: "/api/system/edit",
+  PUBLIC_UI_STATUS: "/api/system/public-ui-status/",
 } as const;
 
 export const API_USERS_ADMIN = {
