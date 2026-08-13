@@ -69,11 +69,8 @@ const AppHeader: React.FC = () => {
           </Tooltip>
 
           <Link href="/" prefetch={false} className="lg:hidden">
-            <BrandLogo
-              width={154}
-              height={32}
-              className="h-8 w-auto object-contain"
-            />
+            <BrandLogo variant="icon" className="size-9 object-contain sm:hidden" />
+            <BrandLogo className="hidden h-8 w-auto object-contain sm:block" />
           </Link>
 
           <Tooltip content="Mở menu ứng dụng" side="bottom">

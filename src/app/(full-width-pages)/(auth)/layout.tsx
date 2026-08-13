@@ -1,7 +1,9 @@
 import AuthHomeLink from "@/components/auth/AuthHomeLink";
+import BrandLogo from "@/components/common/BrandLogo";
 import ThemeTogglerTwo from "@/components/common/ThemeTogglerTwo";
 import { APP_NAME } from "@/constants/brand";
 import { ThemeProvider } from "@/context/ThemeContext";
+import Link from "next/link";
 import React from "react";
 
 export default function AuthLayout({
@@ -23,6 +25,9 @@ export default function AuthLayout({
 
         <div className="relative z-10 flex min-h-screen w-full items-center justify-center p-4 sm:p-6 lg:p-8">
           <div className="w-full max-w-lg rounded-3xl border border-white/30 bg-white/85 p-6 shadow-2xl backdrop-blur-2xl sm:p-10 dark:border-gray-700/60 dark:bg-gray-900/85">
+            <Link href="/" className="mb-5 flex justify-center rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/25">
+              <BrandLogo className="h-11 w-auto object-contain" priority />
+            </Link>
             <div className="mb-4">
               <AuthHomeLink />
             </div>

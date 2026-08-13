@@ -13,6 +13,22 @@ export function createRootMetadata(): Metadata {
       template: `%s | ${APP_NAME}`,
     },
     description: "Máy tính online cho người làm nghề. Tính nhanh, vào là dùng.",
+    icons: {
+      icon: [
+        {
+          url: "/images/brand/cong-cu-nghe-favicon.png",
+          type: "image/png",
+          sizes: "40x40",
+        },
+      ],
+      apple: [
+        {
+          url: "/images/brand/cong-cu-nghe-icon-512.png",
+          type: "image/png",
+          sizes: "512x512",
+        },
+      ],
+    },
   };
 }
 

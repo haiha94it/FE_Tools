@@ -14,12 +14,12 @@ export default function manifest(): MetadataRoute.Manifest {
     orientation: "portrait-primary",
     icons: [
       {
-        src: "/images/logo/favicon.png",
-        sizes: "192x192",
+        src: "/images/brand/cong-cu-nghe-icon-512.png",
+        sizes: "512x512",
         type: "image/png",
       },
       {
-        src: "/images/logo/favicon.png",
+        src: "/images/brand/cong-cu-nghe-icon-512.png",
         sizes: "512x512",
         type: "image/png",
         purpose: "maskable",
