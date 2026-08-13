@@ -1,66 +1,36 @@
 import { APP_NAME, LEGAL_BRAND_NAME } from "@/constants/brand";
 
-/** URL gốc site — bắt buộc set NEXT_PUBLIC_SITE_URL trên production */
+/** URL gốc site */
 export function getSiteUrl(): string {
   const configured = process.env.NEXT_PUBLIC_SITE_URL?.trim();
   if (configured) return configured.replace(/\/$/, "");
-
-  if (process.env.VERCEL_URL) {
-    return `https://${process.env.VERCEL_URL}`;
-  }
-
-  return "https://cskh.tudongai.com";
+  return "https://tools.dahangsi.com";
 }
 
 export const SITE_NAME = APP_NAME;
-
-export const SITE_TAGLINE = "Quản trị Zalo thông minh cho doanh nghiệp";
-
+export const SITE_TAGLINE = "Công cụ tính toán & hỗ trợ đa ngành nghề";
 export const DEFAULT_DESCRIPTION =
-  "CSKH tự động — quản lý Zalo thông minh. Tích hợp AI tự động hóa chiến dịch marketing cho doanh nghiệp. Vận hành quản lý sale & marketing trên một giao diện thân thiện";
+  "Công cụ xanh — nền tảng công cụ tính toán và hỗ trợ đa ngành nghề.";
 
 export const DEFAULT_KEYWORDS = [
-  "CSKH tự động",
-  "quản trị Zalo",
-  "Zalo marketing",
-  "tin nhắn Zalo",
-  "Zalo OA",
-  "bán hàng Zalo",
-  "chiến dịch Zalo",
-  "quản lý tài khoản Zalo",
-  "chat Zalo",
-  "phần mềm Zalo",
+  "công cụ",
+  "calculator",
+  "đa ngành nghề",
+  APP_NAME,
   LEGAL_BRAND_NAME,
 ] as const;
 
-export const OG_IMAGE = {
-  url: "/images/logo/mockup-0.png",
-  width: 1200,
-  height: 630,
-  alt: `${APP_NAME} — ${SITE_TAGLINE}`,
-} as const;
-
-/** Trang công khai — đưa vào sitemap */
 export const PUBLIC_ROUTES = [
   { path: "/", changeFrequency: "weekly" as const, priority: 1 },
-  { path: "/signup", changeFrequency: "monthly" as const, priority: 0.9 },
-  { path: "/signin", changeFrequency: "monthly" as const, priority: 0.8 },
-  { path: "/dieu-khoan", changeFrequency: "yearly" as const, priority: 0.5 },
-] as const;
+  { path: "/signin", changeFrequency: "monthly" as const, priority: 0.5 },
+  { path: "/dieu-khoan", changeFrequency: "yearly" as const, priority: 0.3 },
+];
 
-/** Đường dẫn không index (robots.txt) */
 export const ROBOTS_DISALLOW = [
-  "/zalo-messages",
-  "/zalo-messenger",
-  "/me",
-  "/zalo-accounts",
-  "/zalo-campaigns",
-  "/shop",
-  "/admin",
-  "/resource",
-  "/guides",
-  "/profile",
-  "/calendar",
-  "/forgot-password",
-  "/next-api",
+  "/dashboard",
+  "/users",
+  "/settings",
+  "/signin",
+  "/django-admin",
+  "/api",
 ] as const;

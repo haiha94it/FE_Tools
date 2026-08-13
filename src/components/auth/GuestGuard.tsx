@@ -12,7 +12,7 @@ export function GuestGuard({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (isBootstrapped && isAuthenticated) {
-      router.replace("/me");
+      router.replace("/dashboard");
     }
   }, [isBootstrapped, isAuthenticated, router]);
 

@@ -1,25 +1,17 @@
-import TermsContent from "@/components/auth/TermsContent";
-import { LEGAL_BRAND_NAME } from "@/constants/brand";
-import { createPublicMetadata } from "@/lib/seo/metadata";
-import type { Metadata } from "next";
-
-export const metadata: Metadata = createPublicMetadata({
-  title: "Điều khoản sử dụng",
-  description: `Điều khoản sử dụng dịch vụ CSKH — ${LEGAL_BRAND_NAME}. Quy định về tài khoản, quyền và trách nhiệm khi sử dụng nền tảng quản trị Zalo.`,
-  path: "/dieu-khoan",
-  ogType: "article",
-  keywords: ["điều khoản CSKH", "điều khoản sử dụng", "chính sách dịch vụ Zalo"],
-});
+import { APP_NAME } from "@/constants/brand";
+import Link from "next/link";
 
 export default function TermsPage() {
   return (
-    <div className="min-h-screen bg-gray-50 px-4 py-8 dark:bg-gray-900 sm:px-6">
-      <div className="mx-auto max-w-5xl rounded-2xl bg-white p-6 shadow-theme-sm dark:bg-gray-800 sm:p-10">
-        <h1 className="mb-6 text-title-sm font-semibold text-gray-800 dark:text-white/90">
-          Điều khoản sử dụng
-        </h1>
-        <TermsContent />
-      </div>
+    <div className="mx-auto max-w-3xl px-6 py-12">
+      <h1 className="text-2xl font-semibold">Điều khoản — {APP_NAME}</h1>
+      <p className="mt-4 text-gray-600">
+        Nội dung điều khoản sẽ được cập nhật. Sử dụng tool công khai miễn phí;
+        khu vực quản trị yêu cầu tài khoản do admin cấp.
+      </p>
+      <Link href="/" className="mt-6 inline-block text-brand-500">
+        Về trang chủ
+      </Link>
     </div>
   );
 }

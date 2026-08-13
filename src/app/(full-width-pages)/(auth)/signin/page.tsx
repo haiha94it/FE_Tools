@@ -5,10 +5,8 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = createPublicMetadata({
   title: "Đăng nhập",
-  description:
-    "Đăng nhập CSKH để quản lý tài khoản Zalo, tin nhắn, chiến dịch marketing và cửa hàng online.",
+  description: "Đăng nhập quản trị Công cụ xanh",
   path: "/signin",
-  keywords: ["đăng nhập CSKH", "login Zalo admin", "quản trị Zalo"],
 });
 
 export default function SignInPage() {

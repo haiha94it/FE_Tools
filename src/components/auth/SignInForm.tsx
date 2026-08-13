@@ -6,7 +6,6 @@ import Label from "@/components/form/Label";
 import Button from "@/components/ui/button/Button";
 import { APP_NAME } from "@/constants/brand";
 import { useAuthStore } from "@/stores/use-auth-store";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import React, { useState } from "react";
 
@@ -29,7 +28,7 @@ export default function SignInForm() {
 
     try {
       await login({ username: username.trim(), password });
-      router.replace("/me");
+      router.replace("/dashboard");
     } catch {
       // error đã set trong store
     }
@@ -88,15 +87,6 @@ export default function SignInForm() {
               </p>
             )}
 
-            <div className="flex items-center justify-end">
-              <Link
-                href="/forgot-password"
-                className="cursor-pointer text-sm text-brand-500 hover:text-brand-600"
-              >
-                Quên mật khẩu?
-              </Link>
-            </div>
-
             <Button
               type="submit"
               className="w-full"
@@ -105,15 +95,8 @@ export default function SignInForm() {
             >
               {isLoading ? "Đang đăng nhập..." : "Đăng nhập"}
             </Button>
-
             <p className="text-center text-sm text-gray-500 dark:text-gray-400">
-              Chưa có tài khoản?{" "}
-              <Link
-                href="/signup"
-                className="cursor-pointer text-brand-500 hover:text-brand-600"
-              >
-                Đăng ký ngay
-              </Link>
+              Tài khoản do quản trị viên cấp — không mở đăng ký công khai.
             </p>
           </div>
         </form>

@@ -1,13 +1,10 @@
 "use client";
 
-import AcceptTermsGate from "@/components/auth/AcceptTermsGate";
 import { AuthGuard } from "@/components/auth/AuthGuard";
-import { TeamRouteGuard } from "@/components/auth/TeamRouteGuard";
 import { useSidebar } from "@/context/SidebarContext";
 import AppHeader from "@/layout/AppHeader";
 import AppSidebar from "@/layout/AppSidebar";
 import Backdrop from "@/layout/Backdrop";
-import SupportAssistantWidget from "@/components/support-chatbot/SupportAssistantWidget";
 import React from "react";
 
 export default function AdminShell({ children }: { children: React.ReactNode }) {
@@ -21,7 +18,6 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
 
   return (
     <AuthGuard>
-      <TeamRouteGuard>
       <div className="h-dvh overflow-hidden xl:flex">
         <AppSidebar />
         <Backdrop />
@@ -34,10 +30,6 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
           </main>
         </div>
       </div>
-      {/* Popup điều khoản đăng nhập lần đầu — accept_terms */}
-      <AcceptTermsGate />
-      <SupportAssistantWidget />
-      </TeamRouteGuard>
     </AuthGuard>
   );
 }

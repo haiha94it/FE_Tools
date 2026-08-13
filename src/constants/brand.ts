@@ -1,8 +1,8 @@
 /** Tên thương hiệu hiển thị */
-export const APP_NAME = "CSKH tự động";
+export const APP_NAME = "Công cụ xanh";
 
-/** Tên pháp lý trong điều khoản đăng ký — đồng bộ ZaloCN (titleIntruc) */
-export const LEGAL_BRAND_NAME = "Chốt Nhanh";
+/** Tên pháp lý */
+export const LEGAL_BRAND_NAME = "Công cụ xanh";
 
 export function pageTitle(page: string): string {
   return `${page} | ${APP_NAME}`;

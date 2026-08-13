@@ -1,32 +1,21 @@
-import { API_AUTH, API_ZALO_USER_ADMIN } from "@/config/api";
+import { API_AUTH } from "@/config/api";
 import api, { clearTokens, getRefreshToken, updateTokens } from "@/lib/axios";
-import { clearCareTokens, updateCareTokens } from "@/lib/care-axios";
 import { mapApiUser } from "@/lib/map-auth-user";
 import type {
-  AcceptTermsPayload,
   ApiUserProfile,
   AuthUser,
-  LoginCareResponse,
   LoginPayload,
   LoginResponse,
-  RegisterPayload,
-  RegisterResponse,
-  ResetPasswordPayload,
-  ResetPasswordResponse,
 } from "@/types/auth";
 
 export const authService = {
   async login(payload: LoginPayload): Promise<LoginResponse> {
     const response = await api.post<LoginResponse>(API_AUTH.LOGIN, payload);
     const tokens = response.data;
+    if (!tokens?.access || !tokens?.refresh) {
+      throw new Error("Phản hồi đăng nhập không hợp lệ");
+    }
     updateTokens(tokens.access, tokens.refresh);
-    return tokens;
-  },
-
-  async loginCare(): Promise<LoginCareResponse> {
-    const response = await api.post<LoginCareResponse>(API_AUTH.LOGIN_CARE, {});
-    const tokens = response.data;
-    updateCareTokens(tokens.access, tokens.refresh);
     return tokens;
   },
 
@@ -35,78 +24,18 @@ export const authService = {
     return mapApiUser(response.data);
   },
 
-  /** Xác nhận điều khoản — POST kèm chữ ký + PDF; fallback GET (ZaloCN) khi không có payload */
-  async acceptTerms(payload?: AcceptTermsPayload): Promise<void> {
-    if (payload?.signature || payload?.contract_pdf) {
-      await api.post(API_AUTH.ACCEPT_TERMS, payload);
-      return;
-    }
-    await api.get(API_AUTH.ACCEPT_TERMS);
-  },
-
   async logout(): Promise<void> {
     const refresh = getRefreshToken();
     if (refresh) {
-      // Fire-and-forget: Bắn API ngầm hủy token phía server, không await phản hồi
-      void api.post(API_AUTH.LOGOUT, { refresh }).catch((apiError) => {
-        console.warn("API logout failed (possibly expired token):", apiError);
-      });
+      void api.post(API_AUTH.LOGOUT, { refresh }).catch(() => undefined);
     }
     clearTokens();
-    clearCareTokens();
   },
 
-  /** Xác nhận email / kích hoạt tài khoản — GET /api/register/activate?token= */
-  async activateRegister(token: string): Promise<LoginResponse> {
-    const response = await api.get<LoginResponse>(API_AUTH.ACTIVATE, {
-      params: { token },
-    });
-    const tokens = response.data;
-    if (!tokens?.access || !tokens?.refresh) {
-      throw new Error("Phản hồi kích hoạt không hợp lệ");
-    }
-    updateTokens(tokens.access, tokens.refresh);
-    return tokens;
-  },
-
-  /** Đăng ký tài khoản — ZaloCN */
-  async register(payload: RegisterPayload): Promise<RegisterResponse> {
-    const response = await api.post<RegisterResponse | null>(
-      API_AUTH.REGISTER,
-      payload,
-    );
-    return {
-      ...(response.data ?? {}),
-      message: response.apiMessage ?? response.data?.message,
-    };
-  },
-
-  /** Yêu cầu reset mật khẩu — ZaloCN */
-  async resetPassword(
-    payload: ResetPasswordPayload,
-  ): Promise<ResetPasswordResponse> {
-    const response = await api.post<ResetPasswordResponse | null>(
-      API_AUTH.RESET_PASSWORD,
-      payload,
-    );
-    return {
-      ...(response.data ?? {}),
-      message: response.apiMessage ?? response.data?.message,
-    };
-  },
-
-  /** Đổi mật khẩu tài khoản đang đăng nhập */
   async changePassword(oldPassword: string, newPassword: string): Promise<void> {
-    await api.post(API_ZALO_USER_ADMIN.CHANGE_PASSWORD, {
+    await api.post(API_AUTH.CHANGE_PASSWORD, {
       old_password: oldPassword,
       new_password: newPassword,
-    });
-  },
-
-  /** Bật/tắt thông báo tin nhắn — POST /api/users/change-new-message-notification */
-  async changeNewMessageNotification(enable: boolean): Promise<void> {
-    await api.post(API_AUTH.CHANGE_NEW_MESSAGE_NOTIFICATION, {
-      new_message_notification: enable,
     });
   },
 };
