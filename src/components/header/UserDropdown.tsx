@@ -26,7 +26,7 @@ export default function UserDropdown() {
   const handleLogout = () => {
     closeDropdown();
     void logout();
-    router.replace("/signin");
+    router.replace("/login");
   };
 
   const displayName = user?.name ?? user?.username ?? "Tài khoản";

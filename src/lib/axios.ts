@@ -122,9 +122,9 @@ export function logoutAndRedirect() {
   clearTokens();
   if (
     typeof window !== "undefined" &&
-    !window.location.pathname.includes("/signin")
+    !window.location.pathname.includes("/login")
   ) {
-    window.location.href = "/signin";
+    window.location.href = "/login";
   }
 }
 

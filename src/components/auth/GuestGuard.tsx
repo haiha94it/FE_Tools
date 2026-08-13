@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useAuthStore } from "@/stores/use-auth-store";
 
-/** Trang guest (signin) — đã đăng nhập thì chuyển về trang chủ */
+/** Trang guest /login — đã đăng nhập thì chuyển về dashboard. */
 export function GuestGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const isBootstrapped = useAuthStore((s) => s.isBootstrapped);

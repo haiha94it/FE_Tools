@@ -22,7 +22,6 @@ export const DEFAULT_KEYWORDS = [
 
 export const PUBLIC_ROUTES = [
   { path: "/", changeFrequency: "weekly" as const, priority: 1 },
-  { path: "/signin", changeFrequency: "monthly" as const, priority: 0.5 },
   { path: "/dieu-khoan", changeFrequency: "yearly" as const, priority: 0.3 },
 ];
 
@@ -30,6 +29,7 @@ export const ROBOTS_DISALLOW = [
   "/dashboard",
   "/users",
   "/settings",
+  "/login",
   "/signin",
   "/django-admin",
   "/api",

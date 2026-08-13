@@ -17,7 +17,7 @@ function AuthLoading() {
   );
 }
 
-/** Bảo vệ route admin — chưa đăng nhập thì chuyển về /signin */
+/** Bảo vệ route admin — chưa đăng nhập thì chuyển về /login. */
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const isBootstrapped = useAuthStore((s) => s.isBootstrapped);
@@ -25,7 +25,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (isBootstrapped && !isAuthenticated) {
-      router.replace("/signin");
+      router.replace("/login");
     }
   }, [isBootstrapped, isAuthenticated, router]);
 
