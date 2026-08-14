@@ -1,0 +1,14 @@
+{
+  "extends": "../../../../../tsconfig.json",
+  "compilerOptions": {
+    "target": "ES2021",
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "noEmit": false,
+    "incremental": false,
+    "isolatedModules": false,
+    "outDir": "/tmp/cong-cu-nghe-vat-tests",
+    "rootDir": "../../../.."
+  },
+  "include": ["../**/*.ts", "../**/*.tsx"]
+}

@@ -1,223 +1,132 @@
-# AGENTS — Hệ thống AI cho FE_ZALO_V2
+# AGENTS — Công Cụ Nghề Frontend
 
-> Admin dashboard Zalo · TailAdmin Next.js 16 · React 19 · Tailwind CSS v4 · TypeScript
+Next.js 16 · React 19 · Tailwind CSS v4 · TypeScript.
 
-**Monorepo:** workspace root = `ChotCare_v2_BE/`. Path code FE trong monorepo: `FE/src/…`.  
-Rule BE/cross-stack/envelope/cache/locate/caveman → **root** `.agents/AGENTS.md` (thắng file này khi conflict).
+## Path convention
 
-## Skill priority (FE dual tree — bắt buộc)
+- Local monorepo: `FE_Tools/src/...`.
+- Server/deploy: cùng codebase được đặt tại `FE/src/...`.
+- Trong file nằm bên trong FE, ưu tiên path tương đối `src/...` để dùng được ở cả local và server.
+- Không coi `FE/` là legacy; chỉ khác tên thư mục deploy.
+- Rule BE/cross-stack/API envelope/agent mode: root `.agents/AGENTS.md` và root `.agents/skills/`.
+- Rule FE trong file này thắng skill generic khi có khác biệt product.
 
-Không load 2 SSOT cùng topic. Thứ tự:
+## Product
 
-| # | Scope | SSOT |
-|---|--------|------|
-| 1 | BE / cross-stack / agent modes / API envelope monorepo | **Root** `../.agents/AGENTS.md` + `../.agents/skills/` |
-| 2 | FE product TailAdmin / Zalo admin / toast / messenger UI | **`FE/.grok/skills/`** (`zalo-admin-*`, `add-admin-page`, `zalo-messenger`, …) |
-| 3 | FE workflow scaffold (page, component, zustand, perf, review) | **`FE/.agents/skills/skill-*`** |
-| 4 | Creative generic (`design`, `brand`, `banner-design`, `slides`, `ui-styling`, `ui-ux-pro-max`, `design-system`) | **Root** `../.agents/skills/<name>/` — bản `FE/.agents/skills/<name>` = **mirror** (sửa root rồi sync) |
-| 5 | Conflict | Root AGENTS + `chotcare-agent-policy` — cấm path `~/.claude` / absolute home trong skill repo |
+- Brand: **Công Cụ Nghề**.
+- Public UI mobile-first; tool public không bắt đăng nhập trừ `require_login`.
+- Calculator compute hybrid, ưu tiên client.
+- Không thêm domain Zalo, messenger, shop hoặc WebSocket.
+- UI người dùng và thông báo: tiếng Việt.
 
-Chi tiết monorepo: root AGENTS § Path conventions → FE dual tree.
+## Architecture
 
-## Đọc trước khi làm việc
-
-1. `.grok/skills/zalo-admin-project/SKILL.md` — stack, cấu trúc thư mục, lệnh
-2. `.grok/skills/zalo-admin-ui/SKILL.md` — design tokens TailAdmin
-3. `.grok/skills/zalo-standards/SKILL.md` — quy chuẩn code
-4. `.grok/skills/zalo-toast-tooltip/SKILL.md` — Sonner toast + Radix tooltip
-5. Skill workflow phù hợp (§ Skill priority)
-
-## Ngôn ngữ
-
-- **Luôn Tiếng Việt** khi hỏi, phản hồi, giải thích — ngắn gọn, dễ hiểu
-- **UI người dùng**: tiếng Việt (sidebar, label, toast, empty state)
-- **Comment code**: Tiếng Việt cho logic nghiệp vụ
-- Giữ tên thương hiệu: Zalo, TailAdmin, CN…
-
-## Tài liệu tham chiếu
-
-| File | Mục đích |
-| ---- | -------- |
-| `README.md` | Template TailAdmin, changelog, scripts |
-| `.grok/skills/zalo-admin-project/` | Context dự án, directory map |
-| `.grok/skills/zalo-admin-ui/` | Tokens màu, layout admin shell |
-| `.grok/skills/zalo-standards/` | TypeScript, ESLint, conventions |
-| `src/app/globals.css` | `@theme` Tailwind v4 tokens |
-
-## Vai trò Agent
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                 ORCHESTRATOR (mặc định)                  │
-│  Đọc yêu cầu → Discovery → Chọn skill → Implement       │
-└────────────┬──────────────┬──────────────┬──────────────┘
-             │              │              │
-     ┌───────▼──────┐ ┌─────▼─────┐ ┌──────▼──────┐
-     │  Component   │ │ API +     │ │ Performance │
-     │   Builder    │ │ Zustand   │ │  Optimizer  │
-     └──────────────┘ └───────────┘ └─────────────┘
-             │              │              │
-             └──────────────┼──────────────┘
-                            ▼
-                   ┌────────────────┐
-                   │  Code Reviewer │
-                   └────────────────┘
+```text
+src/types/        contract TypeScript
+src/config/api.ts endpoint constants
+src/lib/          axios, envelope, helper dùng chung
+src/services/     HTTP theo domain
+src/stores/       state dùng nhiều page hoặc flow
+src/components/   UI dùng lại/feature
+src/app/          route, metadata, composition
 ```
 
-### 1. Orchestrator (mặc định)
+- API flow: `types → config/api.ts → services → stores (nếu cần) → component`.
+- Chỉ `services/` gọi axios. Unwrap envelope qua `src/lib/api-response.ts`.
+- `page.tsx` giữ mỏng; interactive logic trong component gần feature.
+- Server Component mặc định; chỉ thêm `"use client"` cho state/event/browser API.
+- Reuse component/helper hiện có trước khi tạo file hoặc abstraction mới.
+- Shared component phải có ít nhất hai caller thật; ngoại lệ: calculator primitives đã được product chốt bên dưới.
 
-**Trách nhiệm:**
+## Calculator UI contract
 
-- Phân tích yêu cầu, xác định file ảnh hưởng
-- Đọc `types/` và `config/api.ts` trước khi sửa API (khi đã có)
-- Kiểm tra store hiện có trước khi tạo fetch mới
-- Chọn skill phù hợp, không sửa file ngoài phạm vi task
+Mọi calculator public dùng chung presentation primitives tại
+`src/components/calculator/`. Cấm từng tool tự dựng layout, field, action hoặc result
+khác chuẩn khi primitive chung đã đáp ứng.
 
-**Discovery checklist** (bắt buộc):
+Contract này chuẩn hóa UI; không tạo engine/schema renderer ép mọi công thức vào một
+framework. Công thức, validation nghiệp vụ và cách làm tròn vẫn thuộc từng tool.
 
-```
-□ src/app/(admin)/.../page.tsx     — route admin
-□ src/app/(full-width-pages)/      — auth, error pages
-□ src/layout/                      — AppSidebar, AppHeader, shell
-□ src/components/{feature}/        — view & widget
-□ src/context/                     — ThemeContext, SidebarContext
-□ src/hooks/                       — useModal, useGoBack
-□ src/icons/                       — SVG icon components
-□ src/types/                       — contracts (khi thêm API)
-□ src/config/api.ts                — endpoints (khi thêm API)
-□ src/services/                    — HTTP layer (khi thêm API)
-□ src/stores/                      — Zustand (khi thêm API)
-```
+### Cấu trúc bắt buộc
 
-### 2. Component Builder
+1. `CalculatorShell`: breadcrumb → tên/mô tả → input → action → result → hướng dẫn/công thức → disclaimer → tool liên quan.
+2. `CalculatorField`: label, help text, error text và đơn vị theo cùng spacing/typography.
+3. `CalculatorActions`: primary `Tính kết quả`, secondary `Đặt lại`; cùng height/radius/loading/disabled state.
+4. `CalculatorResult`: visual hierarchy cố định cho kết quả chính, đơn vị, cách làm tròn và ghi chú.
+5. Mọi tool có đủ state: empty, calculating, success, validation error, calculation error.
 
-**Kích hoạt khi:** Tạo/sửa trang admin, form, table, chart, modal, sidebar menu.
+Primitive dự kiến; chỉ tạo khi calculator đầu tiên dùng:
 
-**Skill:** `.agents/skills/skill-components/SKILL.md`
-
-**Nguyên tắc:**
-
-- `page.tsx` mỏng — metadata + compose component
-- Logic UI trong `src/components/{feature}/`
-- `"use client"` khi cần state, event, chart, form tương tác
-- Tái sử dụng `ComponentCard`, `PageBreadCrumb`, form primitives có sẵn
-
-### 3. API + Zustand Integrator
-
-**Kích hoạt khi:** Endpoint, store, auth, mutation, loading/error.
-
-**Skill:** `.agents/skills/skill-api-zustand/SKILL.md`
-
-**Nguyên tắc:**
-
-- `types/` → `config/api.ts` → `services/` → `stores/` → component
-- `import api from '@/lib/axios'` — chỉ trong `services/`
-
-### 4. Tailwind & UI Stylist
-
-**Kích hoạt khi:** Màu, spacing, responsive, dark mode, grid dashboard.
-
-**Skill:** `.agents/skills/skill-tailwind/SKILL.md`
-
-**Tham khảo:** `.grok/skills/zalo-admin-ui/SKILL.md`
-
-### 5. Performance Optimizer
-
-**Kích hoạt khi:** Chart nặng, bundle, lazy load, sidebar animation.
-
-**Skill:** `.agents/skills/skill-performance/SKILL.md`
-
-### 6. Admin Dashboard Specialist
-
-**Kích hoạt khi:** Thêm route admin, cập nhật sidebar, scaffold dashboard Zalo.
-
-**Skill:** `.agents/skills/skill-admin-dashboard/SKILL.md`
-
-### 7. Code Reviewer
-
-**Kích hoạt khi:** Hoàn thành task, trước commit.
-
-**Skill:** `.agents/skills/skill-code-review/SKILL.md`
-
-## Luồng xử lý task tiêu biểu
-
-### Thêm trang admin mới
-
-```
-1. Đọc zalo-admin-project + zalo-admin-ui
-2. Tạo src/components/{feature}/ — view chính
-3. Tạo src/app/(admin)/(others-pages)/{route}/page.tsx
-4. Cập nhật navItems trong src/layout/AppSidebar.tsx
-5. npm run lint && npm run build
-6. skill-code-review
+```text
+src/components/calculator/
+├── CalculatorShell.tsx
+├── CalculatorSection.tsx
+├── CalculatorField.tsx
+├── CalculatorActions.tsx
+├── CalculatorResult.tsx
+└── CalculatorDisclaimer.tsx
 ```
 
-### Thêm module Zalo (tài khoản, tin nhắn, nhóm…)
+Không tạo file rỗng hoặc component chưa có caller.
 
-```
-1. Scaffold page + component theo skill-admin-dashboard
-2. types/ + config/api.ts + services/ + stores/ (skill-api-zustand)
-3. UI tiếng Việt, bảng dùng BasicTableOne / Pagination làm mẫu
-4. Toast feedback khi mutation
-5. npm run lint && npm run build
-```
+### Visual consistency
 
-### Sửa giao diện / dark mode
+- Dùng token/class hiện có trong `src/app/globals.css`; cấm hex, font, shadow hoặc spacing riêng rải trong calculator.
+- Giữ chung màu primary, width container, grid, card, radius và hierarchy typography.
+- Từng tool chỉ khác icon, nội dung, field, công thức và cách biểu diễn dữ liệu chuyên ngành.
+- Không đổi shell hoặc primary color theo nghề.
+- Label luôn hiển thị; không dùng placeholder thay label.
+- Validation nằm cạnh field; toast không thay inline error.
 
-```
-1. skill-tailwind + zalo-admin-ui
-2. Dùng token brand-*, gray-*, success-*, error-* trong globals.css
-3. Test light + dark tại 375px, 768px, 1280px
-```
+### Responsive và accessibility
 
-### Tích hợp API mới
+- Mobile-first. Mobile: form trước, result sau; desktop dùng cùng breakpoint/grid chuẩn.
+- Không horizontal scroll tại 320px; interactive target tối thiểu 44×44px.
+- Numeric field dùng `inputMode` phù hợp bàn phím mobile.
+- Input liên kết `label`; help/error liên kết bằng `aria-describedby`.
+- Focus state luôn nhìn thấy; trạng thái không truyền đạt chỉ bằng màu.
+- Result cập nhật dùng `aria-live="polite"`.
 
-```
-1. types/{domain}.ts
-2. config/api.ts — API_* constant
-3. services/{domain}.service.ts
-4. stores/use-{domain}-store.ts
-5. Component gọi store — không gọi axios trực tiếp
-6. npm run lint && npm run build
-```
+### Ownership
 
-## Quy tắc CRITICAL
+- Presentation/state primitive chung: `src/components/calculator/`.
+- Formula + domain validation: module gần feature/tool.
+- Shared UI component không chứa công thức nghiệp vụ.
+- Logic chỉ nâng thành helper chung khi ít nhất hai calculator dùng thật.
+- Ngoại lệ UI cần lý do nghiệp vụ cụ thể trong code review.
 
-| # | Quy tắc |
-| - | ------- |
-| 1 | `npm run lint` và `npm run build` PASS trước khi xong task |
-| 2 | UI user → tiếng Việt |
-| 3 | `import api from '@/lib/axios'` — chỉ trong `services/` |
-| 4 | Khai báo `types/` trước khi code API |
-| 5 | Endpoint trong `config/api.ts` |
-| 6 | Design tokens: `brand-*`, `gray-*` — không hex random |
-| 7 | Không `any` |
-| 8 | Icon dùng `src/icons/` — không emoji làm icon UI |
-| 9 | `cursor-pointer` trên element clickable |
-| 10 | Chỉ sửa file liên quan task |
-| 11 | Giữ layout shell: `AppSidebar` + `AppHeader` + `AdminLayout` |
-| 12 | Path alias `@/*` → `src/*` |
+### Verify calculator
 
-## Skills có sẵn
+- Viewport tối thiểu: 320px, 768px, 1280px.
+- Keyboard navigation + visible focus.
+- Empty, invalid, calculating, success và calculation-error state.
+- So sánh shell/spacing/action/result với calculator đã ship gần nhất.
 
-| Skill | Đường dẫn | Khi dùng |
-| ----- | --------- | -------- |
-| Components | `skills/skill-components/SKILL.md` | UI, form, table, modal |
-| API + Zustand | `skills/skill-api-zustand/SKILL.md` | Data, auth, Zalo API |
-| Tailwind & UI | `skills/skill-tailwind/SKILL.md` | CSS, tokens, responsive |
-| Admin Dashboard | `skills/skill-admin-dashboard/SKILL.md` | Route, sidebar, scaffold |
-| Performance | `skills/skill-performance/SKILL.md` | Chart, lazy load |
-| Code Review | `skills/skill-code-review/SKILL.md` | Review trước xong |
-| Project context | `.grok/skills/zalo-admin-project/` | Setup, cấu trúc |
-| Design system | `.grok/skills/zalo-admin-ui/` | TailAdmin tokens |
-| Add admin page | `.grok/skills/add-admin-page/` | Trang admin mới |
-| Standards | `.grok/skills/zalo-standards/` | Quy chuẩn pro |
+## UI rules
 
-## Lệnh
+- Tailwind v4 CSS-first; token mới đặt trong `src/app/globals.css` khi thật sự dùng chung.
+- Không dynamic class kiểu ``text-${color}-500``.
+- Icon dùng `src/icons/` hoặc icon library hiện có; không emoji làm icon UI.
+- Clickable native/non-native phải có semantics, keyboard và focus phù hợp.
+- Giữ admin shell `AppSidebar` + `AppHeader` + `AdminShell`.
+- Auth/admin không đi qua public calculator shell.
+
+## Quality gate
 
 ```bash
-npm run dev      # http://localhost:3000
-npm run build    # production build
-npm run start    # serve production
-npm run lint     # ESLint
+npm run lint
+npm run build
 ```
+
+- Không `any` nếu có thể khai báo type chính xác.
+- Không gọi API trực tiếp trong component.
+- Không sửa file ngoài scope.
+- Route/API đổi phải đồng bộ `src/config/api.ts` và caller liên quan.
+- Review calculator theo contract trên trước khi hoàn tất.
+
+## Skills
+
+- Cross-stack/path/reuse: root `code-placement`, `api-envelope`, `ponytail`.
+- UI/token/accessibility: root hoặc local mirror `design-system`, `ui-styling`, `ui-ux-pro-max`.
+- Creative assets: root hoặc local mirror `design`, `brand`, `banner-design`, `slides`.
+- Không load đồng thời root và local mirror của cùng một skill.

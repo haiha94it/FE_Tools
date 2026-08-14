@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "test:vat": "tsc -p src/features/calculators/vat/__tests__/tsconfig.json && NODE_PATH=./node_modules node /tmp/cong-cu-nghe-vat-tests/features/calculators/vat/__tests__/vat.test.js"
   },
   "dependencies": {
     "@fullcalendar/core": "^6.1.19",
