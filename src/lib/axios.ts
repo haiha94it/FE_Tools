@@ -80,7 +80,7 @@ async function performTokenRefresh(): Promise<string> {
     { refresh: refreshToken },
   );
   const { access, refresh } = unwrapAuthTokens(response.data);
-  updateTokens(access, refresh);
+  updateTokens(access, refresh || refreshToken);
   return access;
 }
 

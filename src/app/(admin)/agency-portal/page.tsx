@@ -4,9 +4,19 @@ import { API_AGENCY } from "@/config/api";
 import api from "@/lib/axios";
 import { useEffect, useState } from "react";
 
+type AgencyCombo = {
+  code: string;
+  name: string;
+  price_vnd: number;
+  credit_vnd: number;
+  duration_days: number;
+  description: string;
+};
+
 type AgencyData = {
   agency: { id: number; username: string; fullname: string };
   balance: { balance_vnd: number; discount_percentage: number };
+  combos?: AgencyCombo[];
   total_customers: number;
   active_licenses_count: number;
   plans: Array<{ id: number; name: string; code: string; price_vnd: number; duration_days: number }>;
@@ -39,28 +49,53 @@ export default function AgencyPortalPage() {
 
   // Topup Modal State
   const [showTopupModal, setShowTopupModal] = useState(false);
-  const [topupAmount, setTopupAmount] = useState(1000000);
+  const [selectedComboCode, setSelectedComboCode] = useState<string>("COMBO_1");
   const [topupOrder, setTopupOrder] = useState<TopupOrder | null>(null);
+  const [creatingTopup, setCreatingTopup] = useState(false);
 
   // Activate Modal State
   const [showActivateModal, setShowActivateModal] = useState(false);
   const [activateForm, setActivateForm] = useState({
     phone_number: "",
     full_name: "",
-    plan_code: "MONTH_1",
+    plan_code: "",
   });
 
   const load = async () => {
     setLoading(true);
+    setMsg(null);
     try {
       console.log("[AGENCY] Đang tải dữ liệu cổng đại lý...");
-      const [resMe, resCust] = await Promise.all([
+      const [resMe, resCust] = await Promise.allSettled([
         api.get<AgencyData>(API_AGENCY.ME),
         api.get<Customer[]>(API_AGENCY.CUSTOMERS),
       ]);
-      setData(resMe.data ?? null);
-      setCustomers(resCust.data ?? []);
-      console.log(`[AGENCY] Đã tải thông tin đại lý và ${resCust.data?.length ?? 0} khách hàng`);
+
+      let hasMeSuccess = false;
+      let hasCustSuccess = false;
+
+      if (resMe.status === "fulfilled" && resMe.value.data) {
+        hasMeSuccess = true;
+        const agencyData = resMe.value.data;
+        setData(agencyData);
+        if (agencyData.plans && agencyData.plans.length > 0 && !activateForm.plan_code) {
+          setActivateForm((f) => ({ ...f, plan_code: agencyData.plans[0].code }));
+        }
+      } else if (resMe.status === "rejected") {
+        console.error("[AGENCY] Lỗi tải thông tin đại lý (API_AGENCY.ME):", resMe.reason);
+      }
+
+      if (resCust.status === "fulfilled" && resCust.value.data) {
+        hasCustSuccess = true;
+        setCustomers(Array.isArray(resCust.value.data) ? resCust.value.data : []);
+      } else if (resCust.status === "rejected") {
+        console.error("[AGENCY] Lỗi tải danh sách khách hàng (API_AGENCY.CUSTOMERS):", resCust.reason);
+      }
+
+      if (!hasMeSuccess && !hasCustSuccess) {
+        setMsg("Không thể tải thông tin đại lý. Vui lòng kiểm tra lại kết nối hoặc quyền truy cập.");
+      }
+      console.log("[AGENCY] Hoàn tất quá trình tải dữ liệu cổng đại lý");
     } catch (err) {
       console.error("[AGENCY] Lỗi tải dữ liệu đại lý", err);
       setMsg("Không thể tải thông tin đại lý.");
@@ -73,16 +108,19 @@ export default function AgencyPortalPage() {
     void load();
   }, []);
 
-  const handleCreateTopup = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleCreateTopupCombo = async (comboCode: string) => {
+    setCreatingTopup(true);
     try {
-      console.log(`[AGENCY] Đang tạo yêu cầu nạp số dư ví amount=${topupAmount} đ...`);
-      const res = await api.post<TopupOrder>(API_AGENCY.TOPUP, { amount_vnd: topupAmount });
+      console.log(`[AGENCY] Đang tạo yêu cầu nạp gói combo=${comboCode}...`);
+      const res = await api.post<TopupOrder>(API_AGENCY.TOPUP, { combo_code: comboCode });
       setTopupOrder(res.data ?? null);
-      console.log(`[AGENCY] Đã tạo đơn nạp số dư thành công order_code=${res.data?.order_code}`);
+      setSelectedComboCode(comboCode);
+      console.log(`[AGENCY] Đã tạo đơn nạp combo thành công order_code=${res.data?.order_code}`);
     } catch (err) {
-      console.error("[AGENCY] Tạo đơn nạp số dư thất bại", err);
-      setMsg("Tạo đơn nạp số dư thất bại.");
+      console.error("[AGENCY] Tạo đơn nạp gói combo thất bại", err);
+      setMsg("Tạo đơn nạp combo thất bại.");
+    } finally {
+      setCreatingTopup(false);
     }
   };
 
@@ -106,8 +144,8 @@ export default function AgencyPortalPage() {
     return <div className="p-8 text-center text-gray-500">Đang tải thông tin đại lý...</div>;
   }
 
-  const selectedPlan = data?.plans.find((p) => p.code === activateForm.plan_code);
-  const discount = data?.balance.discount_percentage || 0;
+  const selectedPlan = data?.plans?.find((p) => p.code === activateForm.plan_code);
+  const discount = data?.balance?.discount_percentage || 0;
   const discountedPrice = selectedPlan ? Math.round(selectedPlan.price_vnd * (1 - discount / 100)) : 0;
 
   return (
@@ -140,16 +178,18 @@ export default function AgencyPortalPage() {
               setShowTopupModal(true);
               setTopupOrder(null);
             }}
-            className="mt-4 w-full rounded-lg bg-brand-500 px-3 py-2 text-xs font-semibold text-white hover:bg-brand-600"
+            className="mt-4 w-full rounded-lg bg-brand-500 px-3 py-2 text-xs font-semibold text-white hover:bg-brand-600 transition shadow-sm"
           >
-            + Nạp tiền vào ví
+            + Nạp Gói Đại Lý
           </button>
         </div>
 
         <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
-          <p className="text-xs text-gray-500">Mức chiết khấu đại lý</p>
-          <p className="mt-2 text-3xl font-extrabold text-brand-600">{discount}%</p>
-          <p className="mt-4 text-xs text-gray-400">Được tự động áp dụng khi kích hoạt gói cho khách</p>
+          <p className="text-xs text-gray-500">Chính sách ưu đãi ví</p>
+          <p className="mt-2 text-2xl font-extrabold text-brand-600">Gói Nạp Đại Lý</p>
+          <p className="mt-2 text-xs text-gray-400">
+            Nạp tiền theo gói để nhận thêm số dư ví thưởng và thời hạn sử dụng.
+          </p>
         </div>
 
         <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
@@ -159,7 +199,7 @@ export default function AgencyPortalPage() {
           </p>
           <button
             onClick={() => setShowActivateModal(true)}
-            className="mt-4 w-full rounded-lg bg-success-500 px-3 py-2 text-xs font-semibold text-white hover:bg-success-600"
+            className="mt-4 w-full rounded-lg bg-success-500 px-3 py-2 text-xs font-semibold text-white hover:bg-success-600 transition shadow-sm"
           >
             ⚡ Kích hoạt gói cho khách
           </button>
@@ -215,54 +255,103 @@ export default function AgencyPortalPage() {
         </div>
       </div>
 
-      {/* Modal Nạp số dư */}
+      {/* Modal Nạp Gói Đại lý */}
       {showTopupModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md space-y-4 rounded-2xl bg-white p-6 dark:bg-gray-900">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Nạp tiền vào Ví Đại lý</h3>
+          <div className="w-full max-w-xl space-y-4 rounded-2xl bg-white p-6 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-xl">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3 dark:border-gray-800">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                Nạp Gói Đại Lý
+              </h3>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowTopupModal(false);
+                  setTopupOrder(null);
+                }}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+              >
+                ✕
+              </button>
+            </div>
 
             {!topupOrder ? (
-              <form onSubmit={handleCreateTopup} className="space-y-4">
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-500">Số tiền muốn nạp (VNĐ)</label>
-                  <input
-                    type="number"
-                    step={100000}
-                    min={100000}
-                    value={topupAmount}
-                    onChange={(e) => setTopupAmount(parseInt(e.target.value) || 0)}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-950"
-                    required
-                  />
-                  <div className="mt-2 flex gap-2">
-                    {[500000, 1000000, 2000000, 5000000].map((amt) => (
-                      <button
-                        key={amt}
-                        type="button"
-                        onClick={() => setTopupAmount(amt)}
-                        className="rounded border border-gray-200 px-2 py-1 text-xs hover:bg-gray-50 dark:border-gray-700"
+              <div className="space-y-4">
+                <p className="text-xs text-gray-500">
+                  Chọn gói nạp tiền phù hợp bên dưới để nạp vào ví:
+                </p>
+
+                <div className="grid gap-3 sm:grid-cols-3">
+                  {(data?.combos && data.combos.length > 0
+                    ? data.combos
+                    : [
+                        {
+                          code: "COMBO_1",
+                          name: "Combo 1",
+                          price_vnd: 3000000,
+                          credit_vnd: 5000000,
+                          duration_days: 365,
+                          description: "Nạp 3tr nhận 5tr",
+                        },
+                        {
+                          code: "COMBO_2",
+                          name: "Combo 2",
+                          price_vnd: 5000000,
+                          credit_vnd: 10000000,
+                          duration_days: 365,
+                          description: "Nạp 5tr nhận 10tr",
+                        },
+                        {
+                          code: "COMBO_3",
+                          name: "Combo 3",
+                          price_vnd: 7000000,
+                          credit_vnd: 18000000,
+                          duration_days: 365,
+                          description: "Nạp 7tr nhận 18tr",
+                        },
+                      ]
+                  ).map((combo) => {
+                    const bonus = combo.credit_vnd - combo.price_vnd;
+                    return (
+                      <div
+                        key={combo.code}
+                        className="rounded-xl border border-gray-200 bg-gray-50/50 p-4 dark:border-gray-800 dark:bg-gray-950 flex flex-col justify-between"
                       >
-                        {amt.toLocaleString("vi-VN")} đ
-                      </button>
-                    ))}
-                  </div>
+                        <div>
+                          <div className="flex items-center justify-between">
+                            <span className="font-bold text-brand-600 text-sm">{combo.name}</span>
+                            <span className="text-[10px] font-bold bg-success-50 text-success-600 px-1.5 py-0.5 rounded">
+                              Hạn {combo.duration_days >= 365 ? `${Math.round(combo.duration_days / 365)} năm` : `${combo.duration_days} ngày`}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs text-gray-500">Thanh toán nạp:</div>
+                          <div className="text-base font-extrabold text-gray-900 dark:text-white">
+                            {combo.price_vnd.toLocaleString("vi-VN")} đ
+                          </div>
+                          <div className="mt-2 rounded-lg bg-success-50/80 p-2 dark:bg-success-950/40">
+                            <div className="text-[11px] text-gray-600 dark:text-gray-300">Nhận vào ví:</div>
+                            <div className="text-sm font-black text-success-600 dark:text-success-400">
+                              {combo.credit_vnd.toLocaleString("vi-VN")} đ
+                            </div>
+                            <div className="text-[10px] text-success-700 font-semibold mt-0.5">
+                              (+{bonus.toLocaleString("vi-VN")} đ)
+                            </div>
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          disabled={creatingTopup}
+                          onClick={() => handleCreateTopupCombo(combo.code)}
+                          className="mt-4 w-full rounded-lg bg-brand-500 py-2 text-xs font-semibold text-white hover:bg-brand-600 transition disabled:opacity-50"
+                        >
+                          {creatingTopup && selectedComboCode === combo.code ? "Đang tạo QR..." : `Chọn ${combo.name}`}
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
-                <div className="flex justify-end gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowTopupModal(false)}
-                    className="rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-600"
-                  >
-                    Đóng
-                  </button>
-                  <button
-                    type="submit"
-                    className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600"
-                  >
-                    Tạo mã VietQR
-                  </button>
-                </div>
-              </form>
+              </div>
             ) : (
               <div className="space-y-4 text-center">
                 <p className="text-sm text-gray-600">Quét mã QR dưới đây để chuyển khoản tự động:</p>
@@ -280,11 +369,12 @@ export default function AgencyPortalPage() {
                 <button
                   onClick={() => {
                     setShowTopupModal(false);
+                    setTopupOrder(null);
                     void load();
                   }}
                   className="w-full rounded-lg bg-brand-500 py-2 text-sm font-semibold text-white"
                 >
-                  Đã chuyển khoản xong
+                  Đã chuyển khoản xong (Chờ duyệt)
                 </button>
               </div>
             )}
@@ -297,11 +387,21 @@ export default function AgencyPortalPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <form
             onSubmit={handleActivateLicense}
-            className="w-full max-w-md space-y-4 rounded-2xl bg-white p-6 dark:bg-gray-900"
+            className="w-full max-w-md space-y-4 rounded-2xl bg-white p-6 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-xl"
           >
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-              Kích hoạt / Gia hạn gói cho Khách
-            </h3>
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3 dark:border-gray-800">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                Kích hoạt / Gia hạn gói cho Khách
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowActivateModal(false)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+              >
+                ✕
+              </button>
+            </div>
+
             <div>
               <label className="mb-1 block text-xs font-medium text-gray-500">Số điện thoại khách hàng</label>
               <input
@@ -330,41 +430,45 @@ export default function AgencyPortalPage() {
                 onChange={(e) => setActivateForm((f) => ({ ...f, plan_code: e.target.value }))}
                 className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-950"
               >
-                {data?.plans.map((p) => (
+                {data?.plans?.map((p) => (
                   <option key={p.id} value={p.code}>
-                    {p.name} — Niêm yết: {p.price_vnd.toLocaleString("vi-VN")} đ
+                    {p.name} ({p.duration_days >= 365 ? "1 Năm" : `${p.duration_days} ngày`}) — {p.price_vnd.toLocaleString("vi-VN")} đ
                   </option>
                 ))}
               </select>
             </div>
 
             {/* Chi tiết khấu trừ */}
-            <div className="rounded-lg bg-gray-50 p-3 text-xs text-gray-600 dark:bg-gray-800 dark:text-gray-300">
-              <div className="flex justify-between">
-                <span>Giá niêm yết:</span>
-                <span>{(selectedPlan?.price_vnd || 0).toLocaleString("vi-VN")} đ</span>
+            {selectedPlan && (
+              <div className="rounded-lg bg-gray-50 p-3 text-xs text-gray-600 dark:bg-gray-800 dark:text-gray-300 space-y-1">
+                <div className="flex justify-between">
+                  <span>Giá gói bản quyền:</span>
+                  <span className="font-semibold">{selectedPlan.price_vnd.toLocaleString("vi-VN")} đ</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Số dư ví hiện có:</span>
+                  <span className="font-mono font-bold text-success-600">
+                    {(data?.balance?.balance_vnd || 0).toLocaleString("vi-VN")} đ
+                  </span>
+                </div>
+                <div className="mt-1 flex justify-between border-t border-gray-200 pt-1 font-bold text-gray-900 dark:text-white dark:border-gray-700">
+                  <span>Tiền trừ ví khả dụng:</span>
+                  <span className="text-brand-600">-{selectedPlan.price_vnd.toLocaleString("vi-VN")} đ</span>
+                </div>
               </div>
-              <div className="flex justify-between text-success-600">
-                <span>Chiết khấu đại lý ({discount}%):</span>
-                <span>-{((selectedPlan?.price_vnd || 0) * (discount / 100)).toLocaleString("vi-VN")} đ</span>
-              </div>
-              <div className="mt-1 flex justify-between border-t pt-1 font-bold text-gray-900 dark:text-white">
-                <span>Tiền trừ ví đại lý:</span>
-                <span className="text-brand-600">{discountedPrice.toLocaleString("vi-VN")} đ</span>
-              </div>
-            </div>
+            )}
 
-            <div className="flex justify-end gap-2 pt-2">
+            <div className="flex justify-end gap-2 pt-2 border-t border-gray-100 dark:border-gray-800">
               <button
                 type="button"
                 onClick={() => setShowActivateModal(false)}
-                className="rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-600"
+                className="rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-200"
               >
                 Hủy
               </button>
               <button
                 type="submit"
-                className="rounded-lg bg-success-500 px-4 py-2 text-sm font-medium text-white hover:bg-success-600"
+                className="rounded-lg bg-success-500 px-4 py-2 text-sm font-medium text-white hover:bg-success-600 transition"
               >
                 Xác nhận kích hoạt
               </button>

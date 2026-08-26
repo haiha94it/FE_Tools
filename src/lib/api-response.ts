@@ -180,11 +180,11 @@ export function isAuthTokenExpiredError(error: unknown): boolean {
 /** Unwrap tokens refresh/login từ response thô hoặc envelope */
 export function unwrapAuthTokens(body: unknown): {
   access: string;
-  refresh: string;
+  refresh?: string;
 } {
-  const payload = unwrapApiBody<{ access: string; refresh: string }>(body);
-  if (!payload?.access || !payload?.refresh) {
-    throw new AxiosError("Phản hồi token không hợp lệ");
+  const payload = unwrapApiBody<{ access: string; refresh?: string }>(body);
+  if (!payload?.access) {
+    throw new AxiosError("Phản hồi token không hợp lệ: thiếu access token");
   }
   return payload;
 }
