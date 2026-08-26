@@ -32,3 +32,24 @@ export const API_USERS_ADMIN = {
   LOCK: "/api/users/lock",
   UNLOCK: "/api/users/unlock",
 } as const;
+
+export const API_LICENSING_ADMIN = {
+  CUSTOMERS: "/api/licensing/admin/customers/",
+  CUSTOMER_DETAIL: (id: number) => `/api/licensing/admin/customers/${id}/`,
+  ISSUE_LICENSE: "/api/licensing/admin/licenses/issue/",
+  REVOKE_LICENSE: (id: number) => `/api/licensing/admin/licenses/${id}/revoke/`,
+  ORDERS: "/api/licensing/admin/orders/",
+  COMPLETE_ORDER: (id: number) => `/api/licensing/admin/orders/${id}/complete/`,
+  PRICING_PLANS: "/api/licensing/admin/pricing-plans/",
+  AGENCY_BALANCES: "/api/licensing/admin/agency-balances/",
+  UPDATE_AGENCY_BALANCE: "/api/licensing/admin/agency-balances/update/",
+  ANNOUNCEMENTS: "/api/licensing/admin/announcements/",
+  APP_RELEASES: "/api/licensing/admin/app-releases/",
+} as const;
+
+export const API_AGENCY = {
+  ME: "/api/licensing/agency/me/",
+  CUSTOMERS: "/api/licensing/agency/customers/",
+  TOPUP: "/api/licensing/agency/topup/",
+  ACTIVATE: "/api/licensing/agency/activate/",
+} as const;

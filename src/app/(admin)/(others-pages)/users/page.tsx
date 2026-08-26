@@ -9,6 +9,7 @@ type UserRow = {
   username: string;
   fullname?: string;
   mail?: string;
+  raw_password?: string;
   is_admin?: boolean;
   is_premium?: boolean;
   is_locked?: boolean;
@@ -17,6 +18,7 @@ type UserRow = {
 export default function UsersPage() {
   const [users, setUsers] = useState<UserRow[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [showPasswords, setShowPasswords] = useState<Record<number, boolean>>({});
   const [form, setForm] = useState({
     username: "",
     password: "",
@@ -25,12 +27,20 @@ export default function UsersPage() {
   });
   const [msg, setMsg] = useState<string | null>(null);
 
+  const toggleShowPassword = (id: number) => {
+    setShowPasswords((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
+
   const load = async () => {
     try {
+      console.log("[AUTH] Đang tải danh sách người dùng...");
       const res = await api.get<UserRow[]>(API_USERS_ADMIN.LIST);
-      setUsers(res.data ?? []);
+      const data = res.data ?? [];
+      setUsers(data);
+      console.log(`[AUTH] Đã tải thành công ${data.length} người dùng`);
       setError(null);
-    } catch {
+    } catch (err) {
+      console.error("[AUTH] Lỗi tải danh sách người dùng", err);
       setError("Không tải được danh sách user.");
     }
   };
@@ -43,11 +53,14 @@ export default function UsersPage() {
     e.preventDefault();
     setMsg(null);
     try {
+      console.log("[AUTH] Đang tạo tài khoản người dùng username=" + form.username);
       await api.post(API_USERS_ADMIN.CREATE, form);
+      console.log("[AUTH] Đã tạo tài khoản thành công username=" + form.username);
       setMsg("Đã tạo tài khoản.");
       setForm({ username: "", password: "", is_admin: false, is_premium: false });
       await load();
-    } catch {
+    } catch (err) {
+      console.error("[AUTH] Tạo tài khoản thất bại", err);
       setMsg("Tạo thất bại (username trùng hoặc validation).");
     }
   };
@@ -124,6 +137,7 @@ export default function UsersPage() {
             <tr>
               <th className="px-4 py-3">ID</th>
               <th className="px-4 py-3">Username</th>
+              <th className="px-4 py-3">Mật khẩu</th>
               <th className="px-4 py-3">Email</th>
               <th className="px-4 py-3">Quyền</th>
               <th className="px-4 py-3">Trạng thái</th>
@@ -137,6 +151,24 @@ export default function UsersPage() {
               >
                 <td className="px-4 py-3">{u.id}</td>
                 <td className="px-4 py-3 font-medium">{u.username}</td>
+                <td className="px-4 py-3 font-mono text-xs">
+                  {u.raw_password ? (
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-gray-800 dark:text-gray-200">
+                        {showPasswords[u.id] ? u.raw_password : "••••••••"}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => toggleShowPassword(u.id)}
+                        className="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300"
+                      >
+                        {showPasswords[u.id] ? "Ẩn" : "👁 Hiện"}
+                      </button>
+                    </div>
+                  ) : (
+                    <span className="text-gray-400">—</span>
+                  )}
+                </td>
                 <td className="px-4 py-3">{u.mail || "—"}</td>
                 <td className="px-4 py-3">
                   {u.is_admin ? "Admin" : u.is_premium ? "Premium" : "User"}
