@@ -139,23 +139,149 @@ export default function AdminLicensingPage() {
     }
   };
 
-  const handleSeedDefaultPlans = async () => {
-    if (!confirm("Khởi tạo 3 gói giá niêm yết chuẩn (1 Tháng: 150k, 3 Tháng: 290k, Vĩnh Viễn: 390k)?")) return;
+  // Pricing Plan Management State
+  const [planModalOpen, setPlanModalOpen] = useState(false);
+  const [editingPlan, setEditingPlan] = useState<PricingPlan | null>(null);
+  const [planForm, setPlanForm] = useState<{
+    name: string;
+    code: string;
+    price_vnd: number | string;
+    duration_days: number | string;
+    is_lifetime: boolean;
+    is_active: boolean;
+    sort_order: number;
+  }>({
+    name: "",
+    code: "",
+    price_vnd: "",
+    duration_days: "",
+    is_lifetime: false,
+    is_active: true,
+    sort_order: 1,
+  });
+
+  const openCreatePlanModal = () => {
+    if (pricingPlans.length >= 3) {
+      alert("Hệ thống đã đạt giới hạn tối đa 3 gói giá. Vui lòng chỉnh sửa hoặc xóa bớt gói hiện có.");
+      return;
+    }
+    setEditingPlan(null);
+    setPlanForm({
+      name: "",
+      code: "",
+      price_vnd: "",
+      duration_days: "",
+      is_lifetime: false,
+      is_active: true,
+      sort_order: pricingPlans.length + 1,
+    });
+    setPlanModalOpen(true);
+  };
+
+  const openEditPlanModal = (p: PricingPlan) => {
+    setEditingPlan(p);
+    const isLife = p.duration_days >= 36500;
+    setPlanForm({
+      name: p.name,
+      code: p.code,
+      price_vnd: p.price_vnd,
+      duration_days: isLife ? "" : p.duration_days,
+      is_lifetime: isLife,
+      is_active: p.is_active,
+      sort_order: 1,
+    });
+    setPlanModalOpen(true);
+  };
+
+  const handleSavePlan = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const name = planForm.name.trim();
+    const code = planForm.code.trim().toUpperCase();
+    const price = Number(planForm.price_vnd);
+    const duration = planForm.is_lifetime ? 36500 : Number(planForm.duration_days);
+
+    if (!name) {
+      alert("Vui lòng nhập tên gói giá.");
+      return;
+    }
+    if (!code) {
+      alert("Vui lòng nhập mã định danh gói (ví dụ: VIP_1M).");
+      return;
+    }
+    if (isNaN(price) || price < 0) {
+      alert("Giá bán phải là số nguyên không âm.");
+      return;
+    }
+    if (!planForm.is_lifetime && (isNaN(duration) || duration < 1)) {
+      alert("Số ngày sử dụng phải từ 1 ngày trở lên.");
+      return;
+    }
+
     setLoading(true);
     try {
-      const defaultPlans = [
-        { name: "Gói 1 Tháng", code: "MONTH_1", duration_days: 30, price_vnd: 150000, sort_order: 1 },
-        { name: "Gói 3 Tháng", code: "MONTH_3", duration_days: 90, price_vnd: 290000, sort_order: 2 },
-        { name: "Gói Vĩnh Viễn", code: "LIFETIME", duration_days: 36500, price_vnd: 390000, sort_order: 3 },
-      ];
-      for (const p of defaultPlans) {
-        await api.post(API_LICENSING_ADMIN.PRICING_PLANS, p);
+      const payload = {
+        name,
+        code,
+        price_vnd: price,
+        duration_days: duration,
+        is_active: planForm.is_active,
+        sort_order: planForm.sort_order || 1,
+      };
+
+      if (editingPlan) {
+        console.log(`[LICENSING] Đang cập nhật gói giá id=${editingPlan.id}...`, payload);
+        await api.patch(API_LICENSING_ADMIN.PRICING_PLAN_DETAIL(editingPlan.id), payload);
+        setMsg("Đã cập nhật gói giá thành công!");
+      } else {
+        console.log("[LICENSING] Đang tạo gói giá mới...", payload);
+        await api.post(API_LICENSING_ADMIN.PRICING_PLANS, payload);
+        setMsg("Đã tạo gói giá mới thành công!");
       }
-      setMsg("Đã khởi tạo thành công 3 gói giá niêm yết chuẩn!");
+      setPlanModalOpen(false);
       await loadData();
-    } catch (err) {
-      console.error("[LICENSING] Lỗi khởi tạo gói giá", err);
-      setMsg("Lỗi khi khởi tạo gói giá.");
+    } catch (err: any) {
+      console.error("[LICENSING] Lỗi lưu gói giá", err);
+      const errorMsg = err?.response?.data?.message || err?.response?.data?.detail || "Lỗi khi lưu gói giá.";
+      alert(`Không thể lưu gói giá: ${errorMsg}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleTogglePlanActive = async (p: PricingPlan) => {
+    setLoading(true);
+    try {
+      const newActive = !p.is_active;
+      console.log(`[LICENSING] Chuyển trạng thái gói id=${p.id} sang is_active=${newActive}`);
+      await api.patch(API_LICENSING_ADMIN.PRICING_PLAN_DETAIL(p.id), { is_active: newActive });
+      setMsg(`Đã ${newActive ? "mở bán" : "tắt bán"} gói "${p.name}"!`);
+      await loadData();
+    } catch (err: any) {
+      console.error("[LICENSING] Lỗi đổi trạng thái gói giá", err);
+      alert("Lỗi khi cập nhật trạng thái gói giá.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeletePlan = async (p: PricingPlan) => {
+    if (!confirm(`Xác nhận xóa gói giá "${p.name}" (Mã: ${p.code})?\n\nLưu ý: Nếu gói đã có giao dịch hoặc bản quyền liên kết, hệ thống sẽ không cho xóa mà yêu cầu Tắt bán.`)) {
+      return;
+    }
+    setLoading(true);
+    try {
+      console.log(`[LICENSING] Đang xóa gói giá id=${p.id} code=${p.code}`);
+      await api.delete(API_LICENSING_ADMIN.PRICING_PLAN_DETAIL(p.id));
+      setMsg(`Đã xóa gói giá "${p.name}" thành công!`);
+      await loadData();
+    } catch (err: any) {
+      console.error("[LICENSING] Lỗi xóa gói giá", err);
+      const serverMsg = err?.response?.data?.message;
+      if (serverMsg) {
+        alert(serverMsg);
+      } else {
+        alert("Gói giá đã có dữ liệu giao dịch hoặc bản quyền liên kết, không thể xóa vĩnh viễn. Vui lòng chuyển trạng thái sang Tắt bán.");
+      }
     } finally {
       setLoading(false);
     }
@@ -169,16 +295,21 @@ export default function AdminLicensingPage() {
             Quản trị Bản quyền & Đại lý GGMaps
           </h1>
           <p className="mt-1 text-sm text-gray-500">
-            Hệ thống cấp phép Ed25519, duyệt đơn VietQR và quản lý số dư ví đại lý.
+            Hệ thống cấp phép Ed25519, duyệt đơn VietQR và quản lý bảng giá thủ công.
           </p>
         </div>
         <div className="flex gap-2">
           {activeTab === "pricing" && (
             <button
-              onClick={handleSeedDefaultPlans}
-              className="rounded-lg bg-brand-500 px-3 py-2 text-sm font-medium text-white hover:bg-brand-600 shadow-sm"
+              onClick={openCreatePlanModal}
+              disabled={pricingPlans.length >= 3}
+              className={`rounded-lg px-4 py-2 text-sm font-medium shadow-sm transition ${
+                pricingPlans.length >= 3
+                  ? "bg-gray-200 text-gray-400 cursor-not-allowed dark:bg-gray-800 dark:text-gray-600"
+                  : "bg-brand-500 text-white hover:bg-brand-600"
+              }`}
             >
-              ➕ Khởi tạo 3 Gói Chuẩn
+              ➕ Thêm Gói Mới ({pricingPlans.length}/3)
             </button>
           )}
           <button
@@ -424,7 +555,29 @@ export default function AdminLicensingPage() {
 
       {/* Tab 4: Pricing */}
       {activeTab === "pricing" && (
-        <>
+        <div className="space-y-6">
+          <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
+            <div>
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white">
+                Bảng Giá Niêm Yết ({pricingPlans.length}/3 gói)
+              </h2>
+              <p className="text-xs text-gray-500">
+                Quản lý các gói giá bán cho khách hàng Desktop (Tối đa 3 gói).
+              </p>
+            </div>
+            <button
+              onClick={openCreatePlanModal}
+              disabled={pricingPlans.length >= 3}
+              className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition ${
+                pricingPlans.length >= 3
+                  ? "bg-gray-100 text-gray-400 cursor-not-allowed dark:bg-gray-800 dark:text-gray-600"
+                  : "bg-brand-500 text-white shadow-sm hover:bg-brand-600"
+              }`}
+            >
+              ➕ Thêm Gói Mới
+            </button>
+          </div>
+
           {pricingPlans.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-12 text-center dark:border-gray-700 dark:bg-gray-900">
               <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-brand-50 text-2xl text-brand-600 dark:bg-brand-950/50">
@@ -432,37 +585,211 @@ export default function AdminLicensingPage() {
               </div>
               <h3 className="text-lg font-bold text-gray-900 dark:text-white">Chưa có gói giá niêm yết nào</h3>
               <p className="mx-auto mt-2 max-w-md text-sm text-gray-500">
-                Hệ thống cần 3 gói giá niêm yết chuẩn để người dùng Desktop có thể mua và thanh toán qua VietQR.
+                Bạn có thể tạo từ 1 đến tối đa 3 gói giá thủ công theo nhu cầu kinh doanh.
               </p>
               <button
-                onClick={handleSeedDefaultPlans}
+                onClick={openCreatePlanModal}
                 className="mt-6 inline-flex items-center gap-2 rounded-xl bg-brand-500 px-5 py-2.5 font-medium text-white shadow hover:bg-brand-600 transition"
               >
-                🚀 Khởi tạo 3 Gói Giá Niêm Yết Chuẩn
+                ➕ Tạo Gói Giá Đầu Tiên
               </button>
             </div>
           ) : (
-            <div className="grid gap-4 sm:grid-cols-3">
+            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {pricingPlans.map((p) => (
                 <div
                   key={p.id}
-                  className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900"
+                  className="flex flex-col justify-between rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900"
                 >
-                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">{p.name}</h3>
-                  <p className="text-xs font-mono text-gray-400">Mã: {p.code}</p>
-                  <div className="my-4">
-                    <span className="text-2xl font-bold text-brand-600">{p.price_vnd.toLocaleString("vi-VN")} đ</span>
-                    <span className="text-xs text-gray-500"> / {p.duration_days >= 36500 ? "Vĩnh viễn" : `${p.duration_days} ngày`}</span>
+                  <div>
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <h3 className="text-lg font-bold text-gray-900 dark:text-white">{p.name}</h3>
+                        <p className="text-xs font-mono text-gray-400">Mã: {p.code}</p>
+                      </div>
+                      <span
+                        className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                          p.is_active
+                            ? "bg-success-50 text-success-700 dark:bg-success-950/40 dark:text-success-300"
+                            : "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400"
+                        }`}
+                      >
+                        {p.is_active ? "Đang mở bán" : "Tạm ngưng"}
+                      </span>
+                    </div>
+
+                    <div className="my-5">
+                      <span className="text-2xl font-bold text-brand-600">
+                        {p.price_vnd.toLocaleString("vi-VN")} đ
+                      </span>
+                      <span className="text-sm text-gray-500">
+                        {" "}/ {p.duration_days >= 36500 ? "Vĩnh viễn" : `${p.duration_days} ngày`}
+                      </span>
+                    </div>
                   </div>
-                  <span className={`inline-block rounded px-2 py-0.5 text-xs font-semibold ${p.is_active ? "bg-success-50 text-success-700" : "bg-gray-100 text-gray-500"}`}>
-                    {p.is_active ? "Đang mở bán" : "Tạm ngưng"}
-                  </span>
+
+                  <div className="flex items-center justify-end gap-2 border-t border-gray-100 pt-4 dark:border-gray-800">
+                    <button
+                      onClick={() => handleTogglePlanActive(p)}
+                      className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                        p.is_active
+                          ? "bg-amber-50 text-amber-700 hover:bg-amber-100 dark:bg-amber-950/40 dark:text-amber-300"
+                          : "bg-success-50 text-success-700 hover:bg-success-100 dark:bg-success-950/40 dark:text-success-300"
+                      }`}
+                    >
+                      {p.is_active ? "⏸️ Tắt bán" : "▶️ Mở bán"}
+                    </button>
+                    <button
+                      onClick={() => openEditPlanModal(p)}
+                      className="rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-200"
+                    >
+                      ✏️ Sửa
+                    </button>
+                    <button
+                      onClick={() => handleDeletePlan(p)}
+                      className="rounded-lg bg-error-50 px-3 py-1.5 text-xs font-medium text-error-600 hover:bg-error-100 dark:bg-error-950/40 dark:text-error-400"
+                    >
+                      🗑️ Xóa
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
           )}
-        </>
+        </div>
+      )}
+
+      {/* Modal Add / Edit Pricing Plan */}
+      {planModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl dark:bg-gray-900 dark:border dark:border-gray-800">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3 dark:border-gray-800">
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white">
+                {editingPlan ? "Chỉnh sửa Gói Giá" : "Thêm Gói Giá Mới"}
+              </h2>
+              <button
+                onClick={() => setPlanModalOpen(false)}
+                className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSavePlan} className="mt-4 space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
+                  Tên gói hiển thị *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={planForm.name}
+                  onChange={(e) => setPlanForm({ ...planForm, name: e.target.value })}
+                  placeholder="Ví dụ: Gói Cơ Bản 1 Tháng"
+                  className="mt-1 w-full rounded-xl border border-gray-200 bg-transparent px-3 py-2 text-sm focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:text-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
+                  Mã định danh gói (Code) *
+                </label>
+                <input
+                  type="text"
+                  required
+                  disabled={!!editingPlan}
+                  value={planForm.code}
+                  onChange={(e) => setPlanForm({ ...planForm, code: e.target.value.toUpperCase().replace(/\s+/g, "_") })}
+                  placeholder="Ví dụ: MONTH_1 hoặc VIP_1"
+                  className="mt-1 w-full rounded-xl border border-gray-200 bg-transparent px-3 py-2 font-mono text-sm uppercase focus:border-brand-500 focus:outline-none disabled:bg-gray-100 disabled:text-gray-500 dark:border-gray-700 dark:text-white dark:disabled:bg-gray-800"
+                />
+                {editingPlan && (
+                  <p className="mt-1 text-[11px] text-gray-400">Mã gói cố định để bảo toàn lịch sử đơn hàng.</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
+                  Giá bán (VNĐ) *
+                </label>
+                <input
+                  type="number"
+                  required
+                  min="0"
+                  step="1000"
+                  value={planForm.price_vnd}
+                  onChange={(e) => setPlanForm({ ...planForm, price_vnd: e.target.value })}
+                  placeholder="Ví dụ: 150000"
+                  className="mt-1 w-full rounded-xl border border-gray-200 bg-transparent px-3 py-2 text-sm focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:text-white"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="is_lifetime"
+                    checked={planForm.is_lifetime}
+                    onChange={(e) => setPlanForm({ ...planForm, is_lifetime: e.target.checked })}
+                    className="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
+                  />
+                  <label htmlFor="is_lifetime" className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                    Gói Vĩnh Viễn (Không giới hạn ngày)
+                  </label>
+                </div>
+
+                {!planForm.is_lifetime && (
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
+                      Số ngày sử dụng *
+                    </label>
+                    <input
+                      type="number"
+                      required={!planForm.is_lifetime}
+                      min="1"
+                      value={planForm.duration_days}
+                      onChange={(e) => setPlanForm({ ...planForm, duration_days: e.target.value })}
+                      placeholder="Ví dụ: 30"
+                      className="mt-1 w-full rounded-xl border border-gray-200 bg-transparent px-3 py-2 text-sm focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:text-white"
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2 pt-2">
+                <input
+                  type="checkbox"
+                  id="is_active"
+                  checked={planForm.is_active}
+                  onChange={(e) => setPlanForm({ ...planForm, is_active: e.target.checked })}
+                  className="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
+                />
+                <label htmlFor="is_active" className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                  Mở bán ngay (Hiển thị cho khách hàng mua trên Desktop)
+                </label>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 border-t border-gray-100 pt-4 dark:border-gray-800">
+                <button
+                  type="button"
+                  onClick={() => setPlanModalOpen(false)}
+                  className="rounded-xl px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="rounded-xl bg-brand-500 px-5 py-2 text-sm font-medium text-white shadow hover:bg-brand-600 transition disabled:opacity-50"
+                >
+                  {loading ? "Đang lưu..." : editingPlan ? "Lưu Thay Đổi" : "Tạo Gói Giá"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );
 }
+

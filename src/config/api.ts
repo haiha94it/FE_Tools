@@ -41,6 +41,7 @@ export const API_LICENSING_ADMIN = {
   ORDERS: "/api/licensing/admin/orders/",
   COMPLETE_ORDER: (id: number) => `/api/licensing/admin/orders/${id}/complete/`,
   PRICING_PLANS: "/api/licensing/admin/pricing-plans/",
+  PRICING_PLAN_DETAIL: (id: number) => `/api/licensing/admin/pricing-plans/${id}/`,
   AGENCY_BALANCES: "/api/licensing/admin/agency-balances/",
   UPDATE_AGENCY_BALANCE: "/api/licensing/admin/agency-balances/update/",
   ANNOUNCEMENTS: "/api/licensing/admin/announcements/",
