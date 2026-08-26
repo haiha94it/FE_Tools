@@ -48,6 +48,20 @@ export const mainNavItems: NavItemConfig[] = [
     roles: ["admin"],
   },
   {
+    name: "Bản quyền & Đơn hàng",
+    path: "/licensing",
+    icon: "box",
+    iconTone: "brand",
+    roles: ["admin"],
+  },
+  {
+    name: "Cổng Đại lý",
+    path: "/agency-portal",
+    icon: "group",
+    iconTone: "purple",
+    roles: ["admin"],
+  },
+  {
     name: "Người dùng",
     path: "/users",
     icon: "user",

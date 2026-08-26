@@ -139,6 +139,28 @@ export default function AdminLicensingPage() {
     }
   };
 
+  const handleSeedDefaultPlans = async () => {
+    if (!confirm("Khởi tạo 3 gói giá niêm yết chuẩn (1 Tháng: 150k, 3 Tháng: 290k, Vĩnh Viễn: 390k)?")) return;
+    setLoading(true);
+    try {
+      const defaultPlans = [
+        { name: "Gói 1 Tháng", code: "MONTH_1", duration_days: 30, price_vnd: 150000, sort_order: 1 },
+        { name: "Gói 3 Tháng", code: "MONTH_3", duration_days: 90, price_vnd: 290000, sort_order: 2 },
+        { name: "Gói Vĩnh Viễn", code: "LIFETIME", duration_days: 36500, price_vnd: 390000, sort_order: 3 },
+      ];
+      for (const p of defaultPlans) {
+        await api.post(API_LICENSING_ADMIN.PRICING_PLANS, p);
+      }
+      setMsg("Đã khởi tạo thành công 3 gói giá niêm yết chuẩn!");
+      await loadData();
+    } catch (err) {
+      console.error("[LICENSING] Lỗi khởi tạo gói giá", err);
+      setMsg("Lỗi khi khởi tạo gói giá.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -150,12 +172,22 @@ export default function AdminLicensingPage() {
             Hệ thống cấp phép Ed25519, duyệt đơn VietQR và quản lý số dư ví đại lý.
           </p>
         </div>
-        <button
-          onClick={loadData}
-          className="rounded-lg bg-gray-100 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-200"
-        >
-          🔄 Làm mới
-        </button>
+        <div className="flex gap-2">
+          {activeTab === "pricing" && (
+            <button
+              onClick={handleSeedDefaultPlans}
+              className="rounded-lg bg-brand-500 px-3 py-2 text-sm font-medium text-white hover:bg-brand-600 shadow-sm"
+            >
+              ➕ Khởi tạo 3 Gói Chuẩn
+            </button>
+          )}
+          <button
+            onClick={loadData}
+            className="rounded-lg bg-gray-100 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-200"
+          >
+            🔄 Làm mới
+          </button>
+        </div>
       </div>
 
       {msg && (
@@ -392,24 +424,44 @@ export default function AdminLicensingPage() {
 
       {/* Tab 4: Pricing */}
       {activeTab === "pricing" && (
-        <div className="grid gap-4 sm:grid-cols-3">
-          {pricingPlans.map((p) => (
-            <div
-              key={p.id}
-              className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900"
-            >
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white">{p.name}</h3>
-              <p className="text-xs font-mono text-gray-400">Mã: {p.code}</p>
-              <div className="my-4">
-                <span className="text-2xl font-bold text-brand-600">{p.price_vnd.toLocaleString("vi-VN")} đ</span>
-                <span className="text-xs text-gray-500"> / {p.duration_days >= 36500 ? "Vĩnh viễn" : `${p.duration_days} ngày`}</span>
+        <>
+          {pricingPlans.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-12 text-center dark:border-gray-700 dark:bg-gray-900">
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-brand-50 text-2xl text-brand-600 dark:bg-brand-950/50">
+                🏷️
               </div>
-              <span className={`inline-block rounded px-2 py-0.5 text-xs font-semibold ${p.is_active ? "bg-success-50 text-success-700" : "bg-gray-100 text-gray-500"}`}>
-                {p.is_active ? "Đang mở bán" : "Tạm ngưng"}
-              </span>
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white">Chưa có gói giá niêm yết nào</h3>
+              <p className="mx-auto mt-2 max-w-md text-sm text-gray-500">
+                Hệ thống cần 3 gói giá niêm yết chuẩn để người dùng Desktop có thể mua và thanh toán qua VietQR.
+              </p>
+              <button
+                onClick={handleSeedDefaultPlans}
+                className="mt-6 inline-flex items-center gap-2 rounded-xl bg-brand-500 px-5 py-2.5 font-medium text-white shadow hover:bg-brand-600 transition"
+              >
+                🚀 Khởi tạo 3 Gói Giá Niêm Yết Chuẩn
+              </button>
             </div>
-          ))}
-        </div>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-3">
+              {pricingPlans.map((p) => (
+                <div
+                  key={p.id}
+                  className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900"
+                >
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">{p.name}</h3>
+                  <p className="text-xs font-mono text-gray-400">Mã: {p.code}</p>
+                  <div className="my-4">
+                    <span className="text-2xl font-bold text-brand-600">{p.price_vnd.toLocaleString("vi-VN")} đ</span>
+                    <span className="text-xs text-gray-500"> / {p.duration_days >= 36500 ? "Vĩnh viễn" : `${p.duration_days} ngày`}</span>
+                  </div>
+                  <span className={`inline-block rounded px-2 py-0.5 text-xs font-semibold ${p.is_active ? "bg-success-50 text-success-700" : "bg-gray-100 text-gray-500"}`}>
+                    {p.is_active ? "Đang mở bán" : "Tạm ngưng"}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
       )}
     </div>
   );
