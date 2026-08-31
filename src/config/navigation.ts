@@ -59,7 +59,6 @@ export const mainNavItems: NavItemConfig[] = [
     path: "/agency-portal",
     icon: "group",
     iconTone: "purple",
-    roles: ["admin"],
   },
   {
     name: "Người dùng",

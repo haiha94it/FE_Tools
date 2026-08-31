@@ -46,6 +46,10 @@ type AgencyBalance = {
   agency: number;
   agency_username: string;
   agency_fullname: string;
+  agency_bank_name?: string;
+  agency_bank_bin?: string;
+  agency_bank_account_number?: string;
+  agency_bank_account_name?: string;
   balance_vnd: number;
   discount_percentage: number;
 };
@@ -77,6 +81,20 @@ export default function AdminLicensingPage() {
   const [pricingPlans, setPricingPlans] = useState<PricingPlan[]>([]);
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+
+  const downloadAgencyJson = (agencyCode: string) => {
+    const data = JSON.stringify({ agency_code: agencyCode }, null, 2);
+    const blob = new Blob([data], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "agency.json";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
 
   // Customer Filter, Search & Edit State
   const [customerSearch, setCustomerSearch] = useState<string>("");
@@ -140,10 +158,18 @@ export default function AdminLicensingPage() {
     adjust_mode: "adjust" | "set";
     adjust_amount_vnd: string | number;
     set_balance_vnd: string | number;
+    bank_name: string;
+    bank_bin: string;
+    bank_account_number: string;
+    bank_account_name: string;
   }>({
     adjust_mode: "adjust",
     adjust_amount_vnd: "",
     set_balance_vnd: "",
+    bank_name: "",
+    bank_bin: "",
+    bank_account_number: "",
+    bank_account_name: "",
   });
   const [savingAgencyEdit, setSavingAgencyEdit] = useState<boolean>(false);
 
@@ -443,6 +469,10 @@ export default function AdminLicensingPage() {
       adjust_mode: "adjust",
       adjust_amount_vnd: "",
       set_balance_vnd: a.balance_vnd,
+      bank_name: a.agency_bank_name || "",
+      bank_bin: a.agency_bank_bin || "",
+      bank_account_number: a.agency_bank_account_number || "",
+      bank_account_name: a.agency_bank_account_name || "",
     });
   };
 
@@ -454,6 +484,10 @@ export default function AdminLicensingPage() {
     try {
       const payload: any = {
         agency_id: selectedAgencyForEdit.agency,
+        bank_name: agencyEditForm.bank_name,
+        bank_bin: agencyEditForm.bank_bin,
+        bank_account_number: agencyEditForm.bank_account_number,
+        bank_account_name: agencyEditForm.bank_account_name,
       };
 
       if (agencyEditForm.adjust_mode === "adjust" && agencyEditForm.adjust_amount_vnd !== "") {
@@ -462,20 +496,123 @@ export default function AdminLicensingPage() {
         payload.set_balance_vnd = Number(agencyEditForm.set_balance_vnd);
       }
 
-      console.log(`[AGENCY] Đang cập nhật số dư ví đại lý agency_id=${selectedAgencyForEdit.agency}...`, payload);
+      console.log(`[AGENCY] Đang cập nhật số dư ví và STK đại lý agency_id=${selectedAgencyForEdit.agency}...`, payload);
       await api.post(API_LICENSING_ADMIN.UPDATE_AGENCY_BALANCE, payload);
-      setMsg(`Đã cập nhật số dư ví đại lý "${selectedAgencyForEdit.agency_username}" thành công!`);
+      setMsg(`Đã cập nhật thông tin đại lý "${selectedAgencyForEdit.agency_username}" thành công!`);
       setSelectedAgencyForEdit(null);
       await loadData();
     } catch (err: any) {
-      console.error("[AGENCY] Lỗi cập nhật số dư ví đại lý", err);
-      alert("Không thể cập nhật số dư ví đại lý.");
+      console.error("[AGENCY] Lỗi cập nhật thông tin đại lý", err);
+      alert("Không thể cập nhật thông tin đại lý.");
     } finally {
       setSavingAgencyEdit(false);
     }
   };
 
-  // Pricing Plan Management State
+  // Agency Custom Pricing Plan State
+  const [selectedAgencyForPricing, setSelectedAgencyForPricing] = useState<AgencyBalance | null>(null);
+  const [agencyPricingLoading, setAgencyPricingLoading] = useState(false);
+  const [agencyPricingUseCustom, setAgencyPricingUseCustom] = useState(false);
+  const [agencyCustomPlans, setAgencyCustomPlans] = useState<Array<{
+    name: string;
+    code: string;
+    duration_days: number;
+    price_vnd: number;
+    is_active: boolean;
+    sort_order: number;
+  }>>([]);
+  const [agencyPricingGlobalFallback, setAgencyPricingGlobalFallback] = useState<PricingPlan[]>([]);
+  const [savingAgencyPricing, setSavingAgencyPricing] = useState(false);
+
+  const handleOpenAgencyPricingModal = async (a: AgencyBalance) => {
+    setSelectedAgencyForPricing(a);
+    setAgencyPricingLoading(true);
+    try {
+      console.log(`[AGENCY_PRICING] Tải bảng giá của đại lý agency_id=${a.agency}...`);
+      const res = await api.get<{
+        has_custom_pricing: boolean;
+        custom_plans: PricingPlan[];
+        global_plans: PricingPlan[];
+      }>(API_LICENSING_ADMIN.AGENCY_PRICING_PLANS(a.agency));
+
+      const data = res.data;
+      setAgencyPricingUseCustom(data.has_custom_pricing);
+      setAgencyPricingGlobalFallback(data.global_plans || []);
+      if (data.has_custom_pricing && data.custom_plans && data.custom_plans.length > 0) {
+        setAgencyCustomPlans(
+          data.custom_plans.map((p, idx) => ({
+            name: p.name,
+            code: p.code,
+            duration_days: p.duration_days,
+            price_vnd: p.price_vnd,
+            is_active: p.is_active,
+            sort_order: p.sort_order || idx + 1,
+          }))
+        );
+      } else {
+        setAgencyCustomPlans(
+          (data.global_plans || []).map((p, idx) => ({
+            name: p.name,
+            code: `${a.agency_username}_${p.code}`,
+            duration_days: p.duration_days,
+            price_vnd: p.price_vnd,
+            is_active: true,
+            sort_order: idx + 1,
+          }))
+        );
+      }
+    } catch (err) {
+      console.error("[AGENCY_PRICING] Lỗi tải bảng giá đại lý", err);
+      alert("Không thể tải bảng giá đại lý.");
+    } finally {
+      setAgencyPricingLoading(false);
+    }
+  };
+
+  const handleSaveAgencyPricing = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedAgencyForPricing) return;
+    setSavingAgencyPricing(true);
+    try {
+      const payload = {
+        use_custom: agencyPricingUseCustom,
+        plans: agencyPricingUseCustom ? agencyCustomPlans : [],
+      };
+      console.log(`[AGENCY_PRICING] Đang lưu cấu hình bảng giá đại lý agency_id=${selectedAgencyForPricing.agency}...`, payload);
+      await api.post(API_LICENSING_ADMIN.AGENCY_PRICING_PLANS(selectedAgencyForPricing.agency), payload);
+      setMsg(`Đã lưu cấu hình bảng giá cho đại lý "${selectedAgencyForPricing.agency_username}" thành công!`);
+      setSelectedAgencyForPricing(null);
+    } catch (err: any) {
+      console.error("[AGENCY_PRICING] Lỗi lưu bảng giá đại lý", err);
+      alert(err?.response?.data?.message || "Không thể lưu bảng giá đại lý.");
+    } finally {
+      setSavingAgencyPricing(false);
+    }
+  };
+
+  const handleAddAgencyCustomPlan = () => {
+    if (agencyCustomPlans.length >= 3) {
+      alert("Mỗi đại lý tối đa 3 gói giá!");
+      return;
+    }
+    const idx = agencyCustomPlans.length + 1;
+    setAgencyCustomPlans((prev) => [
+      ...prev,
+      {
+        name: `Gói ${idx}`,
+        code: `${selectedAgencyForPricing?.agency_username || "AG"}_PLAN_${idx}`,
+        duration_days: 30,
+        price_vnd: 150000,
+        is_active: true,
+        sort_order: idx,
+      },
+    ]);
+  };
+
+  const handleRemoveAgencyCustomPlan = (index: number) => {
+    setAgencyCustomPlans((prev) => prev.filter((_, i) => i !== index));
+  };
+
   const [planModalOpen, setPlanModalOpen] = useState(false);
   const [editingPlan, setEditingPlan] = useState<PricingPlan | null>(null);
   const [planForm, setPlanForm] = useState<{
@@ -630,7 +767,7 @@ export default function AdminLicensingPage() {
           <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
             Quản trị Bản quyền & Đại lý GGMaps
           </h1>
-          <p className="mt-1 text-sm text-gray-500">
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
             Hệ thống cấp phép Ed25519, duyệt đơn VietQR và quản lý bảng giá thủ công.
           </p>
         </div>
@@ -638,14 +775,9 @@ export default function AdminLicensingPage() {
           {activeTab === "pricing" && (
             <button
               onClick={openCreatePlanModal}
-              disabled={pricingPlans.length >= 3}
-              className={`rounded-lg px-4 py-2 text-sm font-medium shadow-sm transition ${
-                pricingPlans.length >= 3
-                  ? "bg-gray-200 text-gray-400 cursor-not-allowed dark:bg-gray-800 dark:text-gray-600"
-                  : "bg-brand-500 text-white hover:bg-brand-600"
-              }`}
+              className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-brand-600 transition"
             >
-              ➕ Thêm Gói Mới ({pricingPlans.length}/3)
+              ➕ Thêm Gói Khách Lẻ
             </button>
           )}
           <button
@@ -670,7 +802,7 @@ export default function AdminLicensingPage() {
           { id: "customers", label: "Khách hàng & Bản quyền" },
           { id: "orders", label: "Đơn hàng & Thanh toán" },
           { id: "agencies", label: "Quản lý Đại lý (Ví VNĐ)" },
-          { id: "pricing", label: "Gói giá & Bảng giá" },
+          { id: "pricing", label: "Cấu hình Bảng Giá & Gói Nạp" },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -678,7 +810,7 @@ export default function AdminLicensingPage() {
             className={`border-b-2 px-5 py-3 text-sm font-medium transition-colors ${
               activeTab === tab.id
                 ? "border-brand-500 text-brand-600 dark:text-brand-400"
-                : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400"
+                : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
             }`}
           >
             {tab.label}
@@ -699,12 +831,12 @@ export default function AdminLicensingPage() {
                   placeholder="🔍 Tìm SĐT, họ tên, mã GT..."
                   value={customerSearch}
                   onChange={(e) => setCustomerSearch(e.target.value)}
-                  className="w-full rounded-xl border border-gray-200 bg-white px-3.5 py-2 text-xs text-gray-800 placeholder-gray-400 focus:border-brand-500 focus:outline-none dark:border-gray-800 dark:bg-gray-900 dark:text-white"
+                  className="w-full rounded-xl border border-gray-200 bg-white px-3.5 py-2 text-xs text-gray-900 placeholder-gray-400 focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-white dark:placeholder-gray-500"
                 />
                 {customerSearch && (
                   <button
                     onClick={() => setCustomerSearch("")}
-                    className="absolute right-2.5 top-2 text-xs text-gray-400 hover:text-gray-600"
+                    className="absolute right-2.5 top-2 text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
                   >
                     ✕
                   </button>
@@ -716,7 +848,7 @@ export default function AdminLicensingPage() {
                 <select
                   value={customerAgencyFilter}
                   onChange={(e) => setCustomerAgencyFilter(e.target.value)}
-                  className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 focus:border-brand-500 focus:outline-none dark:border-gray-800 dark:bg-gray-900 dark:text-gray-200"
+                  className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200"
                 >
                   <option value="DIRECT">👤 Khách hàng của Admin (Trực tiếp)</option>
                   <option value="ALL">🏢 Tất cả khách hàng (Toàn hệ thống - {customers.length})</option>
@@ -728,7 +860,7 @@ export default function AdminLicensingPage() {
                 </select>
               </div>
 
-              <span className="text-xs text-gray-500 font-medium">
+              <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">
                 Hiển thị: <b>{filteredCustomers.length}</b> / {customers.length} khách
               </span>
             </div>
@@ -747,7 +879,7 @@ export default function AdminLicensingPage() {
 
           <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900 shadow-2xs">
             <table className="min-w-full text-left text-sm">
-              <thead className="border-b border-gray-100 text-gray-500 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-950/30">
+              <thead className="border-b border-gray-100 text-gray-500 dark:border-gray-800 dark:text-gray-400 bg-gray-50/50 dark:bg-gray-950/30">
                 <tr>
                   <th className="px-4 py-3">SĐT Khách hàng</th>
                   <th className="px-4 py-3">Họ và tên</th>
@@ -786,13 +918,13 @@ export default function AdminLicensingPage() {
                                 🏢 {c.agency_fullname || c.agency_username}
                               </span>
                             ) : (
-                              <span className="text-gray-400 font-medium">Khách lẻ trực tiếp</span>
+                              <span className="text-gray-400 dark:text-gray-500 font-medium">Khách lẻ trực tiếp</span>
                             )}
                           </td>
                         )}
                         <td className="px-4 py-3 text-xs">
-                          <span className="font-mono font-bold text-brand-600">{c.referral_code}</span>
-                          <span className="ml-1 text-gray-500">(+{c.referral_reward_days}d)</span>
+                          <span className="font-mono font-bold text-brand-600 dark:text-brand-400">{c.referral_code}</span>
+                          <span className="ml-1 text-gray-500 dark:text-gray-400">(+{c.referral_reward_days}d)</span>
                         </td>
                         <td className="px-4 py-3">
                           {lic ? (
@@ -806,19 +938,19 @@ export default function AdminLicensingPage() {
                               {lic.license_type}
                             </span>
                           ) : (
-                            <span className="text-gray-400 text-xs">Chưa có</span>
+                            <span className="text-gray-400 dark:text-gray-500 text-xs">Chưa có</span>
                           )}
                         </td>
                         <td className="px-4 py-3 text-xs">
                           {lic ? (
-                            <span className={lic.is_valid ? "font-semibold text-gray-800 dark:text-gray-200" : "text-gray-400 line-through"}>
+                            <span className={lic.is_valid ? "font-semibold text-gray-800 dark:text-gray-200" : "text-gray-400 dark:text-gray-500 line-through"}>
                               {new Date(lic.valid_until).toLocaleDateString("vi-VN")}
                             </span>
                           ) : (
                             "—"
                           )}
                         </td>
-                        <td className="px-4 py-3 text-xs text-gray-500">
+                        <td className="px-4 py-3 text-xs text-gray-500 dark:text-gray-400">
                           {c.devices?.length || 0} máy
                         </td>
                         <td className="px-4 py-3 text-right">
@@ -885,7 +1017,7 @@ export default function AdminLicensingPage() {
                         required
                         value={editCustomerForm.phone_number}
                         onChange={(e) => setEditCustomerForm({ ...editCustomerForm, phone_number: e.target.value })}
-                        className="mt-1 w-full rounded-xl border border-gray-200 bg-transparent px-3 py-2 text-sm font-bold text-gray-900 focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:text-white"
+                        className="mt-1 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-bold text-gray-900 focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-white"
                       />
                     </div>
 
@@ -898,7 +1030,7 @@ export default function AdminLicensingPage() {
                         value={editCustomerForm.full_name}
                         onChange={(e) => setEditCustomerForm({ ...editCustomerForm, full_name: e.target.value })}
                         placeholder="Nguyễn Văn A"
-                        className="mt-1 w-full rounded-xl border border-gray-200 bg-transparent px-3 py-2 text-sm focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:text-white"
+                        className="mt-1 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:placeholder-gray-500"
                       />
                     </div>
                   </div>
@@ -912,7 +1044,7 @@ export default function AdminLicensingPage() {
                       value={editCustomerForm.email}
                       onChange={(e) => setEditCustomerForm({ ...editCustomerForm, email: e.target.value })}
                       placeholder="example@gmail.com"
-                      className="mt-1 w-full rounded-xl border border-gray-200 bg-transparent px-3 py-2 text-sm focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:text-white"
+                      className="mt-1 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:placeholder-gray-500"
                     />
                   </div>
 
@@ -924,7 +1056,7 @@ export default function AdminLicensingPage() {
                       <select
                         value={editCustomerForm.agency_id}
                         onChange={(e) => setEditCustomerForm({ ...editCustomerForm, agency_id: e.target.value })}
-                        className="mt-1 w-full rounded-xl border border-gray-200 bg-transparent px-3 py-2 text-xs font-medium focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+                        className="mt-1 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-900 focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-white"
                       >
                         <option value="">👤 Khách lẻ trực tiếp (Không có ĐL)</option>
                         {agencies.map((a) => (
@@ -944,19 +1076,19 @@ export default function AdminLicensingPage() {
                         min="0"
                         value={editCustomerForm.referral_reward_days}
                         onChange={(e) => setEditCustomerForm({ ...editCustomerForm, referral_reward_days: Number(e.target.value) || 0 })}
-                        className="mt-1 w-full rounded-xl border border-gray-200 bg-transparent px-3 py-2 text-sm focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:text-white"
+                        className="mt-1 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-white"
                       />
                     </div>
                   </div>
 
-                  <div className="rounded-xl bg-gray-50 p-3 text-xs text-gray-500 dark:bg-gray-800/50 space-y-1">
+                  <div className="rounded-xl bg-gray-50 p-3 text-xs text-gray-700 dark:bg-gray-800 dark:text-gray-300 space-y-1 border border-gray-100 dark:border-gray-700/60">
                     <div className="flex justify-between">
                       <span>Mã giới thiệu riêng:</span>
-                      <span className="font-mono font-bold text-brand-600">{editingCustomer.referral_code}</span>
+                      <span className="font-mono font-bold text-brand-600 dark:text-brand-400">{editingCustomer.referral_code}</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Thiết bị đăng nhập ({editingCustomer.devices?.length || 0}):</span>
-                      <span>
+                      <span className="text-gray-800 dark:text-gray-200">
                         {editingCustomer.devices?.map((d) => `${d.os_name || "PC"} (${d.machine_fingerprint.slice(0, 8)}...)`).join(", ") || "Chưa có thiết bị"}
                       </span>
                     </div>
@@ -988,17 +1120,17 @@ export default function AdminLicensingPage() {
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
               <form
                 onSubmit={handleIssueLicense}
-                className="w-full max-w-md space-y-4 rounded-2xl bg-white p-6 dark:bg-gray-900"
+                className="w-full max-w-md space-y-4 rounded-2xl bg-white p-6 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-xl"
               >
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
                   Cấp / Gia hạn Bản quyền thủ công
                 </h3>
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-500">Loại bản quyền</label>
+                  <label className="mb-1 block text-xs font-semibold text-gray-700 dark:text-gray-300">Loại bản quyền</label>
                   <select
                     value={issueForm.license_type}
                     onChange={(e) => setIssueForm((f) => ({ ...f, license_type: e.target.value }))}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-950"
+                    className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-white"
                   >
                     <option value="TRIAL">Dùng thử (TRIAL)</option>
                     <option value="PAID_1M">Gói 1 Tháng (PAID_1M)</option>
@@ -1007,26 +1139,26 @@ export default function AdminLicensingPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-500">Số ngày cấp thêm</label>
+                  <label className="mb-1 block text-xs font-semibold text-gray-700 dark:text-gray-300">Số ngày cấp thêm</label>
                   <input
                     type="number"
                     value={issueForm.duration_days}
                     onChange={(e) => setIssueForm((f) => ({ ...f, duration_days: parseInt(e.target.value) || 0 }))}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-950"
+                    className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-white"
                     required
                   />
                 </div>
-                <div className="flex justify-end gap-2 pt-2">
+                <div className="flex justify-end gap-2 pt-2 border-t border-gray-100 dark:border-gray-800">
                   <button
                     type="button"
                     onClick={() => setSelectedCustomerId(null)}
-                    className="rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-300"
+                    className="rounded-xl bg-gray-100 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300"
                   >
                     Hủy
                   </button>
                   <button
                     type="submit"
-                    className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600"
+                    className="rounded-xl bg-brand-500 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-600"
                   >
                     Xác nhận cấp
                   </button>
@@ -1045,7 +1177,7 @@ export default function AdminLicensingPage() {
               <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
                 <span>📋</span> Danh Sách Đơn Hàng & Thanh Toán ({orders.length})
               </h2>
-              <p className="text-xs text-gray-500 mt-0.5">
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                 Quản lý các đơn mua bản quyền khách hàng và đơn nạp ví combo của đại lý.
               </p>
             </div>
@@ -1062,7 +1194,7 @@ export default function AdminLicensingPage() {
 
           <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900 shadow-2xs">
             <table className="min-w-full text-left text-sm">
-              <thead className="border-b border-gray-100 text-gray-500 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-950/30">
+              <thead className="border-b border-gray-100 text-gray-500 dark:border-gray-800 dark:text-gray-400 bg-gray-50/50 dark:bg-gray-950/30">
                 <tr>
                   <th className="px-4 py-3">Mã đơn (Nội dung CK)</th>
                   <th className="px-4 py-3">Loại đơn</th>
@@ -1084,7 +1216,7 @@ export default function AdminLicensingPage() {
                 ) : (
                   orders.map((o) => (
                     <tr key={o.id} className="border-b border-gray-50 dark:border-gray-800 hover:bg-gray-50/50 dark:hover:bg-gray-800/30">
-                      <td className="px-4 py-3 font-mono font-bold text-brand-600">{o.order_code}</td>
+                      <td className="px-4 py-3 font-mono font-bold text-brand-600 dark:text-brand-400">{o.order_code}</td>
                       <td className="px-4 py-3 text-xs">
                         {o.order_type === "LICENSE_PURCHASE" ? (
                           <span className="rounded-md bg-blue-50 px-2 py-0.5 font-semibold text-blue-700 dark:bg-blue-950/40 dark:text-blue-300">
@@ -1099,7 +1231,7 @@ export default function AdminLicensingPage() {
                       <td className="px-4 py-3 font-medium text-gray-900 dark:text-white">
                         {o.customer_phone || o.agency_username || "—"}
                       </td>
-                      <td className="px-4 py-3 text-xs">{o.plan_name || "—"}</td>
+                      <td className="px-4 py-3 text-xs font-semibold text-gray-800 dark:text-gray-200">{o.plan_name || "—"}</td>
                       <td className="px-4 py-3 font-bold text-gray-900 dark:text-white">
                         {o.amount_vnd.toLocaleString("vi-VN")} đ
                       </td>
@@ -1120,7 +1252,7 @@ export default function AdminLicensingPage() {
                             : "Đã từ chối"}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-xs text-gray-500">
+                      <td className="px-4 py-3 text-xs text-gray-500 dark:text-gray-400">
                         {new Date(o.created_at).toLocaleString("vi-VN")}
                       </td>
                       <td className="px-4 py-3 text-right">
@@ -1166,132 +1298,79 @@ export default function AdminLicensingPage() {
 
       {/* Tab 3: Agencies */}
       {activeTab === "agencies" && (
-        <div className="space-y-6">
-          {/* Card 1: Gói Nạp Tiền Đại Lý */}
-          <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-            <div className="flex flex-wrap items-center justify-between gap-4 border-b border-gray-100 pb-4 dark:border-gray-800">
-              <div>
-                <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                  <span>🏢</span> Gói Nạp Tiền Đại Lý
-                </h2>
-                <p className="text-xs text-gray-500 mt-1">
-                  Chính sách gói nạp tiền và hạn sử dụng dành riêng cho Đại lý. Bạn có thể bấm vào nút "Chỉnh sửa giá" trên từng gói để thay đổi giá nạp, số dư nhận hoặc hạn dùng.
-                </p>
-              </div>
-            </div>
-
-            {/* 3 Thẻ Combo Đại lý */}
-            <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {agencyCombos.map((combo, idx) => {
-                const bonus = combo.credit_vnd - combo.price_vnd;
-                const bonusPercent = Math.round((bonus / combo.price_vnd) * 100);
-                return (
-                  <div
-                    key={combo.code}
-                    className="relative flex flex-col justify-between overflow-hidden rounded-2xl border border-gray-200 bg-linear-to-b from-gray-50/50 to-white p-5 shadow-xs transition hover:shadow-md dark:border-gray-800 dark:from-gray-950/40 dark:to-gray-900"
-                  >
-                    <div>
-                      <div className="flex items-center justify-between">
-                        <span className="rounded-lg bg-brand-50 px-2.5 py-1 text-xs font-bold text-brand-600 dark:bg-brand-950/60 dark:text-brand-300">
-                          {combo.name}
-                        </span>
-                        <span className="rounded-full bg-success-50 px-2 py-0.5 text-[11px] font-bold text-success-600 dark:bg-success-950/50 dark:text-success-300">
-                          +{bonusPercent}% Số dư
-                        </span>
-                      </div>
-
-                      <div className="mt-4">
-                        <p className="text-xs text-gray-500">Giá thanh toán nạp:</p>
-                        <p className="text-2xl font-extrabold text-gray-900 dark:text-white">
-                          {combo.price_vnd.toLocaleString("vi-VN")} đ
-                        </p>
-                      </div>
-
-                      <div className="mt-3 rounded-xl border border-success-100 bg-success-50/50 p-3 dark:border-success-900/40 dark:bg-success-950/20">
-                        <div className="flex items-baseline justify-between">
-                          <span className="text-xs font-semibold text-gray-600 dark:text-gray-300">Nhận vào ví:</span>
-                          <span className="text-lg font-black text-success-600 dark:text-success-400">
-                            {combo.credit_vnd.toLocaleString("vi-VN")} đ
-                          </span>
-                        </div>
-                        <div className="mt-1 flex items-center justify-between text-[11px] text-gray-500">
-                          <span>Lợi nhuận cộng thêm:</span>
-                          <span className="font-bold text-success-600">+{bonus.toLocaleString("vi-VN")} đ</span>
-                        </div>
-                      </div>
-
-                      <div className="mt-3 flex items-center justify-between text-xs text-gray-500 border-t border-gray-100 pt-2 dark:border-gray-800">
-                        <span>Thời hạn sử dụng:</span>
-                        <span className="font-bold text-gray-800 dark:text-gray-200">
-                          {combo.duration_days >= 365 ? "1 Năm (365 ngày)" : `${combo.duration_days} ngày`}
-                        </span>
-                      </div>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => openEditComboModal(combo)}
-                      className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white py-2 text-xs font-semibold text-gray-700 shadow-2xs hover:bg-brand-50 hover:text-brand-600 hover:border-brand-300 transition dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
-                    >
-                      <span>✏️</span> Chỉnh sửa giá {combo.name}
-                    </button>
-                  </div>
-                );
-              })}
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                <span>👥</span> Danh Sách Đại Lý & Quản Lý Ví VNĐ ({agencies.length})
+              </h2>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Theo dõi số dư khả dụng và trực tiếp cộng/trừ số dư ví cho từng đại lý phân phối.
+              </p>
             </div>
           </div>
 
-          {/* Card 2: Danh Sách Đại Lý & Quản Lý Ví VNĐ */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                <span>👥</span> Danh Sách Đại Lý & Quản Lý Ví VNĐ ({agencies.length})
-              </h3>
-            </div>
-
-            <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
-              <table className="min-w-full text-left text-sm">
-                <thead className="border-b border-gray-100 text-gray-500 dark:border-gray-800">
+          <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900 shadow-2xs">
+            <table className="min-w-full text-left text-sm">
+              <thead className="border-b border-gray-100 text-gray-500 dark:border-gray-800 dark:text-gray-400 bg-gray-50/50 dark:bg-gray-950/30">
+                <tr>
+                  <th className="px-4 py-3">Username Đại lý</th>
+                  <th className="px-4 py-3">Họ và tên</th>
+                  <th className="px-4 py-3">Số dư ví khả dụng</th>
+                  <th className="px-4 py-3">Chính sách áp dụng</th>
+                  <th className="px-4 py-3 text-right">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody>
+                {agencies.length === 0 ? (
                   <tr>
-                    <th className="px-4 py-3">Username Đại lý</th>
-                    <th className="px-4 py-3">Họ và tên</th>
-                    <th className="px-4 py-3">Số dư ví khả dụng</th>
-                    <th className="px-4 py-3">Chính sách áp dụng</th>
-                    <th className="px-4 py-3 text-right">Thao tác</th>
+                    <td colSpan={5} className="px-4 py-8 text-center text-gray-400">
+                      Chưa có đại lý nào trên hệ thống. Bạn có thể tạo tài khoản người dùng tại mục Người dùng.
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {agencies.length === 0 ? (
-                    <tr>
-                      <td colSpan={5} className="px-4 py-8 text-center text-gray-400">
-                        Chưa có đại lý nào trên hệ thống. Bạn có thể tạo tài khoản người dùng tại mục Người dùng.
+                ) : (
+                  agencies.map((a) => (
+                    <tr key={a.id} className="border-b border-gray-50 dark:border-gray-800 hover:bg-gray-50/50 dark:hover:bg-gray-800/30">
+                      <td className="px-4 py-3 font-semibold text-gray-900 dark:text-white">{a.agency_username}</td>
+                      <td className="px-4 py-3 font-medium text-gray-800 dark:text-gray-200">{a.agency_fullname || "—"}</td>
+                      <td className="px-4 py-3 font-mono font-bold text-success-600 dark:text-success-400">
+                        {a.balance_vnd.toLocaleString("vi-VN")} đ
                       </td>
-                    </tr>
-                  ) : (
-                    agencies.map((a) => (
-                      <tr key={a.id} className="border-b border-gray-50 dark:border-gray-800 hover:bg-gray-50/50 dark:hover:bg-gray-800/30">
-                        <td className="px-4 py-3 font-semibold text-gray-900 dark:text-white">{a.agency_username}</td>
-                        <td className="px-4 py-3">{a.agency_fullname || "—"}</td>
-                        <td className="px-4 py-3 font-mono font-bold text-success-600">
-                          {a.balance_vnd.toLocaleString("vi-VN")} đ
-                        </td>
-                        <td className="px-4 py-3 text-xs text-brand-600 font-semibold">
-                          Gói Nạp Đại Lý
-                        </td>
-                        <td className="px-4 py-3 text-right">
+                      <td className="px-4 py-3 text-xs text-brand-600 dark:text-brand-400 font-semibold">
+                        Gói Nạp Đại Lý
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="inline-flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenAgencyPricingModal(a)}
+                            title="Cài đặt bảng giá bán lẻ riêng cho đại lý này"
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-brand-200 bg-brand-50 px-2.5 py-1.5 text-xs font-semibold text-brand-700 shadow-2xs hover:bg-brand-100 transition dark:border-brand-900/50 dark:bg-brand-950/40 dark:text-brand-300"
+                          >
+                            <span>🏷</span> Cài đặt Bảng giá
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => downloadAgencyJson(a.agency_username)}
+                            title="Tải file agency.json để đóng gói vào app cho đại lý này"
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-700 shadow-2xs hover:bg-gray-50 transition dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-750"
+                          >
+                            <span>📥</span> Tải agency.json
+                          </button>
                           <button
                             onClick={() => handleOpenAgencyEditModal(a)}
                             className="inline-flex items-center gap-1.5 rounded-lg bg-brand-50 px-3 py-1.5 text-xs font-semibold text-brand-600 hover:bg-brand-100 transition dark:bg-brand-950/50 dark:text-brand-300"
                           >
                             💵 Nạp / Điều chỉnh ví
                           </button>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+                        </div>
+                      </td>
+
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
 
           {/* Modal Điều Chỉnh Số Dư Ví Đại Lý */}
@@ -1303,12 +1382,12 @@ export default function AdminLicensingPage() {
               >
                 <div className="flex items-center justify-between border-b border-gray-100 pb-3 dark:border-gray-800">
                   <h3 className="text-lg font-bold text-gray-900 dark:text-white">
-                    Điều Chỉnh Ví: <span className="text-brand-600">{selectedAgencyForEdit.agency_username}</span>
+                    Điều Chỉnh Ví: <span className="text-brand-600 dark:text-brand-400">{selectedAgencyForEdit.agency_username}</span>
                   </h3>
                   <button
                     type="button"
                     onClick={() => setSelectedAgencyForEdit(null)}
-                    className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                    className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 font-bold"
                   >
                     ✕
                   </button>
@@ -1318,12 +1397,12 @@ export default function AdminLicensingPage() {
                   <label className="mb-1 block text-xs font-semibold text-gray-700 dark:text-gray-300">
                     Số dư ví hiện tại
                   </label>
-                  <div className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2.5 text-base font-bold text-success-600 dark:border-gray-800 dark:bg-gray-950">
+                  <div className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2.5 text-base font-bold text-success-600 dark:border-gray-800 dark:bg-gray-950 dark:text-success-400">
                     {selectedAgencyForEdit.balance_vnd.toLocaleString("vi-VN")} đ
                   </div>
                 </div>
 
-                <div className="rounded-xl border border-gray-100 bg-gray-50/50 p-3.5 dark:border-gray-800 dark:bg-gray-950/40 space-y-3">
+                <div className="rounded-xl border border-gray-100 bg-gray-50/50 p-3.5 dark:border-gray-800 dark:bg-gray-800/40 space-y-3">
                   <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
                     Hình thức điều chỉnh số dư
                   </label>
@@ -1335,7 +1414,7 @@ export default function AdminLicensingPage() {
                         checked={agencyEditForm.adjust_mode === "adjust"}
                         onChange={() => setAgencyEditForm((f) => ({ ...f, adjust_mode: "adjust" }))}
                       />
-                      <span>Cộng / Trừ thêm tiền (+ / -)</span>
+                      <span className="text-gray-800 dark:text-gray-200 font-medium">Cộng / Trừ thêm tiền (+ / -)</span>
                     </label>
                     <label className="flex items-center gap-1.5 cursor-pointer">
                       <input
@@ -1344,7 +1423,7 @@ export default function AdminLicensingPage() {
                         checked={agencyEditForm.adjust_mode === "set"}
                         onChange={() => setAgencyEditForm((f) => ({ ...f, adjust_mode: "set" }))}
                       />
-                      <span>Đặt lại số dư chính xác</span>
+                      <span className="text-gray-800 dark:text-gray-200 font-medium">Đặt lại số dư chính xác</span>
                     </label>
                   </div>
 
@@ -1356,7 +1435,7 @@ export default function AdminLicensingPage() {
                       onChange={(e) =>
                         setAgencyEditForm((f) => ({ ...f, adjust_amount_vnd: e.target.value }))
                       }
-                      className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-950"
+                      className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:placeholder-gray-500"
                       required
                     />
                   ) : (
@@ -1367,10 +1446,55 @@ export default function AdminLicensingPage() {
                       onChange={(e) =>
                         setAgencyEditForm((f) => ({ ...f, set_balance_vnd: e.target.value }))
                       }
-                      className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-950"
+                      className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:placeholder-gray-500"
                       required
                     />
                   )}
+                </div>
+
+                <div className="rounded-xl border border-blue-100 bg-blue-50/50 p-3.5 dark:border-blue-950/50 dark:bg-gray-800/60 space-y-3">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-gray-800 dark:text-gray-200">
+                    <span>💳</span> Thông tin STK nhận tiền VietQR của Đại lý
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">
+                      Tên ngân hàng (hoặc mã BIN)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="VD: MBBank hoặc 970422"
+                      value={agencyEditForm.bank_name}
+                      onChange={(e) => setAgencyEditForm((f) => ({ ...f, bank_name: e.target.value }))}
+                      className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">
+                      Số tài khoản (STK)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="VD: 0988123456"
+                      value={agencyEditForm.bank_account_number}
+                      onChange={(e) => setAgencyEditForm((f) => ({ ...f, bank_account_number: e.target.value }))}
+                      className="w-full font-mono rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">
+                      Tên chủ tài khoản (Viết hoa không dấu)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="VD: NGUYEN VAN A"
+                      value={agencyEditForm.bank_account_name}
+                      onChange={(e) => setAgencyEditForm((f) => ({ ...f, bank_account_name: e.target.value.toUpperCase() }))}
+                      className="w-full uppercase rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+                    />
+                  </div>
                 </div>
 
                 <div className="flex justify-end gap-2 pt-2 border-t border-gray-100 dark:border-gray-800">
@@ -1392,6 +1516,228 @@ export default function AdminLicensingPage() {
               </form>
             </div>
           )}
+
+          {/* Modal Cấu Hình Bảng Giá Riêng Cho Đại Lý */}
+          {selectedAgencyForPricing && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+              <form
+                onSubmit={handleSaveAgencyPricing}
+                className="w-full max-w-2xl max-h-[90vh] overflow-y-auto space-y-4 rounded-2xl bg-white p-6 shadow-xl dark:bg-gray-900 border border-gray-200 dark:border-gray-800"
+              >
+                <div className="flex items-center justify-between border-b border-gray-100 pb-3 dark:border-gray-800">
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                      <span>🏷</span> Cài Đặt Bảng Giá: <span className="text-brand-600 dark:text-brand-400">{selectedAgencyForPricing.agency_username}</span>
+                    </h3>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                      Cấu hình bảng giá mà khách hàng của đại lý này sẽ nhìn thấy khi mở Desktop App.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedAgencyForPricing(null)}
+                    className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 font-bold"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {agencyPricingLoading ? (
+                  <div className="p-8 text-center text-sm text-gray-400">Đang tải cấu hình bảng giá...</div>
+                ) : (
+                  <div className="space-y-4">
+                    {/* Tùy chọn chuyển đổi: Mặc định chung vs Tùy chỉnh riêng */}
+                    <div className="rounded-xl border border-gray-100 bg-gray-50/70 p-4 dark:border-gray-800 dark:bg-gray-800/40 space-y-3">
+                      <label className="block text-xs font-bold text-gray-800 dark:text-gray-200">
+                        Chế độ áp dụng bảng giá cho đại lý này:
+                      </label>
+                      <div className="space-y-2 text-xs">
+                        <label className="flex items-start gap-2.5 cursor-pointer p-2.5 rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-850">
+                          <input
+                            type="radio"
+                            name="pricing_mode"
+                            checked={!agencyPricingUseCustom}
+                            onChange={() => setAgencyPricingUseCustom(false)}
+                            className="mt-0.5"
+                          />
+                          <div>
+                            <div className="font-semibold text-gray-900 dark:text-white">
+                              🌐 Sử dụng Bảng Giá Mặc Định chung của hệ thống
+                            </div>
+                            <div className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
+                              Khách hàng của đại lý sẽ thấy các gói giá chung đang mở bán ({agencyPricingGlobalFallback.map(p => p.name).join(", ") || "3 gói niêm yết"}).
+                            </div>
+                          </div>
+                        </label>
+
+                        <label className="flex items-start gap-2.5 cursor-pointer p-2.5 rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-850">
+                          <input
+                            type="radio"
+                            name="pricing_mode"
+                            checked={agencyPricingUseCustom}
+                            onChange={() => setAgencyPricingUseCustom(true)}
+                            className="mt-0.5"
+                          />
+                          <div>
+                            <div className="font-semibold text-brand-600 dark:text-brand-400">
+                              ✨ Tùy chỉnh Bảng Giá Riêng cho đại lý này
+                            </div>
+                            <div className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
+                              Cấu hình danh sách 1 đến tối đa 3 gói giá đặc thù dành riêng cho tệp khách của đại lý.
+                            </div>
+                          </div>
+                        </label>
+                      </div>
+                    </div>
+
+                    {/* Danh sách gói giá tùy chỉnh */}
+                    {agencyPricingUseCustom && (
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-xs font-bold text-gray-800 dark:text-gray-200">
+                            Danh sách gói giá riêng ({agencyCustomPlans.length}/3 gói):
+                          </h4>
+                          {agencyCustomPlans.length < 3 && (
+                            <button
+                              type="button"
+                              onClick={handleAddAgencyCustomPlan}
+                              className="text-xs font-semibold text-brand-600 hover:text-brand-700 dark:text-brand-400 inline-flex items-center gap-1"
+                            >
+                              <span>➕</span> Thêm gói
+                            </button>
+                          )}
+                        </div>
+
+                        {agencyCustomPlans.length === 0 ? (
+                          <div className="p-6 text-center text-xs text-gray-400 border border-dashed rounded-xl dark:border-gray-700">
+                            Chưa có gói riêng nào. Hãy bấm "+ Thêm gói" để tạo gói đầu tiên.
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            {agencyCustomPlans.map((p, idx) => (
+                              <div
+                                key={idx}
+                                className="rounded-xl border border-gray-200 bg-white p-4 shadow-2xs dark:border-gray-700/80 dark:bg-gray-850 space-y-3"
+                              >
+                                <div className="flex items-center justify-between border-b border-gray-100 pb-2 dark:border-gray-700">
+                                  <span className="text-xs font-bold text-gray-900 dark:text-white">
+                                    Gói #{idx + 1}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveAgencyCustomPlan(idx)}
+                                    className="text-xs text-red-500 hover:text-red-700 font-semibold"
+                                  >
+                                    ✕ Xóa gói
+                                  </button>
+                                </div>
+
+                                <div className="grid gap-3 sm:grid-cols-2">
+                                  <div>
+                                    <label className="mb-1 block text-[11px] font-semibold text-gray-600 dark:text-gray-400">
+                                      Tên gói hiển thị
+                                    </label>
+                                    <input
+                                      type="text"
+                                      placeholder="VD: Gói 1 Năm VIP"
+                                      value={p.name}
+                                      onChange={(e) => {
+                                        const val = e.target.value;
+                                        setAgencyCustomPlans((prev) =>
+                                          prev.map((item, i) => (i === idx ? { ...item, name: val } : item))
+                                        );
+                                      }}
+                                      className="w-full rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-900 focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+                                      required
+                                    />
+                                  </div>
+
+                                  <div>
+                                    <label className="mb-1 block text-[11px] font-semibold text-gray-600 dark:text-gray-400">
+                                      Mã định danh gói (Code)
+                                    </label>
+                                    <input
+                                      type="text"
+                                      placeholder="VD: YEAR_1"
+                                      value={p.code}
+                                      onChange={(e) => {
+                                        const val = e.target.value;
+                                        setAgencyCustomPlans((prev) =>
+                                          prev.map((item, i) => (i === idx ? { ...item, code: val } : item))
+                                        );
+                                      }}
+                                      className="w-full rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-900 font-mono focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+                                      required
+                                    />
+                                  </div>
+
+                                  <div>
+                                    <label className="mb-1 block text-[11px] font-semibold text-gray-600 dark:text-gray-400">
+                                      Thời hạn hiệu lực (Số ngày)
+                                    </label>
+                                    <input
+                                      type="number"
+                                      placeholder="VD: 365"
+                                      value={p.duration_days}
+                                      onChange={(e) => {
+                                        const val = Number(e.target.value) || 0;
+                                        setAgencyCustomPlans((prev) =>
+                                          prev.map((item, i) => (i === idx ? { ...item, duration_days: val } : item))
+                                        );
+                                      }}
+                                      className="w-full rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-900 focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+                                      required
+                                    />
+                                  </div>
+
+                                  <div>
+                                    <label className="mb-1 block text-[11px] font-semibold text-gray-600 dark:text-gray-400">
+                                      Đơn giá bán lẻ (VNĐ)
+                                    </label>
+                                    <input
+                                      type="number"
+                                      placeholder="VD: 1000000"
+                                      value={p.price_vnd}
+                                      onChange={(e) => {
+                                        const val = Number(e.target.value) || 0;
+                                        setAgencyCustomPlans((prev) =>
+                                          prev.map((item, i) => (i === idx ? { ...item, price_vnd: val } : item))
+                                        );
+                                      }}
+                                      className="w-full rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-bold text-success-600 focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-success-400"
+                                      required
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div className="flex justify-end gap-2 pt-3 border-t border-gray-100 dark:border-gray-800">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedAgencyForPricing(null)}
+                    className="rounded-xl bg-gray-100 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300"
+                  >
+                    Hủy
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={savingAgencyPricing || agencyPricingLoading}
+                    className="rounded-xl bg-brand-500 px-5 py-2 text-sm font-semibold text-white hover:bg-brand-600 transition disabled:opacity-50"
+                  >
+                    {savingAgencyPricing ? "Đang lưu..." : "💾 Lưu Cấu Hình Bảng Giá"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+
         </div>
       )}
 
@@ -1498,6 +1844,80 @@ export default function AdminLicensingPage() {
               ))}
             </div>
           )}
+
+          {/* Phần 2: Gói Nạp Tiền Đại Lý (Combo Nạp Tiền & Hạn Dùng) */}
+          <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-xs dark:border-gray-800 dark:bg-gray-900">
+            <div className="flex flex-wrap items-center justify-between gap-4 border-b border-gray-100 pb-4 dark:border-gray-800">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                  <span>🏢</span> Gói Nạp Tiền Đại Lý
+                </h2>
+                <p className="text-xs text-gray-500 mt-1">
+                  Chính sách gói nạp tiền và hạn sử dụng dành riêng cho Đại lý. Bạn có thể bấm "Chỉnh sửa giá" để thay đổi giá nạp, số dư nhận vào ví hoặc hạn dùng.
+                </p>
+              </div>
+            </div>
+
+            {/* 3 Thẻ Combo Đại lý */}
+            <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {agencyCombos.map((combo) => {
+                const bonus = combo.credit_vnd - combo.price_vnd;
+                const bonusPercent = Math.round((bonus / combo.price_vnd) * 100);
+                return (
+                  <div
+                    key={combo.code}
+                    className="relative flex flex-col justify-between overflow-hidden rounded-2xl border border-gray-200 bg-linear-to-b from-gray-50/50 to-white p-5 shadow-xs transition hover:shadow-md dark:border-gray-800 dark:from-gray-950/40 dark:to-gray-900"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <span className="rounded-lg bg-brand-50 px-2.5 py-1 text-xs font-bold text-brand-600 dark:bg-brand-950/60 dark:text-brand-300">
+                          {combo.name}
+                        </span>
+                        <span className="rounded-full bg-success-50 px-2 py-0.5 text-[11px] font-bold text-success-600 dark:bg-success-950/50 dark:text-success-300">
+                          +{bonusPercent}% Số dư
+                        </span>
+                      </div>
+
+                      <div className="mt-4">
+                        <p className="text-xs text-gray-500">Giá thanh toán nạp:</p>
+                        <p className="text-2xl font-extrabold text-gray-900 dark:text-white">
+                          {combo.price_vnd.toLocaleString("vi-VN")} đ
+                        </p>
+                      </div>
+
+                      <div className="mt-3 rounded-xl border border-success-100 bg-success-50/50 p-3 dark:border-success-900/40 dark:bg-success-950/20">
+                        <div className="flex items-baseline justify-between">
+                          <span className="text-xs font-semibold text-gray-600 dark:text-gray-300">Nhận vào ví:</span>
+                          <span className="text-lg font-black text-success-600 dark:text-success-400">
+                            {combo.credit_vnd.toLocaleString("vi-VN")} đ
+                          </span>
+                        </div>
+                        <div className="mt-1 flex items-center justify-between text-[11px] text-gray-500">
+                          <span>Lợi nhuận cộng thêm:</span>
+                          <span className="font-bold text-success-600">+{bonus.toLocaleString("vi-VN")} đ</span>
+                        </div>
+                      </div>
+
+                      <div className="mt-3 flex items-center justify-between text-xs text-gray-500 border-t border-gray-100 pt-2 dark:border-gray-800">
+                        <span>Thời hạn sử dụng:</span>
+                        <span className="font-bold text-gray-800 dark:text-gray-200">
+                          {combo.duration_days >= 365 ? `${Math.round(combo.duration_days / 365)} Năm (${combo.duration_days} ngày)` : `${combo.duration_days} ngày`}
+                        </span>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => openEditComboModal(combo)}
+                      className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white py-2 text-xs font-semibold text-gray-700 shadow-2xs hover:bg-brand-50 hover:text-brand-600 hover:border-brand-300 transition dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                    >
+                      <span>✏️</span> Chỉnh sửa giá {combo.name}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
       )}
 
@@ -1539,15 +1959,12 @@ export default function AdminLicensingPage() {
                 <input
                   type="text"
                   required
-                  disabled={!!editingPlan}
                   value={planForm.code}
                   onChange={(e) => setPlanForm({ ...planForm, code: e.target.value.toUpperCase().replace(/\s+/g, "_") })}
-                  placeholder="Ví dụ: MONTH_1 hoặc VIP_1"
-                  className="mt-1 w-full rounded-xl border border-gray-200 bg-transparent px-3 py-2 font-mono text-sm uppercase focus:border-brand-500 focus:outline-none disabled:bg-gray-100 disabled:text-gray-500 dark:border-gray-700 dark:text-white dark:disabled:bg-gray-800"
+                  placeholder="Ví dụ: MONTH_1 hoặc MONTH_6"
+                  className="mt-1 w-full rounded-xl border border-gray-200 bg-transparent px-3 py-2 font-mono text-sm uppercase focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:text-white"
                 />
-                {editingPlan && (
-                  <p className="mt-1 text-[11px] text-gray-400">Mã gói cố định để bảo toàn lịch sử đơn hàng.</p>
-                )}
+                <p className="mt-1 text-[11px] text-gray-400">Mã duy nhất (chữ in hoa không dấu, ví dụ: MONTH_1, MONTH_6, YEAR_1).</p>
               </div>
 
               <div>

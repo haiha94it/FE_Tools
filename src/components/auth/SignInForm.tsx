@@ -6,11 +6,13 @@ import Label from "@/components/form/Label";
 import Button from "@/components/ui/button/Button";
 import { APP_NAME } from "@/constants/brand";
 import { useAuthStore } from "@/stores/use-auth-store";
-import { useRouter } from "next/navigation";
-import React, { useState } from "react";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import React, { Suspense, useEffect, useState } from "react";
 
-export default function SignInForm() {
+function SignInFormContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const login = useAuthStore((s) => s.login);
   const isLoading = useAuthStore((s) => s.isLoading);
   const error = useAuthStore((s) => s.error);
@@ -18,6 +20,14 @@ export default function SignInForm() {
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+
+  useEffect(() => {
+    const prefillUser = searchParams.get("username");
+    if (prefillUser) {
+      setUsername(prefillUser);
+    }
+  }, [searchParams]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     clearError();
@@ -28,7 +38,12 @@ export default function SignInForm() {
 
     try {
       await login({ username: username.trim(), password });
-      router.replace("/dashboard");
+      const loggedUser = useAuthStore.getState().user;
+      if (loggedUser && !loggedUser.isAdmin) {
+        router.replace("/agency-portal");
+      } else {
+        router.replace("/dashboard");
+      }
     } catch {
       // error đã set trong store
     }
@@ -95,12 +110,29 @@ export default function SignInForm() {
             >
               {isLoading ? "Đang đăng nhập..." : "Đăng nhập"}
             </Button>
-            <p className="text-center text-sm text-gray-500 dark:text-gray-400">
-              Tài khoản do quản trị viên cấp — không mở đăng ký công khai.
-            </p>
+
+            <div className="text-center pt-2">
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Chưa có tài khoản?{" "}
+                <Link
+                  href="/agency-register"
+                  className="font-semibold text-brand-500 hover:text-brand-600 dark:text-brand-400"
+                >
+                  Đăng ký trở thành Đại lý
+                </Link>
+              </p>
+            </div>
           </div>
         </form>
       </div>
     </div>
+  );
+}
+
+export default function SignInForm() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-gray-400">Đang tải...</div>}>
+      <SignInFormContent />
+    </Suspense>
   );
 }

@@ -5,6 +5,7 @@ export const API_BASE_URL = env.NEXT_PUBLIC_API_URL;
 
 export const API_AUTH = {
   LOGIN: "/api/users/login",
+  AGENCY_REGISTER: "/api/users/agency-register",
   REFRESH: "/api/token/refresh/",
   LOGOUT: "/api/users/logout",
   ME: "/api/users/me",
@@ -24,6 +25,7 @@ export const API_SYSTEM = {
   GET: "/api/system/get",
   EDIT: "/api/system/edit",
   PUBLIC_UI_STATUS: "/api/system/public-ui-status/",
+  BANKS: "/api/system/banks/",
 } as const;
 
 export const API_USERS_ADMIN = {
@@ -48,6 +50,8 @@ export const API_LICENSING_ADMIN = {
   AGENCY_BALANCES: "/api/licensing/admin/agency-balances/",
   UPDATE_AGENCY_BALANCE: "/api/licensing/admin/agency-balances/update/",
   GLOBAL_AGENCY_SETTINGS: "/api/licensing/admin/agency-settings/",
+  AGENCY_PRICING_PLANS: (agencyId: number) => `/api/licensing/admin/agencies/${agencyId}/pricing-plans/`,
+  AGENCY_PRICING_PLAN_DETAIL: (agencyId: number, planId: number) => `/api/licensing/admin/agencies/${agencyId}/pricing-plans/${planId}/`,
   ANNOUNCEMENTS: "/api/licensing/admin/announcements/",
   APP_RELEASES: "/api/licensing/admin/app-releases/",
 } as const;
@@ -55,6 +59,11 @@ export const API_LICENSING_ADMIN = {
 export const API_AGENCY = {
   ME: "/api/licensing/agency/me/",
   CUSTOMERS: "/api/licensing/agency/customers/",
+  ORDERS: "/api/licensing/agency/orders/",
+  APPROVE_ORDER: (id: number) => `/api/licensing/agency/orders/${id}/approve/`,
+  REJECT_ORDER: (id: number) => `/api/licensing/agency/orders/${id}/reject/`,
   TOPUP: "/api/licensing/agency/topup/",
   ACTIVATE: "/api/licensing/agency/activate/",
+  BANKING: "/api/licensing/agency/banking/",
 } as const;
+
