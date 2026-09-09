@@ -16,6 +16,8 @@ type Customer = {
   referral_code: string;
   referral_reward_days: number;
   trial_granted: boolean;
+  last_used_at?: string | null;
+  scan_count?: number;
   devices: Array<{ id: number; machine_fingerprint: string; os_name: string; hostname?: string; last_seen_at: string }>;
   current_license?: {
     id: number;
@@ -73,14 +75,57 @@ type PricingPlan = {
   sort_order: number;
 };
 
+type Announcement = {
+  id: number;
+  title: string;
+  content: string;
+  is_active: boolean;
+  is_ticker: boolean;
+  created_at: string;
+};
+
+type AppReleaseItem = {
+  id: number;
+  app_name: string;
+  version: string;
+  download_url: string;
+  release_notes: string;
+  is_published: boolean;
+  update_policy: "OPTIONAL" | "RECOMMENDED" | "MANDATORY";
+  file_hash: string;
+  file_size_bytes: number;
+  is_mandatory: boolean;
+  created_at: string;
+};
+
 export default function AdminLicensingPage() {
-  const [activeTab, setActiveTab] = useState<"customers" | "orders" | "agencies" | "pricing">("customers");
+  const [activeTab, setActiveTab] = useState<"customers" | "orders" | "agencies" | "pricing" | "announcements" | "releases">("customers");
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [orders, setOrders] = useState<PaymentOrder[]>([]);
   const [agencies, setAgencies] = useState<AgencyBalance[]>([]);
   const [pricingPlans, setPricingPlans] = useState<PricingPlan[]>([]);
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [releases, setReleases] = useState<AppReleaseItem[]>([]);
+  const [announcementForm, setAnnouncementForm] = useState({
+    title: "",
+    content: "",
+    is_active: true,
+    is_ticker: true,
+  });
+  const [releaseForm, setReleaseForm] = useState({
+    version: "",
+    download_url: "",
+    release_notes: "",
+    update_policy: "OPTIONAL" as "OPTIONAL" | "RECOMMENDED" | "MANDATORY",
+    file_hash: "",
+    file_size_bytes: 0,
+    is_published: false,
+  });
+  const [savingAnnouncement, setSavingAnnouncement] = useState(false);
+  const [savingRelease, setSavingRelease] = useState(false);
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+
 
   const downloadAgencyJson = (agencyCode: string) => {
     const data = JSON.stringify({ agency_code: agencyCode }, null, 2);
@@ -215,7 +260,18 @@ export default function AdminLicensingPage() {
         const data = res.data ?? [];
         setPricingPlans(data);
         console.log(`[LICENSING] Đã tải ${data.length} gói giá`);
+      } else if (activeTab === "announcements") {
+        const res = await api.get<Announcement[]>(API_LICENSING_ADMIN.ANNOUNCEMENTS);
+        const data = res.data ?? [];
+        setAnnouncements(data);
+        console.log(`[LICENSING] Đã tải ${data.length} thông báo ticker`);
+      } else if (activeTab === "releases") {
+        const res = await api.get<AppReleaseItem[]>(API_LICENSING_ADMIN.APP_RELEASES);
+        const data = res.data ?? [];
+        setReleases(data);
+        console.log(`[LICENSING] Đã tải ${data.length} bản phát hành Desktop`);
       }
+
     } catch (err) {
       console.error(`[LICENSING] Lỗi tải dữ liệu cho tab=${activeTab}`, err);
       setMsg("Lỗi tải dữ liệu.");
@@ -316,6 +372,8 @@ export default function AdminLicensingPage() {
       "Trạng thái": c.current_license?.is_valid ? "Đang hoạt động" : "Hết hạn/Khóa",
       "Hạn sử dụng": c.current_license ? new Date(c.current_license.valid_until).toLocaleDateString("vi-VN") : "—",
       "Số thiết bị kích hoạt": c.devices?.length || 0,
+      "Lần cuối sử dụng": c.last_used_at ? new Date(c.last_used_at).toLocaleString("vi-VN") : "Chưa hoạt động",
+      "Số lần quét": c.scan_count || 0,
       "Ngày đăng ký": new Date(c.created_at).toLocaleString("vi-VN"),
     }));
 
@@ -760,6 +818,104 @@ export default function AdminLicensingPage() {
     }
   };
 
+  const handleCreateAnnouncement = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!announcementForm.title.trim() || !announcementForm.content.trim()) {
+      setMsg("Vui lòng nhập đầy đủ tiêu đề và nội dung thông báo.");
+      return;
+    }
+    setSavingAnnouncement(true);
+    try {
+      await api.post(API_LICENSING_ADMIN.ANNOUNCEMENTS, announcementForm);
+      setMsg("Tạo thông báo thành công!");
+      setAnnouncementForm({ title: "", content: "", is_active: true, is_ticker: true });
+      await loadData();
+    } catch (err: any) {
+      console.error("[LICENSING] Lỗi tạo thông báo", err);
+      setMsg(err?.response?.data?.message || "Lỗi tạo thông báo.");
+    } finally {
+      setSavingAnnouncement(false);
+    }
+  };
+
+  const handleToggleAnnouncementActive = async (ann: Announcement) => {
+    try {
+      await api.patch(API_LICENSING_ADMIN.ANNOUNCEMENT_DETAIL(ann.id), {
+        is_active: !ann.is_active,
+      });
+      setMsg(`Đã ${!ann.is_active ? "bật" : "tắt"} hiển thị thông báo.`);
+      await loadData();
+    } catch (err: any) {
+      console.error("[LICENSING] Lỗi cập nhật trạng thái thông báo", err);
+      setMsg("Lỗi cập nhật trạng thái thông báo.");
+    }
+  };
+
+  const handleDeleteAnnouncement = async (id: number) => {
+    if (!confirm("Bạn có chắc chắn muốn xóa thông báo này?")) return;
+    try {
+      await api.delete(API_LICENSING_ADMIN.ANNOUNCEMENT_DETAIL(id));
+      setMsg("Đã xóa thông báo thành công.");
+      await loadData();
+    } catch (err: any) {
+      console.error("[LICENSING] Lỗi xóa thông báo", err);
+      setMsg("Lỗi xóa thông báo.");
+    }
+  };
+
+  const handleCreateRelease = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingRelease(true);
+    try {
+      await api.post(API_LICENSING_ADMIN.APP_RELEASES, {
+        app_name: "ggmaps",
+        ...releaseForm,
+        file_size_bytes: Number(releaseForm.file_size_bytes) || 0,
+      });
+      setMsg("Đã tạo bản phát hành mới thành công.");
+      setReleaseForm({
+        version: "",
+        download_url: "",
+        release_notes: "",
+        update_policy: "OPTIONAL",
+        file_hash: "",
+        file_size_bytes: 0,
+        is_published: false,
+      });
+      await loadData();
+    } catch (err: any) {
+      console.error("[LICENSING] Lỗi tạo bản phát hành", err);
+      setMsg(err?.response?.data?.message || "Lỗi tạo bản phát hành mới.");
+    } finally {
+      setSavingRelease(false);
+    }
+  };
+
+  const handleToggleReleasePublished = async (rel: AppReleaseItem) => {
+    try {
+      await api.patch(API_LICENSING_ADMIN.APP_RELEASE_DETAIL(rel.id), {
+        is_published: !rel.is_published,
+      });
+      setMsg(`Đã ${!rel.is_published ? "phát hành" : "chuyển về bản nháp"} phiên bản v${rel.version}.`);
+      await loadData();
+    } catch (err: any) {
+      console.error("[LICENSING] Lỗi cập nhật trạng thái bản phát hành", err);
+      setMsg("Lỗi cập nhật trạng thái phát hành.");
+    }
+  };
+
+  const handleDeleteRelease = async (id: number) => {
+    if (!confirm("Bạn có chắc chắn muốn xóa bản phát hành này?")) return;
+    try {
+      await api.delete(API_LICENSING_ADMIN.APP_RELEASE_DETAIL(id));
+      setMsg("Đã xóa bản phát hành thành công.");
+      await loadData();
+    } catch (err: any) {
+      console.error("[LICENSING] Lỗi xóa bản phát hành", err);
+      setMsg("Lỗi xóa bản phát hành.");
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -803,6 +959,8 @@ export default function AdminLicensingPage() {
           { id: "orders", label: "Đơn hàng & Thanh toán" },
           { id: "agencies", label: "Quản lý Đại lý (Ví VNĐ)" },
           { id: "pricing", label: "Cấu hình Bảng Giá & Gói Nạp" },
+          { id: "announcements", label: "📢 Thông Báo Ticker" },
+          { id: "releases", label: "🚀 Bản Phát Hành App" },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -890,13 +1048,15 @@ export default function AdminLicensingPage() {
                   <th className="px-4 py-3">Bản quyền hiện tại</th>
                   <th className="px-4 py-3">Hạn sử dụng</th>
                   <th className="px-4 py-3">Thiết bị</th>
+                  <th className="px-4 py-3">Lần cuối sử dụng</th>
+                  <th className="px-4 py-3">Số lần quét</th>
                   <th className="px-4 py-3 text-right">Thao tác</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredCustomers.length === 0 ? (
                   <tr>
-                    <td colSpan={customerAgencyFilter === "ALL" ? 8 : 7} className="px-4 py-8 text-center text-gray-400">
+                    <td colSpan={customerAgencyFilter === "ALL" ? 10 : 9} className="px-4 py-8 text-center text-gray-400">
                       Không tìm thấy khách hàng nào phù hợp với điều kiện lọc.
                     </td>
                   </tr>
@@ -952,6 +1112,22 @@ export default function AdminLicensingPage() {
                         </td>
                         <td className="px-4 py-3 text-xs text-gray-500 dark:text-gray-400">
                           {c.devices?.length || 0} máy
+                        </td>
+                        <td className="px-4 py-3 text-xs text-gray-600 dark:text-gray-300">
+                          {c.last_used_at ? (
+                            new Date(c.last_used_at).toLocaleString("vi-VN", {
+                              day: "2-digit",
+                              month: "2-digit",
+                              year: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })
+                          ) : (
+                            <span className="text-gray-400 italic">Chưa hoạt động</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-xs font-mono font-semibold text-gray-700 dark:text-gray-300">
+                          {c.scan_count || 0} lần
                         </td>
                         <td className="px-4 py-3 text-right">
                           <div className="inline-flex items-center gap-1.5">
@@ -2191,7 +2367,403 @@ export default function AdminLicensingPage() {
           </div>
         </div>
       )}
+
+      {/* Tab 5: Announcements (Ticker Chạy Chữ) */}
+      {activeTab === "announcements" && (
+        <div className="space-y-6">
+          {/* Header & Hướng Dẫn */}
+          <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+            <div className="flex items-center gap-3">
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 text-xl text-brand-600 dark:bg-brand-950/50 dark:text-brand-400">
+                📢
+              </span>
+              <div>
+                <h2 className="text-lg font-bold text-gray-900 dark:text-white">
+                  Quản Lý Thông Báo & Dòng Chữ Chạy (Ticker Marquee)
+                </h2>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Các thông báo đang BẬT sẽ tự động cuộn ngang ở dải đáy cửa sổ GGMaps Desktop sau chu kỳ đồng bộ ngầm ~60 giây.
+                </p>
+              </div>
+            </div>
+
+            {/* Form Tạo Thông Báo Mới */}
+            <form onSubmit={handleCreateAnnouncement} className="mt-6 border-t border-gray-100 pt-6 dark:border-gray-800">
+              <h3 className="text-sm font-bold text-gray-800 dark:text-gray-200 mb-4">
+                ➕ Thêm Thông Báo Mới
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
+                    Tiêu đề thông báo *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={announcementForm.title}
+                    onChange={(e) => setAnnouncementForm({ ...announcementForm, title: e.target.value })}
+                    placeholder="Ví dụ: Cập nhật hệ thống định kỳ"
+                    className="mt-1 w-full rounded-xl border border-gray-200 bg-transparent px-3 py-2 text-sm focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:text-white"
+                  />
+                </div>
+                <div className="flex items-center gap-6 pt-4">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={announcementForm.is_active}
+                      onChange={(e) => setAnnouncementForm({ ...announcementForm, is_active: e.target.checked })}
+                      className="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
+                    />
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Kích hoạt ngay (Active)
+                    </span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={announcementForm.is_ticker}
+                      onChange={(e) => setAnnouncementForm({ ...announcementForm, is_ticker: e.target.checked })}
+                      className="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
+                    />
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Hiển thị Ticker chân Desktop
+                    </span>
+                  </label>
+                </div>
+              </div>
+
+              <div className="mt-4">
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
+                  Nội dung thông báo (Cuộn trên Desktop) *
+                </label>
+                <textarea
+                  rows={2}
+                  required
+                  value={announcementForm.content}
+                  onChange={(e) => setAnnouncementForm({ ...announcementForm, content: e.target.value })}
+                  placeholder="Nhập nội dung ngắn gọn, súc tích sẽ chạy ngang ở chân ứng dụng Desktop..."
+                  className="mt-1 w-full rounded-xl border border-gray-200 bg-transparent px-3 py-2 text-sm focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:text-white"
+                />
+              </div>
+
+              <div className="mt-4 flex justify-end">
+                <button
+                  type="submit"
+                  disabled={savingAnnouncement}
+                  className="rounded-xl bg-brand-500 px-5 py-2.5 text-sm font-semibold text-white shadow hover:bg-brand-600 transition disabled:opacity-50"
+                >
+                  {savingAnnouncement ? "Đang lưu..." : "💾 Lưu & Phát Hành Thông Báo"}
+                </button>
+              </div>
+            </form>
+          </div>
+
+          {/* Bảng Danh Sách Thông Báo */}
+          <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+            <h3 className="text-sm font-bold text-gray-800 dark:text-gray-200 mb-4">
+              📋 Danh Sách Thông Báo ({announcements.length})
+            </h3>
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-left text-sm text-gray-600 dark:text-gray-300">
+                <thead className="bg-gray-50 text-xs uppercase text-gray-500 dark:bg-gray-800/50 dark:text-gray-400">
+                  <tr>
+                    <th className="px-4 py-3">#</th>
+                    <th className="px-4 py-3">Tiêu đề</th>
+                    <th className="px-4 py-3">Nội dung cuộn</th>
+                    <th className="px-4 py-3">Vị trí</th>
+                    <th className="px-4 py-3">Trạng thái</th>
+                    <th className="px-4 py-3">Ngày tạo</th>
+                    <th className="px-4 py-3 text-right">Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                  {announcements.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="px-4 py-8 text-center text-gray-400">
+                        Chưa có thông báo nào. Vui lòng thêm thông báo ở form trên.
+                      </td>
+                    </tr>
+                  ) : (
+                    announcements.map((ann) => (
+                      <tr key={ann.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/30">
+                        <td className="px-4 py-3 font-mono text-xs text-gray-400">#{ann.id}</td>
+                        <td className="px-4 py-3 font-semibold text-gray-900 dark:text-white">
+                          {ann.title}
+                        </td>
+                        <td className="px-4 py-3 max-w-xs truncate text-xs" title={ann.content}>
+                          {ann.content}
+                        </td>
+                        <td className="px-4 py-3">
+                          {ann.is_ticker ? (
+                            <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+                              📺 Ticker Chân App
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center rounded-md bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-400">
+                              Chung
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          <button
+                            onClick={() => handleToggleAnnouncementActive(ann)}
+                            className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold transition ${
+                              ann.is_active
+                                ? "bg-success-50 text-success-700 hover:bg-success-100 dark:bg-success-950/40 dark:text-success-400"
+                                : "bg-gray-100 text-gray-500 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400"
+                            }`}
+                          >
+                            <span className={`h-1.5 w-1.5 rounded-full ${ann.is_active ? "bg-success-500" : "bg-gray-400"}`} />
+                            {ann.is_active ? "Đang Bật" : "Đã Tắt"}
+                          </button>
+                        </td>
+                        <td className="px-4 py-3 text-xs text-gray-400">
+                          {new Date(ann.created_at).toLocaleString("vi-VN")}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <button
+                            onClick={() => handleDeleteAnnouncement(ann.id)}
+                            className="text-xs text-red-500 hover:text-red-700 font-medium hover:underline"
+                          >
+                            🗑 Xóa
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tab 6: Quản Lý Bản Phát Hành Desktop (App Updater) */}
+      {activeTab === "releases" && (
+        <div className="space-y-6">
+          {/* Header & Hướng Dẫn */}
+          <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+            <div className="flex items-center gap-3">
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-50 text-xl text-purple-600 dark:bg-purple-950/50 dark:text-purple-400">
+                🚀
+              </span>
+              <div>
+                <h2 className="text-lg font-bold text-gray-900 dark:text-white">
+                  Quản Lý Bản Phát Hành & Tự Động Cập Nhật (App Updater)
+                </h2>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Cấu hình phiên bản, link tải trực tiếp, mã SHA256 kiểm tra toàn vẹn và cơ chế cô lập Bản Nháp (Draft) ↔ Phát Hành (Published).
+                </p>
+              </div>
+            </div>
+
+            {/* Form Tạo Bản Phát Hành Mới */}
+            <form onSubmit={handleCreateRelease} className="mt-6 border-t border-gray-100 pt-6 dark:border-gray-800 space-y-4">
+              <h3 className="text-sm font-bold text-gray-800 dark:text-gray-200">
+                ➕ Đăng Ký Bản Phát Hành Mới
+              </h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
+                    Số phiên bản mới (SemVer) *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={releaseForm.version}
+                    onChange={(e) => setReleaseForm({ ...releaseForm, version: e.target.value })}
+                    placeholder="Ví dụ: 2.1.0 hoặc 2.0.1"
+                    className="mt-1 w-full rounded-xl border border-gray-200 bg-transparent px-3 py-2 text-sm focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
+                    Đường dẫn tải trực tiếp (Direct Download URL) *
+                  </label>
+                  <input
+                    type="url"
+                    required
+                    value={releaseForm.download_url}
+                    onChange={(e) => setReleaseForm({ ...releaseForm, download_url: e.target.value })}
+                    placeholder="https://example.com/downloads/ggmaps_v2.1.0.exe"
+                    className="mt-1 w-full rounded-xl border border-gray-200 bg-transparent px-3 py-2 text-sm focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:text-white"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
+                    Mức độ cập nhật (Update Policy)
+                  </label>
+                  <select
+                    value={releaseForm.update_policy}
+                    onChange={(e) => setReleaseForm({ ...releaseForm, update_policy: e.target.value as any })}
+                    className="mt-1 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+                  >
+                    <option value="OPTIONAL">Tùy chọn (Optional)</option>
+                    <option value="RECOMMENDED">Khuyến nghị (Recommended)</option>
+                    <option value="MANDATORY">Bắt buộc (Mandatory)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
+                    Dung lượng file (Bytes)
+                  </label>
+                  <input
+                    type="number"
+                    value={releaseForm.file_size_bytes || ""}
+                    onChange={(e) => setReleaseForm({ ...releaseForm, file_size_bytes: Number(e.target.value) || 0 })}
+                    placeholder="Ví dụ: 52428800 (~50MB)"
+                    className="mt-1 w-full rounded-xl border border-gray-200 bg-transparent px-3 py-2 text-sm focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:text-white"
+                  />
+                </div>
+                <div className="flex items-center pt-5">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={releaseForm.is_published}
+                      onChange={(e) => setReleaseForm({ ...releaseForm, is_published: e.target.checked })}
+                      className="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
+                    />
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Bật phát hành ngay (Published)
+                    </span>
+                  </label>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
+                  Mã SHA256 Checksum (Kiểm tra tính toàn vẹn gói tải)
+                </label>
+                <input
+                  type="text"
+                  value={releaseForm.file_hash}
+                  onChange={(e) => setReleaseForm({ ...releaseForm, file_hash: e.target.value.trim() })}
+                  placeholder="Ví dụ: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+                  className="mt-1 w-full font-mono text-xs rounded-xl border border-gray-200 bg-transparent px-3 py-2 focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:text-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
+                  Nội dung cập nhật (Release Notes / Changelog) *
+                </label>
+                <textarea
+                  rows={3}
+                  required
+                  value={releaseForm.release_notes}
+                  onChange={(e) => setReleaseForm({ ...releaseForm, release_notes: e.target.value })}
+                  placeholder="• Nâng cấp tốc độ cào dữ liệu Google Maps&#10;• Khắc phục sự cố bộ nhớ đệm&#10;• Bổ sung tính năng xuất báo cáo..."
+                  className="mt-1 w-full rounded-xl border border-gray-200 bg-transparent px-3 py-2 text-sm focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:text-white"
+                />
+              </div>
+
+              <div className="flex justify-end">
+                <button
+                  type="submit"
+                  disabled={savingRelease}
+                  className="rounded-xl bg-purple-600 px-5 py-2.5 text-sm font-semibold text-white shadow hover:bg-purple-700 transition disabled:opacity-50"
+                >
+                  {savingRelease ? "Đang lưu..." : "💾 Lưu & Đăng Ký Bản Phát Hành"}
+                </button>
+              </div>
+            </form>
+          </div>
+
+          {/* Bảng Danh Sách Bản Phát Hành */}
+          <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+            <h3 className="text-sm font-bold text-gray-800 dark:text-gray-200 mb-4">
+              📋 Lịch Sử Các Bản Phát Hành ({releases.length})
+            </h3>
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-left text-sm text-gray-600 dark:text-gray-300">
+                <thead className="bg-gray-50 text-xs uppercase text-gray-500 dark:bg-gray-800/50 dark:text-gray-400">
+                  <tr>
+                    <th className="px-4 py-3">#</th>
+                    <th className="px-4 py-3">Phiên bản</th>
+                    <th className="px-4 py-3">Mức độ</th>
+                    <th className="px-4 py-3">Dung lượng</th>
+                    <th className="px-4 py-3">Checksum SHA256</th>
+                    <th className="px-4 py-3">Trạng thái</th>
+                    <th className="px-4 py-3">Ngày tạo</th>
+                    <th className="px-4 py-3 text-right">Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                  {releases.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="px-4 py-8 text-center text-gray-400">
+                        Chưa có bản phát hành nào. Vui lòng đăng ký ở biểu mẫu phía trên.
+                      </td>
+                    </tr>
+                  ) : (
+                    releases.map((rel) => (
+                      <tr key={rel.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/30">
+                        <td className="px-4 py-3 font-mono text-xs text-gray-400">#{rel.id}</td>
+                        <td className="px-4 py-3 font-bold text-gray-900 dark:text-white">
+                          v{rel.version}
+                        </td>
+                        <td className="px-4 py-3">
+                          {rel.update_policy === "MANDATORY" ? (
+                            <span className="inline-flex items-center rounded-md bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-700 dark:bg-red-950/40 dark:text-red-300">
+                              ⛔ Bắt buộc
+                            </span>
+                          ) : rel.update_policy === "RECOMMENDED" ? (
+                            <span className="inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
+                              ⚡ Khuyến nghị
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-950/40 dark:text-blue-300">
+                              💡 Tùy chọn
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-xs">
+                          {rel.file_size_bytes > 0
+                            ? `${(rel.file_size_bytes / (1024 * 1024)).toFixed(1)} MB`
+                            : "—"}
+                        </td>
+                        <td className="px-4 py-3 font-mono text-xs max-w-xs truncate" title={rel.file_hash}>
+                          {rel.file_hash ? `${rel.file_hash.substring(0, 16)}...` : "—"}
+                        </td>
+                        <td className="px-4 py-3">
+                          <button
+                            onClick={() => handleToggleReleasePublished(rel)}
+                            className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold transition ${
+                              rel.is_published
+                                ? "bg-success-50 text-success-700 hover:bg-success-100 dark:bg-success-950/40 dark:text-success-400"
+                                : "bg-amber-50 text-amber-700 hover:bg-amber-100 dark:bg-amber-950/40 dark:text-amber-300"
+                            }`}
+                          >
+                            <span className={`h-1.5 w-1.5 rounded-full ${rel.is_published ? "bg-success-500" : "bg-amber-500"}`} />
+                            {rel.is_published ? "Đang Phát Hành" : "Bản Nháp (Draft)"}
+                          </button>
+                        </td>
+                        <td className="px-4 py-3 text-xs text-gray-400">
+                          {new Date(rel.created_at).toLocaleString("vi-VN")}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <button
+                            onClick={() => handleDeleteRelease(rel.id)}
+                            className="text-xs text-red-500 hover:text-red-700 font-medium hover:underline"
+                          >
+                            🗑 Xóa
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
 

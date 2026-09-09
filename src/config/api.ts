@@ -53,7 +53,9 @@ export const API_LICENSING_ADMIN = {
   AGENCY_PRICING_PLANS: (agencyId: number) => `/api/licensing/admin/agencies/${agencyId}/pricing-plans/`,
   AGENCY_PRICING_PLAN_DETAIL: (agencyId: number, planId: number) => `/api/licensing/admin/agencies/${agencyId}/pricing-plans/${planId}/`,
   ANNOUNCEMENTS: "/api/licensing/admin/announcements/",
+  ANNOUNCEMENT_DETAIL: (id: number) => `/api/licensing/admin/announcements/${id}/`,
   APP_RELEASES: "/api/licensing/admin/app-releases/",
+  APP_RELEASE_DETAIL: (id: number) => `/api/licensing/admin/app-releases/${id}/`,
 } as const;
 
 export const API_AGENCY = {
