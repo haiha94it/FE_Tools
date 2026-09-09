@@ -18,6 +18,7 @@ type Customer = {
   trial_granted: boolean;
   last_used_at?: string | null;
   scan_count?: number;
+  records_count?: number;
   devices: Array<{ id: number; machine_fingerprint: string; os_name: string; hostname?: string; last_seen_at: string }>;
   current_license?: {
     id: number;
@@ -109,21 +110,19 @@ export default function AdminLicensingPage() {
   const [announcementForm, setAnnouncementForm] = useState({
     title: "",
     content: "",
-    is_active: true,
-    is_ticker: true,
-  });
-  const [releaseForm, setReleaseForm] = useState({
-    version: "",
-    download_url: "",
-    release_notes: "",
-    update_policy: "OPTIONAL" as "OPTIONAL" | "RECOMMENDED" | "MANDATORY",
-    file_hash: "",
-    file_size_bytes: 0,
-    is_published: false,
   });
   const [savingAnnouncement, setSavingAnnouncement] = useState(false);
-  const [savingRelease, setSavingRelease] = useState(false);
-  const [uploadingReleaseFile, setUploadingReleaseFile] = useState(false);
+  const [releaseForm, setReleaseForm] = useState<{
+    update_policy: "OPTIONAL" | "RECOMMENDED" | "MANDATORY";
+    release_notes: string;
+    is_published: boolean;
+  }>({
+    update_policy: "RECOMMENDED",
+    release_notes: "",
+    is_published: true,
+  });
+  const [selectedReleaseFile, setSelectedReleaseFile] = useState<File | null>(null);
+  const [uploadingRelease, setUploadingRelease] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -222,21 +221,50 @@ export default function AdminLicensingPage() {
 
   // Issue License Form State
   const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(null);
-  const [issueForm, setIssueForm] = useState({ duration_days: 365, license_type: "PAID_1Y" });
+  const [issueForm, setIssueForm] = useState<{
+    plan_id: number | null;
+    license_type: string;
+    duration_days: number;
+  }>({
+    plan_id: null,
+    license_type: "TRIAL",
+    duration_days: 5,
+  });
+
+  const openIssueLicenseModal = (c: Customer) => {
+    setSelectedCustomerId(c.id);
+    const activePlans = pricingPlans.filter((p) => p.is_active && !p.agency);
+    if (activePlans.length > 0) {
+      const firstPlan = activePlans[0];
+      setIssueForm({
+        plan_id: firstPlan.id,
+        license_type: firstPlan.code,
+        duration_days: firstPlan.duration_days,
+      });
+    } else {
+      setIssueForm({
+        plan_id: null,
+        license_type: "TRIAL",
+        duration_days: 5,
+      });
+    }
+  };
 
   const loadData = async () => {
     setLoading(true);
     try {
       console.log(`[LICENSING] Đang tải dữ liệu cho tab=${activeTab}...`);
       if (activeTab === "customers") {
-        const [resCust, resAgencies] = await Promise.all([
+        const [resCust, resAgencies, resPlans] = await Promise.all([
           api.get<Customer[]>(API_LICENSING_ADMIN.CUSTOMERS),
           api.get<AgencyBalance[]>(API_LICENSING_ADMIN.AGENCY_BALANCES),
+          api.get<PricingPlan[]>(API_LICENSING_ADMIN.PRICING_PLANS),
         ]);
         const data = resCust.data ?? [];
         setCustomers(data);
         setAgencies(resAgencies.data ?? []);
-        console.log(`[LICENSING] Đã tải ${data.length} khách hàng và ${resAgencies.data?.length ?? 0} đại lý`);
+        setPricingPlans(resPlans.data ?? []);
+        console.log(`[LICENSING] Đã tải ${data.length} khách hàng, ${resAgencies.data?.length ?? 0} đại lý và ${resPlans.data?.length ?? 0} gói giá`);
       } else if (activeTab === "orders") {
         const res = await api.get<PaymentOrder[]>(API_LICENSING_ADMIN.ORDERS);
         const data = res.data ?? [];
@@ -375,7 +403,8 @@ export default function AdminLicensingPage() {
       "Hạn sử dụng": c.current_license ? new Date(c.current_license.valid_until).toLocaleDateString("vi-VN") : "—",
       "Số thiết bị kích hoạt": c.devices?.length || 0,
       "Lần cuối sử dụng": c.last_used_at ? new Date(c.last_used_at).toLocaleString("vi-VN") : "Chưa hoạt động",
-      "Số lần quét": c.scan_count || 0,
+      "Số phiên quét": c.scan_count || 0,
+      "Số địa điểm cào": c.records_count || 0,
       "Ngày đăng ký": new Date(c.created_at).toLocaleString("vi-VN"),
     }));
 
@@ -397,11 +426,12 @@ export default function AdminLicensingPage() {
     e.preventDefault();
     if (!selectedCustomerId) return;
     try {
-      console.log(`[LICENSING] Đang cấp bản quyền customer_id=${selectedCustomerId} type=${issueForm.license_type} days=${issueForm.duration_days}`);
+      console.log(`[LICENSING] Đang cấp bản quyền customer_id=${selectedCustomerId} plan_id=${issueForm.plan_id} type=${issueForm.license_type} days=${issueForm.duration_days}`);
       await api.post(API_LICENSING_ADMIN.ISSUE_LICENSE, {
         customer_id: selectedCustomerId,
-        duration_days: issueForm.duration_days,
+        plan_id: issueForm.plan_id,
         license_type: issueForm.license_type,
+        duration_days: issueForm.duration_days,
       });
       console.log(`[LICENSING] Cấp bản quyền thành công cho customer_id=${selectedCustomerId}`);
       setMsg("Đã cấp bản quyền thành công!");
@@ -828,9 +858,14 @@ export default function AdminLicensingPage() {
     }
     setSavingAnnouncement(true);
     try {
-      await api.post(API_LICENSING_ADMIN.ANNOUNCEMENTS, announcementForm);
-      setMsg("Tạo thông báo thành công!");
-      setAnnouncementForm({ title: "", content: "", is_active: true, is_ticker: true });
+      await api.post(API_LICENSING_ADMIN.ANNOUNCEMENTS, {
+        title: announcementForm.title.trim(),
+        content: announcementForm.content.trim(),
+        is_active: true,
+        is_ticker: true,
+      });
+      setMsg("Tạo và phát thông báo thành công!");
+      setAnnouncementForm({ title: "", content: "" });
       await loadData();
     } catch (err: any) {
       console.error("[LICENSING] Lỗi tạo thông báo", err);
@@ -865,66 +900,40 @@ export default function AdminLicensingPage() {
     }
   };
 
-  const handleCreateRelease = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSavingRelease(true);
-    try {
-      await api.post(API_LICENSING_ADMIN.APP_RELEASES, {
-        app_name: "ggmaps",
-        ...releaseForm,
-        file_size_bytes: Number(releaseForm.file_size_bytes) || 0,
-      });
-      setMsg("Đã tạo bản phát hành mới thành công.");
-      setReleaseForm({
-        version: "",
-        download_url: "",
-        release_notes: "",
-        update_policy: "OPTIONAL",
-        file_hash: "",
-        file_size_bytes: 0,
-        is_published: false,
-      });
-      await loadData();
-    } catch (err: any) {
-      console.error("[LICENSING] Lỗi tạo bản phát hành", err);
-      setMsg(err?.response?.data?.message || "Lỗi tạo bản phát hành mới.");
-    } finally {
-      setSavingRelease(false);
+  const getAutoVersion = (filename: string): string => {
+    const match = filename.match(/(\d+\.\d+(\.\d+)?)/);
+    if (match) return match[1];
+
+    if (releases.length > 0 && releases[0].version) {
+      const parts = releases[0].version.split(".").map((n) => parseInt(n, 10) || 0);
+      while (parts.length < 3) parts.push(0);
+      parts[parts.length - 1] += 1;
+      return parts.join(".");
     }
+    return "2.0.1";
   };
 
-  const handleUploadReleaseFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    let ver = releaseForm.version.trim();
-    if (!ver) {
-      const match = file.name.match(/(\d+\.\d+(\.\d+)?)/);
-      if (match) {
-        ver = match[1];
-      } else {
-        const prompted = prompt("Vui lòng nhập số phiên bản của file cài đặt này (Ví dụ: 2.1.0):");
-        if (!prompted) {
-          e.target.value = "";
-          return;
-        }
-        ver = prompted.trim();
-      }
-      setReleaseForm((prev) => ({ ...prev, version: ver }));
+  const handleUploadAndPublishRelease = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedReleaseFile) {
+      alert("Vui lòng chọn hoặc kéo thả file cài đặt (.exe, .zip)");
+      return;
     }
 
-    setUploadingReleaseFile(true);
-    setUploadProgress(10);
+    const ver = getAutoVersion(selectedReleaseFile.name);
+    setUploadingRelease(true);
+    setUploadProgress(5);
+
     const formData = new FormData();
-    formData.append("file", file);
+    formData.append("file", selectedReleaseFile);
     formData.append("version", ver);
     formData.append("update_policy", releaseForm.update_policy);
-    if (releaseForm.release_notes) {
-      formData.append("release_notes", releaseForm.release_notes);
-    }
+    formData.append("release_notes", releaseForm.release_notes.trim());
+    formData.append("is_published", releaseForm.is_published ? "true" : "false");
 
     try {
-      const res = await api.post(API_LICENSING_ADMIN.APP_RELEASE_UPLOAD, formData, {
+      console.log(`[RELEASE_UPLOAD] Đang tải lên và phát hành file=${selectedReleaseFile.name} version=${ver}...`);
+      await api.post(API_LICENSING_ADMIN.APP_RELEASE_UPLOAD, formData, {
         headers: { "Content-Type": "multipart/form-data" },
         onUploadProgress: (progressEvent) => {
           if (progressEvent.total) {
@@ -934,25 +943,20 @@ export default function AdminLicensingPage() {
         },
       });
 
-      const resData = res.data?.data || res.data;
-      setMsg(`Tải lên file ${file.name} thành công! Đã tự động tính SHA256 và lưu bản nháp v${ver}.`);
-      setReleaseForm((prev) => ({
-        ...prev,
-        version: resData.version || ver,
-        download_url: resData.download_url || prev.download_url,
-        file_hash: resData.file_hash || prev.file_hash,
-        file_size_bytes: resData.file_size_bytes || prev.file_size_bytes,
-        update_policy: resData.update_policy || prev.update_policy,
-        is_published: false,
-      }));
+      setMsg(`Tải lên và ${releaseForm.is_published ? "phát hành" : "lưu nháp"} bản cập nhật v${ver} thành công!`);
+      setSelectedReleaseFile(null);
+      setReleaseForm({
+        release_notes: "",
+        update_policy: "RECOMMENDED",
+        is_published: true,
+      });
       await loadData();
     } catch (err: any) {
-      console.error("[RELEASE_UPLOAD] Lỗi tải file lên server", err);
-      setMsg(err?.response?.data?.message || "Lỗi tải file cài đặt lên server.");
+      console.error("[RELEASE_UPLOAD] Lỗi tải lên bản phát hành", err);
+      setMsg(err?.response?.data?.message || "Lỗi tải lên và phát hành bản cập nhật.");
     } finally {
-      setUploadingReleaseFile(false);
+      setUploadingRelease(false);
       setUploadProgress(0);
-      e.target.value = "";
     }
   };
 
@@ -1114,7 +1118,7 @@ export default function AdminLicensingPage() {
                   <th className="px-4 py-3">Hạn sử dụng</th>
                   <th className="px-4 py-3">Thiết bị</th>
                   <th className="px-4 py-3">Lần cuối sử dụng</th>
-                  <th className="px-4 py-3">Số lần quét</th>
+                  <th className="px-4 py-3">Lượt quét / Địa điểm</th>
                   <th className="px-4 py-3 text-right">Thao tác</th>
                 </tr>
               </thead>
@@ -1143,7 +1147,7 @@ export default function AdminLicensingPage() {
                                 🏢 {c.agency_fullname || c.agency_username}
                               </span>
                             ) : (
-                              <span className="text-gray-400 dark:text-gray-500 font-medium">Khách lẻ trực tiếp</span>
+                              <span className="text-gray-400 dark:text-gray-500">Trực tiếp</span>
                             )}
                           </td>
                         )}
@@ -1192,13 +1196,16 @@ export default function AdminLicensingPage() {
                           )}
                         </td>
                         <td className="px-4 py-3 text-xs font-mono font-semibold text-gray-700 dark:text-gray-300">
-                          {c.scan_count || 0} lần
+                          <div>{c.scan_count || 0} phiên</div>
+                          {c.records_count ? (
+                            <div className="text-[11px] text-gray-500 dark:text-gray-400 font-normal">({c.records_count.toLocaleString("vi-VN")} địa điểm)</div>
+                          ) : null}
                         </td>
                         <td className="px-4 py-3 text-right">
                           <div className="inline-flex items-center gap-1.5">
                             <button
                               type="button"
-                              onClick={() => setSelectedCustomerId(c.id)}
+                              onClick={() => openIssueLicenseModal(c)}
                               title="Cấp / Gia hạn thêm ngày dùng"
                               className="rounded-lg bg-brand-50 px-2 py-1 text-xs font-semibold text-brand-600 hover:bg-brand-100 dark:bg-brand-950/50 dark:text-brand-300 transition"
                             >
@@ -1363,31 +1370,71 @@ export default function AdminLicensingPage() {
                 onSubmit={handleIssueLicense}
                 className="w-full max-w-md space-y-4 rounded-2xl bg-white p-6 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-xl"
               >
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  Cấp / Gia hạn Bản quyền thủ công
-                </h3>
+                <div className="flex items-center justify-between border-b border-gray-100 pb-3 dark:border-gray-800">
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                    <span>🔑</span> Cấp / Gia Hạn Bản Quyền Thủ Công
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedCustomerId(null)}
+                    className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 font-bold"
+                  >
+                    ✕
+                  </button>
+                </div>
                 <div>
-                  <label className="mb-1 block text-xs font-semibold text-gray-700 dark:text-gray-300">Loại bản quyền</label>
+                  <label className="mb-1 block text-xs font-semibold text-gray-700 dark:text-gray-300">
+                    Gói Bản Quyền / Loại Giấy Phép
+                  </label>
                   <select
-                    value={issueForm.license_type}
-                    onChange={(e) => setIssueForm((f) => ({ ...f, license_type: e.target.value }))}
+                    value={issueForm.plan_id ? String(issueForm.plan_id) : (issueForm.license_type === "TRIAL" ? "TRIAL" : "")}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === "TRIAL") {
+                        setIssueForm({
+                          plan_id: null,
+                          license_type: "TRIAL",
+                          duration_days: 5,
+                        });
+                      } else {
+                        const planId = Number(val);
+                        const selectedPlan = pricingPlans.find((p) => p.id === planId);
+                        if (selectedPlan) {
+                          setIssueForm({
+                            plan_id: selectedPlan.id,
+                            license_type: selectedPlan.code,
+                            duration_days: selectedPlan.duration_days,
+                          });
+                        }
+                      }
+                    }}
                     className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-white"
                   >
-                    <option value="TRIAL">Dùng thử (TRIAL)</option>
-                    <option value="PAID_1M">Gói 1 Tháng (PAID_1M)</option>
-                    <option value="PAID_3M">Gói 3 Tháng (PAID_3M)</option>
-                    <option value="PAID_LIFETIME">Gói Vĩnh viễn (PAID_LIFETIME)</option>
+                    <option value="TRIAL">🎁 Dùng thử (TRIAL - 5 ngày)</option>
+                    {pricingPlans
+                      .filter((p) => p.is_active && !p.agency)
+                      .map((p) => (
+                        <option key={p.id} value={p.id}>
+                          ⭐ {p.name} ({p.code} — {p.duration_days} ngày — {p.price_vnd.toLocaleString("vi-VN")} đ)
+                        </option>
+                      ))}
                   </select>
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-semibold text-gray-700 dark:text-gray-300">Số ngày cấp thêm</label>
+                  <label className="mb-1 block text-xs font-semibold text-gray-700 dark:text-gray-300">
+                    Số ngày cấp thêm (có thể tùy chỉnh)
+                  </label>
                   <input
                     type="number"
+                    min="1"
                     value={issueForm.duration_days}
                     onChange={(e) => setIssueForm((f) => ({ ...f, duration_days: parseInt(e.target.value) || 0 }))}
-                    className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+                    className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-bold text-gray-900 focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-white"
                     required
                   />
+                  <p className="mt-1 text-2xs text-gray-500 dark:text-gray-400">
+                    * Hệ thống sẽ tự động cộng dồn số ngày này vào hạn sử dụng hiện tại nếu khách hàng đang có bản quyền active.
+                  </p>
                 </div>
                 <div className="flex justify-end gap-2 pt-2 border-t border-gray-100 dark:border-gray-800">
                   <button
@@ -1399,7 +1446,7 @@ export default function AdminLicensingPage() {
                   </button>
                   <button
                     type="submit"
-                    className="rounded-xl bg-brand-500 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-600"
+                    className="rounded-xl bg-brand-500 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-600 shadow"
                   >
                     Xác nhận cấp
                   </button>
@@ -2457,7 +2504,7 @@ export default function AdminLicensingPage() {
               <h3 className="text-sm font-bold text-gray-800 dark:text-gray-200 mb-4">
                 ➕ Thêm Thông Báo Mới
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-4">
                 <div>
                   <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
                     Tiêu đề thông báo *
@@ -2471,44 +2518,20 @@ export default function AdminLicensingPage() {
                     className="mt-1 w-full rounded-xl border border-gray-200 bg-transparent px-3 py-2 text-sm focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:text-white"
                   />
                 </div>
-                <div className="flex items-center gap-6 pt-4">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={announcementForm.is_active}
-                      onChange={(e) => setAnnouncementForm({ ...announcementForm, is_active: e.target.checked })}
-                      className="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
-                    />
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Kích hoạt ngay (Active)
-                    </span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={announcementForm.is_ticker}
-                      onChange={(e) => setAnnouncementForm({ ...announcementForm, is_ticker: e.target.checked })}
-                      className="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
-                    />
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Hiển thị Ticker chân Desktop
-                    </span>
-                  </label>
-                </div>
-              </div>
 
-              <div className="mt-4">
-                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
-                  Nội dung thông báo (Cuộn trên Desktop) *
-                </label>
-                <textarea
-                  rows={2}
-                  required
-                  value={announcementForm.content}
-                  onChange={(e) => setAnnouncementForm({ ...announcementForm, content: e.target.value })}
-                  placeholder="Nhập nội dung ngắn gọn, súc tích sẽ chạy ngang ở chân ứng dụng Desktop..."
-                  className="mt-1 w-full rounded-xl border border-gray-200 bg-transparent px-3 py-2 text-sm focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:text-white"
-                />
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
+                    Nội dung thông báo (Cuộn chữ trên Desktop) *
+                  </label>
+                  <textarea
+                    rows={2}
+                    required
+                    value={announcementForm.content}
+                    onChange={(e) => setAnnouncementForm({ ...announcementForm, content: e.target.value })}
+                    placeholder="Nhập nội dung ngắn gọn, súc tích sẽ chạy ngang ở chân ứng dụng Desktop..."
+                    className="mt-1 w-full rounded-xl border border-gray-200 bg-transparent px-3 py-2 text-sm focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:text-white"
+                  />
+                </div>
               </div>
 
               <div className="mt-4 flex justify-end">
@@ -2517,7 +2540,7 @@ export default function AdminLicensingPage() {
                   disabled={savingAnnouncement}
                   className="rounded-xl bg-brand-500 px-5 py-2.5 text-sm font-semibold text-white shadow hover:bg-brand-600 transition disabled:opacity-50"
                 >
-                  {savingAnnouncement ? "Đang lưu..." : "💾 Lưu & Phát Hành Thông Báo"}
+                  {savingAnnouncement ? "Đang lưu..." : "📢 Lưu & Phát Thông Báo"}
                 </button>
               </div>
             </form>
@@ -2535,7 +2558,6 @@ export default function AdminLicensingPage() {
                     <th className="px-4 py-3">#</th>
                     <th className="px-4 py-3">Tiêu đề</th>
                     <th className="px-4 py-3">Nội dung cuộn</th>
-                    <th className="px-4 py-3">Vị trí</th>
                     <th className="px-4 py-3">Trạng thái</th>
                     <th className="px-4 py-3">Ngày tạo</th>
                     <th className="px-4 py-3 text-right">Thao tác</th>
@@ -2544,7 +2566,7 @@ export default function AdminLicensingPage() {
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                   {announcements.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="px-4 py-8 text-center text-gray-400">
+                      <td colSpan={6} className="px-4 py-8 text-center text-gray-400">
                         Chưa có thông báo nào. Vui lòng thêm thông báo ở form trên.
                       </td>
                     </tr>
@@ -2557,17 +2579,6 @@ export default function AdminLicensingPage() {
                         </td>
                         <td className="px-4 py-3 max-w-xs truncate text-xs" title={ann.content}>
                           {ann.content}
-                        </td>
-                        <td className="px-4 py-3">
-                          {ann.is_ticker ? (
-                            <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
-                              📺 Ticker Chân App
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center rounded-md bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-400">
-                              Chung
-                            </span>
-                          )}
                         </td>
                         <td className="px-4 py-3">
                           <button
@@ -2617,165 +2628,181 @@ export default function AdminLicensingPage() {
                   Quản Lý Bản Phát Hành & Tự Động Cập Nhật (App Updater)
                 </h2>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Cấu hình phiên bản, link tải trực tiếp, mã SHA256 kiểm tra toàn vẹn và cơ chế cô lập Bản Nháp (Draft) ↔ Phát Hành (Published).
+                  Tải lên bộ cài (.exe, .zip). Hệ thống tự động trích xuất phiên bản, tính mã băm SHA-256 và dọn dẹp các bản cài cũ trên server.
                 </p>
               </div>
             </div>
 
-            {/* Form Tạo Bản Phát Hành Mới */}
-            <form onSubmit={handleCreateRelease} className="mt-6 border-t border-gray-100 pt-6 dark:border-gray-800 space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <h3 className="text-sm font-bold text-gray-800 dark:text-gray-200">
-                  ➕ Đăng Ký Bản Phát Hành Mới
-                </h3>
-                <span className="text-xs text-purple-600 dark:text-purple-400 font-medium">
-                  Hỗ trợ upload trực tiếp hoặc nhập link ngoài
-                </span>
-              </div>
-
-              {/* Upload Card Box */}
-              <div className="rounded-2xl border-2 border-dashed border-purple-200 bg-purple-50/60 p-4 dark:border-purple-900/50 dark:bg-purple-950/20">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                  <div>
-                    <h4 className="text-sm font-bold text-purple-900 dark:text-purple-300 flex items-center gap-1.5">
-                      🚀 Tải File Cài Đặt Trực Tiếp Lên Server (.exe, .zip)
-                    </h4>
-                    <p className="text-xs text-purple-700/80 dark:text-purple-400 mt-0.5">
-                      Server tự động tính mã băm SHA-256, dung lượng bytes và tự dọn dẹp file cũ trong <code className="font-mono text-[11px] bg-purple-100 dark:bg-purple-900/40 px-1 py-0.5 rounded">media/updates/</code>.
-                    </p>
-                  </div>
-                  <label className={`cursor-pointer inline-flex items-center gap-2 rounded-xl bg-purple-600 px-4 py-2 text-xs font-semibold text-white shadow hover:bg-purple-700 transition ${uploadingReleaseFile ? "opacity-60 cursor-not-allowed" : ""}`}>
+            {/* Form Phát Hành 1 Chạm */}
+            <form onSubmit={handleUploadAndPublishRelease} className="mt-6 border-t border-gray-100 pt-6 dark:border-gray-800 space-y-5">
+              {/* 1. Kéo Thả / Chọn File */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                  1. File cài đặt ứng dụng (.exe hoặc .zip) *
+                </label>
+                {!selectedReleaseFile ? (
+                  <label className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-purple-300 bg-purple-50/50 p-6 text-center cursor-pointer hover:bg-purple-50 transition dark:border-purple-800 dark:bg-purple-950/20 dark:hover:bg-purple-950/30">
                     <input
                       type="file"
                       accept=".exe,.zip,.tar.gz,.bin"
                       className="hidden"
-                      disabled={uploadingReleaseFile}
-                      onChange={handleUploadReleaseFile}
+                      disabled={uploadingRelease}
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f) setSelectedReleaseFile(f);
+                        e.target.value = "";
+                      }}
                     />
-                    {uploadingReleaseFile ? "⏳ Đang tải lên..." : "📁 Chọn File Cài Đặt..."}
+                    <span className="text-3xl mb-2">📦</span>
+                    <span className="text-sm font-semibold text-purple-900 dark:text-purple-200">
+                      Kéo thả hoặc bấm để chọn file cài đặt
+                    </span>
+                    <span className="text-xs text-purple-600/80 dark:text-purple-400 mt-1">
+                      Hỗ trợ file .exe, .zip (ví dụ: ggmaps_v2.1.0_win64.zip hoặc ggmaps.exe)
+                    </span>
                   </label>
-                </div>
-                {uploadingReleaseFile && (
-                  <div className="mt-3">
-                    <div className="w-full bg-purple-200/60 rounded-full h-2.5 dark:bg-purple-900/40">
-                      <div
-                        className="bg-purple-600 h-2.5 rounded-full transition-all duration-300"
-                        style={{ width: `${Math.max(uploadProgress, 5)}%` }}
-                      ></div>
+                ) : (
+                  <div className="flex items-center justify-between rounded-2xl border border-purple-200 bg-purple-50/80 p-4 dark:border-purple-900/60 dark:bg-purple-950/30">
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">📦</span>
+                      <div>
+                        <div className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                          {selectedReleaseFile.name}
+                          <span className="rounded-md bg-purple-100 px-2 py-0.5 text-xs font-semibold text-purple-700 dark:bg-purple-900/50 dark:text-purple-300">
+                            v{getAutoVersion(selectedReleaseFile.name)}
+                          </span>
+                        </div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                          Dung lượng: {(selectedReleaseFile.size / (1024 * 1024)).toFixed(1)} MB • Tự động nhận diện phiên bản
+                        </div>
+                      </div>
                     </div>
-                    <p className="mt-1 text-[11px] text-purple-700 dark:text-purple-300 font-medium flex justify-between">
-                      <span>Đang tải lên và xử lý streaming hash...</span>
-                      <span>{uploadProgress}%</span>
-                    </p>
+                    <button
+                      type="button"
+                      disabled={uploadingRelease}
+                      onClick={() => setSelectedReleaseFile(null)}
+                      className="rounded-lg px-3 py-1 text-xs font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 transition"
+                    >
+                      ✕ Chọn file khác
+                    </button>
                   </div>
                 )}
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* 2. Mức Độ Cập Nhật & 4. Phát Hành Ngay */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
-                    Số phiên bản mới (SemVer) *
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                    2. Mức độ cập nhật (Update Policy)
                   </label>
-                  <input
-                    type="text"
-                    required
-                    value={releaseForm.version}
-                    onChange={(e) => setReleaseForm({ ...releaseForm, version: e.target.value })}
-                    placeholder="Ví dụ: 2.1.0 hoặc 2.0.1"
-                    className="mt-1 w-full rounded-xl border border-gray-200 bg-transparent px-3 py-2 text-sm focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:text-white"
-                  />
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { val: "RECOMMENDED", label: "⚡ Khuyến nghị", desc: "Nên nâng cấp" },
+                      { val: "MANDATORY", label: "⛔ Bắt buộc", desc: "Bản vá quan trọng" },
+                      { val: "OPTIONAL", label: "💡 Tùy chọn", desc: "Không bắt buộc" },
+                    ].map((opt) => (
+                      <button
+                        key={opt.val}
+                        type="button"
+                        onClick={() => setReleaseForm({ ...releaseForm, update_policy: opt.val as any })}
+                        className={`rounded-xl border p-2.5 text-left transition ${
+                          releaseForm.update_policy === opt.val
+                            ? "border-purple-600 bg-purple-50 text-purple-900 font-semibold shadow-sm dark:border-purple-500 dark:bg-purple-950/50 dark:text-purple-200"
+                            : "border-gray-200 bg-transparent text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+                        }`}
+                      >
+                        <div className="text-xs">{opt.label}</div>
+                        <div className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">{opt.desc}</div>
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
-                    Đường dẫn tải trực tiếp (Direct Download URL) *
-                  </label>
-                  <input
-                    type="url"
-                    required
-                    value={releaseForm.download_url}
-                    onChange={(e) => setReleaseForm({ ...releaseForm, download_url: e.target.value })}
-                    placeholder="https://example.com/downloads/ggmaps_v2.1.0.exe"
-                    className="mt-1 w-full rounded-xl border border-gray-200 bg-transparent px-3 py-2 text-sm focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:text-white"
-                  />
-                </div>
-              </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
-                    Mức độ cập nhật (Update Policy)
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                    4. Trạng thái phân phối
                   </label>
-                  <select
-                    value={releaseForm.update_policy}
-                    onChange={(e) => setReleaseForm({ ...releaseForm, update_policy: e.target.value as any })}
-                    className="mt-1 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+                  <div
+                    onClick={() => setReleaseForm({ ...releaseForm, is_published: !releaseForm.is_published })}
+                    className={`flex items-center justify-between rounded-xl border p-3 cursor-pointer transition ${
+                      releaseForm.is_published
+                        ? "border-emerald-300 bg-emerald-50/70 dark:border-emerald-900/50 dark:bg-emerald-950/20"
+                        : "border-amber-300 bg-amber-50/70 dark:border-amber-900/50 dark:bg-amber-950/20"
+                    }`}
                   >
-                    <option value="OPTIONAL">Tùy chọn (Optional)</option>
-                    <option value="RECOMMENDED">Khuyến nghị (Recommended)</option>
-                    <option value="MANDATORY">Bắt buộc (Mandatory)</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
-                    Dung lượng file (Bytes)
-                  </label>
-                  <input
-                    type="number"
-                    value={releaseForm.file_size_bytes || ""}
-                    onChange={(e) => setReleaseForm({ ...releaseForm, file_size_bytes: Number(e.target.value) || 0 })}
-                    placeholder="Ví dụ: 52428800 (~50MB)"
-                    className="mt-1 w-full rounded-xl border border-gray-200 bg-transparent px-3 py-2 text-sm focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:text-white"
-                  />
-                </div>
-                <div className="flex items-center pt-5">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={releaseForm.is_published}
-                      onChange={(e) => setReleaseForm({ ...releaseForm, is_published: e.target.checked })}
-                      className="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
-                    />
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Bật phát hành ngay (Published)
-                    </span>
-                  </label>
+                    <div>
+                      <div className="text-xs font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
+                        <span className={`h-2 w-2 rounded-full ${releaseForm.is_published ? "bg-emerald-500" : "bg-amber-500"}`} />
+                        {releaseForm.is_published ? "Phát hành ngay cho khách hàng" : "Lưu bản nháp (Draft nội bộ)"}
+                      </div>
+                      <div className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
+                        {releaseForm.is_published
+                          ? "Khách mở app sẽ thấy thông báo cập nhật mới ngay"
+                          : "Client sync không nhận thấy bản này cho đến khi bạn bật"}
+                      </div>
+                    </div>
+                    <div
+                      className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
+                        releaseForm.is_published ? "bg-emerald-600" : "bg-gray-300 dark:bg-gray-700"
+                      }`}
+                    >
+                      <span
+                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                          releaseForm.is_published ? "translate-x-5" : "translate-x-0"
+                        }`}
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
 
+              {/* 3. Nội Dung Cập Nhật */}
               <div>
-                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
-                  Mã SHA256 Checksum (Kiểm tra tính toàn vẹn gói tải)
-                </label>
-                <input
-                  type="text"
-                  value={releaseForm.file_hash}
-                  onChange={(e) => setReleaseForm({ ...releaseForm, file_hash: e.target.value.trim() })}
-                  placeholder="Ví dụ: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
-                  className="mt-1 w-full font-mono text-xs rounded-xl border border-gray-200 bg-transparent px-3 py-2 focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:text-white"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
-                  Nội dung cập nhật (Release Notes / Changelog) *
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                  3. Nội dung cập nhật (Release Notes) *
                 </label>
                 <textarea
                   rows={3}
                   required
                   value={releaseForm.release_notes}
                   onChange={(e) => setReleaseForm({ ...releaseForm, release_notes: e.target.value })}
-                  placeholder="• Nâng cấp tốc độ cào dữ liệu Google Maps&#10;• Khắc phục sự cố bộ nhớ đệm&#10;• Bổ sung tính năng xuất báo cáo..."
-                  className="mt-1 w-full rounded-xl border border-gray-200 bg-transparent px-3 py-2 text-sm focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:text-white"
+                  placeholder="Ví dụ: Tối ưu tốc độ quét địa điểm Google Maps, sửa lỗi xuất Excel, nâng cấp giao diện..."
+                  className="w-full rounded-xl border border-gray-200 bg-transparent px-3 py-2 text-sm focus:border-purple-500 focus:outline-none dark:border-gray-700 dark:text-white"
                 />
               </div>
 
-              <div className="flex justify-end">
+              {/* Progress Bar khi đang upload */}
+              {uploadingRelease && (
+                <div className="rounded-xl bg-purple-50 p-3 dark:bg-purple-950/30">
+                  <div className="w-full bg-purple-200/60 rounded-full h-2 dark:bg-purple-900/40">
+                    <div
+                      className="bg-purple-600 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${Math.max(uploadProgress, 5)}%` }}
+                    />
+                  </div>
+                  <div className="mt-1.5 flex justify-between text-xs text-purple-700 dark:text-purple-300 font-medium">
+                    <span>Đang tải lên server & tính mã băm SHA-256...</span>
+                    <span>{uploadProgress}%</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Nút Hành Động Duy Nhất */}
+              <div className="flex justify-end pt-2">
                 <button
                   type="submit"
-                  disabled={savingRelease}
-                  className="rounded-xl bg-purple-600 px-5 py-2.5 text-sm font-semibold text-white shadow hover:bg-purple-700 transition disabled:opacity-50"
+                  disabled={uploadingRelease || !selectedReleaseFile}
+                  className="rounded-xl bg-purple-600 px-6 py-2.5 text-sm font-semibold text-white shadow-md hover:bg-purple-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                 >
-                  {savingRelease ? "Đang lưu..." : "💾 Lưu & Đăng Ký Bản Phát Hành"}
+                  {uploadingRelease ? (
+                    <>
+                      <span className="animate-spin">⏳</span> Đang Xử Lý & Tải Lên ({uploadProgress}%)...
+                    </>
+                  ) : (
+                    <>
+                      🚀 {releaseForm.is_published ? "Tải Lên & Phát Hành Ngay" : "Tải Lên & Lưu Bản Nháp"}
+                    </>
+                  )}
                 </button>
               </div>
             </form>
@@ -2792,19 +2819,18 @@ export default function AdminLicensingPage() {
                   <tr>
                     <th className="px-4 py-3">#</th>
                     <th className="px-4 py-3">Phiên bản</th>
-                    <th className="px-4 py-3">Mức độ</th>
-                    <th className="px-4 py-3">Dung lượng</th>
-                    <th className="px-4 py-3">Checksum SHA256</th>
-                    <th className="px-4 py-3">Trạng thái</th>
                     <th className="px-4 py-3">Ngày tạo</th>
+                    <th className="px-4 py-3">Mức độ</th>
+                    <th className="px-4 py-3">Nội dung cập nhật</th>
+                    <th className="px-4 py-3">Trạng thái</th>
                     <th className="px-4 py-3 text-right">Thao tác</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                   {releases.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="px-4 py-8 text-center text-gray-400">
-                        Chưa có bản phát hành nào. Vui lòng đăng ký ở biểu mẫu phía trên.
+                      <td colSpan={7} className="px-4 py-8 text-center text-gray-400">
+                        Chưa có bản phát hành nào. Vui lòng tải file ở biểu mẫu phía trên.
                       </td>
                     </tr>
                   ) : (
@@ -2813,6 +2839,9 @@ export default function AdminLicensingPage() {
                         <td className="px-4 py-3 font-mono text-xs text-gray-400">#{rel.id}</td>
                         <td className="px-4 py-3 font-bold text-gray-900 dark:text-white">
                           v{rel.version}
+                        </td>
+                        <td className="px-4 py-3 text-xs text-gray-400">
+                          {new Date(rel.created_at).toLocaleString("vi-VN")}
                         </td>
                         <td className="px-4 py-3">
                           {rel.update_policy === "MANDATORY" ? (
@@ -2829,13 +2858,8 @@ export default function AdminLicensingPage() {
                             </span>
                           )}
                         </td>
-                        <td className="px-4 py-3 text-xs">
-                          {rel.file_size_bytes > 0
-                            ? `${(rel.file_size_bytes / (1024 * 1024)).toFixed(1)} MB`
-                            : "—"}
-                        </td>
-                        <td className="px-4 py-3 font-mono text-xs max-w-xs truncate" title={rel.file_hash}>
-                          {rel.file_hash ? `${rel.file_hash.substring(0, 16)}...` : "—"}
+                        <td className="px-4 py-3 max-w-sm truncate text-xs" title={rel.release_notes}>
+                          {rel.release_notes || "—"}
                         </td>
                         <td className="px-4 py-3">
                           <button
@@ -2849,9 +2873,6 @@ export default function AdminLicensingPage() {
                             <span className={`h-1.5 w-1.5 rounded-full ${rel.is_published ? "bg-success-500" : "bg-amber-500"}`} />
                             {rel.is_published ? "Đang Phát Hành" : "Bản Nháp (Draft)"}
                           </button>
-                        </td>
-                        <td className="px-4 py-3 text-xs text-gray-400">
-                          {new Date(rel.created_at).toLocaleString("vi-VN")}
                         </td>
                         <td className="px-4 py-3 text-right">
                           <button
