@@ -123,6 +123,8 @@ export default function AdminLicensingPage() {
   });
   const [savingAnnouncement, setSavingAnnouncement] = useState(false);
   const [savingRelease, setSavingRelease] = useState(false);
+  const [uploadingReleaseFile, setUploadingReleaseFile] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
@@ -888,6 +890,69 @@ export default function AdminLicensingPage() {
       setMsg(err?.response?.data?.message || "Lỗi tạo bản phát hành mới.");
     } finally {
       setSavingRelease(false);
+    }
+  };
+
+  const handleUploadReleaseFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    let ver = releaseForm.version.trim();
+    if (!ver) {
+      const match = file.name.match(/(\d+\.\d+(\.\d+)?)/);
+      if (match) {
+        ver = match[1];
+      } else {
+        const prompted = prompt("Vui lòng nhập số phiên bản của file cài đặt này (Ví dụ: 2.1.0):");
+        if (!prompted) {
+          e.target.value = "";
+          return;
+        }
+        ver = prompted.trim();
+      }
+      setReleaseForm((prev) => ({ ...prev, version: ver }));
+    }
+
+    setUploadingReleaseFile(true);
+    setUploadProgress(10);
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("version", ver);
+    formData.append("update_policy", releaseForm.update_policy);
+    if (releaseForm.release_notes) {
+      formData.append("release_notes", releaseForm.release_notes);
+    }
+
+    try {
+      const res = await api.post(API_LICENSING_ADMIN.APP_RELEASE_UPLOAD, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+        onUploadProgress: (progressEvent) => {
+          if (progressEvent.total) {
+            const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+            setUploadProgress(percent);
+          }
+        },
+      });
+
+      const resData = res.data?.data || res.data;
+      setMsg(`Tải lên file ${file.name} thành công! Đã tự động tính SHA256 và lưu bản nháp v${ver}.`);
+      setReleaseForm((prev) => ({
+        ...prev,
+        version: resData.version || ver,
+        download_url: resData.download_url || prev.download_url,
+        file_hash: resData.file_hash || prev.file_hash,
+        file_size_bytes: resData.file_size_bytes || prev.file_size_bytes,
+        update_policy: resData.update_policy || prev.update_policy,
+        is_published: false,
+      }));
+      await loadData();
+    } catch (err: any) {
+      console.error("[RELEASE_UPLOAD] Lỗi tải file lên server", err);
+      setMsg(err?.response?.data?.message || "Lỗi tải file cài đặt lên server.");
+    } finally {
+      setUploadingReleaseFile(false);
+      setUploadProgress(0);
+      e.target.value = "";
     }
   };
 
@@ -2559,10 +2624,53 @@ export default function AdminLicensingPage() {
 
             {/* Form Tạo Bản Phát Hành Mới */}
             <form onSubmit={handleCreateRelease} className="mt-6 border-t border-gray-100 pt-6 dark:border-gray-800 space-y-4">
-              <h3 className="text-sm font-bold text-gray-800 dark:text-gray-200">
-                ➕ Đăng Ký Bản Phát Hành Mới
-              </h3>
-              
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <h3 className="text-sm font-bold text-gray-800 dark:text-gray-200">
+                  ➕ Đăng Ký Bản Phát Hành Mới
+                </h3>
+                <span className="text-xs text-purple-600 dark:text-purple-400 font-medium">
+                  Hỗ trợ upload trực tiếp hoặc nhập link ngoài
+                </span>
+              </div>
+
+              {/* Upload Card Box */}
+              <div className="rounded-2xl border-2 border-dashed border-purple-200 bg-purple-50/60 p-4 dark:border-purple-900/50 dark:bg-purple-950/20">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                  <div>
+                    <h4 className="text-sm font-bold text-purple-900 dark:text-purple-300 flex items-center gap-1.5">
+                      🚀 Tải File Cài Đặt Trực Tiếp Lên Server (.exe, .zip)
+                    </h4>
+                    <p className="text-xs text-purple-700/80 dark:text-purple-400 mt-0.5">
+                      Server tự động tính mã băm SHA-256, dung lượng bytes và tự dọn dẹp file cũ trong <code className="font-mono text-[11px] bg-purple-100 dark:bg-purple-900/40 px-1 py-0.5 rounded">media/updates/</code>.
+                    </p>
+                  </div>
+                  <label className={`cursor-pointer inline-flex items-center gap-2 rounded-xl bg-purple-600 px-4 py-2 text-xs font-semibold text-white shadow hover:bg-purple-700 transition ${uploadingReleaseFile ? "opacity-60 cursor-not-allowed" : ""}`}>
+                    <input
+                      type="file"
+                      accept=".exe,.zip,.tar.gz,.bin"
+                      className="hidden"
+                      disabled={uploadingReleaseFile}
+                      onChange={handleUploadReleaseFile}
+                    />
+                    {uploadingReleaseFile ? "⏳ Đang tải lên..." : "📁 Chọn File Cài Đặt..."}
+                  </label>
+                </div>
+                {uploadingReleaseFile && (
+                  <div className="mt-3">
+                    <div className="w-full bg-purple-200/60 rounded-full h-2.5 dark:bg-purple-900/40">
+                      <div
+                        className="bg-purple-600 h-2.5 rounded-full transition-all duration-300"
+                        style={{ width: `${Math.max(uploadProgress, 5)}%` }}
+                      ></div>
+                    </div>
+                    <p className="mt-1 text-[11px] text-purple-700 dark:text-purple-300 font-medium flex justify-between">
+                      <span>Đang tải lên và xử lý streaming hash...</span>
+                      <span>{uploadProgress}%</span>
+                    </p>
+                  </div>
+                )}
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
