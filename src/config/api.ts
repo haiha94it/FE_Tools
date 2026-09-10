@@ -57,6 +57,7 @@ export const API_LICENSING_ADMIN = {
   APP_RELEASES: "/api/licensing/admin/app-releases/",
   APP_RELEASE_DETAIL: (id: number) => `/api/licensing/admin/app-releases/${id}/`,
   APP_RELEASE_UPLOAD: "/api/licensing/admin/app-releases/upload/",
+  TOGGLE_DEVICE_BLACKLIST: (deviceId: number) => `/api/licensing/admin/devices/${deviceId}/toggle-blacklist/`,
 } as const;
 
 export const API_AGENCY = {

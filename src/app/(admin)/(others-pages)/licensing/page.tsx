@@ -5,6 +5,17 @@ import api from "@/lib/axios";
 import { useEffect, useState } from "react";
 import * as XLSX from "xlsx";
 
+type DeviceItem = {
+  id: number;
+  machine_fingerprint: string;
+  os_name: string;
+  hostname?: string;
+  is_blacklisted?: boolean;
+  created_at?: string;
+  first_seen_at?: string;
+  last_seen_at: string;
+};
+
 type Customer = {
   id: number;
   phone_number: string;
@@ -19,7 +30,7 @@ type Customer = {
   last_used_at?: string | null;
   scan_count?: number;
   records_count?: number;
-  devices: Array<{ id: number; machine_fingerprint: string; os_name: string; hostname?: string; last_seen_at: string }>;
+  devices: DeviceItem[];
   current_license?: {
     id: number;
     license_type: string;
@@ -74,6 +85,7 @@ type PricingPlan = {
   price_vnd: number;
   is_active: boolean;
   sort_order: number;
+  agency?: number | null;
 };
 
 type Announcement = {
@@ -160,6 +172,7 @@ export default function AdminLicensingPage() {
     referral_reward_days: 0,
   });
   const [savingCustomer, setSavingCustomer] = useState<boolean>(false);
+  const [togglingDeviceId, setTogglingDeviceId] = useState<number | null>(null);
 
   // Agency Combos State
   const [agencyCombos, setAgencyCombos] = useState<AgencyCombo[]>([
@@ -383,6 +396,38 @@ export default function AdminLicensingPage() {
     } catch (err) {
       console.error(`[LICENSING] Xóa khách hàng thất bại customer_id=${customerId}`, err);
       setMsg("Xóa khách hàng thất bại.");
+    }
+  };
+
+  /** Toggle Khóa / Mở khóa thiết bị khỏi tài khoản khách hàng */
+  const handleToggleDeviceBlacklist = async (deviceId: number, currentStatus?: boolean) => {
+    const actionText = currentStatus ? "MỞ KHÓA" : "KHÓA";
+    if (!confirm(`Xác nhận ${actionText} thiết bị này khỏi tài khoản khách hàng?`)) return;
+
+    setTogglingDeviceId(deviceId);
+    try {
+      console.log(`[LICENSING] Đang ${actionText.toLowerCase()} thiết bị device_id=${deviceId}...`);
+      const res = await api.post(API_LICENSING_ADMIN.TOGGLE_DEVICE_BLACKLIST(deviceId));
+      const updatedDevice = res.data?.data;
+
+      if (editingCustomer) {
+        const updatedDevices = (editingCustomer.devices || []).map((d) =>
+          d.id === deviceId
+            ? { ...d, is_blacklisted: updatedDevice?.is_blacklisted ?? !d.is_blacklisted }
+            : d
+        );
+        setEditingCustomer({
+          ...editingCustomer,
+          devices: updatedDevices,
+        });
+      }
+      await loadData();
+      setMsg(`Đã ${actionText.toLowerCase()} thiết bị thành công!`);
+    } catch (err: any) {
+      console.error("[LICENSING] Lỗi đổi trạng thái thiết bị", err);
+      alert(err?.response?.data?.message || "Không thể thay đổi trạng thái thiết bị.");
+    } finally {
+      setTogglingDeviceId(null);
     }
   };
 
@@ -1240,7 +1285,7 @@ export default function AdminLicensingPage() {
           {/* Modal Sửa Chi Tiết Khách Hàng */}
           {editingCustomer && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-              <div className="w-full max-w-lg space-y-4 rounded-2xl bg-white p-6 shadow-xl dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
+              <div className="w-full max-w-2xl space-y-4 rounded-2xl bg-white p-6 shadow-xl dark:bg-gray-900 border border-gray-200 dark:border-gray-800 max-h-[90vh] overflow-y-auto">
                 <div className="flex items-center justify-between border-b border-gray-100 pb-3 dark:border-gray-800">
                   <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
                     <span>✏️</span> Chi Tiết Khách Hàng: {editingCustomer.phone_number}
@@ -1248,7 +1293,7 @@ export default function AdminLicensingPage() {
                   <button
                     type="button"
                     onClick={() => setEditingCustomer(null)}
-                    className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 font-bold"
+                    className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 font-bold text-lg"
                   >
                     ✕
                   </button>
@@ -1329,17 +1374,106 @@ export default function AdminLicensingPage() {
                     </div>
                   </div>
 
-                  <div className="rounded-xl bg-gray-50 p-3 text-xs text-gray-700 dark:bg-gray-800 dark:text-gray-300 space-y-1 border border-gray-100 dark:border-gray-700/60">
-                    <div className="flex justify-between">
-                      <span>Mã giới thiệu riêng:</span>
-                      <span className="font-mono font-bold text-brand-600 dark:text-brand-400">{editingCustomer.referral_code}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Thiết bị đăng nhập ({editingCustomer.devices?.length || 0}):</span>
-                      <span className="text-gray-800 dark:text-gray-200">
-                        {editingCustomer.devices?.map((d) => `${d.os_name || "PC"} (${d.machine_fingerprint.slice(0, 8)}...)`).join(", ") || "Chưa có thiết bị"}
+                  <div className="flex items-center justify-between rounded-xl bg-gray-50 px-3 py-2 text-xs text-gray-700 dark:bg-gray-800 dark:text-gray-300 border border-gray-100 dark:border-gray-700/60">
+                    <span className="font-medium text-gray-500 dark:text-gray-400">Mã giới thiệu riêng:</span>
+                    <span className="font-mono font-bold text-brand-600 dark:text-brand-400">{editingCustomer.referral_code}</span>
+                  </div>
+
+                  {/* Bảng Quản Lý Thiết Bị Đăng Nhập & Khóa Bắn Tỉa */}
+                  <div className="space-y-2 border-t border-gray-100 pt-3 dark:border-gray-800">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-xs font-bold text-gray-800 dark:text-gray-200">
+                        💻 Danh sách thiết bị ({editingCustomer.devices?.length || 0})
+                      </label>
+                      <span className="text-[11px] text-gray-500 dark:text-gray-400">
+                        Khóa máy lạ để ngăn dùng ké, không ảnh hưởng số điện thoại chính chủ
                       </span>
                     </div>
+
+                    {!editingCustomer.devices || editingCustomer.devices.length === 0 ? (
+                      <div className="rounded-xl border border-dashed border-gray-200 p-4 text-center text-xs text-gray-400 dark:border-gray-700">
+                        Chưa có thiết bị nào đăng nhập tài khoản này.
+                      </div>
+                    ) : (
+                      <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700/60 max-h-56 overflow-y-auto">
+                        <table className="w-full text-left text-xs">
+                          <thead className="sticky top-0 bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300 font-semibold border-b border-gray-200 dark:border-gray-700">
+                            <tr>
+                              <th className="px-3 py-2">Máy / Hostname</th>
+                              <th className="px-3 py-2">Mã máy</th>
+                              <th className="px-3 py-2">Gắn máy đầu tiên</th>
+                              <th className="px-3 py-2">Hoạt động gần nhất</th>
+                              <th className="px-3 py-2 text-center">Trạng thái</th>
+                              <th className="px-3 py-2 text-right">Thao tác</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100 dark:divide-gray-800 bg-white dark:bg-gray-900">
+                            {editingCustomer.devices.map((d) => (
+                              <tr key={d.id} className={d.is_blacklisted ? "bg-red-50/40 dark:bg-red-950/20" : ""}>
+                                <td className="px-3 py-2.5 font-medium text-gray-900 dark:text-gray-100">
+                                  <div>{d.hostname || "PC Chưa đặt tên"}</div>
+                                  <div className="text-[11px] text-gray-400 font-normal">{d.os_name || "Windows"}</div>
+                                </td>
+                                <td className="px-3 py-2.5 font-mono text-[11px] text-gray-600 dark:text-gray-300">
+                                  {d.machine_fingerprint ? `${d.machine_fingerprint.slice(0, 10)}...` : "—"}
+                                </td>
+                                <td className="px-3 py-2.5 text-[11px] text-gray-500 dark:text-gray-400">
+                                  {d.created_at || d.first_seen_at
+                                    ? new Date(d.created_at || d.first_seen_at!).toLocaleString("vi-VN", {
+                                        day: "2-digit",
+                                        month: "2-digit",
+                                        year: "numeric",
+                                        hour: "2-digit",
+                                        minute: "2-digit",
+                                      })
+                                    : "—"}
+                                </td>
+                                <td className="px-3 py-2.5 text-[11px] text-gray-500 dark:text-gray-400">
+                                  {d.last_seen_at
+                                    ? new Date(d.last_seen_at).toLocaleString("vi-VN", {
+                                        day: "2-digit",
+                                        month: "2-digit",
+                                        year: "numeric",
+                                        hour: "2-digit",
+                                        minute: "2-digit",
+                                      })
+                                    : "—"}
+                                </td>
+                                <td className="px-3 py-2.5 text-center">
+                                  {d.is_blacklisted ? (
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400">
+                                      🚫 Đã Khóa
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-100 text-green-700 dark:bg-green-950/50 dark:text-green-400">
+                                      🟢 Bình thường
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="px-3 py-2.5 text-right">
+                                  <button
+                                    type="button"
+                                    disabled={togglingDeviceId === d.id}
+                                    onClick={() => handleToggleDeviceBlacklist(d.id, d.is_blacklisted)}
+                                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition disabled:opacity-50 ${
+                                      d.is_blacklisted
+                                        ? "bg-green-600 hover:bg-green-700 text-white shadow-sm"
+                                        : "bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-950/30 dark:hover:bg-red-900/50 dark:text-red-300 border border-red-200 dark:border-red-800"
+                                    }`}
+                                  >
+                                    {togglingDeviceId === d.id
+                                      ? "Đang xử lý..."
+                                      : d.is_blacklisted
+                                      ? "✅ Mở Khóa"
+                                      : "🚫 Khóa Máy Này"}
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex items-center justify-end gap-2 border-t border-gray-100 pt-4 dark:border-gray-800">
