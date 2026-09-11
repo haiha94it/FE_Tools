@@ -449,7 +449,7 @@ export default function AdminLicensingPage() {
       "Số thiết bị kích hoạt": c.devices?.length || 0,
       "Lần cuối sử dụng": c.last_used_at ? new Date(c.last_used_at).toLocaleString("vi-VN") : "Chưa hoạt động",
       "Số phiên quét": c.scan_count || 0,
-      "Số địa điểm cào": c.records_count || 0,
+      "Số địa điểm khảo sát": c.records_count || 0,
       "Ngày đăng ký": new Date(c.created_at).toLocaleString("vi-VN"),
     }));
 
