@@ -3,6 +3,7 @@
 import { API_LICENSING_ADMIN } from "@/config/api";
 import api from "@/lib/axios";
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import * as XLSX from "xlsx";
 
 type DeviceItem = {
@@ -112,6 +113,11 @@ type AppReleaseItem = {
 };
 
 export default function AdminLicensingPage() {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const [activeTab, setActiveTab] = useState<"customers" | "orders" | "agencies" | "pricing" | "announcements" | "releases">("customers");
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [orders, setOrders] = useState<PaymentOrder[]>([]);
@@ -164,12 +170,14 @@ export default function AdminLicensingPage() {
     email: string;
     agency_id: string | number;
     referral_reward_days: number;
+    valid_until: string;
   }>({
     phone_number: "",
     full_name: "",
     email: "",
     agency_id: "",
     referral_reward_days: 0,
+    valid_until: "",
   });
   const [savingCustomer, setSavingCustomer] = useState<boolean>(false);
   const [togglingDeviceId, setTogglingDeviceId] = useState<number | null>(null);
@@ -351,6 +359,45 @@ export default function AdminLicensingPage() {
     return true;
   });
 
+  const formatForDateInput = (dateStr?: string | null) => {
+    if (!dateStr) return "";
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return "";
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return `${y}-${m}-${day}`;
+    } catch {
+      return "";
+    }
+  };
+
+  const handleQuickExtendDays = (days: number) => {
+    let base = new Date();
+    if (editCustomerForm.valid_until) {
+      const parsed = new Date(`${editCustomerForm.valid_until}T23:59:59`);
+      if (!isNaN(parsed.getTime()) && parsed.getTime() > base.getTime()) {
+        base = parsed;
+      }
+    }
+    const next = new Date(base.getTime() + days * 24 * 60 * 60 * 1000);
+    const y = next.getFullYear();
+    const m = String(next.getMonth() + 1).padStart(2, "0");
+    const d = String(next.getDate()).padStart(2, "0");
+    setEditCustomerForm((prev) => ({
+      ...prev,
+      valid_until: `${y}-${m}-${d}`,
+    }));
+  };
+
+  const handleQuickSetLifetime = () => {
+    setEditCustomerForm((prev) => ({
+      ...prev,
+      valid_until: "2099-12-31",
+    }));
+  };
+
   const openEditCustomerModal = (c: Customer) => {
     setEditingCustomer(c);
     setEditCustomerForm({
@@ -359,6 +406,7 @@ export default function AdminLicensingPage() {
       email: c.email || "",
       agency_id: c.agency ?? "",
       referral_reward_days: c.referral_reward_days || 0,
+      valid_until: formatForDateInput(c.current_license?.valid_until),
     });
   };
 
@@ -374,6 +422,7 @@ export default function AdminLicensingPage() {
         email: editCustomerForm.email,
         agency_id: editCustomerForm.agency_id === "" ? null : Number(editCustomerForm.agency_id),
         referral_reward_days: Number(editCustomerForm.referral_reward_days),
+        valid_until: editCustomerForm.valid_until || null,
       });
       setMsg(`Đã cập nhật thông tin khách hàng "${editCustomerForm.phone_number}" thành công!`);
       setEditingCustomer(null);
@@ -1283,204 +1332,298 @@ export default function AdminLicensingPage() {
           </div>
 
           {/* Modal Sửa Chi Tiết Khách Hàng */}
-          {editingCustomer && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-              <div className="w-full max-w-2xl space-y-4 rounded-2xl bg-white p-6 shadow-xl dark:bg-gray-900 border border-gray-200 dark:border-gray-800 max-h-[90vh] overflow-y-auto">
-                <div className="flex items-center justify-between border-b border-gray-100 pb-3 dark:border-gray-800">
-                  <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                    <span>✏️</span> Chi Tiết Khách Hàng: {editingCustomer.phone_number}
+          {mounted && editingCustomer && createPortal(
+            <div className="fixed inset-0 z-[999999] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
+              <div className="relative w-full max-w-2xl max-h-[85vh] flex flex-col bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-2xl overflow-hidden">
+                {/* Khối 1: Header (Cố định 100%, flex-none) */}
+                <div className="flex-none px-6 py-4 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between bg-white dark:bg-gray-900">
+                  <h3 className="text-base sm:text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                    <span>✏️</span> Chi Tiết Khách Hàng: <span className="font-mono text-brand-600 dark:text-brand-400">{editingCustomer.phone_number}</span>
                   </h3>
                   <button
                     type="button"
                     onClick={() => setEditingCustomer(null)}
-                    className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 font-bold text-lg"
+                    className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-200 font-bold transition text-base leading-none"
+                    title="Đóng"
                   >
                     ✕
                   </button>
                 </div>
 
-                <form onSubmit={handleSaveCustomer} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
-                        Số điện thoại *
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={editCustomerForm.phone_number}
-                        onChange={(e) => setEditCustomerForm({ ...editCustomerForm, phone_number: e.target.value })}
-                        className="mt-1 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-bold text-gray-900 focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-white"
-                      />
+                {/* Form chứa Khối 2 (Body) và Khối 3 (Footer) */}
+                <form onSubmit={handleSaveCustomer} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+                  {/* Khối 2: Body (Vùng cuộn DUY NHẤT, flex-1 overflow-y-auto) */}
+                  <div className="flex-1 overflow-y-auto p-6 space-y-4 min-h-0">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
+                          Số điện thoại *
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={editCustomerForm.phone_number}
+                          onChange={(e) => setEditCustomerForm({ ...editCustomerForm, phone_number: e.target.value })}
+                          className="mt-1 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-bold text-gray-900 focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
+                          Họ và tên
+                        </label>
+                        <input
+                          type="text"
+                          value={editCustomerForm.full_name}
+                          onChange={(e) => setEditCustomerForm({ ...editCustomerForm, full_name: e.target.value })}
+                          placeholder="Nguyễn Văn A"
+                          className="mt-1 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:placeholder-gray-500"
+                        />
+                      </div>
                     </div>
 
                     <div>
                       <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
-                        Họ và tên
+                        Email
                       </label>
                       <input
-                        type="text"
-                        value={editCustomerForm.full_name}
-                        onChange={(e) => setEditCustomerForm({ ...editCustomerForm, full_name: e.target.value })}
-                        placeholder="Nguyễn Văn A"
+                        type="email"
+                        value={editCustomerForm.email}
+                        onChange={(e) => setEditCustomerForm({ ...editCustomerForm, email: e.target.value })}
+                        placeholder="example@gmail.com"
                         className="mt-1 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:placeholder-gray-500"
                       />
                     </div>
-                  </div>
 
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
-                      Email
-                    </label>
-                    <input
-                      type="email"
-                      value={editCustomerForm.email}
-                      onChange={(e) => setEditCustomerForm({ ...editCustomerForm, email: e.target.value })}
-                      placeholder="example@gmail.com"
-                      className="mt-1 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:placeholder-gray-500"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
-                        Đại lý quản lý / bảo trợ
-                      </label>
-                      <select
-                        value={editCustomerForm.agency_id}
-                        onChange={(e) => setEditCustomerForm({ ...editCustomerForm, agency_id: e.target.value })}
-                        className="mt-1 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-900 focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-white"
-                      >
-                        <option value="">👤 Khách lẻ trực tiếp (Không có ĐL)</option>
-                        {agencies.map((a) => (
-                          <option key={a.id} value={a.agency}>
-                            🏢 {a.agency_fullname || a.agency_username} (@{a.agency_username})
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
-                        Thưởng giới thiệu (ngày)
-                      </label>
-                      <input
-                        type="number"
-                        min="0"
-                        value={editCustomerForm.referral_reward_days}
-                        onChange={(e) => setEditCustomerForm({ ...editCustomerForm, referral_reward_days: Number(e.target.value) || 0 })}
-                        className="mt-1 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-white"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between rounded-xl bg-gray-50 px-3 py-2 text-xs text-gray-700 dark:bg-gray-800 dark:text-gray-300 border border-gray-100 dark:border-gray-700/60">
-                    <span className="font-medium text-gray-500 dark:text-gray-400">Mã giới thiệu riêng:</span>
-                    <span className="font-mono font-bold text-brand-600 dark:text-brand-400">{editingCustomer.referral_code}</span>
-                  </div>
-
-                  {/* Bảng Quản Lý Thiết Bị Đăng Nhập & Khóa Bắn Tỉa */}
-                  <div className="space-y-2 border-t border-gray-100 pt-3 dark:border-gray-800">
-                    <div className="flex items-center justify-between">
-                      <label className="block text-xs font-bold text-gray-800 dark:text-gray-200">
-                        💻 Danh sách thiết bị ({editingCustomer.devices?.length || 0})
-                      </label>
-                      <span className="text-[11px] text-gray-500 dark:text-gray-400">
-                        Khóa máy lạ để ngăn dùng ké, không ảnh hưởng số điện thoại chính chủ
-                      </span>
-                    </div>
-
-                    {!editingCustomer.devices || editingCustomer.devices.length === 0 ? (
-                      <div className="rounded-xl border border-dashed border-gray-200 p-4 text-center text-xs text-gray-400 dark:border-gray-700">
-                        Chưa có thiết bị nào đăng nhập tài khoản này.
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
+                          Đại lý quản lý / bảo trợ
+                        </label>
+                        <select
+                          value={editCustomerForm.agency_id}
+                          onChange={(e) => setEditCustomerForm({ ...editCustomerForm, agency_id: e.target.value })}
+                          className="mt-1 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-900 focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+                        >
+                          <option value="">👤 Khách lẻ trực tiếp (Không có ĐL)</option>
+                          {agencies.map((a) => (
+                            <option key={a.id} value={a.agency}>
+                              🏢 {a.agency_fullname || a.agency_username} (@{a.agency_username})
+                            </option>
+                          ))}
+                        </select>
                       </div>
-                    ) : (
-                      <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700/60 max-h-56 overflow-y-auto">
-                        <table className="w-full text-left text-xs">
-                          <thead className="sticky top-0 bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300 font-semibold border-b border-gray-200 dark:border-gray-700">
-                            <tr>
-                              <th className="px-3 py-2">Máy / Hostname</th>
-                              <th className="px-3 py-2">Mã máy</th>
-                              <th className="px-3 py-2">Gắn máy đầu tiên</th>
-                              <th className="px-3 py-2">Hoạt động gần nhất</th>
-                              <th className="px-3 py-2 text-center">Trạng thái</th>
-                              <th className="px-3 py-2 text-right">Thao tác</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-gray-100 dark:divide-gray-800 bg-white dark:bg-gray-900">
-                            {editingCustomer.devices.map((d) => (
-                              <tr key={d.id} className={d.is_blacklisted ? "bg-red-50/40 dark:bg-red-950/20" : ""}>
-                                <td className="px-3 py-2.5 font-medium text-gray-900 dark:text-gray-100">
-                                  <div>{d.hostname || "PC Chưa đặt tên"}</div>
-                                  <div className="text-[11px] text-gray-400 font-normal">{d.os_name || "Windows"}</div>
-                                </td>
-                                <td className="px-3 py-2.5 font-mono text-[11px] text-gray-600 dark:text-gray-300">
-                                  {d.machine_fingerprint ? `${d.machine_fingerprint.slice(0, 10)}...` : "—"}
-                                </td>
-                                <td className="px-3 py-2.5 text-[11px] text-gray-500 dark:text-gray-400">
-                                  {d.created_at || d.first_seen_at
-                                    ? new Date(d.created_at || d.first_seen_at!).toLocaleString("vi-VN", {
-                                        day: "2-digit",
-                                        month: "2-digit",
-                                        year: "numeric",
-                                        hour: "2-digit",
-                                        minute: "2-digit",
-                                      })
-                                    : "—"}
-                                </td>
-                                <td className="px-3 py-2.5 text-[11px] text-gray-500 dark:text-gray-400">
-                                  {d.last_seen_at
-                                    ? new Date(d.last_seen_at).toLocaleString("vi-VN", {
-                                        day: "2-digit",
-                                        month: "2-digit",
-                                        year: "numeric",
-                                        hour: "2-digit",
-                                        minute: "2-digit",
-                                      })
-                                    : "—"}
-                                </td>
-                                <td className="px-3 py-2.5 text-center">
-                                  {d.is_blacklisted ? (
-                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400">
-                                      🚫 Đã Khóa
-                                    </span>
-                                  ) : (
-                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-100 text-green-700 dark:bg-green-950/50 dark:text-green-400">
-                                      🟢 Bình thường
-                                    </span>
-                                  )}
-                                </td>
-                                <td className="px-3 py-2.5 text-right">
-                                  <button
-                                    type="button"
-                                    disabled={togglingDeviceId === d.id}
-                                    onClick={() => handleToggleDeviceBlacklist(d.id, d.is_blacklisted)}
-                                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition disabled:opacity-50 ${
-                                      d.is_blacklisted
-                                        ? "bg-green-600 hover:bg-green-700 text-white shadow-sm"
-                                        : "bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-950/30 dark:hover:bg-red-900/50 dark:text-red-300 border border-red-200 dark:border-red-800"
-                                    }`}
-                                  >
-                                    {togglingDeviceId === d.id
-                                      ? "Đang xử lý..."
-                                      : d.is_blacklisted
-                                      ? "✅ Mở Khóa"
-                                      : "🚫 Khóa Máy Này"}
-                                  </button>
-                                </td>
+
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
+                          Thưởng giới thiệu (ngày)
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={editCustomerForm.referral_reward_days}
+                          onChange={(e) => setEditCustomerForm({ ...editCustomerForm, referral_reward_days: Number(e.target.value) || 0 })}
+                          className="mt-1 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between rounded-xl bg-gray-50 px-3.5 py-2.5 text-xs text-gray-700 dark:bg-gray-800/80 dark:text-gray-300 border border-gray-100 dark:border-gray-700/60">
+                      <span className="font-medium text-gray-500 dark:text-gray-400">Mã giới thiệu riêng:</span>
+                      <span className="font-mono font-bold text-brand-600 dark:text-brand-400">{editingCustomer.referral_code}</span>
+                    </div>
+
+                    {/* Khối: Thời Hạn Bản Quyền */}
+                    <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/60 dark:bg-gray-800/40 p-4 space-y-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-gray-800 dark:text-gray-200 flex items-center gap-1.5">
+                            ⏳ Thời Hạn Bản Quyền:
+                          </span>
+                          {editingCustomer.current_license ? (
+                            editingCustomer.current_license.is_valid ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-green-100 text-green-800 dark:bg-green-950/60 dark:text-green-300 border border-green-200 dark:border-green-800">
+                                🟢 Còn Hạn ({editingCustomer.current_license.license_type})
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300 border border-red-200 dark:border-red-800">
+                                🔴 Đã Hết Hạn ({editingCustomer.current_license.license_type})
+                              </span>
+                            )
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 border border-gray-200 dark:border-gray-700">
+                              ⚪ Chưa Có Bản Quyền
+                            </span>
+                          )}
+                        </div>
+                        {editingCustomer.current_license?.valid_until && (
+                          <span className="text-xs text-gray-500 dark:text-gray-400">
+                            Hạn hiện tại:{" "}
+                            <strong className="text-gray-800 dark:text-gray-200 font-semibold">
+                              {new Date(editingCustomer.current_license.valid_until).toLocaleDateString("vi-VN", {
+                                day: "2-digit",
+                                month: "2-digit",
+                                year: "numeric",
+                              })}
+                            </strong>
+                          </span>
+                        )}
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                          Ngày hết hạn bản quyền:
+                        </label>
+                        <input
+                          type="date"
+                          value={editCustomerForm.valid_until}
+                          onChange={(e) => setEditCustomerForm({ ...editCustomerForm, valid_until: e.target.value })}
+                          className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-900 focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+                        />
+                      </div>
+
+                      {/* Hàng 4 nút bấm gia hạn nhanh */}
+                      <div>
+                        <span className="block text-[11px] font-medium text-gray-500 dark:text-gray-400 mb-1.5">
+                          Gia hạn nhanh:
+                        </span>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleQuickExtendDays(30)}
+                            className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-brand-50 hover:bg-brand-100 text-brand-700 dark:bg-brand-950/50 dark:hover:bg-brand-900/50 dark:text-brand-300 border border-brand-200 dark:border-brand-800 transition text-center"
+                          >
+                            +30 ngày
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleQuickExtendDays(90)}
+                            className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-brand-50 hover:bg-brand-100 text-brand-700 dark:bg-brand-950/50 dark:hover:bg-brand-900/50 dark:text-brand-300 border border-brand-200 dark:border-brand-800 transition text-center"
+                          >
+                            +90 ngày
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleQuickExtendDays(365)}
+                            className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-brand-50 hover:bg-brand-100 text-brand-700 dark:bg-brand-950/50 dark:hover:bg-brand-900/50 dark:text-brand-300 border border-brand-200 dark:border-brand-800 transition text-center"
+                          >
+                            +1 năm
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleQuickSetLifetime}
+                            className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-amber-50 hover:bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:hover:bg-amber-900/50 dark:text-amber-300 border border-amber-200 dark:border-amber-800 transition text-center"
+                          >
+                            Vĩnh viễn (2099)
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Bảng Quản Lý Thiết Bị Đăng Nhập & Khóa Bắn Tỉa */}
+                    <div className="space-y-2 border-t border-gray-100 pt-3 dark:border-gray-800">
+                      <div className="flex flex-wrap items-center justify-between gap-1">
+                        <label className="block text-xs font-bold text-gray-800 dark:text-gray-200">
+                          💻 Danh sách thiết bị ({editingCustomer.devices?.length || 0})
+                        </label>
+                        <span className="text-[11px] text-gray-500 dark:text-gray-400">
+                          Khóa máy lạ để ngăn dùng ké, không ảnh hưởng SĐT chính chủ
+                        </span>
+                      </div>
+
+                      {!editingCustomer.devices || editingCustomer.devices.length === 0 ? (
+                        <div className="rounded-xl border border-dashed border-gray-200 p-4 text-center text-xs text-gray-400 dark:border-gray-700">
+                          Chưa có thiết bị nào đăng nhập tài khoản này.
+                        </div>
+                      ) : (
+                        <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700/60 max-h-48 overflow-y-auto">
+                          <table className="w-full text-left text-xs">
+                            <thead className="sticky top-0 bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300 font-semibold border-b border-gray-200 dark:border-gray-700 z-10">
+                              <tr>
+                                <th className="px-3 py-2">Máy / Hostname</th>
+                                <th className="px-3 py-2">Mã máy</th>
+                                <th className="px-3 py-2">Gắn máy đầu tiên</th>
+                                <th className="px-3 py-2">Hoạt động gần nhất</th>
+                                <th className="px-3 py-2 text-center">Trạng thái</th>
+                                <th className="px-3 py-2 text-right">Thao tác</th>
                               </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
+                            </thead>
+                            <tbody className="divide-y divide-gray-100 dark:divide-gray-800 bg-white dark:bg-gray-900">
+                              {editingCustomer.devices.map((d) => (
+                                <tr key={d.id} className={d.is_blacklisted ? "bg-red-50/40 dark:bg-red-950/20" : ""}>
+                                  <td className="px-3 py-2 font-medium text-gray-900 dark:text-gray-100">
+                                    <div>{d.hostname || "PC Chưa đặt tên"}</div>
+                                    <div className="text-[11px] text-gray-400 font-normal">{d.os_name || "Windows"}</div>
+                                  </td>
+                                  <td className="px-3 py-2 font-mono text-[11px] text-gray-600 dark:text-gray-300">
+                                    {d.machine_fingerprint ? `${d.machine_fingerprint.slice(0, 10)}...` : "—"}
+                                  </td>
+                                  <td className="px-3 py-2 text-[11px] text-gray-500 dark:text-gray-400">
+                                    {d.created_at || d.first_seen_at
+                                      ? new Date(d.created_at || d.first_seen_at!).toLocaleString("vi-VN", {
+                                          day: "2-digit",
+                                          month: "2-digit",
+                                          year: "numeric",
+                                          hour: "2-digit",
+                                          minute: "2-digit",
+                                        })
+                                      : "—"}
+                                  </td>
+                                  <td className="px-3 py-2 text-[11px] text-gray-500 dark:text-gray-400">
+                                    {d.last_seen_at
+                                      ? new Date(d.last_seen_at).toLocaleString("vi-VN", {
+                                          day: "2-digit",
+                                          month: "2-digit",
+                                          year: "numeric",
+                                          hour: "2-digit",
+                                          minute: "2-digit",
+                                        })
+                                      : "—"}
+                                  </td>
+                                  <td className="px-3 py-2 text-center">
+                                    {d.is_blacklisted ? (
+                                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400">
+                                        🚫 Đã Khóa
+                                      </span>
+                                    ) : (
+                                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-100 text-green-700 dark:bg-green-950/50 dark:text-green-400">
+                                        🟢 Bình thường
+                                      </span>
+                                    )}
+                                  </td>
+                                  <td className="px-3 py-2 text-right">
+                                    <button
+                                      type="button"
+                                      disabled={togglingDeviceId === d.id}
+                                      onClick={() => handleToggleDeviceBlacklist(d.id, d.is_blacklisted)}
+                                      className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition disabled:opacity-50 ${
+                                        d.is_blacklisted
+                                          ? "bg-green-600 hover:bg-green-700 text-white shadow-sm"
+                                          : "bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-950/30 dark:hover:bg-red-900/50 dark:text-red-300 border border-red-200 dark:border-red-800"
+                                      }`}
+                                    >
+                                      {togglingDeviceId === d.id
+                                        ? "Đang xử lý..."
+                                        : d.is_blacklisted
+                                        ? "✅ Mở Khóa"
+                                        : "🚫 Khóa Máy Này"}
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
-                  <div className="flex items-center justify-end gap-2 border-t border-gray-100 pt-4 dark:border-gray-800">
+                  {/* Khối 3: Footer (Cố định 100%, flex-none) */}
+                  <div className="flex-none px-6 py-4 border-t border-gray-200 dark:border-gray-800 flex justify-end gap-3 bg-white dark:bg-gray-900">
                     <button
                       type="button"
                       onClick={() => setEditingCustomer(null)}
-                      className="rounded-xl px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+                      className="rounded-xl px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800 transition"
                     >
                       Hủy
                     </button>
@@ -1494,15 +1637,16 @@ export default function AdminLicensingPage() {
                   </div>
                 </form>
               </div>
-            </div>
+            </div>,
+            document.body
           )}
 
           {/* Modal Cấp License */}
-          {selectedCustomerId && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          {mounted && selectedCustomerId && createPortal(
+            <div className="fixed inset-0 z-[999999] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
               <form
                 onSubmit={handleIssueLicense}
-                className="w-full max-w-md space-y-4 rounded-2xl bg-white p-6 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-xl"
+                className="w-full max-w-md space-y-4 rounded-2xl bg-white p-6 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-2xl"
               >
                 <div className="flex items-center justify-between border-b border-gray-100 pb-3 dark:border-gray-800">
                   <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
@@ -1586,7 +1730,8 @@ export default function AdminLicensingPage() {
                   </button>
                 </div>
               </form>
-            </div>
+            </div>,
+            document.body
           )}
         </div>
       )}
