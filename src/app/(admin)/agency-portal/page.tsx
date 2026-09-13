@@ -67,6 +67,14 @@ type TopupOrder = {
   amount_vnd: number;
   qr_content: string;
   qr_image_base64: string;
+  bank_info?: {
+    bank_name?: string;
+    bank_bin?: string;
+    bank_account_number?: string;
+    bank_account_name?: string;
+    amount?: number;
+    order_code?: string;
+  };
 };
 
 export default function AgencyPortalPage() {
@@ -91,6 +99,30 @@ export default function AgencyPortalPage() {
   const [selectedComboCode, setSelectedComboCode] = useState<string>("COMBO_1");
   const [topupOrder, setTopupOrder] = useState<TopupOrder | null>(null);
   const [creatingTopup, setCreatingTopup] = useState(false);
+  const [showQrZoom, setShowQrZoom] = useState(false);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+
+  const copyToClipboard = async (text: string, fieldName: string) => {
+    if (!text) return;
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const textarea = document.createElement("textarea");
+        textarea.value = text;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textarea);
+      }
+      setCopiedField(fieldName);
+      setTimeout(() => {
+        setCopiedField(null);
+      }, 2000);
+    } catch (err) {
+      console.error("Copy failed", err);
+    }
+  };
 
   // Activate Modal State
   const [showActivateModal, setShowActivateModal] = useState(false);
@@ -889,31 +921,178 @@ export default function AgencyPortalPage() {
                 </div>
               </div>
             ) : (
-              <div className="space-y-4 text-center">
-                <p className="text-sm text-gray-600 dark:text-gray-300">Quét mã QR dưới đây để chuyển khoản tự động:</p>
-                {topupOrder.qr_image_base64 && (
-                  <img
-                    src={topupOrder.qr_image_base64}
-                    alt="VietQR Topup"
-                    className="mx-auto h-52 w-52 rounded-xl border bg-white p-2"
-                  />
-                )}
-                <div className="rounded-lg bg-gray-50 p-3 font-mono text-sm text-gray-800 dark:bg-gray-800 dark:text-gray-200">
-                  <p>Số tiền: <b>{topupOrder.amount_vnd.toLocaleString("vi-VN")} đ</b></p>
-                  <p>Nội dung CK: <b className="text-brand-600 dark:text-brand-400">{topupOrder.order_code}</b></p>
+              <div className="max-h-[80vh] overflow-y-auto space-y-4 pr-1">
+                <p className="text-center text-xs text-gray-600 dark:text-gray-300">
+                  Quét mã VietQR bên dưới hoặc chuyển khoản theo đúng thông tin thụ hưởng:
+                </p>
+
+                {/* QR Code Container với Click to Zoom */}
+                <div className="flex flex-col items-center">
+                  <div
+                    onClick={() => setShowQrZoom(true)}
+                    className="group relative cursor-zoom-in rounded-2xl border-2 border-brand-500/30 bg-white p-2.5 shadow-md hover:border-brand-500 transition duration-200"
+                    title="Bấm để phóng to mã QR"
+                  >
+                    {topupOrder.qr_image_base64 && (
+                      <img
+                        src={topupOrder.qr_image_base64}
+                        alt="VietQR Topup"
+                        className="h-44 w-44 sm:h-48 sm:w-48 object-contain rounded-lg"
+                      />
+                    )}
+                    <div className="absolute inset-0 flex flex-col items-center justify-center rounded-2xl bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-[1px]">
+                      <span className="text-2xl mb-1">🔍</span>
+                      <span className="rounded-full bg-black/75 px-3 py-1 text-[11px] font-semibold text-white shadow">
+                        Bấm để phóng to mã QR
+                      </span>
+                    </div>
+                  </div>
+                  <p className="mt-1.5 text-[11px] text-gray-400 dark:text-gray-500 flex items-center gap-1">
+                    <span>💡</span> Nhấp vào ảnh QR để phóng to toàn màn hình
+                  </p>
                 </div>
-                <button
-                  onClick={() => {
-                    setShowTopupModal(false);
-                    setTopupOrder(null);
-                    void load();
-                  }}
-                  className="w-full rounded-lg bg-brand-500 py-2 text-sm font-semibold text-white hover:bg-brand-600 transition"
-                >
-                  Đã chuyển khoản xong (Chờ duyệt)
-                </button>
+
+                {/* Khối thông tin thụ hưởng chi tiết */}
+                <div className="rounded-xl border border-gray-200 bg-gray-50/80 p-3.5 text-left dark:border-gray-800 dark:bg-gray-800/60 space-y-2 text-xs">
+                  <div className="flex items-center justify-between border-b border-gray-200/60 dark:border-gray-700/60 pb-2">
+                    <span className="text-gray-500 dark:text-gray-400 font-medium">Ngân hàng thụ hưởng:</span>
+                    <span className="font-bold text-gray-900 dark:text-white">
+                      {topupOrder.bank_info?.bank_name || "MBBank (Quân Đội)"}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between border-b border-gray-200/60 dark:border-gray-700/60 pb-2">
+                    <span className="text-gray-500 dark:text-gray-400 font-medium">Số tài khoản:</span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-sm font-extrabold text-brand-600 dark:text-brand-400 tracking-wider">
+                        {topupOrder.bank_info?.bank_account_number || "0987654321"}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          copyToClipboard(
+                            topupOrder.bank_info?.bank_account_number || "0987654321",
+                            "account_number"
+                          )
+                        }
+                        className={`rounded px-2 py-0.5 text-[11px] font-semibold transition ${
+                          copiedField === "account_number"
+                            ? "bg-success-100 text-success-700 dark:bg-success-950 dark:text-success-300 font-bold"
+                            : "bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+                        }`}
+                      >
+                        {copiedField === "account_number" ? "✓ Đã chép" : "Sao chép"}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between border-b border-gray-200/60 dark:border-gray-700/60 pb-2">
+                    <span className="text-gray-500 dark:text-gray-400 font-medium">Chủ tài khoản:</span>
+                    <span className="font-bold uppercase text-gray-900 dark:text-white">
+                      {topupOrder.bank_info?.bank_account_name || "CONG TY CONG CU NGHE"}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between border-b border-gray-200/60 dark:border-gray-700/60 pb-2">
+                    <span className="text-gray-500 dark:text-gray-400 font-medium">Số tiền thanh toán:</span>
+                    <span className="text-sm font-black text-rose-600 dark:text-rose-400">
+                      {topupOrder.amount_vnd.toLocaleString("vi-VN")} đ
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-500 dark:text-gray-400 font-medium">Nội dung chuyển khoản:</span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-sm font-extrabold text-brand-600 dark:text-brand-400">
+                        {topupOrder.order_code}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => copyToClipboard(topupOrder.order_code, "order_code")}
+                        className={`rounded px-2 py-0.5 text-[11px] font-semibold transition ${
+                          copiedField === "order_code"
+                            ? "bg-success-100 text-success-700 dark:bg-success-950 dark:text-success-300 font-bold"
+                            : "bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+                        }`}
+                      >
+                        {copiedField === "order_code" ? "✓ Đã chép" : "Sao chép"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-lg bg-amber-50 p-2.5 text-[11px] text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 text-left flex items-start gap-1.5">
+                  <span className="text-sm leading-none">⚠️</span>
+                  <span>
+                    Vui lòng ghi đúng <b>chính xác Số tiền</b> và <b>Nội dung chuyển khoản</b> để hệ thống tự động cộng hạn mức ví ngay lập tức.
+                  </span>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setTopupOrder(null)}
+                    className="w-full sm:w-1/3 rounded-lg border border-gray-300 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800 transition"
+                  >
+                    ← Chọn gói khác
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowTopupModal(false);
+                      setTopupOrder(null);
+                      void load();
+                    }}
+                    className="w-full sm:w-2/3 rounded-lg bg-brand-500 py-2 text-xs font-bold text-white hover:bg-brand-600 shadow-md transition"
+                  >
+                    Đã chuyển khoản xong (Đóng)
+                  </button>
+                </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Lightbox Phóng to Mã QR */}
+      {showQrZoom && topupOrder?.qr_image_base64 && (
+        <div
+          onClick={() => setShowQrZoom(false)}
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="relative max-w-sm sm:max-w-md w-full rounded-2xl bg-white p-6 dark:bg-gray-900 shadow-2xl border border-gray-200 dark:border-gray-800 flex flex-col items-center text-center space-y-3"
+          >
+            <button
+              type="button"
+              onClick={() => setShowQrZoom(false)}
+              className="absolute right-3 top-3 rounded-full bg-gray-100 p-1.5 text-gray-500 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 transition"
+            >
+              ✕
+            </button>
+            <h4 className="text-base font-bold text-gray-900 dark:text-white">
+              Quét mã VietQR chuyển khoản
+            </h4>
+            <div className="rounded-xl border border-gray-200 bg-white p-3 shadow-inner">
+              <img
+                src={topupOrder.qr_image_base64}
+                alt="VietQR Fullsize"
+                className="h-64 w-64 sm:h-72 sm:w-72 object-contain mx-auto"
+              />
+            </div>
+            <div className="text-xs text-gray-600 dark:text-gray-300">
+              Số tiền: <b className="text-rose-600 dark:text-rose-400">{topupOrder.amount_vnd.toLocaleString("vi-VN")} đ</b>
+              <span className="mx-2">•</span>
+              Nội dung: <b className="text-brand-600 dark:text-brand-400">{topupOrder.order_code}</b>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowQrZoom(false)}
+              className="w-full rounded-lg bg-gray-100 dark:bg-gray-800 py-2 text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition"
+            >
+              Đóng phóng to
+            </button>
           </div>
         </div>
       )}
