@@ -69,5 +69,6 @@ export const API_AGENCY = {
   TOPUP: "/api/licensing/agency/topup/",
   ACTIVATE: "/api/licensing/agency/activate/",
   BANKING: "/api/licensing/agency/banking/",
+  DISTRIBUTION_TAG: "/api/licensing/agency/distribution-tag/",
 } as const;
 

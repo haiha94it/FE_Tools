@@ -29,6 +29,9 @@ type AgencyData = {
     bank_bin?: string;
     bank_account_number?: string;
     bank_account_name?: string;
+    is_activated?: boolean;
+    has_banking_configured?: boolean;
+    can_download_distribution_tag?: boolean;
   };
   balance: { balance_vnd: number; discount_percentage: number };
   combos?: AgencyCombo[];
@@ -83,7 +86,9 @@ export default function AgencyPortalPage() {
   const [orders, setOrders] = useState<CustomerOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"customers" | "orders" | "banking">("customers");
+  const [activeTab, setActiveTab] = useState<"operations" | "setup">("operations");
+  const [customerSearch, setCustomerSearch] = useState("");
+  const [orderFilter, setOrderFilter] = useState<"ALL" | "PENDING">("ALL");
 
   // Banking state for Agency
   const [bankName, setBankName] = useState("");
@@ -136,17 +141,29 @@ export default function AgencyPortalPage() {
   const [approvingOrder, setApprovingOrder] = useState<CustomerOrder | null>(null);
   const [isApproving, setIsApproving] = useState(false);
 
-  const downloadAgencyJson = (agencyCode: string) => {
-    const data = JSON.stringify({ agency_code: agencyCode }, null, 2);
-    const blob = new Blob([data], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "agency.json";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+  const downloadAgencyJson = async (agencyCode: string) => {
+    try {
+      // Gọi endpoint backend kiểm tra quyền trước khi cho tải file
+      const res = await api.get<{ can_download_distribution_tag: boolean; message?: string }>(API_AGENCY.DISTRIBUTION_TAG);
+      if (res.data?.success) {
+        const data = JSON.stringify({ agency_code: agencyCode }, null, 2);
+        const blob = new Blob([data], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "agency.json";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        setMsg("Đã tải file agency.json thành công. Hãy đặt file này vào cùng thư mục app ggmaps.exe trước khi gửi khách.");
+      } else {
+        setMsg(res.data?.message || "Bạn chưa đủ điều kiện tải file agency.json.");
+      }
+    } catch (err: any) {
+      console.error("[AGENCY] Lỗi kiểm tra tải agency.json", err);
+      setMsg(err?.response?.data?.message || "Chưa đủ điều kiện tải file agency.json. Vui lòng nạp ví và cài đặt STK ngân hàng.");
+    }
   };
 
 
@@ -330,15 +347,36 @@ export default function AgencyPortalPage() {
   const selectedPlan = data?.plans?.find((p) => p.code === activateForm.plan_code);
   const pendingOrdersCount = orders.filter((o) => o.status === "PENDING").length;
 
+  const filteredCustomers = customers.filter((c) => {
+    if (!customerSearch.trim()) return true;
+    const q = customerSearch.toLowerCase().trim();
+    return (
+      (c.phone_number && c.phone_number.toLowerCase().includes(q)) ||
+      (c.full_name && c.full_name.toLowerCase().includes(q))
+    );
+  });
+
+  const filteredOrders = orders.filter((o) => {
+    if (orderFilter === "PENDING") return o.status === "PENDING";
+    return true;
+  });
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
-          Agency Portal — Cổng Đại lý Phân phối
-        </h1>
-        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-          Quản lý ví tiền, duyệt đơn hàng từ khách và kích hoạt trực tiếp bản quyền GGMaps.
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
+            Agency Portal — Cổng Đại lý Phân phối
+          </h1>
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+            Quản lý vận hành khách hàng, duyệt đơn hàng và cấu hình hệ thống đại lý.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="font-mono text-xs font-bold text-brand-600 bg-brand-50 px-3 py-1.5 rounded-xl dark:bg-brand-950/50 dark:text-brand-400 border border-brand-200/60 dark:border-brand-900/50">
+            Mã đại lý: {data?.agency.username}
+          </span>
+        </div>
       </div>
 
       {msg && (
@@ -348,399 +386,647 @@ export default function AgencyPortalPage() {
         </div>
       )}
 
-      {/* Welcome Banner cho Đại lý mới (Số dư 0đ) */}
-      {data && data.balance.balance_vnd === 0 && (
-        <div className="rounded-2xl border border-brand-200 bg-linear-to-r from-brand-50 via-white to-brand-50 p-5 dark:border-brand-900/50 dark:from-brand-950/40 dark:via-gray-900 dark:to-brand-950/30 shadow-2xs">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-500 text-xs font-bold text-white">★</span>
-                <h3 className="font-bold text-gray-900 dark:text-white text-base">
-                  Chào mừng đối tác Đại lý mới — Bắt đầu nạp ví để bán bản quyền!
-                </h3>
-              </div>
-              <p className="text-xs text-gray-600 dark:text-gray-300">
-                Hãy chọn một trong 3 Gói Combo ưu đãi (Nhân đôi số dư ví) bên dưới để nạp tiền qua VietQR tự động. Sau khi Admin duyệt, bạn có thể kích hoạt trực tiếp bản quyền cho khách hàng.
-              </p>
-            </div>
-            <button
-              onClick={() => {
-                setShowTopupModal(true);
-                setTopupOrder(null);
-              }}
-              className="rounded-xl bg-brand-500 px-4 py-2 text-xs font-bold text-white hover:bg-brand-600 transition shadow whitespace-nowrap"
-            >
-              🚀 Mua Gói Combo Ngay
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Cards thống kê số dư */}
-      <div className="grid gap-4 sm:grid-cols-3">
-        <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900 shadow-2xs">
-          <p className="text-xs text-gray-500 dark:text-gray-400">Số dư ví khả dụng</p>
-          <p className="mt-2 text-3xl font-extrabold text-success-600 dark:text-success-400">
-            {(data?.balance.balance_vnd || 0).toLocaleString("vi-VN")} đ
-          </p>
-          <button
-            onClick={() => {
-              setShowTopupModal(true);
-              setTopupOrder(null);
-            }}
-            className="mt-4 w-full rounded-xl bg-brand-500 px-3 py-2 text-xs font-semibold text-white hover:bg-brand-600 transition shadow-2xs"
-          >
-            + Nạp Gói Đại Lý
-          </button>
-        </div>
-
-        <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900 shadow-2xs">
-          <p className="text-xs text-gray-500 dark:text-gray-400">Chính sách ưu đãi ví</p>
-          <p className="mt-2 text-2xl font-extrabold text-brand-600 dark:text-brand-400">Gói Nạp Đại Lý</p>
-          <p className="mt-2 text-xs text-gray-400 dark:text-gray-500">
-            Nạp tiền theo gói để nhận thêm số dư ví thưởng và thời hạn sử dụng.
-          </p>
-        </div>
-
-        <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900 shadow-2xs">
-          <p className="text-xs text-gray-500 dark:text-gray-400">Khách hàng của bạn</p>
-          <p className="mt-2 text-3xl font-extrabold text-gray-800 dark:text-white">
-            {data?.total_customers || 0}
-          </p>
-          <button
-            onClick={() => setShowActivateModal(true)}
-            className="mt-4 w-full rounded-xl bg-success-500 px-3 py-2 text-xs font-semibold text-white hover:bg-success-600 transition shadow-2xs"
-          >
-            ⚡ Kích hoạt gói cho khách
-          </button>
-        </div>
-      </div>
-
-      {/* Widget Gói Phân Phối Ứng Dụng (Initial Distribution Tag) */}
-      <div className="rounded-2xl border border-blue-200/80 bg-linear-to-r from-blue-50/70 via-white to-indigo-50/70 p-5 dark:border-gray-800 dark:from-gray-900 dark:via-gray-900 dark:to-gray-900 shadow-2xs">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-2">
-              <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-brand-500 text-sm text-white font-bold shadow-2xs">
-                📦
-              </span>
-              <h3 className="font-bold text-gray-900 dark:text-white text-base">
-                Gói Phân Phối Ứng Dụng — File Cấu Hình Định Danh
-              </h3>
-            </div>
-            <p className="text-xs text-gray-600 dark:text-gray-300 max-w-2xl leading-relaxed">
-              Tải file <code className="rounded bg-white px-1.5 py-0.5 font-mono font-bold text-brand-600 border border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-brand-400">agency.json</code> này và đặt vào cùng thư mục chứa app <code className="rounded bg-white px-1.5 py-0.5 font-mono text-gray-800 border border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200">ggmaps.exe</code> trước khi nén/gửi cho khách hàng của bạn. Khi khách mở app lần đầu, hệ thống sẽ tự động liên kết tài khoản khách và đơn mua về cho đại lý của bạn.
-            </p>
-            <div className="flex items-center gap-2 pt-1">
-              <span className="text-xs text-gray-500 dark:text-gray-400">Mã đại lý của bạn:</span>
-              <span className="font-mono text-xs font-bold text-brand-600 bg-brand-50 px-2 py-0.5 rounded-md dark:bg-brand-950/50 dark:text-brand-400 border border-brand-200/50 dark:border-brand-900/50">
-                {data?.agency.username}
-              </span>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => data?.agency.username && downloadAgencyJson(data.agency.username)}
-            className="inline-flex items-center gap-2 rounded-xl bg-brand-500 px-4 py-2.5 text-xs font-bold text-white hover:bg-brand-600 transition shadow whitespace-nowrap"
-          >
-            <span>📥</span> Tải File agency.json
-          </button>
-        </div>
-      </div>
-
-      {/* Tabs Chuyển đổi Khách hàng / Đơn hàng */}
-      <div className="flex items-center gap-2 border-b border-gray-200 dark:border-gray-800">
-
+      {/* 2 Phân Khu Điều Hướng Chính */}
+      <div className="flex flex-wrap items-center gap-3 border-b border-gray-200 dark:border-gray-800 pb-3">
         <button
-          onClick={() => setActiveTab("customers")}
-          className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-semibold transition ${
-            activeTab === "customers"
-              ? "border-brand-500 text-brand-600 dark:text-brand-400"
-              : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+          type="button"
+          onClick={() => setActiveTab("operations")}
+          className={`flex items-center gap-2.5 rounded-xl px-5 py-2.5 text-sm font-bold transition shadow-2xs cursor-pointer ${
+            activeTab === "operations"
+              ? "bg-brand-500 text-white shadow-brand-500/20"
+              : "bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
           }`}
         >
-          <span>👥</span> Danh sách Khách hàng ({customers.length})
-        </button>
-        <button
-          onClick={() => setActiveTab("orders")}
-          className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-semibold transition ${
-            activeTab === "orders"
-              ? "border-brand-500 text-brand-600 dark:text-brand-400"
-              : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-          }`}
-        >
-          <span>📋</span> Đơn hàng của khách ({orders.length})
+          <span>⚡</span> Vận Hành & Khách Hàng
           {pendingOrdersCount > 0 && (
-            <span className="rounded-full bg-amber-500 px-2 py-0.5 text-[11px] font-bold text-white shadow-2xs">
+            <span className="rounded-full bg-amber-400 px-2 py-0.5 text-xs font-black text-gray-900 shadow-2xs">
               {pendingOrdersCount} chờ duyệt
             </span>
           )}
         </button>
+
         <button
-          onClick={() => setActiveTab("banking")}
-          className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-semibold transition ${
-            activeTab === "banking"
-              ? "border-brand-500 text-brand-600 dark:text-brand-400"
-              : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+          type="button"
+          onClick={() => setActiveTab("setup")}
+          className={`flex items-center gap-2.5 rounded-xl px-5 py-2.5 text-sm font-bold transition shadow-2xs cursor-pointer ${
+            activeTab === "setup"
+              ? "bg-brand-500 text-white shadow-brand-500/20"
+              : "bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
           }`}
         >
-          <span>💳</span> Cài đặt Nhận tiền VietQR
-          {!data?.agency?.bank_account_number && (
-            <span className="rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 px-2 py-0.5 text-[10px] font-bold border border-blue-200 dark:border-blue-800">
-              Chưa cài STK
+          <span>⚙️</span> Tổng Quan & Cài Đặt
+          {(!data?.agency.is_activated || !data?.agency.has_banking_configured) && (
+            <span className="rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 px-2 py-0.5 text-xs font-bold border border-amber-300/40">
+              Cần chú ý
             </span>
           )}
         </button>
       </div>
 
-      {/* Tab 1: Danh sách khách hàng */}
-      {activeTab === "customers" && (
-        <div className="space-y-3">
-          <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900 shadow-2xs">
-            <table className="min-w-full text-left text-sm">
-              <thead className="border-b border-gray-100 text-gray-500 dark:border-gray-800 dark:text-gray-400 bg-gray-50/50 dark:bg-gray-950/30">
-                <tr>
-                  <th className="px-4 py-3">SĐT Khách hàng</th>
-                  <th className="px-4 py-3">Họ tên</th>
-                  <th className="px-4 py-3">Gói bản quyền</th>
-                  <th className="px-4 py-3">Hạn sử dụng</th>
-                  <th className="px-4 py-3">Ngày tạo</th>
-                </tr>
-              </thead>
-              <tbody>
-                {customers.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="p-8 text-center text-gray-400">
-                      Chưa có khách hàng nào. Hãy bấm "Kích hoạt gói cho khách" để bắt đầu.
-                    </td>
-                  </tr>
-                ) : (
-                  customers.map((c) => (
-                    <tr key={c.id} className="border-b border-gray-50 dark:border-gray-800 hover:bg-gray-50/50 dark:hover:bg-gray-800/30">
-                      <td className="px-4 py-3 font-semibold text-gray-900 dark:text-white">{c.phone_number}</td>
-                      <td className="px-4 py-3 font-medium text-gray-800 dark:text-gray-200">{c.full_name || "—"}</td>
-                      <td className="px-4 py-3">
-                        {c.current_license ? (
-                          <span className="rounded bg-success-50 px-2 py-0.5 text-xs font-semibold text-success-700 dark:bg-success-950/50 dark:text-success-300">
-                            {c.current_license.license_type}
-                          </span>
-                        ) : (
-                          <span className="text-gray-400 dark:text-gray-500 text-xs">Hết hạn</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-xs text-gray-800 dark:text-gray-200">
-                        {c.current_license ? new Date(c.current_license.valid_until).toLocaleDateString("vi-VN") : "—"}
-                      </td>
-                      <td className="px-4 py-3 text-xs text-gray-500 dark:text-gray-400">
-                        {new Date(c.created_at).toLocaleDateString("vi-VN")}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+      {/* ======================================================== */}
+      {/* KHU 1: VẬN HÀNH & KHÁCH HÀNG (Hiển thị mặc định)        */}
+      {/* ======================================================== */}
+      {activeTab === "operations" && (
+        <div className="space-y-6">
+          {/* Thanh chỉ số nhanh (Mini KPI Bar) */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900 shadow-2xs">
+              <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">👥 Tổng khách hàng</span>
+              <p className="mt-1.5 text-2xl font-black text-gray-900 dark:text-white">
+                {data?.total_customers || 0}
+              </p>
+            </div>
 
-      {/* Tab 2: Đơn hàng của khách */}
-      {activeTab === "orders" && (
-        <div className="space-y-3">
-          <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900 shadow-2xs">
-            <table className="min-w-full text-left text-sm">
-              <thead className="border-b border-gray-100 text-gray-500 dark:border-gray-800 dark:text-gray-400 bg-gray-50/50 dark:bg-gray-950/30">
-                <tr>
-                  <th className="px-4 py-3">Mã đơn</th>
-                  <th className="px-4 py-3">Khách hàng</th>
-                  <th className="px-4 py-3">Gói bản quyền</th>
-                  <th className="px-4 py-3">Số tiền</th>
-                  <th className="px-4 py-3">Trạng thái</th>
-                  <th className="px-4 py-3">Thời gian tạo</th>
-                  <th className="px-4 py-3 text-right">Thao tác</th>
-                </tr>
-              </thead>
-              <tbody>
-                {orders.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="p-8 text-center text-gray-400">
-                      Chưa có đơn hàng nào từ khách hàng của bạn.
-                    </td>
-                  </tr>
-                ) : (
-                  orders.map((o) => (
-                    <tr key={o.id} className="border-b border-gray-50 dark:border-gray-800 hover:bg-gray-50/50 dark:hover:bg-gray-800/30">
-                      <td className="px-4 py-3 font-mono font-bold text-brand-600 dark:text-brand-400">{o.order_code}</td>
-                      <td className="px-4 py-3">
-                        <div className="font-semibold text-gray-900 dark:text-white">{o.customer_phone || "—"}</div>
-                        {o.customer_name && (
-                          <div className="text-xs text-gray-500 dark:text-gray-400">{o.customer_name}</div>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-xs font-semibold text-gray-800 dark:text-gray-200">{o.plan_name || "—"}</td>
-                      <td className="px-4 py-3 font-bold text-gray-900 dark:text-white">
-                        {o.amount_vnd.toLocaleString("vi-VN")} đ
-                      </td>
-                      <td className="px-4 py-3">
-                        <span
-                          className={`rounded-md px-2 py-0.5 text-xs font-bold ${
-                            o.status === "COMPLETED"
-                              ? "bg-success-50 text-success-700 dark:bg-success-950/50 dark:text-success-300"
-                              : o.status === "PENDING"
-                              ? "bg-warning-50 text-warning-700 dark:bg-warning-950/50 dark:text-warning-300"
-                              : "bg-red-50 text-red-700 dark:bg-red-950/50 dark:text-red-300"
-                          }`}
-                        >
-                          {o.status === "COMPLETED"
-                            ? "Đã duyệt"
-                            : o.status === "PENDING"
-                            ? "Chờ duyệt"
-                            : "Đã hủy"}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-xs text-gray-500 dark:text-gray-400">
-                        {new Date(o.created_at).toLocaleString("vi-VN")}
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        {o.status === "PENDING" ? (
-                          <div className="inline-flex items-center gap-1.5">
-                            <button
-                              type="button"
-                              onClick={() => setApprovingOrder(o)}
-                              className="inline-flex items-center gap-1 rounded-lg bg-success-500 px-3 py-1.5 text-xs font-semibold text-white shadow-2xs hover:bg-success-600 transition"
-                            >
-                              <span>✓</span> Duyệt đơn
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleRejectOrder(o)}
-                              className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-100 transition dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300"
-                            >
-                              <span>✕</span> Từ chối
-                            </button>
-                          </div>
-                        ) : (
-                          <span className="text-xs text-gray-400">—</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* Tab 3: Cấu hình Tài khoản Nhận tiền VietQR */}
-      {activeTab === "banking" && (
-        <div className="max-w-2xl space-y-6">
-          <form
-            onSubmit={handleSaveBanking}
-            className="space-y-4 rounded-2xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900 shadow-2xs"
-          >
-            <div className="flex items-center justify-between border-b border-gray-100 pb-3 dark:border-gray-800">
-              <div className="flex items-center gap-2">
-                <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-brand-500 text-base text-white font-bold shadow-2xs">
-                  💳
+            <div
+              className={`rounded-2xl border p-4 shadow-2xs transition ${
+                pendingOrdersCount > 0
+                  ? "border-amber-300 bg-amber-50/70 dark:border-amber-800 dark:bg-amber-950/40"
+                  : "border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900"
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className={`text-xs font-medium ${pendingOrdersCount > 0 ? "text-amber-800 dark:text-amber-300 font-bold" : "text-gray-500 dark:text-gray-400"}`}>
+                  📋 Đơn chờ duyệt
                 </span>
-                <div>
-                  <h3 className="font-bold text-gray-900 dark:text-white text-base">
-                    Cấu hình Tài khoản Nhận tiền Khách hàng
-                  </h3>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Mã VietQR sẽ tự động chuyển khoản về số tài khoản này khi khách hàng của bạn mua gói trên Desktop App.
-                  </p>
-                </div>
+                {pendingOrdersCount > 0 && (
+                  <span className="animate-pulse rounded-full bg-amber-500 text-[10px] font-bold text-white px-2 py-0.5">
+                    Cần xử lý
+                  </span>
+                )}
+              </div>
+              <p className={`mt-1.5 text-2xl font-black ${pendingOrdersCount > 0 ? "text-amber-600 dark:text-amber-400" : "text-gray-900 dark:text-white"}`}>
+                {pendingOrdersCount}
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900 shadow-2xs">
+              <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">💰 Số dư ví khả dụng</span>
+              <p className="mt-1.5 text-2xl font-black text-success-600 dark:text-success-400">
+                {(data?.balance.balance_vnd || 0).toLocaleString("vi-VN")} đ
+              </p>
+            </div>
+
+            <div className="flex items-center">
+              <button
+                type="button"
+                onClick={() => setShowActivateModal(true)}
+                className="w-full h-full min-h-[58px] rounded-2xl bg-success-500 px-4 py-3 text-xs font-bold text-white hover:bg-success-600 transition shadow-2xs flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <span className="text-base">⚡</span> Kích hoạt gói cho khách
+              </button>
+            </div>
+          </div>
+
+          {/* Khu vực Đơn hàng của khách (Ưu tiên đơn chờ duyệt ở trên cùng) */}
+          <div className="space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-brand-500 text-sm text-white font-bold shadow-2xs">
+                  📋
+                </span>
+                <h3 className="font-bold text-gray-900 dark:text-white text-base">
+                  Đơn Hàng Của Khách Hàng ({filteredOrders.length})
+                </h3>
+              </div>
+              <div className="flex items-center gap-1.5 bg-gray-100 dark:bg-gray-800 p-1 rounded-xl">
+                <button
+                  type="button"
+                  onClick={() => setOrderFilter("ALL")}
+                  className={`rounded-lg px-3 py-1 text-xs font-semibold transition cursor-pointer ${
+                    orderFilter === "ALL"
+                      ? "bg-white text-gray-900 shadow-2xs dark:bg-gray-700 dark:text-white"
+                      : "text-gray-500 hover:text-gray-900 dark:text-gray-400"
+                  }`}
+                >
+                  Tất cả ({orders.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setOrderFilter("PENDING")}
+                  className={`flex items-center gap-1 rounded-lg px-3 py-1 text-xs font-semibold transition cursor-pointer ${
+                    orderFilter === "PENDING"
+                      ? "bg-amber-500 text-white shadow-2xs"
+                      : "text-gray-500 hover:text-gray-900 dark:text-gray-400"
+                  }`}
+                >
+                  <span>Chờ duyệt</span>
+                  {pendingOrdersCount > 0 && (
+                    <span className="rounded-full bg-white text-amber-700 px-1.5 py-0.2 text-[10px] font-bold">
+                      {pendingOrdersCount}
+                    </span>
+                  )}
+                </button>
               </div>
             </div>
 
-            <div className="rounded-xl border border-blue-100 bg-blue-50/60 p-4 text-xs text-blue-800 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-300 leading-relaxed">
-              💡 <strong>Cơ chế hoạt động:</strong> Khi khách hàng sử dụng app có file <code className="font-mono font-bold">agency.json</code> của bạn và bấm tạo đơn nâng cấp bản quyền, phần mềm sẽ tạo mã <strong>VietQR Động</strong> dẫn trực tiếp về tài khoản ngân hàng dưới đây. Nếu chưa cài đặt, hệ thống sẽ tự động fallback về STK của Tổng Admin để đảm bảo đơn hàng không bị gián đoạn.
+            <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900 shadow-2xs">
+              <table className="min-w-full text-left text-sm">
+                <thead className="border-b border-gray-100 text-gray-500 dark:border-gray-800 dark:text-gray-400 bg-gray-50/50 dark:bg-gray-950/30">
+                  <tr>
+                    <th className="px-4 py-3">Mã đơn</th>
+                    <th className="px-4 py-3">Khách hàng</th>
+                    <th className="px-4 py-3">Gói bản quyền</th>
+                    <th className="px-4 py-3">Số tiền</th>
+                    <th className="px-4 py-3">Trạng thái</th>
+                    <th className="px-4 py-3">Thời gian tạo</th>
+                    <th className="px-4 py-3 text-right">Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredOrders.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="p-8 text-center text-gray-400">
+                        {orderFilter === "PENDING"
+                          ? "Hiện không có đơn hàng nào đang chờ duyệt."
+                          : "Chưa có đơn hàng nào từ khách hàng của bạn."}
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredOrders.map((o) => (
+                      <tr key={o.id} className="border-b border-gray-50 dark:border-gray-800 hover:bg-gray-50/50 dark:hover:bg-gray-800/30">
+                        <td className="px-4 py-3 font-mono font-bold text-brand-600 dark:text-brand-400">{o.order_code}</td>
+                        <td className="px-4 py-3">
+                          <div className="font-semibold text-gray-900 dark:text-white">{o.customer_phone || "—"}</div>
+                          {o.customer_name && (
+                            <div className="text-xs text-gray-500 dark:text-gray-400">{o.customer_name}</div>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-xs font-semibold text-gray-800 dark:text-gray-200">{o.plan_name || "—"}</td>
+                        <td className="px-4 py-3 font-bold text-gray-900 dark:text-white">
+                          {o.amount_vnd.toLocaleString("vi-VN")} đ
+                        </td>
+                        <td className="px-4 py-3">
+                          <span
+                            className={`rounded-md px-2 py-0.5 text-xs font-bold ${
+                              o.status === "COMPLETED"
+                                ? "bg-success-50 text-success-700 dark:bg-success-950/50 dark:text-success-300"
+                                : o.status === "PENDING"
+                                ? "bg-warning-50 text-warning-700 dark:bg-warning-950/50 dark:text-warning-300"
+                                : "bg-red-50 text-red-700 dark:bg-red-950/50 dark:text-red-300"
+                            }`}
+                          >
+                            {o.status === "COMPLETED"
+                              ? "Đã duyệt"
+                              : o.status === "PENDING"
+                              ? "Chờ duyệt"
+                              : "Đã hủy"}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-xs text-gray-500 dark:text-gray-400">
+                          {new Date(o.created_at).toLocaleString("vi-VN")}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          {o.status === "PENDING" ? (
+                            <div className="inline-flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => setApprovingOrder(o)}
+                                className="inline-flex items-center gap-1 rounded-lg bg-success-500 px-3 py-1.5 text-xs font-semibold text-white shadow-2xs hover:bg-success-600 transition cursor-pointer"
+                              >
+                                <span>✓</span> Duyệt đơn
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleRejectOrder(o)}
+                                className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-100 transition dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300 cursor-pointer"
+                              >
+                                <span>✕</span> Từ chối
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-gray-400">—</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Khu vực Bảng Khách hàng */}
+          <div className="space-y-3 pt-2">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-blue-500 text-sm text-white font-bold shadow-2xs">
+                  👥
+                </span>
+                <h3 className="font-bold text-gray-900 dark:text-white text-base">
+                  Danh Sách Khách Hàng ({filteredCustomers.length})
+                </h3>
+              </div>
+              <div className="w-full sm:w-72">
+                <input
+                  type="text"
+                  placeholder="🔍 Tìm theo SĐT hoặc họ tên khách..."
+                  className="w-full rounded-xl border border-gray-200 bg-white px-3.5 py-2 text-xs dark:border-gray-700 dark:bg-gray-950 dark:text-white focus:border-brand-500 focus:outline-none"
+                  value={customerSearch}
+                  onChange={(e) => setCustomerSearch(e.target.value)}
+                />
+              </div>
             </div>
 
-            <div className="space-y-4 pt-2">
-              <label className="block text-sm">
-                <span className="text-gray-700 dark:text-gray-300 font-medium">Ngân hàng thụ hưởng</span>
-                <select
-                  className="mt-1.5 w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white focus:border-brand-500 focus:outline-none"
-                  value={bankBin}
-                  onChange={(e) => onSelectBank(e.target.value)}
-                >
-                  {banksList.length > 0 ? (
-                    banksList.map((b) => (
-                      <option key={`${b.bin}-${b.code}`} value={b.bin}>
-                        {b.short_name} — {b.name} (BIN: {b.bin})
-                      </option>
-                    ))
+            <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900 shadow-2xs">
+              <table className="min-w-full text-left text-sm">
+                <thead className="border-b border-gray-100 text-gray-500 dark:border-gray-800 dark:text-gray-400 bg-gray-50/50 dark:bg-gray-950/30">
+                  <tr>
+                    <th className="px-4 py-3">SĐT Khách hàng</th>
+                    <th className="px-4 py-3">Họ tên</th>
+                    <th className="px-4 py-3">Gói bản quyền</th>
+                    <th className="px-4 py-3">Hạn sử dụng</th>
+                    <th className="px-4 py-3">Ngày tạo</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredCustomers.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="p-8 text-center text-gray-400">
+                        {customerSearch ? "Không tìm thấy khách hàng phù hợp với từ khóa." : "Chưa có khách hàng nào."}
+                      </td>
+                    </tr>
                   ) : (
-                    <>
-                      <option value="970422">MBBank (Quân Đội) - 970422</option>
-                      <option value="970436">Vietcombank - 970436</option>
-                      <option value="970415">VietinBank - 970415</option>
-                      <option value="970418">BIDV - 970418</option>
-                      <option value="970407">Techcombank - 970407</option>
-                      <option value="970416">ACB - 970416</option>
-                      <option value="970432">VPBank - 970432</option>
-                      <option value="970423">TPBank - 970423</option>
-                    </>
+                    filteredCustomers.map((c) => (
+                      <tr key={c.id} className="border-b border-gray-50 dark:border-gray-800 hover:bg-gray-50/50 dark:hover:bg-gray-800/30">
+                        <td className="px-4 py-3 font-semibold text-gray-900 dark:text-white">{c.phone_number}</td>
+                        <td className="px-4 py-3 font-medium text-gray-800 dark:text-gray-200">{c.full_name || "—"}</td>
+                        <td className="px-4 py-3">
+                          {c.current_license ? (
+                            <span className="rounded bg-success-50 px-2 py-0.5 text-xs font-semibold text-success-700 dark:bg-success-950/50 dark:text-success-300">
+                              {c.current_license.license_type}
+                            </span>
+                          ) : (
+                            <span className="text-gray-400 dark:text-gray-500 text-xs">Hết hạn</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-xs text-gray-800 dark:text-gray-200">
+                          {c.current_license ? new Date(c.current_license.valid_until).toLocaleDateString("vi-VN") : "—"}
+                        </td>
+                        <td className="px-4 py-3 text-xs text-gray-500 dark:text-gray-400">
+                          {new Date(c.created_at).toLocaleDateString("vi-VN")}
+                        </td>
+                      </tr>
+                    ))
                   )}
-                </select>
-              </label>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
 
-              <label className="block text-sm">
-                <span className="text-gray-700 dark:text-gray-300 font-medium">Số tài khoản ngân hàng (STK)</span>
-                <input
-                  type="text"
-                  placeholder="Ví dụ: 0988123456"
-                  className="mt-1.5 w-full font-mono rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white focus:border-brand-500 focus:outline-none"
-                  value={bankAccountNumber}
-                  onChange={(e) => setBankAccountNumber(e.target.value)}
-                  required
-                />
-              </label>
-
-              <label className="block text-sm">
-                <span className="text-gray-700 dark:text-gray-300 font-medium">Tên chủ tài khoản (Viết hoa không dấu)</span>
-                <input
-                  type="text"
-                  placeholder="Ví dụ: NGUYEN VAN A"
-                  className="mt-1.5 w-full uppercase rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white focus:border-brand-500 focus:outline-none"
-                  value={bankAccountName}
-                  onChange={(e) => setBankAccountName(e.target.value.toUpperCase())}
-                />
-              </label>
-
-              {bankAccountNumber && (
-                <div className="rounded-xl border border-gray-100 bg-gray-50/80 p-3 dark:border-gray-800 dark:bg-gray-800/40 text-xs space-y-1">
-                  <div className="text-gray-500 dark:text-gray-400">Xem trước thông tin thanh toán:</div>
-                  <div className="font-semibold text-gray-900 dark:text-white">
-                    {bankName || "Ngân hàng"} · STK: <span className="font-mono text-brand-600 dark:text-brand-400 font-bold">{bankAccountNumber}</span>
-                    {bankAccountName && <span> ({bankAccountName})</span>}
+      {/* ======================================================== */}
+      {/* KHU 2: TỔNG QUAN & CÀI ĐẶT (Finance, Banking & Packaging) */}
+      {/* ======================================================== */}
+      {activeTab === "setup" && (
+        <div className="space-y-6">
+          {/* Welcome Banner cho Đại lý mới (Số dư 0đ) */}
+          {data && data.balance.balance_vnd === 0 && (
+            <div className="rounded-2xl border border-brand-200 bg-linear-to-r from-brand-50 via-white to-brand-50 p-5 dark:border-brand-900/50 dark:from-brand-950/40 dark:via-gray-900 dark:to-brand-950/30 shadow-2xs">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-500 text-xs font-bold text-white">★</span>
+                    <h3 className="font-bold text-gray-900 dark:text-white text-base">
+                      Chào mừng đối tác Đại lý mới — Bắt đầu nạp ví để bán bản quyền!
+                    </h3>
                   </div>
+                  <p className="text-xs text-gray-600 dark:text-gray-300">
+                    Hãy chọn một trong 3 Gói Combo ưu đãi (Nhân đôi số dư ví) bên dưới để nạp tiền qua VietQR tự động. Sau khi Admin duyệt, bạn có thể kích hoạt trực tiếp bản quyền cho khách hàng.
+                  </p>
                 </div>
-              )}
+                <button
+                  onClick={() => {
+                    setShowTopupModal(true);
+                    setTopupOrder(null);
+                  }}
+                  className="rounded-xl bg-brand-500 px-4 py-2 text-xs font-bold text-white hover:bg-brand-600 transition shadow whitespace-nowrap cursor-pointer"
+                >
+                  🚀 Mua Gói Combo Ngay
+                </button>
+              </div>
+            </div>
+          )}
 
+          {/* Cards thống kê tài chính */}
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900 shadow-2xs">
+              <p className="text-xs text-gray-500 dark:text-gray-400">Số dư ví khả dụng</p>
+              <p className="mt-2 text-3xl font-extrabold text-success-600 dark:text-success-400">
+                {(data?.balance.balance_vnd || 0).toLocaleString("vi-VN")} đ
+              </p>
               <button
-                type="submit"
-                disabled={savingBanking}
-                className="w-full rounded-xl bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-600 transition shadow-2xs disabled:opacity-50 flex items-center justify-center gap-2"
+                onClick={() => {
+                  setShowTopupModal(true);
+                  setTopupOrder(null);
+                }}
+                className="mt-4 w-full rounded-xl bg-brand-500 px-3 py-2 text-xs font-semibold text-white hover:bg-brand-600 transition shadow-2xs cursor-pointer"
               >
-                <span>💾</span> {savingBanking ? "Đang lưu..." : "Lưu thông tin nhận tiền"}
+                + Nạp Gói Đại Lý
               </button>
+            </div>
 
-              {bankingMsg && (
-                <div
-                  className={`rounded-xl p-3 text-xs font-medium ${
-                    bankingMsg.includes("thất bại")
-                      ? "bg-error-50 text-error-700 dark:bg-error-950/40 dark:text-error-300 border border-error-200 dark:border-error-800"
-                      : "bg-success-50 text-success-700 dark:bg-success-950/40 dark:text-success-300 border border-success-200 dark:border-success-800"
+            <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900 shadow-2xs">
+              <p className="text-xs text-gray-500 dark:text-gray-400">Chính sách ưu đãi ví</p>
+              <p className="mt-2 text-2xl font-extrabold text-brand-600 dark:text-brand-400">Gói Nạp Đại Lý</p>
+              <p className="mt-2 text-xs text-gray-400 dark:text-gray-500">
+                Nạp tiền theo gói combo để nhận thêm số dư ví thưởng và quyền cấp bản quyền.
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900 shadow-2xs">
+              <p className="text-xs text-gray-500 dark:text-gray-400">Tình trạng kích hoạt đại lý</p>
+              <div className="mt-2 flex items-center gap-2">
+                <span
+                  className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-bold ${
+                    data?.agency.is_activated
+                      ? "bg-success-50 text-success-700 dark:bg-success-950/50 dark:text-success-300"
+                      : "bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300"
                   }`}
                 >
-                  {bankingMsg}
+                  {data?.agency.is_activated ? "✓ Đã kích hoạt ví" : "⏳ Chưa nạp gói Combo"}
+                </span>
+              </div>
+              <p className="mt-2 text-xs text-gray-400 dark:text-gray-500">
+                {data?.agency.is_activated
+                  ? "Ví đã sẵn sàng nhận đơn và duyệt thanh toán cho khách hàng."
+                  : "Cần nạp tối thiểu 1 gói combo để mở các tính năng đại lý."}
+              </p>
+            </div>
+          </div>
+
+          {/* Bảng Giá Gói Nạp Combo Đại Lý */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-brand-500 text-sm text-white font-bold shadow-2xs">
+                🎁
+              </span>
+              <div>
+                <h3 className="font-bold text-gray-900 dark:text-white text-base">
+                  Bảng Giá Gói Nạp Combo Đại Lý (Ưu Đãi Nhân Đôi Ví)
+                </h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Nạp vốn một lần nhận ngay số dư ví thưởng để bán và duyệt kích hoạt bản quyền cho khách hàng.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-3">
+              {(data?.combos || []).map((combo) => {
+                const bonusVnd = combo.credit_vnd - combo.price_vnd;
+                const bonusPercent = Math.round((bonusVnd / combo.price_vnd) * 100);
+                return (
+                  <div
+                    key={combo.code}
+                    className="relative flex flex-col justify-between rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900 shadow-2xs hover:border-brand-300 dark:hover:border-brand-700 transition"
+                  >
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono text-xs font-bold text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-950/50 px-2 py-0.5 rounded-md">
+                          {combo.code}
+                        </span>
+                        <span className="rounded-full bg-success-50 text-success-700 dark:bg-success-950/50 dark:text-success-300 px-2 py-0.5 text-[11px] font-bold">
+                          +{bonusPercent}% Ví
+                        </span>
+                      </div>
+
+                      <div>
+                        <h4 className="font-bold text-gray-900 dark:text-white text-base">
+                          {combo.name}
+                        </h4>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                          {combo.description}
+                        </p>
+                      </div>
+
+                      <div className="pt-2 border-t border-gray-100 dark:border-gray-800 space-y-1.5 text-xs">
+                        <div className="flex justify-between">
+                          <span className="text-gray-500 dark:text-gray-400">Giá thanh toán:</span>
+                          <span className="font-bold text-gray-900 dark:text-white">
+                            {combo.price_vnd.toLocaleString("vi-VN")} đ
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-500 dark:text-gray-400">Cộng vào ví:</span>
+                          <span className="font-bold text-success-600 dark:text-success-400 text-sm">
+                            {combo.credit_vnd.toLocaleString("vi-VN")} đ
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-[11px] text-gray-400">
+                          <span>Thời hạn ví:</span>
+                          <span>{combo.duration_days} ngày</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedComboCode(combo.code);
+                        setTopupOrder(null);
+                        setShowTopupModal(true);
+                      }}
+                      className="mt-4 w-full rounded-xl bg-brand-500 px-3 py-2 text-xs font-bold text-white hover:bg-brand-600 transition shadow-2xs flex items-center justify-center gap-1 cursor-pointer"
+                    >
+                      <span>🚀</span> Nạp Gói Này
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Form Cài đặt Tài khoản Ngân hàng VietQR */}
+          <div className="max-w-2xl space-y-4">
+            <form
+              onSubmit={handleSaveBanking}
+              className="space-y-4 rounded-2xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900 shadow-2xs"
+            >
+              <div className="flex items-center justify-between border-b border-gray-100 pb-3 dark:border-gray-800">
+                <div className="flex items-center gap-2">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-brand-500 text-base text-white font-bold shadow-2xs">
+                    💳
+                  </span>
+                  <div>
+                    <h3 className="font-bold text-gray-900 dark:text-white text-base">
+                      Cấu hình Tài khoản Nhận tiền Khách hàng
+                    </h3>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      Mã VietQR sẽ tự động chuyển khoản về số tài khoản này khi khách hàng của bạn mua gói trên Desktop App.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-blue-100 bg-blue-50/60 p-4 text-xs text-blue-800 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-300 leading-relaxed">
+                💡 <strong>Cơ chế hoạt động:</strong> Khi khách hàng sử dụng app có file <code className="font-mono font-bold">agency.json</code> của bạn và bấm tạo đơn nâng cấp bản quyền, phần mềm sẽ tạo mã <strong>VietQR Động</strong> dẫn trực tiếp về tài khoản ngân hàng dưới đây. Nếu chưa cài đặt, hệ thống sẽ tự động fallback về STK của Tổng Admin để đảm bảo đơn hàng không bị gián đoạn.
+              </div>
+
+              {/* Cảnh báo đại lý chưa kích hoạt */}
+              {!data?.agency.is_activated && (
+                <div className="rounded-xl border-2 border-amber-300 bg-amber-50 p-4 text-center dark:border-amber-700 dark:bg-amber-950/40">
+                  <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">
+                    ⚠️ Vui lòng nạp tối thiểu 1 gói Combo đại lý để mở tính năng nhận tiền trực tiếp.
+                  </p>
+                  <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
+                    Trước khi kích hoạt, mọi đơn hàng từ khách sẽ được chuyển tiền về tài khoản Tổng Admin.
+                  </p>
                 </div>
               )}
+
+              <fieldset disabled={!data?.agency.is_activated} className={!data?.agency.is_activated ? "opacity-50 pointer-events-none" : ""}>
+                <div className="space-y-4 pt-2">
+                  <label className="block text-sm">
+                    <span className="text-gray-700 dark:text-gray-300 font-medium">Ngân hàng thụ hưởng</span>
+                    <select
+                      className="mt-1.5 w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white focus:border-brand-500 focus:outline-none"
+                      value={bankBin}
+                      onChange={(e) => onSelectBank(e.target.value)}
+                    >
+                      {banksList.length > 0 ? (
+                        banksList.map((b) => (
+                          <option key={`${b.bin}-${b.code}`} value={b.bin}>
+                            {b.short_name} — {b.name} (BIN: {b.bin})
+                          </option>
+                        ))
+                      ) : (
+                        <>
+                          <option value="970422">MBBank (Quân Đội) - 970422</option>
+                          <option value="970436">Vietcombank - 970436</option>
+                          <option value="970415">VietinBank - 970415</option>
+                          <option value="970418">BIDV - 970418</option>
+                          <option value="970407">Techcombank - 970407</option>
+                          <option value="970416">ACB - 970416</option>
+                          <option value="970432">VPBank - 970432</option>
+                          <option value="970423">TPBank - 970423</option>
+                        </>
+                      )}
+                    </select>
+                  </label>
+
+                  <label className="block text-sm">
+                    <span className="text-gray-700 dark:text-gray-300 font-medium">Số tài khoản ngân hàng (STK)</span>
+                    <input
+                      type="text"
+                      placeholder="Ví dụ: 0988123456"
+                      className="mt-1.5 w-full font-mono rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white focus:border-brand-500 focus:outline-none"
+                      value={bankAccountNumber}
+                      onChange={(e) => setBankAccountNumber(e.target.value)}
+                      required
+                    />
+                  </label>
+
+                  <label className="block text-sm">
+                    <span className="text-gray-700 dark:text-gray-300 font-medium">Tên chủ tài khoản (Viết hoa không dấu)</span>
+                    <input
+                      type="text"
+                      placeholder="Ví dụ: NGUYEN VAN A"
+                      className="mt-1.5 w-full uppercase rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-white focus:border-brand-500 focus:outline-none"
+                      value={bankAccountName}
+                      onChange={(e) => setBankAccountName(e.target.value.toUpperCase())}
+                    />
+                  </label>
+
+                  {bankAccountNumber && (
+                    <div className="rounded-xl border border-gray-100 bg-gray-50/80 p-3 dark:border-gray-800 dark:bg-gray-800/40 text-xs space-y-1">
+                      <div className="text-gray-500 dark:text-gray-400">Xem trước thông tin thanh toán:</div>
+                      <div className="font-semibold text-gray-900 dark:text-white">
+                        {bankName || "Ngân hàng"} · STK: <span className="font-mono text-brand-600 dark:text-brand-400 font-bold">{bankAccountNumber}</span>
+                        {bankAccountName && <span> ({bankAccountName})</span>}
+                      </div>
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={savingBanking}
+                    className="w-full rounded-xl bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-600 transition shadow-2xs disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <span>💾</span> {savingBanking ? "Đang lưu..." : "Lưu thông tin nhận tiền"}
+                  </button>
+
+                  {bankingMsg && (
+                    <div
+                      className={`rounded-xl p-3 text-xs font-medium ${
+                        bankingMsg.includes("thất bại")
+                          ? "bg-error-50 text-error-700 dark:bg-error-950/40 dark:text-error-300 border border-error-200 dark:border-error-800"
+                          : "bg-success-50 text-success-700 dark:bg-success-950/40 dark:text-success-300 border border-success-200 dark:border-success-800"
+                      }`}
+                    >
+                      {bankingMsg}
+                    </div>
+                  )}
+                </div>
+              </fieldset>
+            </form>
+          </div>
+
+          {/* Widget Gói Phân Phối Ứng Dụng (agency.json) — Đặt ngay dưới ngân hàng */}
+          <div className="max-w-2xl rounded-2xl border border-blue-200/80 bg-linear-to-r from-blue-50/70 via-white to-indigo-50/70 p-5 dark:border-gray-800 dark:from-gray-900 dark:via-gray-900 dark:to-gray-900 shadow-2xs">
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-brand-500 text-sm text-white font-bold shadow-2xs">
+                  📦
+                </span>
+                <h3 className="font-bold text-gray-900 dark:text-white text-base">
+                  Gói Phân Phối Ứng Dụng — File Cấu Hình Định Danh
+                </h3>
+              </div>
+              <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
+                Tải file <code className="rounded bg-white px-1.5 py-0.5 font-mono font-bold text-brand-600 border border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-brand-400">agency.json</code> này và đặt vào cùng thư mục chứa app <code className="rounded bg-white px-1.5 py-0.5 font-mono text-gray-800 border border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200">ggmaps.exe</code> trước khi nén/gửi cho khách hàng của bạn. Khi khách mở app lần đầu, hệ thống sẽ tự động liên kết tài khoản khách và đơn mua về cho đại lý của bạn.
+              </p>
+              <div className="flex items-center gap-2 pt-1">
+                <span className="text-xs text-gray-500 dark:text-gray-400">Mã đại lý của bạn:</span>
+                <span className="font-mono text-xs font-bold text-brand-600 bg-brand-50 px-2 py-0.5 rounded-md dark:bg-brand-950/50 dark:text-brand-400 border border-brand-200/50 dark:border-brand-900/50">
+                  {data?.agency.username}
+                </span>
+              </div>
+
+              {/* Khối hành động chốt chặn kép */}
+              <div className="pt-2 border-t border-blue-100 dark:border-gray-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="text-xs">
+                  {!data?.agency.can_download_distribution_tag ? (
+                    <span className="text-amber-700 dark:text-amber-400 font-medium">
+                      {!data?.agency.is_activated && !data?.agency.has_banking_configured
+                        ? "⚠️ Cần nạp ví Combo + cài đặt STK ngân hàng ở trên để mở khóa"
+                        : !data?.agency.is_activated
+                          ? "⚠️ Cần nạp tối thiểu 1 gói Combo đại lý để mở khóa"
+                          : "⚠️ Cần cài đặt STK ngân hàng ở form phía trên để mở khóa"}
+                    </span>
+                  ) : (
+                    <span className="text-success-700 dark:text-success-400 font-semibold">
+                      ✓ Đã đủ điều kiện tải file phân phối đại lý
+                    </span>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  disabled={!data?.agency.can_download_distribution_tag}
+                  onClick={() => data?.agency.username && downloadAgencyJson(data.agency.username)}
+                  title={
+                    data?.agency.can_download_distribution_tag
+                      ? "Tải file cấu hình đại lý"
+                      : !data?.agency.is_activated && !data?.agency.has_banking_configured
+                        ? "Cần nạp ví và cài đặt STK ngân hàng"
+                        : !data?.agency.is_activated
+                          ? "Cần nạp tối thiểu 1 gói Combo"
+                          : "Cần cài đặt STK ngân hàng nhận tiền"
+                  }
+                  className={`inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-xs font-bold text-white transition shadow whitespace-nowrap ${
+                    data?.agency.can_download_distribution_tag
+                      ? "bg-brand-500 hover:bg-brand-600 cursor-pointer"
+                      : "bg-gray-400 cursor-not-allowed opacity-60"
+                  }`}
+                >
+                  <span>{data?.agency.can_download_distribution_tag ? "📥" : "🔒"}</span>
+                  {data?.agency.can_download_distribution_tag
+                    ? "Tải File agency.json"
+                    : "Chưa đủ điều kiện tải"}
+                </button>
+              </div>
             </div>
-          </form>
+          </div>
         </div>
       )}
 
