@@ -45,14 +45,18 @@ type Customer = {
 type PaymentOrder = {
   id: number;
   order_code: string;
+  customer?: number | null;
   customer_phone?: string;
+  customer_name?: string;
   agency_username?: string;
+  plan?: number | null;
   plan_name?: string;
   order_type: string;
   amount_vnd: number;
   status: "PENDING" | "COMPLETED" | "CANCELLED";
   qr_image_base64?: string;
   created_at: string;
+  updated_at?: string;
   completed_at?: string;
 };
 
@@ -164,6 +168,12 @@ export default function AdminLicensingPage() {
   const [orderSearch, setOrderSearch] = useState<string>("");
   const [orderStatusFilter, setOrderStatusFilter] = useState<string>("ALL");
   const [orderTypeFilter, setOrderTypeFilter] = useState<string>("ALL");
+
+  // Approve Order Modal State (Tiền thực tế là chân lý)
+  const [approvingOrder, setApprovingOrder] = useState<PaymentOrder | null>(null);
+  const [overridePlanId, setOverridePlanId] = useState<number | "">("");
+  const [actualAmountVnd, setActualAmountVnd] = useState<number | "">("");
+  const [isSubmittingApproval, setIsSubmittingApproval] = useState<boolean>(false);
 
   // Customer Filter, Search & Edit State
   const [customerSearch, setCustomerSearch] = useState<string>("");
@@ -292,10 +302,14 @@ export default function AdminLicensingPage() {
         setPricingPlans(resPlans.data ?? []);
         console.log(`[LICENSING] Đã tải ${data.length} khách hàng, ${resAgencies.data?.length ?? 0} đại lý và ${resPlans.data?.length ?? 0} gói giá`);
       } else if (activeTab === "orders") {
-        const res = await api.get<PaymentOrder[]>(API_LICENSING_ADMIN.ORDERS);
-        const data = res.data ?? [];
+        const [resOrders, resPlans] = await Promise.all([
+          api.get<PaymentOrder[]>(API_LICENSING_ADMIN.ORDERS),
+          api.get<PricingPlan[]>(API_LICENSING_ADMIN.PRICING_PLANS),
+        ]);
+        const data = resOrders.data ?? [];
         setOrders(data);
-        console.log(`[PAYMENT] Đã tải ${data.length} đơn hàng`);
+        setPricingPlans(resPlans.data ?? []);
+        console.log(`[PAYMENT] Đã tải ${data.length} đơn hàng và ${resPlans.data?.length ?? 0} gói cước`);
       } else if (activeTab === "agencies") {
         const [resAgencies, resGlobal, resPlans] = await Promise.all([
           api.get<AgencyBalance[]>(API_LICENSING_ADMIN.AGENCY_BALANCES),
@@ -567,17 +581,55 @@ export default function AdminLicensingPage() {
     }
   };
 
-  const handleCompleteOrder = async (orderId: number) => {
-    if (!confirm("Xác nhận duyệt hoàn thành đơn hàng này?")) return;
+  // Mở modal duyệt đơn hàng (hỗ trợ ghi đè gói và sửa tiền thực tế)
+  const handleOpenApproveModal = (order: PaymentOrder) => {
+    setApprovingOrder(order);
+    if (order.order_type === "LICENSE_PURCHASE") {
+      const matched = pricingPlans.find((p) => p.id === order.plan || p.name === order.plan_name);
+      setOverridePlanId(matched ? matched.id : (order.plan || ""));
+    } else {
+      setOverridePlanId("");
+    }
+    setActualAmountVnd(order.amount_vnd);
+  };
+
+  // Tự động cập nhật số tiền gợi ý khi Admin chọn đổi gói cước
+  const handleSelectPlanChange = (newPlanId: number | "") => {
+    setOverridePlanId(newPlanId);
+    if (newPlanId !== "") {
+      const selectedPlan = pricingPlans.find((p) => p.id === Number(newPlanId));
+      if (selectedPlan) {
+        setActualAmountVnd(selectedPlan.price_vnd);
+      }
+    } else if (approvingOrder) {
+      setActualAmountVnd(approvingOrder.amount_vnd);
+    }
+  };
+
+  // Xác nhận duyệt đơn hàng gửi lên Backend (Tiền thực tế là chân lý)
+  const handleConfirmApproveOrder = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!approvingOrder) return;
+    setIsSubmittingApproval(true);
     try {
-      console.log(`[PAYMENT] Đang duyệt hoàn thành order_id=${orderId}...`);
-      await api.post(API_LICENSING_ADMIN.COMPLETE_ORDER(orderId));
-      console.log(`[PAYMENT] Duyệt hoàn thành đơn hàng thành công order_id=${orderId}`);
-      setMsg("Đã duyệt đơn hàng thành công!");
+      console.log(`[PAYMENT] Đang duyệt đơn hàng order_id=${approvingOrder.id} (${approvingOrder.order_code})...`);
+      const payload: { override_plan_id?: number; actual_amount_vnd?: number } = {};
+      if (approvingOrder.order_type === "LICENSE_PURCHASE" && overridePlanId !== "") {
+        payload.override_plan_id = Number(overridePlanId);
+      }
+      if (actualAmountVnd !== "") {
+        payload.actual_amount_vnd = Number(actualAmountVnd);
+      }
+      const res = await api.post(API_LICENSING_ADMIN.COMPLETE_ORDER(approvingOrder.id), payload);
+      console.log(`[PAYMENT] Duyệt thành công đơn hàng order_id=${approvingOrder.id}`);
+      setMsg(res.data?.message || `Đã duyệt đơn hàng ${approvingOrder.order_code} và kích hoạt bản quyền thành công!`);
+      setApprovingOrder(null);
       await loadData();
-    } catch (err) {
-      console.error(`[PAYMENT] Duyệt đơn hàng thất bại order_id=${orderId}`, err);
-      setMsg("Duyệt đơn hàng thất bại.");
+    } catch (err: any) {
+      console.error(`[PAYMENT] Duyệt đơn hàng thất bại order_id=${approvingOrder.id}`, err);
+      setMsg(err?.response?.data?.message || "Duyệt đơn hàng thất bại.");
+    } finally {
+      setIsSubmittingApproval(false);
     }
   };
 
@@ -1903,7 +1955,10 @@ export default function AdminLicensingPage() {
                         )}
                       </td>
                       <td className="px-4 py-3 font-medium text-gray-900 dark:text-white">
-                        {o.customer_phone || o.agency_username || "—"}
+                        <div>{o.customer_phone || o.agency_username || "—"}</div>
+                        {o.customer_name && (
+                          <div className="text-xs text-gray-500 dark:text-gray-400 font-normal">{o.customer_name}</div>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-xs font-semibold text-gray-800 dark:text-gray-200">{o.plan_name || "—"}</td>
                       <td className="px-4 py-3 font-bold text-gray-900 dark:text-white">
@@ -1927,7 +1982,12 @@ export default function AdminLicensingPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-xs text-gray-500 dark:text-gray-400">
-                        {new Date(o.created_at).toLocaleString("vi-VN")}
+                        <div>{new Date(o.created_at).toLocaleString("vi-VN")}</div>
+                        {o.updated_at && o.updated_at !== o.created_at && (
+                          <div className="text-[11px] text-brand-600 dark:text-brand-400 font-medium">
+                            Cập nhật: {new Date(o.updated_at).toLocaleString("vi-VN")}
+                          </div>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-right">
                         <div className="inline-flex items-center gap-1.5">
@@ -1935,8 +1995,8 @@ export default function AdminLicensingPage() {
                             <>
                               <button
                                 type="button"
-                                onClick={() => handleCompleteOrder(o.id)}
-                                title="Duyệt và cấp bản quyền/nạp ví"
+                                onClick={() => handleOpenApproveModal(o)}
+                                title="Duyệt đơn và kích hoạt bản quyền"
                                 className="inline-flex items-center gap-1 rounded-lg bg-success-500 px-2.5 py-1.5 text-xs font-semibold text-white shadow-2xs hover:bg-success-600 transition"
                               >
                                 <span>✓</span> Duyệt
@@ -3274,6 +3334,140 @@ export default function AdminLicensingPage() {
                 </tbody>
               </table>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Xác Nhận Duyệt Đơn Hàng & Kích Hoạt Bản Quyền (Tiền thực tế là chân lý) */}
+      {approvingOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl dark:bg-gray-900 dark:border dark:border-gray-800">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3 dark:border-gray-800">
+              <div className="flex items-center gap-2.5">
+                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-success-50 text-success-600 dark:bg-success-950/60 dark:text-success-400 text-lg font-bold">
+                  ✓
+                </span>
+                <div>
+                  <h2 className="text-base font-bold text-gray-900 dark:text-white">
+                    Xác Nhận Duyệt Đơn Hàng
+                  </h2>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Mã đơn: <b className="font-mono text-brand-600 dark:text-brand-400">{approvingOrder.order_code}</b>
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setApprovingOrder(null)}
+                className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-200 transition"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleConfirmApproveOrder} className="mt-4 space-y-4">
+              {/* Thông tin đơn hàng tóm tắt */}
+              <div className="rounded-xl border border-gray-100 bg-gray-50/70 p-3.5 text-xs dark:border-gray-800 dark:bg-gray-950/40 space-y-1.5">
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Khách hàng / SĐT:</span>
+                  <span className="font-semibold text-gray-900 dark:text-white">
+                    {approvingOrder.customer_phone || approvingOrder.agency_username || "—"}
+                    {approvingOrder.customer_name ? ` (${approvingOrder.customer_name})` : ""}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Loại đơn:</span>
+                  <span className="font-semibold text-gray-900 dark:text-white">
+                    {approvingOrder.order_type === "LICENSE_PURCHASE" ? "Mua bản quyền Desktop" : "Nạp ví đại lý"}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Gói khách chọn ban đầu:</span>
+                  <span className="font-bold text-brand-600 dark:text-brand-400">
+                    {approvingOrder.plan_name || "—"}
+                  </span>
+                </div>
+                <div className="flex justify-between border-t border-gray-200/60 dark:border-gray-800 pt-1.5">
+                  <span className="text-gray-500">Giá trị đơn tạo:</span>
+                  <span className="font-extrabold text-gray-900 dark:text-white">
+                    {approvingOrder.amount_vnd.toLocaleString("vi-VN")} đ
+                  </span>
+                </div>
+              </div>
+
+              {/* Tùy chọn Ghi đè Gói Cước nếu là đơn mua bản quyền */}
+              {approvingOrder.order_type === "LICENSE_PURCHASE" && (
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
+                    Gói cước kích hoạt thực tế:
+                  </label>
+                  <select
+                    value={overridePlanId}
+                    onChange={(e) => handleSelectPlanChange(e.target.value === "" ? "" : Number(e.target.value))}
+                    className="mt-1 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-900 focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+                  >
+                    <option value="">— Giữ nguyên gói theo đơn ({approvingOrder.plan_name || "Hiện tại"}) —</option>
+                    {pricingPlans
+                      .filter((p) => p.is_active && !p.agency)
+                      .map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name} ({p.duration_days} ngày) — {p.price_vnd.toLocaleString("vi-VN")} đ
+                        </option>
+                      ))}
+                  </select>
+                  <p className="mt-1 text-[11px] text-gray-500">
+                    💡 Khách chuyển tiền cho gói khác (ví dụ: tạo đơn 1 tháng nhưng chuyển tiền gói 6 tháng)? Hãy chọn gói thực tế tại đây để kích hoạt đúng thời hạn bản quyền.
+                  </p>
+                </div>
+              )}
+
+              {/* Số tiền thực tế nhận */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
+                  Số tiền thực nhận theo biên lai ngân hàng (VNĐ) *:
+                </label>
+                <input
+                  type="number"
+                  required
+                  min={0}
+                  step={1000}
+                  value={actualAmountVnd}
+                  onChange={(e) => setActualAmountVnd(e.target.value === "" ? "" : Number(e.target.value))}
+                  placeholder="Nhập số tiền thực nhận..."
+                  className="mt-1 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-bold text-gray-900 focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+                />
+                <p className="mt-1 text-[11px] text-gray-500">
+                  Quy tắc "Tiền thực tế là chân lý": Số tiền này sẽ được lưu chính xác vào đơn hàng và sổ sách doanh thu.
+                </p>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="mt-5 flex items-center justify-end gap-2 border-t border-gray-100 pt-3 dark:border-gray-800">
+                <button
+                  type="button"
+                  onClick={() => setApprovingOrder(null)}
+                  disabled={isSubmittingApproval}
+                  className="rounded-xl border border-gray-200 px-4 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800 transition"
+                >
+                  Hủy bỏ
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingApproval}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-success-500 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-success-600 disabled:opacity-50 transition"
+                >
+                  {isSubmittingApproval ? (
+                    <>
+                      <span className="animate-spin">⏳</span> Đang kích hoạt...
+                    </>
+                  ) : (
+                    <>
+                      <span>✓</span> Xác nhận duyệt & Kích hoạt
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
