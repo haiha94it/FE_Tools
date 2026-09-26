@@ -24,6 +24,7 @@ export const API_CATALOG = {
 export const API_SYSTEM = {
   GET: "/api/system/get",
   EDIT: "/api/system/edit",
+  SUPPORT: "/api/system/support",
   PUBLIC_UI_STATUS: "/api/system/public-ui-status/",
   BANKS: "/api/system/banks/",
 } as const;
