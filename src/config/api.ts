@@ -34,6 +34,7 @@ export const API_USERS_ADMIN = {
   CREATE: "/api/users/create",
   LOCK: "/api/users/lock",
   UNLOCK: "/api/users/unlock",
+  RESET_PASSWORD: (userId: number) => `/api/users/${userId}/reset-password/`,
 } as const;
 
 export const API_LICENSING_ADMIN = {

@@ -168,6 +168,7 @@ export default function AdminLicensingPage() {
   const [orderSearch, setOrderSearch] = useState<string>("");
   const [orderStatusFilter, setOrderStatusFilter] = useState<string>("ALL");
   const [orderTypeFilter, setOrderTypeFilter] = useState<string>("ALL");
+  const [showOrderMobileFilters, setShowOrderMobileFilters] = useState<boolean>(false);
 
   // Approve Order Modal State (Tiền thực tế là chân lý)
   const [approvingOrder, setApprovingOrder] = useState<PaymentOrder | null>(null);
@@ -1162,17 +1163,17 @@ export default function AdminLicensingPage() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3 sm:space-y-4">
       {msg && (
-        <div className="flex items-center justify-between rounded-lg bg-brand-50 p-3 text-xs sm:text-sm text-brand-700 dark:bg-brand-950/40 dark:text-brand-300">
+        <div className="flex items-center justify-between rounded-lg bg-brand-50 p-2.5 sm:p-3 text-xs sm:text-sm text-brand-700 dark:bg-brand-950/40 dark:text-brand-300">
           <span>{msg}</span>
           <button onClick={() => setMsg(null)} className="font-bold">✕</button>
         </div>
       )}
 
       {/* Tabs & Top Actions Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-200 dark:border-gray-800 pb-0.5">
-        <div className="flex flex-wrap gap-1">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-200 dark:border-gray-800 pb-1">
+        <div className="flex items-center gap-1 overflow-x-auto no-scrollbar max-w-full pb-1 sm:pb-0">
           {[
             { id: "customers", label: "Khách hàng" },
             { id: "orders", label: "Đơn hàng" },
@@ -1184,7 +1185,7 @@ export default function AdminLicensingPage() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
-              className={`border-b-2 px-3.5 py-2 text-xs sm:text-sm font-medium transition-colors ${
+              className={`whitespace-nowrap shrink-0 border-b-2 px-3 py-1.5 sm:px-3.5 sm:py-2 text-xs sm:text-sm font-medium transition-colors ${
                 activeTab === tab.id
                   ? "border-brand-500 text-brand-600 dark:text-brand-400 font-bold"
                   : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
@@ -1195,12 +1196,12 @@ export default function AdminLicensingPage() {
           ))}
         </div>
 
-        <div className="flex items-center gap-2 pb-1 sm:pb-0">
+        <div className="flex items-center gap-2 pb-1 sm:pb-0 shrink-0">
           {activeTab === "pricing" && (
             <button
               type="button"
               onClick={openCreatePlanModal}
-              className="rounded-lg bg-brand-500 px-3 py-1.5 text-xs font-semibold text-white shadow-2xs hover:bg-brand-600 transition"
+              className="rounded-lg bg-brand-500 px-2.5 py-1.5 text-xs font-semibold text-white shadow-2xs hover:bg-brand-600 transition"
             >
               ➕ Thêm Gói Khách Lẻ
             </button>
@@ -1209,7 +1210,7 @@ export default function AdminLicensingPage() {
             type="button"
             onClick={loadData}
             title="Tải lại dữ liệu"
-            className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-2xs hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700 transition"
+            className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-700 shadow-2xs hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700 transition"
           >
             <span>🔄</span> Làm mới
           </button>
@@ -1220,8 +1221,8 @@ export default function AdminLicensingPage() {
       {activeTab === "customers" && (
         <div className="space-y-4">
           {/* Toolbar Tìm kiếm, Lọc đại lý & Xuất Excel */}
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 w-full lg:w-auto">
               {/* Search Bar */}
               <div className="relative w-full sm:w-72">
                 <input
@@ -1248,23 +1249,32 @@ export default function AdminLicensingPage() {
                   onChange={(e) => setCustomerAgencyFilter(e.target.value)}
                   className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200"
                 >
-                  <option value="DIRECT">👤 Khách hàng của Admin (Trực tiếp)</option>
-                  <option value="ALL">🏢 Tất cả khách hàng (Toàn hệ thống - {customers.length})</option>
+                  <option value="DIRECT">👤 Khách của Admin (Trực tiếp)</option>
+                  <option value="ALL">🏢 Tất cả khách hàng ({customers.length})</option>
                   {agencies.map((a) => (
                     <option key={a.id} value={String(a.agency)}>
-                      🏢 Đại lý: {a.agency_fullname || a.agency_username} (@{a.agency_username})
+                      🏢 {a.agency_fullname || a.agency_username} (@{a.agency_username})
                     </option>
                   ))}
                 </select>
               </div>
 
-              <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">
-                Hiển thị: <b>{filteredCustomers.length}</b> / {customers.length} khách
-              </span>
+              <div className="flex items-center justify-between sm:justify-start gap-2">
+                <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">
+                  Hiển thị: <b>{filteredCustomers.length}</b> / {customers.length} khách
+                </span>
+                <button
+                  type="button"
+                  onClick={handleExportExcel}
+                  className="inline-flex sm:hidden items-center gap-1.5 rounded-xl border border-success-200 bg-success-50 px-3 py-1.5 text-xs font-bold text-success-700 shadow-2xs hover:bg-success-100 transition dark:border-success-900/50 dark:bg-success-950/40 dark:text-success-300"
+                >
+                  <span>📥</span> Xuất Excel
+                </button>
+              </div>
             </div>
 
-            {/* Nút Xuất Excel */}
-            <div className="flex items-center gap-2">
+            {/* Nút Xuất Excel (Desktop) */}
+            <div className="hidden sm:flex items-center gap-2">
               <button
                 type="button"
                 onClick={handleExportExcel}
@@ -1275,7 +1285,8 @@ export default function AdminLicensingPage() {
             </div>
           </div>
 
-          <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900 shadow-2xs">
+          {/* Desktop Table View */}
+          <div className="hidden md:block overflow-x-auto rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900 shadow-2xs">
             <table className="min-w-full text-left text-sm">
               <thead className="border-b border-gray-100 text-gray-500 dark:border-gray-800 dark:text-gray-400 bg-gray-50/50 dark:bg-gray-950/30">
                 <tr>
@@ -1406,6 +1417,109 @@ export default function AdminLicensingPage() {
                 )}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile Card View cho Khách Hàng */}
+          <div className="block md:hidden space-y-2.5">
+            {filteredCustomers.length === 0 ? (
+              <div className="rounded-xl border border-gray-200 bg-white p-6 text-center text-xs text-gray-400 dark:border-gray-800 dark:bg-gray-900">
+                Không tìm thấy khách hàng nào phù hợp với điều kiện lọc.
+              </div>
+            ) : (
+              filteredCustomers.map((c) => {
+                const lic = c.current_license;
+                return (
+                  <div
+                    key={`mob-cust-${c.id}`}
+                    className="rounded-xl border border-gray-200 bg-white p-3.5 shadow-2xs dark:border-gray-800 dark:bg-gray-900"
+                  >
+                    {/* Dòng 1: SĐT + Họ tên + Badge bản quyền */}
+                    <div className="flex items-start justify-between gap-2 border-b border-gray-100 pb-2.5 dark:border-gray-800">
+                      <div>
+                        <div className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
+                          <span>👤</span> {c.phone_number}
+                        </div>
+                        {c.full_name && (
+                          <div className="text-xs text-gray-600 dark:text-gray-300 font-medium mt-0.5">
+                            {c.full_name}
+                          </div>
+                        )}
+                      </div>
+                      {lic ? (
+                        <span
+                          className={`rounded-md px-2 py-0.5 text-xs font-bold shrink-0 ${
+                            lic.is_valid
+                              ? "bg-success-50 text-success-700 dark:bg-success-950/50 dark:text-success-300"
+                              : "bg-error-50 text-error-700 dark:bg-error-950/50 dark:text-error-300"
+                          }`}
+                        >
+                          {lic.license_type}
+                        </span>
+                      ) : (
+                        <span className="rounded-md bg-gray-100 px-2 py-0.5 text-xs text-gray-500 dark:bg-gray-800 shrink-0">
+                          Chưa có
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Dòng 2: Chi tiết hạn dùng + Thiết bị + Đại lý */}
+                    <div className="py-2.5 space-y-1.5 text-xs">
+                      <div className="flex items-center justify-between text-gray-600 dark:text-gray-300">
+                        <span>Hạn sử dụng:</span>
+                        <span className={lic?.is_valid ? "font-bold text-gray-900 dark:text-white" : "text-gray-400 line-through"}>
+                          {lic ? new Date(lic.valid_until).toLocaleDateString("vi-VN") : "—"}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-gray-600 dark:text-gray-300">
+                        <span>Mã GT / Thưởng:</span>
+                        <span>
+                          <b className="font-mono text-brand-600 dark:text-brand-400">{c.referral_code}</b> (+{c.referral_reward_days}d)
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-gray-600 dark:text-gray-300">
+                        <span>Thiết bị / Quét:</span>
+                        <span>
+                          <b>{c.devices?.length || 0}</b> máy • <b>{c.scan_count || 0}</b> phiên {c.records_count ? `(${c.records_count.toLocaleString("vi-VN")} điểm)` : ""}
+                        </span>
+                      </div>
+                      {c.agency_username && (
+                        <div className="flex items-center justify-between text-gray-600 dark:text-gray-300">
+                          <span>Đại lý:</span>
+                          <span className="font-semibold text-purple-600 dark:text-purple-400">
+                            🏢 {c.agency_fullname || c.agency_username}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Dòng 3: Thao tác (Cấp hạn, Sửa, Xóa) */}
+                    <div className="flex items-center justify-end gap-2 pt-2.5 border-t border-gray-100 dark:border-gray-800">
+                      <button
+                        type="button"
+                        onClick={() => openIssueLicenseModal(c)}
+                        className="inline-flex min-h-[38px] items-center gap-1 rounded-xl bg-brand-50 px-3 py-2 text-xs font-bold text-brand-600 hover:bg-brand-100 dark:bg-brand-950/50 dark:text-brand-300 transition"
+                      >
+                        + Cấp hạn
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => openEditCustomerModal(c)}
+                        className="inline-flex min-h-[38px] items-center gap-1 rounded-xl bg-gray-100 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-200 transition"
+                      >
+                        ✏️ Sửa
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteCustomer(c.id, c.phone_number)}
+                        className="inline-flex min-h-[38px] items-center justify-center rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-100 transition dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300"
+                      >
+                        🗑️
+                      </button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
 
           {/* Modal Sửa Chi Tiết Khách Hàng */}
@@ -1815,8 +1929,46 @@ export default function AdminLicensingPage() {
 
       {/* Tab 2: Orders */}
       {activeTab === "orders" && (
-        <div className="space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="space-y-2 sm:space-y-4">
+          {/* Hàng 1 (Mobile): Tiêu đề ngắn gọn + Thao tác nhanh làm mới & xóa đơn */}
+          <div className="flex md:hidden items-center justify-between py-1 border-b border-gray-100 dark:border-gray-800">
+            <div className="flex items-center gap-1.5">
+              <h2 className="text-base font-bold text-gray-900 dark:text-white flex items-center gap-1">
+                <span>📋</span> Đơn hàng
+              </h2>
+              <span className="rounded-full bg-brand-50 px-2 py-0.5 text-xs font-bold text-brand-600 dark:bg-brand-950/50 dark:text-brand-400">
+                {orders.length}
+              </span>
+              {orders.filter((o) => o.status === "PENDING").length > 0 && (
+                <span className="rounded-full bg-warning-50 px-1.5 py-0.5 text-[11px] font-bold text-warning-700 dark:bg-warning-950/50 dark:text-warning-300">
+                  {orders.filter((o) => o.status === "PENDING").length} chờ
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={loadData}
+                title="Làm mới danh sách đơn hàng"
+                className="w-[34px] h-[34px] flex items-center justify-center rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900 text-xs shadow-2xs hover:bg-gray-50 dark:hover:bg-gray-800 transition"
+              >
+                <span>🔄</span>
+              </button>
+              {orders.length > 0 && (
+                <button
+                  type="button"
+                  onClick={handleDeleteAllOrders}
+                  title="Xóa tất cả đơn hàng"
+                  className="w-[34px] h-[34px] flex items-center justify-center rounded-xl border border-red-200 bg-red-50 dark:border-red-900/50 dark:bg-red-950/40 text-xs shadow-2xs hover:bg-red-100 transition text-red-600 dark:text-red-300"
+                >
+                  <span>🗑️</span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Hàng 1 (Desktop): Tiêu đề đầy đủ + Nút xóa tất cả đơn */}
+          <div className="hidden md:flex items-center justify-between gap-3">
             <div>
               <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
                 <span>📋</span> Danh Sách Đơn Hàng & Thanh Toán ({orders.length})
@@ -1829,38 +1981,144 @@ export default function AdminLicensingPage() {
               <button
                 type="button"
                 onClick={handleDeleteAllOrders}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-3.5 py-2 text-xs font-bold text-red-600 shadow-2xs hover:bg-red-100 transition dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-bold text-red-600 shadow-2xs hover:bg-red-100 transition dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300"
               >
                 <span>🗑️</span> Xóa Tất Cả Đơn Hàng
               </button>
             )}
           </div>
 
-          {/* Toolbar Tìm kiếm theo mã đơn, SĐT & Lọc trạng thái / loại đơn */}
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
-              {/* Search Bar */}
-              <div className="relative w-full sm:w-80">
+          {/* Hàng 2 (Mobile): Tìm kiếm 75% + Phễu lọc thu gọn 25% */}
+          <div className="md:hidden space-y-2">
+            <div className="flex items-center gap-2">
+              <div className="relative flex-[3] min-w-0">
                 <input
                   type="text"
-                  placeholder="🔍 Tìm theo mã đơn (VD: GM..., TOPUP...), SĐT..."
+                  placeholder="🔍 Tìm mã đơn, SĐT..."
                   value={orderSearch}
                   onChange={(e) => setOrderSearch(e.target.value)}
-                  className="w-full rounded-xl border border-gray-200 bg-white px-3.5 py-2 text-xs text-gray-900 placeholder-gray-400 focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-white dark:placeholder-gray-500"
+                  className="w-full h-9 rounded-xl border border-gray-200 bg-white px-3 text-xs text-gray-900 placeholder-gray-400 focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-white dark:placeholder-gray-500"
                 />
                 {orderSearch && (
                   <button
                     type="button"
                     onClick={() => setOrderSearch("")}
-                    className="absolute right-2.5 top-2 text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
                   >
                     ✕
                   </button>
                 )}
               </div>
 
+              <button
+                type="button"
+                onClick={() => setShowOrderMobileFilters((prev) => !prev)}
+                className={`flex-1 h-9 px-2.5 inline-flex items-center justify-center gap-1 rounded-xl border text-xs font-semibold transition shrink-0 ${
+                  orderStatusFilter !== "ALL" || orderTypeFilter !== "ALL" || showOrderMobileFilters
+                    ? "border-brand-500 bg-brand-50 text-brand-600 dark:bg-brand-950/40 dark:text-brand-400 font-bold"
+                    : "border-gray-200 bg-white text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
+                }`}
+              >
+                <span>🌪️</span>
+                <span>Lọc</span>
+                {(orderStatusFilter !== "ALL" || orderTypeFilter !== "ALL") && (
+                  <span className="ml-0.5 rounded-full bg-brand-500 text-white w-4 h-4 text-[10px] flex items-center justify-center font-bold">
+                    {(orderStatusFilter !== "ALL" ? 1 : 0) + (orderTypeFilter !== "ALL" ? 1 : 0)}
+                  </span>
+                )}
+              </button>
+            </div>
+
+            {/* Accordion Phễu lọc Mobile (Mặc định đóng) */}
+            {showOrderMobileFilters && (
+              <div className="p-2.5 rounded-xl border border-gray-200 bg-gray-50/80 dark:border-gray-800 dark:bg-gray-900/80 space-y-2">
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-gray-500 dark:text-gray-400 mb-1">
+                      Trạng thái
+                    </label>
+                    <select
+                      value={orderStatusFilter}
+                      onChange={(e) => setOrderStatusFilter(e.target.value)}
+                      className="w-full h-8 rounded-lg border border-gray-200 bg-white px-2 text-xs font-semibold text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+                    >
+                      <option value="ALL">Tất cả ({orders.length})</option>
+                      <option value="PENDING">
+                        ⏳ Chờ duyệt ({orders.filter((o) => o.status === "PENDING").length})
+                      </option>
+                      <option value="COMPLETED">
+                        ✓ Đã duyệt ({orders.filter((o) => o.status === "COMPLETED").length})
+                      </option>
+                      <option value="CANCELLED">
+                        ✕ Đã từ chối ({orders.filter((o) => o.status === "CANCELLED").length})
+                      </option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-semibold text-gray-500 dark:text-gray-400 mb-1">
+                      Loại đơn
+                    </label>
+                    <select
+                      value={orderTypeFilter}
+                      onChange={(e) => setOrderTypeFilter(e.target.value)}
+                      className="w-full h-8 rounded-lg border border-gray-200 bg-white px-2 text-xs font-semibold text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+                    >
+                      <option value="ALL">Tất cả loại</option>
+                      <option value="LICENSE_PURCHASE">
+                        🔑 Mua bản quyền ({orders.filter((o) => o.order_type === "LICENSE_PURCHASE").length})
+                      </option>
+                      <option value="AGENCY_TOPUP">
+                        💳 Nạp ví đại lý ({orders.filter((o) => o.order_type === "AGENCY_TOPUP").length})
+                      </option>
+                    </select>
+                  </div>
+                </div>
+
+                {(orderStatusFilter !== "ALL" || orderTypeFilter !== "ALL") && (
+                  <div className="flex justify-end pt-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setOrderStatusFilter("ALL");
+                        setOrderTypeFilter("ALL");
+                      }}
+                      className="text-xs text-brand-600 dark:text-brand-400 font-semibold hover:underline"
+                    >
+                      ✕ Đặt lại bộ lọc
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Toolbar Tìm kiếm & Lọc trên Desktop (Giữ nguyên 100%) */}
+          <div className="hidden md:block space-y-2">
+            {/* Search Bar */}
+            <div className="relative w-full">
+              <input
+                type="text"
+                placeholder="🔍 Tìm theo mã đơn (VD: GM..., TOPUP...), SĐT..."
+                value={orderSearch}
+                onChange={(e) => setOrderSearch(e.target.value)}
+                className="w-full rounded-xl border border-gray-200 bg-white px-3.5 py-2 text-xs text-gray-900 placeholder-gray-400 focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-white dark:placeholder-gray-500"
+              />
+              {orderSearch && (
+                <button
+                  type="button"
+                  onClick={() => setOrderSearch("")}
+                  className="absolute right-2.5 top-2 text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+
+            {/* Filter Desktop */}
+            <div className="flex items-center gap-3">
               {/* Lọc Trạng Thái */}
-              <div className="w-full sm:w-48">
+              <div className="w-48">
                 <select
                   value={orderStatusFilter}
                   onChange={(e) => setOrderStatusFilter(e.target.value)}
@@ -1880,7 +2138,7 @@ export default function AdminLicensingPage() {
               </div>
 
               {/* Lọc Loại Đơn */}
-              <div className="w-full sm:w-48">
+              <div className="w-48">
                 <select
                   value={orderTypeFilter}
                   onChange={(e) => setOrderTypeFilter(e.target.value)}
@@ -1904,9 +2162,9 @@ export default function AdminLicensingPage() {
                     setOrderStatusFilter("ALL");
                     setOrderTypeFilter("ALL");
                   }}
-                  className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 transition"
+                  className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 transition text-center"
                 >
-                  🔄 Đặt lại
+                  🔄 Đặt lại bộ lọc
                 </button>
               )}
 
@@ -1916,7 +2174,8 @@ export default function AdminLicensingPage() {
             </div>
           </div>
 
-          <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900 shadow-2xs">
+          {/* Desktop Table View */}
+          <div className="hidden md:block overflow-x-auto rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900 shadow-2xs">
             <table className="min-w-full text-left text-sm">
               <thead className="border-b border-gray-100 text-gray-500 dark:border-gray-800 dark:text-gray-400 bg-gray-50/50 dark:bg-gray-950/30">
                 <tr>
@@ -2026,6 +2285,115 @@ export default function AdminLicensingPage() {
                 )}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile Card View cho Đơn Hàng */}
+          <div className="block md:hidden space-y-2 flex-1 overflow-y-auto">
+            {filteredOrders.length === 0 ? (
+              <div className="rounded-xl border border-gray-200 bg-white p-6 text-center text-xs text-gray-400 dark:border-gray-800 dark:bg-gray-900">
+                {orders.length === 0
+                  ? "Chưa có đơn hàng nào trên hệ thống."
+                  : "Không tìm thấy đơn hàng nào phù hợp với bộ lọc tìm kiếm."}
+              </div>
+            ) : (
+              filteredOrders.map((o) => (
+                <div
+                  key={`mob-order-${o.id}`}
+                  className="rounded-xl border border-gray-200 bg-white p-3 shadow-2xs dark:border-gray-800 dark:bg-gray-900 transition"
+                >
+                  {/* Dòng 1: Mã đơn hàng + Badge trạng thái */}
+                  <div className="flex items-center justify-between gap-1.5 border-b border-gray-100 pb-2 dark:border-gray-800">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="font-mono text-xs sm:text-sm font-bold text-brand-600 dark:text-brand-400 truncate">
+                        {o.order_code}
+                      </span>
+                      <span className="text-[11px] text-gray-400 shrink-0">
+                        • {new Date(o.created_at).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit" })}
+                      </span>
+                    </div>
+                    <span
+                      className={`rounded-md px-2 py-0.5 text-[11px] font-bold shrink-0 ${
+                        o.status === "COMPLETED"
+                          ? "bg-success-50 text-success-700 dark:bg-success-950/50 dark:text-success-300"
+                          : o.status === "PENDING"
+                          ? "bg-warning-50 text-warning-700 dark:bg-warning-950/50 dark:text-warning-300"
+                          : "bg-red-50 text-red-700 dark:bg-red-950/50 dark:text-red-300"
+                      }`}
+                    >
+                      {o.status === "COMPLETED"
+                        ? "Đã duyệt"
+                        : o.status === "PENDING"
+                        ? "Chờ duyệt"
+                        : "Đã từ chối"}
+                    </span>
+                  </div>
+
+                  {/* Dòng 2: Khách hàng / SĐT + Gói + Loại đơn */}
+                  <div className="py-2 space-y-1 text-xs">
+                    <div className="flex items-center justify-between gap-2 text-gray-800 dark:text-gray-200 font-medium">
+                      <span className="flex items-center gap-1 truncate">
+                        <span>👤</span> <span className="font-semibold">{o.customer_phone || o.agency_username || "—"}</span>
+                        {o.customer_name && (
+                          <span className="text-gray-500 font-normal truncate">({o.customer_name})</span>
+                        )}
+                      </span>
+                      {o.order_type === "LICENSE_PURCHASE" ? (
+                        <span className="rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-semibold text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 shrink-0">
+                          Mua gói
+                        </span>
+                      ) : (
+                        <span className="rounded bg-purple-50 px-1.5 py-0.5 text-[10px] font-semibold text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 shrink-0">
+                          Nạp ví
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-[11px] text-gray-500 dark:text-gray-400">
+                      Gói: <span className="font-semibold text-gray-900 dark:text-white">{o.plan_name || "—"}</span>
+                    </div>
+                  </div>
+
+                  {/* Dòng 3: Số tiền + Nút thao tác nhanh (min-height 34px) */}
+                  <div className="flex items-center justify-between gap-2 pt-2 border-t border-gray-100 dark:border-gray-800">
+                    <div>
+                      <div className="text-[10px] text-gray-400 uppercase font-semibold">Số tiền</div>
+                      <div className="text-sm sm:text-base font-bold text-gray-900 dark:text-white">
+                        {o.amount_vnd.toLocaleString("vi-VN")} đ
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      {o.status === "PENDING" && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenApproveModal(o)}
+                            title="Duyệt đơn và kích hoạt bản quyền"
+                            className="inline-flex min-h-[34px] items-center gap-1 rounded-xl bg-success-500 px-3 py-1.5 text-xs font-bold text-white shadow-2xs hover:bg-success-600 transition"
+                          >
+                            <span>✓</span> Duyệt
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleRejectOrder(o.id)}
+                            title="Từ chối / Hủy đơn này"
+                            className="inline-flex min-h-[34px] items-center justify-center rounded-xl border border-warning-200 bg-warning-50 px-2.5 py-1.5 text-xs font-semibold text-warning-700 hover:bg-warning-100 transition dark:border-warning-900/50 dark:bg-warning-950/40 dark:text-warning-300"
+                          >
+                            <span>✕</span>
+                          </button>
+                        </>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteOrder(o.id, o.order_code)}
+                        title="Xóa đơn hàng này"
+                        className="inline-flex min-h-[34px] items-center justify-center rounded-xl border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-100 transition dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300"
+                      >
+                        <span>🗑️</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       )}
